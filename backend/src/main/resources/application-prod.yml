@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/wecandoit?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: wecandoit
+    password: ***REMOVED***
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+jwt:
+  secret: ***REMOVED***
+  access-token-expiration: 1800000
+  refresh-token-expiration: 1209600000
+
+cors:
+  allowed-origins:
+    - http://localhost:3000
+    - http://localhost:5173

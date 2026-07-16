@@ -1,0 +1,39 @@
+name: wecandoit-backend-prod
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: wecandoit-mysql-prod
+    restart: always
+    environment:
+      MYSQL_DATABASE: wecandoit
+      MYSQL_USER: wecandoit
+      MYSQL_PASSWORD: ***REMOVED***
+      MYSQL_ROOT_PASSWORD: ***REMOVED***
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p***REMOVED***"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: wecandoit-redis-prod
+    restart: always
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql-data:
+  redis-data:
