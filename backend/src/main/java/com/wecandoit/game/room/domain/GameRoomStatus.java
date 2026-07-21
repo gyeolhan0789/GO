@@ -1,4 +1,4 @@
-package com.wecandoit.game.domain;
+package com.wecandoit.game.room.domain;
 
 public enum GameRoomStatus {
     CREATED,
