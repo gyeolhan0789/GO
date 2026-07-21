@@ -28,7 +28,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     public static final Set<String> PERMIT_ALL_PATHS = Set.of(
             "/auth/signup",
             "/auth/login",
-            "/auth/reissue"
+            "/auth/reissue",
+            "/auth/oauth/google",
+            "/auth/oauth/kakao"
     );
 
     private static final String ROLE_PREFIX = "ROLE_";

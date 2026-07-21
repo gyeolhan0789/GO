@@ -27,22 +27,40 @@ public class Member extends BaseEntity {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false)
+    @Column
     private String password;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private String nickname;
+
+    @Column(length = 100)
+    private String region;
+
+    @Column(nullable = false)
+    private long cash;
+
+    @Column(name = "onboarding_completed", nullable = false)
+    private boolean onboardingCompleted;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_provider")
+    private AuthProvider provider;
+
     @Builder
-    private Member(String email, String password, String nickname, Role role) {
+    private Member(String email, String password, String nickname, String region, long cash,
+            boolean onboardingCompleted, Role role, AuthProvider provider) {
         this.email = email;
         this.password = password;
         this.nickname = nickname;
+        this.region = region;
+        this.cash = cash;
+        this.onboardingCompleted = onboardingCompleted;
         this.role = role;
+        this.provider = provider;
     }
 
     public static Member create(String email, String encodedPassword, String nickname) {
@@ -51,6 +69,16 @@ public class Member extends BaseEntity {
                 .password(encodedPassword)
                 .nickname(nickname)
                 .role(Role.USER)
+                .provider(AuthProvider.LOCAL)
+                .build();
+    }
+
+    public static Member createSocial(String email, String nickname, AuthProvider provider) {
+        return Member.builder()
+                .email(email)
+                .nickname(nickname)
+                .role(Role.USER)
+                .provider(provider)
                 .build();
     }
 }

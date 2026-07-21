@@ -4,9 +4,9 @@ import com.wecandoit.backend.common.exception.CustomException;
 import com.wecandoit.backend.common.exception.ErrorCode;
 import com.wecandoit.backend.common.jwt.JwtClaims;
 import com.wecandoit.backend.common.jwt.JwtProvider;
-import com.wecandoit.backend.common.jwt.JwtProperties;
 import com.wecandoit.backend.common.jwt.TokenRepository;
 import com.wecandoit.backend.common.jwt.TokenValidationResult;
+import com.wecandoit.backend.domain.auth.dto.AuthTokens;
 import com.wecandoit.backend.domain.auth.dto.LoginRequest;
 import com.wecandoit.backend.domain.member.Member;
 import com.wecandoit.backend.domain.member.MemberRepository;
@@ -22,7 +22,7 @@ public class AuthService {
     private final TokenRepository tokenRepository;
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtProperties jwtProperties;
+    private final TokenIssuer tokenIssuer;
 
     public AuthTokens login(LoginRequest request) {
         Member member = memberRepository.findByEmail(request.email())
@@ -32,16 +32,7 @@ public class AuthService {
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        String accessToken = jwtProvider.createAccessToken(member.getId(), member.getRole().name());
-        String refreshToken = jwtProvider.createRefreshToken(member.getId(), member.getRole().name());
-
-        tokenRepository.saveRefreshToken(
-                member.getId(),
-                refreshToken,
-                jwtProperties.refreshTokenExpirationMillis()
-        );
-
-        return new AuthTokens(accessToken, refreshToken);
+        return tokenIssuer.issue(member.getId(), member.getRole().name());
     }
 
     public AuthTokens reissue(String refreshToken) {
@@ -61,15 +52,7 @@ public class AuthService {
             throw new CustomException(ErrorCode.REFRESH_TOKEN_INVALID);
         }
 
-        String accessToken = jwtProvider.createAccessToken(member.getId(), member.getRole().name());
-        String rotatedRefreshToken = jwtProvider.createRefreshToken(member.getId(), member.getRole().name());
-        tokenRepository.saveRefreshToken(
-                member.getId(),
-                rotatedRefreshToken,
-                jwtProperties.refreshTokenExpirationMillis()
-        );
-
-        return new AuthTokens(accessToken, rotatedRefreshToken);
+        return tokenIssuer.issue(member.getId(), member.getRole().name());
     }
 
     public void logout(Long memberId, String accessToken) {
@@ -79,6 +62,4 @@ public class AuthService {
         }
     }
 
-    public record AuthTokens(String accessToken, String refreshToken) {
-    }
 }

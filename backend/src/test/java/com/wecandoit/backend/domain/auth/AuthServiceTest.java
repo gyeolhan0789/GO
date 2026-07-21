@@ -12,6 +12,8 @@ import com.wecandoit.backend.common.jwt.JwtClaims;
 import com.wecandoit.backend.common.jwt.JwtProvider;
 import com.wecandoit.backend.common.jwt.JwtProperties;
 import com.wecandoit.backend.common.jwt.TokenRepository;
+import com.wecandoit.backend.domain.auth.TokenIssuer;
+import com.wecandoit.backend.domain.auth.dto.AuthTokens;
 import com.wecandoit.backend.domain.auth.dto.LoginRequest;
 import com.wecandoit.backend.domain.member.Member;
 import com.wecandoit.backend.domain.member.MemberRepository;
@@ -31,18 +33,17 @@ class AuthServiceTest {
             1_800_000L,
             1_209_600_000L
     );
-    private final JwtProvider jwtProvider = new JwtProvider(
-            jwtProperties
-    );
+    private final JwtProvider jwtProvider = new JwtProvider(jwtProperties);
     private final TokenRepository tokenRepository = Mockito.mock(TokenRepository.class);
     private final MemberRepository memberRepository = Mockito.mock(MemberRepository.class);
     private final PasswordEncoder passwordEncoder = Mockito.mock(PasswordEncoder.class);
+    private final TokenIssuer tokenIssuer = new TokenIssuer(jwtProvider, tokenRepository, jwtProperties);
     private final AuthService authService = new AuthService(
             jwtProvider,
             tokenRepository,
             memberRepository,
             passwordEncoder,
-            jwtProperties
+            tokenIssuer
     );
 
     @Test
@@ -54,7 +55,7 @@ class AuthServiceTest {
         when(memberRepository.findByEmail("user@example.com")).thenReturn(Optional.of(member));
         when(passwordEncoder.matches("password", "encoded-password")).thenReturn(true);
 
-        AuthService.AuthTokens authTokens = authService.login(
+        AuthTokens authTokens = authService.login(
                 new LoginRequest("user@example.com", "password")
         );
 
@@ -129,7 +130,7 @@ class AuthServiceTest {
         when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
         when(tokenRepository.findRefreshToken(1L)).thenReturn(Optional.of(refreshToken));
 
-        AuthService.AuthTokens authTokens = authService.reissue(refreshToken);
+        AuthTokens authTokens = authService.reissue(refreshToken);
 
         assertThat(authTokens.refreshToken()).isNotEqualTo(refreshToken);
         verify(tokenRepository).saveRefreshToken(1L, authTokens.refreshToken(), 1_209_600_000L);
