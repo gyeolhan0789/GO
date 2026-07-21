@@ -2,16 +2,21 @@ package com.wecandoit.game.room.controller;
 
 import static io.restassured.module.mockmvc.RestAssuredMockMvc.given;
 import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
+import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 
+import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.CustomExceptionHandler;
+import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.game.room.controller.request.CreateRoomRequest;
 import com.wecandoit.game.room.controller.response.CreateRoomResponse;
@@ -142,5 +147,54 @@ class RoomControllerTest {
                 .then()
                 .statusCode(HttpStatus.BAD_REQUEST.value());
         verify(roomService, never()).createRoom(Mockito.anyLong(), Mockito.any());
+    }
+
+    @Test
+    @DisplayName("방장이 게임방을 삭제하면 204 상태를 반환한다")
+    void deleteRoomReturnsNoContent() {
+        // when, then
+        given()
+                .when()
+                .delete("/rooms/{roomId}", 10L)
+                .then()
+                .statusCode(HttpStatus.NO_CONTENT.value())
+                .apply(document("room-delete",
+                        pathParameters(
+                                parameterWithName("roomId").description("삭제할 게임방 ID")
+                        )
+                ));
+        verify(roomService).deleteRoom(1L, 10L);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 게임방을 삭제하면 404 상태를 반환한다")
+    void deleteRoomRejectsMissingRoom() {
+        // given
+        doThrow(new CustomException(ErrorCode.ROOM_NOT_FOUND))
+                .when(roomService)
+                .deleteRoom(1L, 10L);
+
+        // when, then
+        given()
+                .when()
+                .delete("/rooms/{roomId}", 10L)
+                .then()
+                .statusCode(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("방장이 아닌 회원이 게임방을 삭제하면 403 상태를 반환한다")
+    void deleteRoomRejectsNonHost() {
+        // given
+        doThrow(new CustomException(ErrorCode.ROOM_DELETE_FORBIDDEN))
+                .when(roomService)
+                .deleteRoom(1L, 10L);
+
+        // when, then
+        given()
+                .when()
+                .delete("/rooms/{roomId}", 10L)
+                .then()
+                .statusCode(HttpStatus.FORBIDDEN.value());
     }
 }

@@ -1,9 +1,12 @@
 package com.wecandoit.game.room.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.wecandoit.common.exception.CustomException;
+import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.room.controller.request.CreateRoomRequest;
 import com.wecandoit.game.room.controller.response.CreateRoomResponse;
 import com.wecandoit.game.room.domain.GameMode;
@@ -12,6 +15,7 @@ import com.wecandoit.game.room.domain.Room;
 import com.wecandoit.game.room.domain.RoomMember;
 import com.wecandoit.game.room.repository.RoomMemberRepository;
 import com.wecandoit.game.room.repository.RoomRepository;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -61,5 +65,55 @@ class RoomServiceTest {
 
         assertThat(response.roomId()).isEqualTo(10L);
         assertThat(response.status()).isEqualTo(GameRoomStatus.CREATED);
+    }
+
+    @Test
+    @DisplayName("방장이 게임방을 삭제하면 게임방 상태를 종료로 변경한다")
+    void deleteRoomClosesRoom() {
+        // given
+        Room room = Room.create(1L, GameMode.SINGLE, 3);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+
+        // when
+        roomService.deleteRoom(1L, 10L);
+
+        // then
+        assertThat(room.getStatus()).isEqualTo(GameRoomStatus.CLOSED);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 게임방을 삭제하면 실패한다")
+    void deleteRoomRejectsMissingRoom() {
+        // given
+        when(roomRepository.findById(10L)).thenReturn(Optional.empty());
+
+        // when, then
+        assertErrorCode(
+                () -> roomService.deleteRoom(1L, 10L),
+                ErrorCode.ROOM_NOT_FOUND
+        );
+    }
+
+    @Test
+    @DisplayName("방장이 아닌 회원이 게임방을 삭제하면 실패한다")
+    void deleteRoomRejectsNonHost() {
+        // given
+        Room room = Room.create(1L, GameMode.SINGLE, 3);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+
+        // when, then
+        assertErrorCode(
+                () -> roomService.deleteRoom(2L, 10L),
+                ErrorCode.ROOM_DELETE_FORBIDDEN
+        );
+    }
+
+    private void assertErrorCode(Runnable action, ErrorCode errorCode) {
+        assertThatThrownBy(action::run)
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(errorCode);
     }
 }

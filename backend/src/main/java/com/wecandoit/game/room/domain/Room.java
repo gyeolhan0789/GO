@@ -51,4 +51,8 @@ public class Room extends BaseEntity {
     public static Room create(Long hostId, GameMode mode, int targetBingoCount) {
         return new Room(hostId, mode, targetBingoCount);
     }
+
+    public void close() {
+        this.status = GameRoomStatus.CLOSED;
+    }
 }
