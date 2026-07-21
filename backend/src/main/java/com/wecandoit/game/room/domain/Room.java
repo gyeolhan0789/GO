@@ -1,4 +1,4 @@
-package com.wecandoit.game.domain;
+package com.wecandoit.game.room.domain;
 
 import com.wecandoit.common.entity.BaseEntity;
 import jakarta.persistence.Column;
@@ -27,8 +27,9 @@ public class Room extends BaseEntity {
     @Column(name = "host_id", nullable = false)
     private Long hostId;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
-    private String mode;
+    private GameMode mode;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
@@ -39,4 +40,15 @@ public class Room extends BaseEntity {
 
     @Column(name = "started_at")
     private LocalDateTime startedAt;
+
+    private Room(Long hostId, GameMode mode, int targetBingoCount) {
+        this.hostId = hostId;
+        this.mode = mode;
+        this.status = GameRoomStatus.CREATED;
+        this.targetBingoCount = targetBingoCount;
+    }
+
+    public static Room create(Long hostId, GameMode mode, int targetBingoCount) {
+        return new Room(hostId, mode, targetBingoCount);
+    }
 }

@@ -1,11 +1,8 @@
-package com.wecandoit.game.domain;
+package com.wecandoit.game.result.domain;
 
 import com.wecandoit.common.entity.BaseEntity;
-import com.wecandoit.common.status.RequestStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -17,8 +14,8 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
-@Table(name = "game_requests")
-public class GameRequest extends BaseEntity {
+@Table(name = "game_results")
+public class GameResult extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,13 +24,15 @@ public class GameRequest extends BaseEntity {
     @Column(name = "room_id", nullable = false)
     private Long roomId;
 
-    @Column(name = "inviter_id", nullable = false)
-    private Long inviterId;
+    @Column(nullable = false)
+    private boolean result;
 
-    @Column(name = "invitee_id", nullable = false)
-    private Long inviteeId;
+    @Column(name = "bingo_count", nullable = false)
+    private int bingoCount;
 
-    @Enumerated(EnumType.STRING)
-    @Column(length = 255)
-    private RequestStatus status;
+    @Column(name = "completed_mission_count", nullable = false)
+    private int completedMissionCount;
+
+    @Column(name = "reward_cash", nullable = false)
+    private long rewardCash;
 }

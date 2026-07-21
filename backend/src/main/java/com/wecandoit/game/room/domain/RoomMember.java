@@ -1,4 +1,4 @@
-package com.wecandoit.game.domain;
+package com.wecandoit.game.room.domain;
 
 import com.wecandoit.common.entity.BaseEntity;
 import jakarta.persistence.Column;
@@ -33,4 +33,15 @@ public class RoomMember extends BaseEntity {
 
     @Column(name = "joined_at", nullable = false)
     private LocalDateTime joinedAt;
+
+    private RoomMember(Long roomId, Long memberId) {
+        this.roomId = roomId;
+        this.memberId = memberId;
+        this.completedMissionCount = 0;
+        this.joinedAt = LocalDateTime.now();
+    }
+
+    public static RoomMember create(Long roomId, Long memberId) {
+        return new RoomMember(roomId, memberId);
+    }
 }
