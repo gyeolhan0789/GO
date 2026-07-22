@@ -81,4 +81,5 @@ public class Member extends BaseEntity {
                 .provider(provider)
                 .build();
     }
+
 }
