@@ -4,6 +4,7 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.room.controller.response.MyRoomMemberResponse;
 import com.wecandoit.game.room.controller.response.MyRoomResponse;
+import com.wecandoit.game.room.controller.response.RoomDetailResponse;
 import com.wecandoit.game.room.controller.response.RoomMemberResponse;
 import com.wecandoit.game.room.domain.GameRoomStatus;
 import com.wecandoit.game.room.domain.Room;
@@ -26,6 +27,20 @@ public class RoomReadService {
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
     private final MemberReadService memberReadService;
+
+    public RoomDetailResponse getRoomDetail(Long memberId, Long roomId) {
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+        if (!roomMemberRepository.existsByRoomIdAndMemberId(roomId, memberId)) {
+            throw new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN);
+        }
+        if (room.getStatus() == GameRoomStatus.CLOSED) {
+            throw new CustomException(ErrorCode.ROOM_CLOSED);
+        }
+
+        List<RoomMember> roomMembers = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId);
+        return RoomDetailResponse.from(room, getRoomMemberResponses(room, roomMembers));
+    }
 
     public List<MyRoomResponse> getMyRooms(Long memberId) {
         List<RoomMember> myRoomMembers = roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(memberId);
@@ -74,6 +89,10 @@ public class RoomReadService {
         }
 
         List<RoomMember> roomMembers = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId);
+        return getRoomMemberResponses(room, roomMembers);
+    }
+
+    private List<RoomMemberResponse> getRoomMemberResponses(Room room, List<RoomMember> roomMembers) {
         if (roomMembers.isEmpty()) {
             return List.of();
         }

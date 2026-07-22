@@ -23,6 +23,7 @@ import com.wecandoit.game.room.controller.request.CreateRoomRequest;
 import com.wecandoit.game.room.controller.response.CreateRoomResponse;
 import com.wecandoit.game.room.controller.response.MyRoomMemberResponse;
 import com.wecandoit.game.room.controller.response.MyRoomResponse;
+import com.wecandoit.game.room.controller.response.RoomDetailResponse;
 import com.wecandoit.game.room.controller.response.RoomMemberResponse;
 import com.wecandoit.game.room.domain.GameMode;
 import com.wecandoit.game.room.domain.GameRoomStatus;
@@ -242,6 +243,115 @@ class RoomControllerTest {
     }
 
     @Test
+    @DisplayName("게임방 상세를 조회하면 200 상태와 방 정보 및 참여자 목록을 반환한다")
+    void getRoomDetailReturnsRoomDetail() {
+        // given
+        LocalDateTime startedAt = LocalDateTime.of(2026, 7, 22, 9, 50);
+        LocalDateTime joinedAt = LocalDateTime.of(2026, 7, 22, 10, 0);
+        when(roomReadService.getRoomDetail(1L, 10L))
+                .thenReturn(new RoomDetailResponse(
+                        10L,
+                        GameMode.COOPERATE,
+                        GameRoomStatus.WAITING,
+                        3,
+                        1L,
+                        startedAt,
+                        List.of(new RoomMemberResponse(
+                                1L,
+                                "방장",
+                                true,
+                                2,
+                                joinedAt
+                        ))
+                ));
+
+        // when, then
+        given()
+                .when()
+                .get("/rooms/{roomId}", 10L)
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("roomId", equalTo(10))
+                .body("mode", equalTo("COOPERATE"))
+                .body("status", equalTo("WAITING"))
+                .body("targetBingoCount", equalTo(3))
+                .body("hostId", equalTo(1))
+                .body("startedAt", equalTo("2026-07-22T09:50:00"))
+                .body("members[0].memberId", equalTo(1))
+                .body("members[0].nickname", equalTo("방장"))
+                .body("members[0].host", equalTo(true))
+                .body("members[0].completedMissionCount", equalTo(2))
+                .body("members[0].joinedAt", equalTo("2026-07-22T10:00:00"))
+                .apply(document("room-detail",
+                        pathParameters(
+                                parameterWithName("roomId").description("상세 조회할 게임방 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("roomId").description("게임방 ID"),
+                                fieldWithPath("mode").description("게임 모드"),
+                                fieldWithPath("status").description("게임방 상태"),
+                                fieldWithPath("targetBingoCount").description("목표 빙고 수"),
+                                fieldWithPath("hostId").description("방장 회원 ID"),
+                                fieldWithPath("startedAt").description("게임 시작 시각"),
+                                fieldWithPath("members[].memberId").description("참여자 회원 ID"),
+                                fieldWithPath("members[].nickname").description("참여자 닉네임"),
+                                fieldWithPath("members[].host").description("방장 여부"),
+                                fieldWithPath("members[].completedMissionCount").description("완료한 미션 수"),
+                                fieldWithPath("members[].joinedAt").description("게임방 참여 시각")
+                        )
+                ));
+        verify(roomReadService).getRoomDetail(1L, 10L);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 게임방의 상세를 조회하면 404 상태를 반환한다")
+    void getRoomDetailRejectsMissingRoom() {
+        // given
+        doThrow(new CustomException(ErrorCode.ROOM_NOT_FOUND))
+                .when(roomReadService)
+                .getRoomDetail(1L, 10L);
+
+        // when, then
+        assertRoomDetailErrorResponse(HttpStatus.NOT_FOUND, "room-detail-room-not-found");
+    }
+
+    @Test
+    @DisplayName("게임방 참여자가 아니면 상세 조회에 실패한다")
+    void getRoomDetailRejectsNonMember() {
+        // given
+        doThrow(new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN))
+                .when(roomReadService)
+                .getRoomDetail(1L, 10L);
+
+        // when, then
+        assertRoomDetailErrorResponse(HttpStatus.FORBIDDEN, "room-detail-forbidden");
+    }
+
+    @Test
+    @DisplayName("종료된 게임방의 상세를 조회하면 409 상태를 반환한다")
+    void getRoomDetailRejectsClosedRoom() {
+        // given
+        doThrow(new CustomException(ErrorCode.ROOM_CLOSED))
+                .when(roomReadService)
+                .getRoomDetail(1L, 10L);
+
+        // when, then
+        assertRoomDetailErrorResponse(HttpStatus.CONFLICT, "room-detail-closed");
+    }
+
+    @Test
+    @DisplayName("참여자 회원을 찾을 수 없으면 상세 조회에 실패한다")
+    void getRoomDetailRejectsMissingMember() {
+        // given
+        doThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND))
+                .when(roomReadService)
+                .getRoomDetail(1L, 10L);
+
+        // when, then
+        assertRoomDetailErrorResponse(HttpStatus.NOT_FOUND, "room-detail-member-not-found");
+    }
+
+    @Test
     @DisplayName("게임방 참여자 목록을 조회하면 200 상태와 참여자 목록을 반환한다")
     void getRoomMembersReturnsMembers() {
         // given
@@ -403,5 +513,22 @@ class RoomControllerTest {
                 .delete("/rooms/{roomId}", 10L)
                 .then()
                 .statusCode(HttpStatus.FORBIDDEN.value());
+    }
+
+    private void assertRoomDetailErrorResponse(HttpStatus status, String documentName) {
+        given()
+                .when()
+                .get("/rooms/{roomId}", 10L)
+                .then()
+                .statusCode(status.value())
+                .apply(document(documentName,
+                        pathParameters(
+                                parameterWithName("roomId").description("상세 조회할 게임방 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("status").description("HTTP 상태 코드"),
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
     }
 }
