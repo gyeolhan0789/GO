@@ -23,6 +23,7 @@ import com.wecandoit.common.status.RequestStatus;
 import com.wecandoit.game.request.controller.request.GameRequestCreateRequest;
 import com.wecandoit.game.request.controller.response.GameRequestCreateResponse;
 import com.wecandoit.game.request.controller.response.ReceivedGameRequestResponse;
+import com.wecandoit.game.request.controller.response.SentGameRequestResponse;
 import com.wecandoit.game.request.service.GameRequestCommandService;
 import com.wecandoit.game.request.service.GameRequestReadService;
 import io.restassured.http.ContentType;
@@ -121,6 +122,46 @@ class GameRequestControllerTest {
                         )
                 ));
         verify(gameRequestReadService).getReceivedGameRequests(1L);
+    }
+
+    @Test
+    @DisplayName("보낸 게임방 초대 요청 목록을 조회하면 200 상태와 대기 중 초대 목록을 반환한다")
+    void getSentGameRequestsReturnsPendingRequests() {
+        // given
+        LocalDateTime createdAt = LocalDateTime.of(2026, 7, 22, 10, 0);
+        when(gameRequestReadService.getSentGameRequests(1L))
+                .thenReturn(List.of(new SentGameRequestResponse(
+                        20L,
+                        10L,
+                        2L,
+                        "초대받은사람",
+                        RequestStatus.PENDING,
+                        createdAt
+                )));
+
+        // when, then
+        given()
+                .when()
+                .get("/rooms/requests/sent")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("[0].requestId", equalTo(20))
+                .body("[0].roomId", equalTo(10))
+                .body("[0].inviteeId", equalTo(2))
+                .body("[0].inviteeNickname", equalTo("초대받은사람"))
+                .body("[0].status", equalTo("PENDING"))
+                .body("[0].createdAt", equalTo("2026-07-22T10:00:00"))
+                .apply(document("game-request-sent-list",
+                        responseFields(
+                                fieldWithPath("[].requestId").description("게임방 초대 요청 ID"),
+                                fieldWithPath("[].roomId").description("초대한 게임방 ID"),
+                                fieldWithPath("[].inviteeId").description("초대받은 회원 ID"),
+                                fieldWithPath("[].inviteeNickname").description("초대받은 회원 닉네임"),
+                                fieldWithPath("[].status").description("게임방 초대 요청 상태"),
+                                fieldWithPath("[].createdAt").description("게임방 초대 요청 생성 시각")
+                        )
+                ));
+        verify(gameRequestReadService).getSentGameRequests(1L);
     }
 
     @Test
