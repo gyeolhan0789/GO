@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class RoomService {
+public class RoomCommandService {
 
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
