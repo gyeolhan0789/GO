@@ -23,11 +23,14 @@ import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @DisplayName("게임방 서비스")
-class RoomServiceTest {
+class RoomCommandServiceTest {
 
     private final RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
     private final RoomMemberRepository roomMemberRepository = Mockito.mock(RoomMemberRepository.class);
-    private final RoomService roomService = new RoomService(roomRepository, roomMemberRepository);
+    private final RoomCommandService roomCommandService = new RoomCommandService(
+            roomRepository,
+            roomMemberRepository
+    );
 
     @Test
     @DisplayName("게임방을 생성하면 방과 방장 참여 정보를 저장한다")
@@ -40,7 +43,7 @@ class RoomServiceTest {
         });
 
         // when
-        CreateRoomResponse response = roomService.createRoom(
+        CreateRoomResponse response = roomCommandService.createRoom(
                 1L,
                 new CreateRoomRequest(GameMode.COOPERATE, 3)
         );
@@ -76,7 +79,7 @@ class RoomServiceTest {
         when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
 
         // when
-        roomService.deleteRoom(1L, 10L);
+        roomCommandService.deleteRoom(1L, 10L);
 
         // then
         assertThat(room.getStatus()).isEqualTo(GameRoomStatus.CLOSED);
@@ -90,7 +93,7 @@ class RoomServiceTest {
 
         // when, then
         assertErrorCode(
-                () -> roomService.deleteRoom(1L, 10L),
+                () -> roomCommandService.deleteRoom(1L, 10L),
                 ErrorCode.ROOM_NOT_FOUND
         );
     }
@@ -105,7 +108,7 @@ class RoomServiceTest {
 
         // when, then
         assertErrorCode(
-                () -> roomService.deleteRoom(2L, 10L),
+                () -> roomCommandService.deleteRoom(2L, 10L),
                 ErrorCode.ROOM_DELETE_FORBIDDEN
         );
     }
