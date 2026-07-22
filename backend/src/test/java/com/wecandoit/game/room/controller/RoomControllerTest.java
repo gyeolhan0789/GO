@@ -89,7 +89,7 @@ class RoomControllerTest {
     @DisplayName("게임방을 생성하면 생성된 방 ID와 상태를 반환한다")
     void createRoomReturnsCreatedRoom() {
         // given
-        CreateRoomRequest request = new CreateRoomRequest(GameMode.SINGLE, 3);
+        CreateRoomRequest request = new CreateRoomRequest(GameMode.SINGLE, 3, 3);
         when(roomCommandService.createRoom(1L, request))
                 .thenReturn(new CreateRoomResponse(10L, GameRoomStatus.CREATED));
 
@@ -99,7 +99,8 @@ class RoomControllerTest {
                 .body("""
                         {
                           "mode": "SINGLE",
-                          "targetBingoCount": 3
+                          "targetBingoCount": 3,
+                          "boardSize": 3
                         }
                         """)
                 .when()
@@ -111,7 +112,8 @@ class RoomControllerTest {
                 .apply(document("room-create",
                         requestFields(
                                 fieldWithPath("mode").description("게임 모드"),
-                                fieldWithPath("targetBingoCount").description("목표 빙고 수")
+                                fieldWithPath("targetBingoCount").description("목표 빙고 수"),
+                                fieldWithPath("boardSize").description("빙고판 크기 (3~5)")
                         ),
                         responseFields(
                                 fieldWithPath("roomId").description("생성된 게임방 ID"),
@@ -157,7 +159,28 @@ class RoomControllerTest {
                 .body("""
                         {
                           "mode": "SINGLE",
-                          "targetBingoCount": 0
+                          "targetBingoCount": 0,
+                          "boardSize": 3
+                        }
+                        """)
+                .when()
+                .post("/rooms")
+                .then()
+                .statusCode(HttpStatus.BAD_REQUEST.value());
+        verify(roomCommandService, never()).createRoom(Mockito.anyLong(), Mockito.any());
+    }
+
+    @Test
+    @DisplayName("빙고판 크기가 범위를 벗어나면 게임방 생성에 실패한다")
+    void createRoomRejectsInvalidBoardSize() {
+        // when, then
+        given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                          "mode": "SINGLE",
+                          "targetBingoCount": 3,
+                          "boardSize": 2
                         }
                         """)
                 .when()

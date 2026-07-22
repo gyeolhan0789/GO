@@ -371,7 +371,7 @@ class RoomReadServiceTest {
     }
 
     private Room room(Long roomId, Long hostId) {
-        Room room = Room.create(hostId, GameMode.SINGLE, 3);
+        Room room = Room.create(hostId, GameMode.SINGLE, 3, 3);
         ReflectionTestUtils.setField(room, "id", roomId);
         return room;
     }

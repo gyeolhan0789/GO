@@ -36,4 +36,14 @@ public class BingoBoard extends BaseEntity {
 
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
+
+    private BingoBoard(Long roomId, int boardSize) {
+        this.roomId = roomId;
+        this.boardSize = boardSize;
+        this.status = BingoBoardStatus.CREATED;
+    }
+
+    public static BingoBoard create(Long roomId, int boardSize) {
+        return new BingoBoard(roomId, boardSize);
+    }
 }
