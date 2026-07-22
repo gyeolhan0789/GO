@@ -25,6 +25,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 @DisplayName("게임방 서비스")
 class RoomCommandServiceTest {
 
+    private static final int DEFAULT_BOARD_SIZE = 3;
+
     private final RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
     private final RoomMemberRepository roomMemberRepository = Mockito.mock(RoomMemberRepository.class);
     private final RoomCommandService roomCommandService = new RoomCommandService(
@@ -119,7 +121,7 @@ class RoomCommandServiceTest {
     @DisplayName("일반 참여자가 게임방을 나가면 본인 참여 정보만 삭제한다")
     void leaveRoomDeletesMemberOnly() {
         // given
-        Room room = Room.create(1L, GameMode.SINGLE, 3, 3);
+        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
         RoomMember roomMember = RoomMember.create(10L, 2L);
         ReflectionTestUtils.setField(room, "id", 10L);
         when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
@@ -138,7 +140,7 @@ class RoomCommandServiceTest {
     @DisplayName("방장이 게임방을 나가면 게임방을 종료하고 참여자 정보를 모두 삭제한다")
     void leaveRoomByHostClosesRoomAndDeletesMembers() {
         // given
-        Room room = Room.create(1L, GameMode.SINGLE, 3, 3);
+        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
         RoomMember roomMember = RoomMember.create(10L, 1L);
         ReflectionTestUtils.setField(room, "id", 10L);
         when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
@@ -170,7 +172,7 @@ class RoomCommandServiceTest {
     @DisplayName("종료된 게임방을 나가면 실패한다")
     void leaveRoomRejectsClosedRoom() {
         // given
-        Room room = Room.create(1L, GameMode.SINGLE, 3, 3);
+        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
         room.close();
         ReflectionTestUtils.setField(room, "id", 10L);
         when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
@@ -186,7 +188,7 @@ class RoomCommandServiceTest {
     @DisplayName("게임방 참여자가 아니면 나가기에 실패한다")
     void leaveRoomRejectsNonMember() {
         // given
-        Room room = Room.create(1L, GameMode.SINGLE, 3, 3);
+        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
         ReflectionTestUtils.setField(room, "id", 10L);
         when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
         when(roomMemberRepository.findByRoomIdAndMemberId(10L, 2L)).thenReturn(Optional.empty());
