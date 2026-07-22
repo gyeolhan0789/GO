@@ -84,6 +84,7 @@ class RoomCommandServiceTest {
 
         // then
         assertThat(room.getStatus()).isEqualTo(GameRoomStatus.CLOSED);
+        verify(roomMemberRepository).deleteAllByRoomId(10L);
     }
 
     @Test
@@ -111,6 +112,89 @@ class RoomCommandServiceTest {
         assertErrorCode(
                 () -> roomCommandService.deleteRoom(2L, 10L),
                 ErrorCode.ROOM_DELETE_FORBIDDEN
+        );
+    }
+
+    @Test
+    @DisplayName("일반 참여자가 게임방을 나가면 본인 참여 정보만 삭제한다")
+    void leaveRoomDeletesMemberOnly() {
+        // given
+        Room room = Room.create(1L, GameMode.SINGLE, 3);
+        RoomMember roomMember = RoomMember.create(10L, 2L);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        when(roomMemberRepository.findByRoomIdAndMemberId(10L, 2L)).thenReturn(Optional.of(roomMember));
+
+        // when
+        roomCommandService.leaveRoom(2L, 10L);
+
+        // then
+        assertThat(room.getStatus()).isEqualTo(GameRoomStatus.CREATED);
+        verify(roomMemberRepository).delete(roomMember);
+        verify(roomMemberRepository, Mockito.never()).deleteAllByRoomId(10L);
+    }
+
+    @Test
+    @DisplayName("방장이 게임방을 나가면 게임방을 종료하고 참여자 정보를 모두 삭제한다")
+    void leaveRoomByHostClosesRoomAndDeletesMembers() {
+        // given
+        Room room = Room.create(1L, GameMode.SINGLE, 3);
+        RoomMember roomMember = RoomMember.create(10L, 1L);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        when(roomMemberRepository.findByRoomIdAndMemberId(10L, 1L)).thenReturn(Optional.of(roomMember));
+
+        // when
+        roomCommandService.leaveRoom(1L, 10L);
+
+        // then
+        assertThat(room.getStatus()).isEqualTo(GameRoomStatus.CLOSED);
+        verify(roomMemberRepository).deleteAllByRoomId(10L);
+        verify(roomMemberRepository, Mockito.never()).delete(Mockito.any(RoomMember.class));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 게임방을 나가면 실패한다")
+    void leaveRoomRejectsMissingRoom() {
+        // given
+        when(roomRepository.findById(10L)).thenReturn(Optional.empty());
+
+        // when, then
+        assertErrorCode(
+                () -> roomCommandService.leaveRoom(1L, 10L),
+                ErrorCode.ROOM_NOT_FOUND
+        );
+    }
+
+    @Test
+    @DisplayName("종료된 게임방을 나가면 실패한다")
+    void leaveRoomRejectsClosedRoom() {
+        // given
+        Room room = Room.create(1L, GameMode.SINGLE, 3);
+        room.close();
+        ReflectionTestUtils.setField(room, "id", 10L);
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+
+        // when, then
+        assertErrorCode(
+                () -> roomCommandService.leaveRoom(1L, 10L),
+                ErrorCode.ROOM_CLOSED
+        );
+    }
+
+    @Test
+    @DisplayName("게임방 참여자가 아니면 나가기에 실패한다")
+    void leaveRoomRejectsNonMember() {
+        // given
+        Room room = Room.create(1L, GameMode.SINGLE, 3);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        when(roomMemberRepository.findByRoomIdAndMemberId(10L, 2L)).thenReturn(Optional.empty());
+
+        // when, then
+        assertErrorCode(
+                () -> roomCommandService.leaveRoom(2L, 10L),
+                ErrorCode.ROOM_MEMBER_FORBIDDEN
         );
     }
 
