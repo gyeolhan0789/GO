@@ -6,6 +6,7 @@ import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.item.domain.MemberEquippedItem;
 import com.wecandoit.item.domain.MemberItem;
 import com.wecandoit.item.repository.MemberEquippedItemRepository;
+import com.wecandoit.item.repository.MemberItemRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CharacterItemCommandService {
 
     private final MemberEquippedItemRepository memberEquippedItemRepository;
+    private final MemberItemRepository memberItemRepository;
 
     public MemberEquippedItem equipItem(
             Long memberId,
@@ -31,6 +33,14 @@ public class CharacterItemCommandService {
                 .orElseGet(() -> memberEquippedItemRepository.save(
                         MemberEquippedItem.create(memberId, memberItem.getId(), category)
                 ));
+    }
+
+    public void unequipItem(Long memberId, Long memberItemId) {
+        MemberItem memberItem = memberItemRepository.findByIdAndMemberId(memberItemId, memberId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ACCESS_DENIED));
+
+        memberEquippedItemRepository.findByMemberIdAndMemberItemId(memberId, memberItem.getId())
+                .ifPresent(memberEquippedItemRepository::delete);
     }
 
     private MemberEquippedItem changeMemberItem(
