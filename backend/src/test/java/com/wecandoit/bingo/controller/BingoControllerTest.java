@@ -91,7 +91,9 @@ class BingoControllerTest {
                 10L,
                 3,
                 BingoBoardStatus.CREATED,
-                List.of(new BingoCellResponse(0, 0, mission))
+                List.of(new BingoCellResponse(0, 0, mission)),
+                false,
+                false
         );
         when(bingoService.generateBoard(1L, 10L)).thenReturn(response);
 
@@ -125,7 +127,9 @@ class BingoControllerTest {
                                 fieldWithPath("cells[].mission.title").description("미션 제목"),
                                 fieldWithPath("cells[].mission.detail").description("미션 설명"),
                                 fieldWithPath("cells[].mission.decisionCondition").description("미션 판정 조건"),
-                                fieldWithPath("cells[].mission.createdAt").description("미션 생성 시각")
+                                fieldWithPath("cells[].mission.createdAt").description("미션 생성 시각"),
+                                fieldWithPath("completed").description("빙고판 100% 완료 여부"),
+                                fieldWithPath("canRenew").description("조기 갱신 가능 여부(방장이고 완료된 경우에만 true)")
                         )
                 ));
     }
@@ -158,6 +162,167 @@ class BingoControllerTest {
         given()
                 .when()
                 .post("/rooms/{roomId}/bingo-boards", 10L)
+                .then()
+                .statusCode(HttpStatus.FORBIDDEN.value());
+    }
+
+    @Test
+    @DisplayName("활성 빙고판을 조회하면 완료/갱신가능 여부를 포함해 반환한다")
+    void getActiveBoardReturnsBoardWithCompletionState() {
+        // given
+        MissionResponse mission = new MissionResponse(
+                1L,
+                "https://example.com/mission.png",
+                "OBJECT",
+                "미션 제목",
+                "미션 설명",
+                null,
+                LocalDateTime.of(2026, 7, 22, 10, 0)
+        );
+        BingoBoardResponse response = new BingoBoardResponse(
+                100L,
+                10L,
+                3,
+                BingoBoardStatus.IN_PROGRESS,
+                List.of(new BingoCellResponse(0, 0, mission)),
+                true,
+                true
+        );
+        when(bingoService.getActiveBoard(1L, 10L)).thenReturn(response);
+
+        // when, then
+        given()
+                .when()
+                .get("/rooms/{roomId}/bingo-boards/active", 10L)
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("bingoBoardId", equalTo(100))
+                .body("completed", equalTo(true))
+                .body("canRenew", equalTo(true))
+                .apply(document("bingo-boards-active",
+                        pathParameters(
+                                parameterWithName("roomId").description("활성 빙고판을 조회할 게임방 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("bingoBoardId").description("빙고판 ID"),
+                                fieldWithPath("roomId").description("게임방 ID"),
+                                fieldWithPath("boardSize").description("빙고판 크기"),
+                                fieldWithPath("status").description("빙고판 상태"),
+                                fieldWithPath("cells[].row").description("칸의 행 위치"),
+                                fieldWithPath("cells[].col").description("칸의 열 위치"),
+                                fieldWithPath("cells[].mission.missionId").description("배정된 미션 ID"),
+                                fieldWithPath("cells[].mission.missionImageUrl").description("미션 이미지 URL"),
+                                fieldWithPath("cells[].mission.type").description("미션 타입"),
+                                fieldWithPath("cells[].mission.title").description("미션 제목"),
+                                fieldWithPath("cells[].mission.detail").description("미션 설명"),
+                                fieldWithPath("cells[].mission.decisionCondition").description("미션 판정 조건"),
+                                fieldWithPath("cells[].mission.createdAt").description("미션 생성 시각"),
+                                fieldWithPath("completed").description("빙고판 100% 완료 여부"),
+                                fieldWithPath("canRenew").description("조기 갱신 가능 여부(방장이고 완료된 경우에만 true)")
+                        )
+                ));
+    }
+
+    @Test
+    @DisplayName("활성 빙고판이 없으면 조회에 실패한다")
+    void getActiveBoardRejectsMissingBoard() {
+        // given
+        doThrow(new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND))
+                .when(bingoService)
+                .getActiveBoard(1L, 10L);
+
+        // when, then
+        given()
+                .when()
+                .get("/rooms/{roomId}/bingo-boards/active", 10L)
+                .then()
+                .statusCode(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("조기 갱신하면 새로 발급된 빙고판을 반환한다")
+    void renewBoardReturnsNewlyIssuedBoard() {
+        // given
+        MissionResponse mission = new MissionResponse(
+                2L,
+                "https://example.com/mission2.png",
+                "OBJECT",
+                "새 미션 제목",
+                "새 미션 설명",
+                null,
+                LocalDateTime.of(2026, 7, 22, 11, 0)
+        );
+        BingoBoardResponse response = new BingoBoardResponse(
+                101L,
+                10L,
+                3,
+                BingoBoardStatus.CREATED,
+                List.of(new BingoCellResponse(0, 0, mission)),
+                false,
+                false
+        );
+        when(bingoService.renewBoard(1L, 10L)).thenReturn(response);
+
+        // when, then
+        given()
+                .when()
+                .post("/rooms/{roomId}/bingo-boards/renewal", 10L)
+                .then()
+                .statusCode(HttpStatus.CREATED.value())
+                .body("bingoBoardId", equalTo(101))
+                .body("status", equalTo("CREATED"))
+                .apply(document("bingo-boards-renewal",
+                        pathParameters(
+                                parameterWithName("roomId").description("빙고판을 조기 갱신할 게임방 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("bingoBoardId").description("새로 발급된 빙고판 ID"),
+                                fieldWithPath("roomId").description("게임방 ID"),
+                                fieldWithPath("boardSize").description("빙고판 크기"),
+                                fieldWithPath("status").description("빙고판 상태"),
+                                fieldWithPath("cells[].row").description("칸의 행 위치"),
+                                fieldWithPath("cells[].col").description("칸의 열 위치"),
+                                fieldWithPath("cells[].mission.missionId").description("배정된 미션 ID"),
+                                fieldWithPath("cells[].mission.missionImageUrl").description("미션 이미지 URL"),
+                                fieldWithPath("cells[].mission.type").description("미션 타입"),
+                                fieldWithPath("cells[].mission.title").description("미션 제목"),
+                                fieldWithPath("cells[].mission.detail").description("미션 설명"),
+                                fieldWithPath("cells[].mission.decisionCondition").description("미션 판정 조건"),
+                                fieldWithPath("cells[].mission.createdAt").description("미션 생성 시각"),
+                                fieldWithPath("completed").description("빙고판 100% 완료 여부"),
+                                fieldWithPath("canRenew").description("조기 갱신 가능 여부(방장이고 완료된 경우에만 true)")
+                        )
+                ));
+    }
+
+    @Test
+    @DisplayName("완료되지 않은 빙고판을 갱신하려 하면 실패한다")
+    void renewBoardRejectsIncompleteBoard() {
+        // given
+        doThrow(new CustomException(ErrorCode.BINGO_BOARD_NOT_COMPLETED))
+                .when(bingoService)
+                .renewBoard(1L, 10L);
+
+        // when, then
+        given()
+                .when()
+                .post("/rooms/{roomId}/bingo-boards/renewal", 10L)
+                .then()
+                .statusCode(HttpStatus.CONFLICT.value());
+    }
+
+    @Test
+    @DisplayName("방장이 아니면 조기 갱신에 실패한다")
+    void renewBoardRejectsNonHost() {
+        // given
+        doThrow(new CustomException(ErrorCode.BINGO_BOARD_RENEWAL_FORBIDDEN))
+                .when(bingoService)
+                .renewBoard(1L, 10L);
+
+        // when, then
+        given()
+                .when()
+                .post("/rooms/{roomId}/bingo-boards/renewal", 10L)
                 .then()
                 .statusCode(HttpStatus.FORBIDDEN.value());
     }

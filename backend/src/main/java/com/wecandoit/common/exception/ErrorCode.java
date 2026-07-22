@@ -43,6 +43,9 @@ public enum ErrorCode {
     ROOM_NOT_IN_PROGRESS(HttpStatus.CONFLICT, "게임이 시작된 방에서만 빙고판을 생성할 수 있습니다."),
     BINGO_BOARD_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 빙고판이 생성된 게임방입니다."),
     MISSION_POOL_INSUFFICIENT(HttpStatus.CONFLICT, "빙고판을 채울 미션이 부족합니다."),
+    BINGO_BOARD_NOT_FOUND(HttpStatus.NOT_FOUND, "활성화된 빙고판이 없습니다."),
+    BINGO_BOARD_RENEWAL_FORBIDDEN(HttpStatus.FORBIDDEN, "빙고판 갱신 권한이 없습니다."),
+    BINGO_BOARD_NOT_COMPLETED(HttpStatus.CONFLICT, "빙고판이 아직 100% 완료되지 않았습니다."),
 
     // Game Request
     GAME_REQUEST_FORBIDDEN(HttpStatus.FORBIDDEN, "게임방 초대 권한이 없습니다."),

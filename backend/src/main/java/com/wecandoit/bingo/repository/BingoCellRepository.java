@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface BingoCellRepository extends JpaRepository<BingoCell, Long> {
 
     List<BingoCell> findAllByBoardId(Long boardId);
+
+    boolean existsByBoardIdAndCompletedAtIsNull(Long boardId);
 }

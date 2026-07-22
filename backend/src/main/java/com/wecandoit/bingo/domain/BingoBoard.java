@@ -46,4 +46,9 @@ public class BingoBoard extends BaseEntity {
     public static BingoBoard create(Long roomId, int boardSize) {
         return new BingoBoard(roomId, boardSize);
     }
+
+    public void complete() {
+        this.status = BingoBoardStatus.COMPLETED;
+        this.completedAt = LocalDateTime.now();
+    }
 }
