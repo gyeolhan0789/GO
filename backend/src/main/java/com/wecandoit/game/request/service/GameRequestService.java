@@ -10,6 +10,7 @@ import com.wecandoit.game.request.domain.GameRequest;
 import com.wecandoit.game.request.repository.GameRequestRepository;
 import com.wecandoit.game.room.domain.GameRoomStatus;
 import com.wecandoit.game.room.domain.Room;
+import com.wecandoit.game.room.domain.RoomMember;
 import com.wecandoit.game.room.repository.RoomMemberRepository;
 import com.wecandoit.game.room.repository.RoomRepository;
 import lombok.RequiredArgsConstructor;
@@ -50,6 +51,23 @@ public class GameRequestService {
                 .orElseGet(() -> createRequest(roomId, memberId, inviteeId));
     }
 
+    public void acceptGameRequest(Long memberId, Long roomId, Long requestId) {
+        GameRequest gameRequest = findRequest(roomId, requestId);
+        validateRequestInviteeAndPending(gameRequest, memberId);
+        if (roomMemberRepository.existsByRoomIdAndMemberId(roomId, memberId)) {
+            throw new CustomException(ErrorCode.GAME_REQUEST_ALREADY_ROOM_MEMBER);
+        }
+
+        gameRequest.accept();
+        roomMemberRepository.save(RoomMember.create(roomId, memberId));
+    }
+
+    public void rejectGameRequest(Long memberId, Long roomId, Long requestId) {
+        GameRequest gameRequest = findRequest(roomId, requestId);
+        validateRequestInviteeAndPending(gameRequest, memberId);
+        gameRequest.reject();
+    }
+
     private void validateInviter(Long memberId, Long roomId) {
         if (!roomMemberRepository.existsByRoomIdAndMemberId(roomId, memberId)) {
             throw new CustomException(ErrorCode.GAME_REQUEST_FORBIDDEN);
@@ -82,5 +100,23 @@ public class GameRequestService {
         );
         // TODO: 초대 만료와 알림(WebSocket 포함) 정책이 확정되면 연동한다.
         return GameRequestCreateResponse.from(gameRequest, true);
+    }
+
+    private GameRequest findRequest(Long roomId, Long requestId) {
+        GameRequest gameRequest = gameRequestRepository.findById(requestId)
+                .orElseThrow(() -> new CustomException(ErrorCode.GAME_REQUEST_NOT_FOUND));
+        if (!gameRequest.isInRoom(roomId)) {
+            throw new CustomException(ErrorCode.GAME_REQUEST_NOT_FOUND);
+        }
+        return gameRequest;
+    }
+
+    private void validateRequestInviteeAndPending(GameRequest gameRequest, Long memberId) {
+        if (!gameRequest.isInvitee(memberId)) {
+            throw new CustomException(ErrorCode.GAME_REQUEST_FORBIDDEN);
+        }
+        if (!gameRequest.isPending()) {
+            throw new CustomException(ErrorCode.GAME_REQUEST_ALREADY_PROCESSED);
+        }
     }
 }

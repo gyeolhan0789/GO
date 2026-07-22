@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -34,5 +35,25 @@ public class GameRequestController {
         );
         HttpStatus status = response.created() ? HttpStatus.CREATED : HttpStatus.OK;
         return ResponseEntity.status(status).body(response);
+    }
+
+    @PatchMapping("/{roomId}/requests/{requestId}/accept")
+    public ResponseEntity<Void> acceptGameRequest(
+            @LoginMemberId Long memberId,
+            @PathVariable Long roomId,
+            @PathVariable Long requestId
+    ) {
+        gameRequestService.acceptGameRequest(memberId, roomId, requestId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{roomId}/requests/{requestId}/reject")
+    public ResponseEntity<Void> rejectGameRequest(
+            @LoginMemberId Long memberId,
+            @PathVariable Long roomId,
+            @PathVariable Long requestId
+    ) {
+        gameRequestService.rejectGameRequest(memberId, roomId, requestId);
+        return ResponseEntity.noContent().build();
     }
 }

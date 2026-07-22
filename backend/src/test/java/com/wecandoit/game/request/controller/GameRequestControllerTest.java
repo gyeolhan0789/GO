@@ -43,6 +43,9 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 @ExtendWith(RestDocumentationExtension.class)
 class GameRequestControllerTest {
 
+    private static final String ACCEPT_ACTION = "accept";
+    private static final String REJECT_ACTION = "reject";
+
     private final GameRequestService gameRequestService = Mockito.mock(GameRequestService.class);
 
     @BeforeEach
@@ -212,6 +215,86 @@ class GameRequestControllerTest {
         assertErrorResponse(ErrorCode.GAME_REQUEST_NOT_AVAILABLE, "game-request-not-available");
     }
 
+    @Test
+    @DisplayName("게임방 초대 요청을 수락하면 204 상태를 반환한다")
+    void acceptGameRequestReturnsNoContent() {
+        // when, then
+        given()
+                .when()
+                .patch("/rooms/{roomId}/requests/{requestId}/accept", 10L, 20L)
+                .then()
+                .statusCode(HttpStatus.NO_CONTENT.value())
+                .apply(document("game-request-accept",
+                        pathParameters(
+                                parameterWithName("roomId").description("초대를 수락할 게임방 ID"),
+                                parameterWithName("requestId").description("수락할 게임방 초대 요청 ID")
+                        )
+                ));
+        verify(gameRequestService).acceptGameRequest(1L, 10L, 20L);
+    }
+
+    @Test
+    @DisplayName("게임방 초대 요청을 거절하면 204 상태를 반환한다")
+    void rejectGameRequestReturnsNoContent() {
+        // when, then
+        given()
+                .when()
+                .patch("/rooms/{roomId}/requests/{requestId}/reject", 10L, 20L)
+                .then()
+                .statusCode(HttpStatus.NO_CONTENT.value())
+                .apply(document("game-request-reject",
+                        pathParameters(
+                                parameterWithName("roomId").description("초대를 거절할 게임방 ID"),
+                                parameterWithName("requestId").description("거절할 게임방 초대 요청 ID")
+                        )
+                ));
+        verify(gameRequestService).rejectGameRequest(1L, 10L, 20L);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 게임방 초대 요청을 수락하면 404 상태를 반환한다")
+    void acceptGameRequestRejectsMissingRequest() {
+        assertProcessErrorResponse(ErrorCode.GAME_REQUEST_NOT_FOUND, "game-request-accept-not-found", ACCEPT_ACTION);
+    }
+
+    @Test
+    @DisplayName("초대받은 회원이 아니면 게임방 초대 요청을 수락할 수 없다")
+    void acceptGameRequestRejectsForbiddenMember() {
+        assertProcessErrorResponse(ErrorCode.GAME_REQUEST_FORBIDDEN, "game-request-accept-forbidden", ACCEPT_ACTION);
+    }
+
+    @Test
+    @DisplayName("이미 처리된 게임방 초대 요청을 수락하면 409 상태를 반환한다")
+    void acceptGameRequestRejectsProcessedRequest() {
+        assertProcessErrorResponse(
+                ErrorCode.GAME_REQUEST_ALREADY_PROCESSED,
+                "game-request-accept-processed",
+                ACCEPT_ACTION
+        );
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 게임방 초대 요청을 거절하면 404 상태를 반환한다")
+    void rejectGameRequestRejectsMissingRequest() {
+        assertProcessErrorResponse(ErrorCode.GAME_REQUEST_NOT_FOUND, "game-request-reject-not-found", REJECT_ACTION);
+    }
+
+    @Test
+    @DisplayName("초대받은 회원이 아니면 게임방 초대 요청을 거절할 수 없다")
+    void rejectGameRequestRejectsForbiddenMember() {
+        assertProcessErrorResponse(ErrorCode.GAME_REQUEST_FORBIDDEN, "game-request-reject-forbidden", REJECT_ACTION);
+    }
+
+    @Test
+    @DisplayName("이미 처리된 게임방 초대 요청을 거절하면 409 상태를 반환한다")
+    void rejectGameRequestRejectsProcessedRequest() {
+        assertProcessErrorResponse(
+                ErrorCode.GAME_REQUEST_ALREADY_PROCESSED,
+                "game-request-reject-processed",
+                REJECT_ACTION
+        );
+    }
+
     private void assertErrorResponse(ErrorCode errorCode, String documentIdentifier) {
         GameRequestCreateRequest request = new GameRequestCreateRequest(2L);
         doThrow(new CustomException(errorCode))
@@ -244,5 +327,40 @@ class GameRequestControllerTest {
                         )
                 ));
         verify(gameRequestService).createGameRequest(1L, 10L, request);
+    }
+
+    private void assertProcessErrorResponse(ErrorCode errorCode, String documentIdentifier, String action) {
+        if (ACCEPT_ACTION.equals(action)) {
+            doThrow(new CustomException(errorCode))
+                    .when(gameRequestService)
+                    .acceptGameRequest(1L, 10L, 20L);
+        } else {
+            doThrow(new CustomException(errorCode))
+                    .when(gameRequestService)
+                    .rejectGameRequest(1L, 10L, 20L);
+        }
+
+        given()
+                .when()
+                .patch("/rooms/{roomId}/requests/{requestId}/" + action, 10L, 20L)
+                .then()
+                .statusCode(errorCode.getHttpStatus().value())
+                .body("status", equalTo(errorCode.getHttpStatus().value()))
+                .body("message", equalTo(errorCode.getMessage()))
+                .apply(document(documentIdentifier,
+                        pathParameters(
+                                parameterWithName("roomId").description("초대를 처리할 게임방 ID"),
+                                parameterWithName("requestId").description("처리할 게임방 초대 요청 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("status").description("HTTP 상태 코드"),
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+        if (ACCEPT_ACTION.equals(action)) {
+            verify(gameRequestService).acceptGameRequest(1L, 10L, 20L);
+        } else {
+            verify(gameRequestService).rejectGameRequest(1L, 10L, 20L);
+        }
     }
 }

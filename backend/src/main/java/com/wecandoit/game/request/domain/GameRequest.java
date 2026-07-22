@@ -34,7 +34,7 @@ public class GameRequest extends BaseEntity {
     private Long inviteeId;
 
     @Enumerated(EnumType.STRING)
-    @Column(length = 255)
+    @Column(nullable = false, length = 255)
     private RequestStatus status;
 
     private GameRequest(Long roomId, Long inviterId, Long inviteeId) {
@@ -46,5 +46,25 @@ public class GameRequest extends BaseEntity {
 
     public static GameRequest create(Long roomId, Long inviterId, Long inviteeId) {
         return new GameRequest(roomId, inviterId, inviteeId);
+    }
+
+    public void accept() {
+        status = RequestStatus.ACCEPTED;
+    }
+
+    public void reject() {
+        status = RequestStatus.DECLINED;
+    }
+
+    public boolean isPending() {
+        return status == RequestStatus.PENDING;
+    }
+
+    public boolean isInvitee(Long memberId) {
+        return inviteeId.equals(memberId);
+    }
+
+    public boolean isInRoom(Long roomId) {
+        return this.roomId.equals(roomId);
     }
 }
