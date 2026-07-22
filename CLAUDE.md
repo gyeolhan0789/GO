@@ -14,8 +14,8 @@ These rules apply when creating, reviewing, or modifying code in this repository
 
 When working on Java Spring Boot backend code, follow:
 
-- [Backend Basic Convention](convention/backend/back-basic-convention.md)
-- [Backend Test Convention](convention/backend/back-test-convention.md)
+- [Backend Basic Convention](backend/convention/back-basic-convention.md)
+- [Backend Test Convention](backend/convention/back-test-convention.md)
 
 ## Frontend
 
