@@ -2,7 +2,10 @@ package com.wecandoit.game.room.service;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
+import com.wecandoit.game.room.controller.response.MyRoomMemberResponse;
+import com.wecandoit.game.room.controller.response.MyRoomResponse;
 import com.wecandoit.game.room.controller.response.RoomMemberResponse;
+import com.wecandoit.game.room.domain.GameRoomStatus;
 import com.wecandoit.game.room.domain.Room;
 import com.wecandoit.game.room.domain.RoomMember;
 import com.wecandoit.game.room.repository.RoomMemberRepository;
@@ -10,6 +13,7 @@ import com.wecandoit.game.room.repository.RoomRepository;
 import com.wecandoit.member.service.MemberReadService;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +26,45 @@ public class RoomReadService {
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
     private final MemberReadService memberReadService;
+
+    public List<MyRoomResponse> getMyRooms(Long memberId) {
+        List<RoomMember> myRoomMembers = roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(memberId);
+        if (myRoomMembers.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> roomIds = myRoomMembers.stream()
+                .map(RoomMember::getRoomId)
+                .distinct()
+                .toList();
+        Map<Long, Room> roomsById = getRoomsById(roomIds);
+        List<RoomMember> activeRoomMembers = myRoomMembers.stream()
+                .filter(roomMember -> roomsById.get(roomMember.getRoomId()).getStatus() != GameRoomStatus.CLOSED)
+                .toList();
+        if (activeRoomMembers.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> activeRoomIds = activeRoomMembers.stream()
+                .map(RoomMember::getRoomId)
+                .distinct()
+                .toList();
+        List<RoomMember> allRoomMembers = roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(activeRoomIds);
+        Map<Long, String> nicknamesByMemberId = getNicknamesByMemberId(allRoomMembers);
+        Map<Long, List<MyRoomMemberResponse>> membersByRoomId = getMembersByRoomId(
+                roomsById,
+                allRoomMembers,
+                nicknamesByMemberId
+        );
+
+        return activeRoomMembers.stream()
+                .map(roomMember -> MyRoomResponse.from(
+                        roomsById.get(roomMember.getRoomId()),
+                        roomMember,
+                        membersByRoomId.getOrDefault(roomMember.getRoomId(), List.of())
+                ))
+                .toList();
+    }
 
     public List<RoomMemberResponse> getRoomMembers(Long memberId, Long roomId) {
         Room room = roomRepository.findById(roomId)
@@ -43,6 +86,35 @@ public class RoomReadService {
                         room.getHostId().equals(roomMember.getMemberId())
                 ))
                 .toList();
+    }
+
+    private Map<Long, Room> getRoomsById(List<Long> roomIds) {
+        Map<Long, Room> roomsById = roomRepository.findAllById(roomIds).stream()
+                .collect(Collectors.toMap(Room::getId, room -> room));
+        if (roomsById.size() != roomIds.size()) {
+            throw new CustomException(ErrorCode.ROOM_NOT_FOUND);
+        }
+        return roomsById;
+    }
+
+    private Map<Long, List<MyRoomMemberResponse>> getMembersByRoomId(
+            Map<Long, Room> roomsById,
+            List<RoomMember> roomMembers,
+            Map<Long, String> nicknamesByMemberId
+    ) {
+        return roomMembers.stream()
+                .collect(Collectors.groupingBy(
+                        RoomMember::getRoomId,
+                        Collectors.mapping(
+                                roomMember -> MyRoomMemberResponse.from(
+                                        roomMember,
+                                        getNickname(nicknamesByMemberId, roomMember.getMemberId()),
+                                        roomsById.get(roomMember.getRoomId()).getHostId()
+                                                .equals(roomMember.getMemberId())
+                                ),
+                                Collectors.toList()
+                        )
+                ));
     }
 
     private Map<Long, String> getNicknamesByMemberId(List<RoomMember> roomMembers) {
