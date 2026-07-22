@@ -7,8 +7,10 @@ import static org.mockito.Mockito.when;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
+import com.wecandoit.game.room.controller.response.MyRoomResponse;
 import com.wecandoit.game.room.controller.response.RoomMemberResponse;
 import com.wecandoit.game.room.domain.GameMode;
+import com.wecandoit.game.room.domain.GameRoomStatus;
 import com.wecandoit.game.room.domain.Room;
 import com.wecandoit.game.room.domain.RoomMember;
 import com.wecandoit.game.room.repository.RoomMemberRepository;
@@ -34,6 +36,145 @@ class RoomReadServiceTest {
             roomMemberRepository,
             memberReadService
     );
+
+    @Test
+    @DisplayName("내 게임방 목록을 참여자 닉네임 요약과 함께 반환한다")
+    void getMyRoomsReturnsRoomsWithMemberSummaries() {
+        // given
+        Room activeRoom = room(10L, 1L);
+        Room closedRoom = room(20L, 2L);
+        closedRoom.close();
+        RoomMember myActiveRoomMember = roomMember(
+                10L,
+                1L,
+                0,
+                LocalDateTime.of(2026, 7, 22, 10, 0)
+        );
+        RoomMember myClosedRoomMember = roomMember(
+                20L,
+                1L,
+                0,
+                LocalDateTime.of(2026, 7, 22, 9, 0)
+        );
+        RoomMember guestMember = roomMember(
+                10L,
+                2L,
+                0,
+                LocalDateTime.of(2026, 7, 22, 10, 5)
+        );
+        when(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
+                .thenReturn(List.of(myActiveRoomMember, myClosedRoomMember));
+        when(roomRepository.findAllById(List.of(10L, 20L)))
+                .thenReturn(List.of(activeRoom, closedRoom));
+        when(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(10L)))
+                .thenReturn(List.of(myActiveRoomMember, guestMember));
+        when(memberReadService.getNicknamesByIds(List.of(1L, 2L)))
+                .thenReturn(Map.of(1L, "방장", 2L, "참여자"));
+
+        // when
+        List<MyRoomResponse> responses = roomReadService.getMyRooms(1L);
+
+        // then
+        assertThat(responses).hasSize(1);
+        MyRoomResponse response = responses.getFirst();
+        assertThat(response.roomId()).isEqualTo(10L);
+        assertThat(response.mode()).isEqualTo(GameMode.SINGLE);
+        assertThat(response.status()).isEqualTo(GameRoomStatus.CREATED);
+        assertThat(response.targetBingoCount()).isEqualTo(3);
+        assertThat(response.hostId()).isEqualTo(1L);
+        assertThat(response.joinedAt()).isEqualTo(LocalDateTime.of(2026, 7, 22, 10, 0));
+        assertThat(response.members()).hasSize(2);
+        assertThat(response.members().get(0).memberId()).isEqualTo(1L);
+        assertThat(response.members().get(0).nickname()).isEqualTo("방장");
+        assertThat(response.members().get(0).host()).isTrue();
+        assertThat(response.members().get(1).memberId()).isEqualTo(2L);
+        assertThat(response.members().get(1).nickname()).isEqualTo("참여자");
+        assertThat(response.members().get(1).host()).isFalse();
+        verify(roomMemberRepository).findAllByMemberIdOrderByJoinedAtDesc(1L);
+    }
+
+    @Test
+    @DisplayName("내가 참여한 게임방이 없으면 빈 목록을 반환한다")
+    void getMyRoomsReturnsEmptyList() {
+        // given
+        when(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L)).thenReturn(List.of());
+
+        // when
+        List<MyRoomResponse> responses = roomReadService.getMyRooms(1L);
+
+        // then
+        assertThat(responses).isEmpty();
+    }
+
+    @Test
+    @DisplayName("내가 참여한 게임방이 모두 종료 상태이면 빈 목록을 반환한다")
+    void getMyRoomsReturnsEmptyListWhenRoomsAreClosed() {
+        // given
+        Room closedRoom = room(10L, 1L);
+        closedRoom.close();
+        RoomMember myRoomMember = roomMember(
+                10L,
+                1L,
+                0,
+                LocalDateTime.of(2026, 7, 22, 10, 0)
+        );
+        when(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
+                .thenReturn(List.of(myRoomMember));
+        when(roomRepository.findAllById(List.of(10L))).thenReturn(List.of(closedRoom));
+
+        // when
+        List<MyRoomResponse> responses = roomReadService.getMyRooms(1L);
+
+        // then
+        assertThat(responses).isEmpty();
+    }
+
+    @Test
+    @DisplayName("내가 참여한 게임방을 찾을 수 없으면 내 게임방 목록 조회에 실패한다")
+    void getMyRoomsRejectsMissingRoom() {
+        // given
+        RoomMember myRoomMember = roomMember(
+                10L,
+                1L,
+                0,
+                LocalDateTime.of(2026, 7, 22, 10, 0)
+        );
+        when(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
+                .thenReturn(List.of(myRoomMember));
+        when(roomRepository.findAllById(List.of(10L))).thenReturn(List.of());
+
+        // when, then
+        assertErrorCode(
+                () -> roomReadService.getMyRooms(1L),
+                ErrorCode.ROOM_NOT_FOUND
+        );
+    }
+
+    @Test
+    @DisplayName("참여자 회원을 찾을 수 없으면 내 게임방 목록 조회에 실패한다")
+    void getMyRoomsRejectsMissingMember() {
+        // given
+        Room room = room(10L, 1L);
+        RoomMember myRoomMember = roomMember(
+                10L,
+                1L,
+                0,
+                LocalDateTime.of(2026, 7, 22, 10, 0)
+        );
+        when(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
+                .thenReturn(List.of(myRoomMember));
+        when(roomRepository.findAllById(List.of(10L))).thenReturn(List.of(room));
+        when(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(10L)))
+                .thenReturn(List.of(myRoomMember));
+        when(memberReadService.getNicknamesByIds(List.of(1L)))
+                .thenThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+
+        // when, then
+        assertErrorCode(
+                () -> roomReadService.getMyRooms(1L),
+                ErrorCode.MEMBER_NOT_FOUND
+        );
+    }
 
     @Test
     @DisplayName("게임방 참여자 목록을 닉네임과 방장 여부를 포함해 반환한다")

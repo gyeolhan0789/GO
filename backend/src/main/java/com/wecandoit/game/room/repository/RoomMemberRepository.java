@@ -9,4 +9,8 @@ public interface RoomMemberRepository extends JpaRepository<RoomMember, Long> {
     boolean existsByRoomIdAndMemberId(Long roomId, Long memberId);
 
     List<RoomMember> findAllByRoomIdOrderByJoinedAtAsc(Long roomId);
+
+    List<RoomMember> findAllByMemberIdOrderByJoinedAtDesc(Long memberId);
+
+    List<RoomMember> findAllByRoomIdInOrderByJoinedAtAsc(List<Long> roomIds);
 }
