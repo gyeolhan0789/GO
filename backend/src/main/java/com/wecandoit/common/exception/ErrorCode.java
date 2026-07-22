@@ -33,6 +33,13 @@ public enum ErrorCode {
     ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "게임방을 찾을 수 없습니다."),
     ROOM_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "게임방 삭제 권한이 없습니다."),
 
+    // Game Request
+    GAME_REQUEST_FORBIDDEN(HttpStatus.FORBIDDEN, "게임방 초대 권한이 없습니다."),
+    GAME_REQUEST_NOT_AVAILABLE(HttpStatus.CONFLICT, "현재 상태에서는 게임방 초대를 보낼 수 없습니다."),
+    GAME_REQUEST_SELF_INVITE(HttpStatus.BAD_REQUEST, "자기 자신을 게임방에 초대할 수 없습니다."),
+    GAME_REQUEST_ALREADY_ROOM_MEMBER(HttpStatus.CONFLICT, "이미 게임방에 참여 중인 회원입니다."),
+    GAME_REQUEST_FRIEND_REQUIRED(HttpStatus.BAD_REQUEST, "친구인 회원만 게임방에 초대할 수 있습니다."),
+
     // OAuth
     OAUTH_ACCESS_DENIED(HttpStatus.UNAUTHORIZED, "OAuth 로그인 권한이 거부되었습니다."),
     OAUTH_EMAIL_NOT_PROVIDED(HttpStatus.BAD_REQUEST, "소셜 계정에서 이메일을 제공하지 않았습니다."),

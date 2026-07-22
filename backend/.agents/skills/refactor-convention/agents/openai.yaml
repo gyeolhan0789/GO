@@ -1,0 +1,4 @@
+interface:
+  display_name: "컨벤션 리팩터링"
+  short_description: "변경된 백엔드 Java 코드를 프로젝트 컨벤션에 맞게 정리합니다"
+  default_prompt: "Use $refactor-convention to refactor the changed backend Java files according to project conventions."
