@@ -18,4 +18,9 @@ public interface GameRequestRepository extends JpaRepository<GameRequest, Long> 
             Long inviteeId,
             RequestStatus status
     );
+
+    List<GameRequest> findAllByInviterIdAndStatusOrderByCreatedAtDesc(
+            Long inviterId,
+            RequestStatus status
+    );
 }

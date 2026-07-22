@@ -4,6 +4,7 @@ import com.wecandoit.common.security.LoginMemberId;
 import com.wecandoit.game.request.controller.request.GameRequestCreateRequest;
 import com.wecandoit.game.request.controller.response.GameRequestCreateResponse;
 import com.wecandoit.game.request.controller.response.ReceivedGameRequestResponse;
+import com.wecandoit.game.request.controller.response.SentGameRequestResponse;
 import com.wecandoit.game.request.service.GameRequestCommandService;
 import com.wecandoit.game.request.service.GameRequestReadService;
 import jakarta.validation.Valid;
@@ -32,6 +33,13 @@ public class GameRequestController {
             @LoginMemberId Long memberId
     ) {
         return ResponseEntity.ok(gameRequestReadService.getReceivedGameRequests(memberId));
+    }
+
+    @GetMapping("/requests/sent")
+    public ResponseEntity<List<SentGameRequestResponse>> getSentGameRequests(
+            @LoginMemberId Long memberId
+    ) {
+        return ResponseEntity.ok(gameRequestReadService.getSentGameRequests(memberId));
     }
 
     @PostMapping("/{roomId}/requests")

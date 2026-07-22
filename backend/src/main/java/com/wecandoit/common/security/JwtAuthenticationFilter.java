@@ -18,6 +18,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
+import org.springframework.util.PathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
@@ -30,10 +32,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/auth/login",
             "/auth/reissue",
             "/auth/oauth/google",
-            "/auth/oauth/kakao"
+            "/auth/oauth/kakao",
+            "/swagger-ui.html",
+            "/swagger-ui/**",
+            "/v3/api-docs",
+            "/v3/api-docs/**"
     );
 
     private static final String ROLE_PREFIX = "ROLE_";
+    private static final PathMatcher PATH_MATCHER = new AntPathMatcher();
 
     private final JwtProvider jwtProvider;
     private final TokenRepository tokenRepository;
@@ -42,7 +49,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI().substring(request.getContextPath().length());
-        return PERMIT_ALL_PATHS.contains(path);
+        return PERMIT_ALL_PATHS.stream()
+                .anyMatch(permitAllPath -> PATH_MATCHER.match(permitAllPath, path));
     }
 
     @Override
