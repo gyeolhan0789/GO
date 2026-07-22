@@ -32,13 +32,42 @@ public class RoomCommandService {
     }
 
     public void deleteRoom(Long memberId, Long roomId) {
-        Room room = roomRepository.findById(roomId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
-        if (!room.getHostId().equals(memberId)) {
+        Room room = findRoom(roomId);
+        if (!room.isHost(memberId)) {
             throw new CustomException(ErrorCode.ROOM_DELETE_FORBIDDEN);
         }
 
+        closeRoom(roomId, room);
+        // TODO: Connect game requests, bingo boards, and mission policies after deletion is confirmed.
+    }
+
+    public void leaveRoom(Long memberId, Long roomId) {
+        Room room = findRoom(roomId);
+        validateRoomOpen(room);
+        RoomMember roomMember = roomMemberRepository.findByRoomIdAndMemberId(roomId, memberId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN));
+
+        if (room.isHost(memberId)) {
+            closeRoom(roomId, room);
+            return;
+        }
+
+        roomMemberRepository.delete(roomMember);
+    }
+
+    private Room findRoom(Long roomId) {
+        return roomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+    }
+
+    private void validateRoomOpen(Room room) {
+        if (room.isClosed()) {
+            throw new CustomException(ErrorCode.ROOM_CLOSED);
+        }
+    }
+
+    private void closeRoom(Long roomId, Room room) {
         room.close();
-        // TODO: Connect participant cleanup, game requests, bingo boards, and mission policies after deletion is confirmed.
+        roomMemberRepository.deleteAllByRoomId(roomId);
     }
 }

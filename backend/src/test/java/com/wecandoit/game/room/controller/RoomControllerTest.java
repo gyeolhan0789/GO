@@ -467,6 +467,59 @@ class RoomControllerTest {
     }
 
     @Test
+    @DisplayName("게임방을 나가면 204 상태를 반환한다")
+    void leaveRoomReturnsNoContent() {
+        // when, then
+        given()
+                .when()
+                .delete("/rooms/{roomId}/members/me", 10L)
+                .then()
+                .statusCode(HttpStatus.NO_CONTENT.value())
+                .apply(document("room-leave",
+                        pathParameters(
+                                parameterWithName("roomId").description("나갈 게임방 ID")
+                        )
+                ));
+        verify(roomCommandService).leaveRoom(1L, 10L);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 게임방을 나가면 404 상태를 반환한다")
+    void leaveRoomRejectsMissingRoom() {
+        // given
+        doThrow(new CustomException(ErrorCode.ROOM_NOT_FOUND))
+                .when(roomCommandService)
+                .leaveRoom(1L, 10L);
+
+        // when, then
+        assertLeaveRoomErrorResponse(HttpStatus.NOT_FOUND, "room-leave-room-not-found");
+    }
+
+    @Test
+    @DisplayName("종료된 게임방을 나가면 409 상태를 반환한다")
+    void leaveRoomRejectsClosedRoom() {
+        // given
+        doThrow(new CustomException(ErrorCode.ROOM_CLOSED))
+                .when(roomCommandService)
+                .leaveRoom(1L, 10L);
+
+        // when, then
+        assertLeaveRoomErrorResponse(HttpStatus.CONFLICT, "room-leave-closed");
+    }
+
+    @Test
+    @DisplayName("게임방 참여자가 아니면 나가기에 실패한다")
+    void leaveRoomRejectsNonMember() {
+        // given
+        doThrow(new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN))
+                .when(roomCommandService)
+                .leaveRoom(1L, 10L);
+
+        // when, then
+        assertLeaveRoomErrorResponse(HttpStatus.FORBIDDEN, "room-leave-forbidden");
+    }
+
+    @Test
     @DisplayName("방장이 게임방을 삭제하면 204 상태를 반환한다")
     void deleteRoomReturnsNoContent() {
         // when, then
@@ -524,6 +577,23 @@ class RoomControllerTest {
                 .apply(document(documentName,
                         pathParameters(
                                 parameterWithName("roomId").description("상세 조회할 게임방 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("status").description("HTTP 상태 코드"),
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+    }
+
+    private void assertLeaveRoomErrorResponse(HttpStatus status, String documentName) {
+        given()
+                .when()
+                .delete("/rooms/{roomId}/members/me", 10L)
+                .then()
+                .statusCode(status.value())
+                .apply(document(documentName,
+                        pathParameters(
+                                parameterWithName("roomId").description("나갈 게임방 ID")
                         ),
                         responseFields(
                                 fieldWithPath("status").description("HTTP 상태 코드"),

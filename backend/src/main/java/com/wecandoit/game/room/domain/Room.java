@@ -52,6 +52,14 @@ public class Room extends BaseEntity {
         return new Room(hostId, mode, targetBingoCount);
     }
 
+    public boolean isHost(Long memberId) {
+        return hostId.equals(memberId);
+    }
+
+    public boolean isClosed() {
+        return status == GameRoomStatus.CLOSED;
+    }
+
     public void close() {
         this.status = GameRoomStatus.CLOSED;
     }
