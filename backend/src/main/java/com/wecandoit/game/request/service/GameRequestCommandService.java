@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class GameRequestService {
+public class GameRequestCommandService {
 
     private final GameRequestRepository gameRequestRepository;
     private final RoomRepository roomRepository;

@@ -9,6 +9,7 @@ import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.dto.MemberRelationshipStatus;
 import com.wecandoit.member.dto.MemberSearchResponse;
 import com.wecandoit.member.repository.MemberRepository;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -53,6 +54,20 @@ public class MemberReadService {
                         getRelationshipStatus(member.getId(), friendIds, requestStatuses)
                 ))
                 .toList();
+    }
+
+    public Map<Long, String> getNicknamesByIds(Collection<Long> memberIds) {
+        Set<Long> targetMemberIds = new HashSet<>(memberIds);
+        if (targetMemberIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, String> nicknamesById = memberRepository.findAllById(targetMemberIds).stream()
+                .collect(Collectors.toMap(Member::getId, Member::getNickname));
+        if (nicknamesById.size() != targetMemberIds.size()) {
+            throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
+        }
+        return nicknamesById;
     }
 
     private Map<Long, MemberRelationshipStatus> getRequestStatuses(
