@@ -43,4 +43,22 @@ public class MemberEquippedItem extends BaseEntity {
 
     @Column(name = "member_items_id", nullable = false, unique = true)
     private Long memberItemId;
+
+    private MemberEquippedItem(Long memberId, Long memberItemId, ItemCategory category) {
+        this.memberId = memberId;
+        this.memberItemId = memberItemId;
+        this.category = category;
+    }
+
+    public static MemberEquippedItem create(
+            Long memberId,
+            Long memberItemId,
+            ItemCategory category
+    ) {
+        return new MemberEquippedItem(memberId, memberItemId, category);
+    }
+
+    public void changeMemberItem(Long memberItemId) {
+        this.memberItemId = memberItemId;
+    }
 }
