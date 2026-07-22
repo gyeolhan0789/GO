@@ -4,4 +4,6 @@ import com.wecandoit.game.room.domain.RoomMember;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface RoomMemberRepository extends JpaRepository<RoomMember, Long> {
+
+    boolean existsByRoomIdAndMemberId(Long roomId, Long memberId);
 }

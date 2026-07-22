@@ -36,4 +36,15 @@ public class GameRequest extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(length = 255)
     private RequestStatus status;
+
+    private GameRequest(Long roomId, Long inviterId, Long inviteeId) {
+        this.roomId = roomId;
+        this.inviterId = inviterId;
+        this.inviteeId = inviteeId;
+        this.status = RequestStatus.PENDING;
+    }
+
+    public static GameRequest create(Long roomId, Long inviterId, Long inviteeId) {
+        return new GameRequest(roomId, inviterId, inviteeId);
+    }
 }
