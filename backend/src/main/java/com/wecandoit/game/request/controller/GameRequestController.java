@@ -68,4 +68,14 @@ public class GameRequestController {
         gameRequestCommandService.rejectGameRequest(memberId, roomId, requestId);
         return ResponseEntity.noContent().build();
     }
+
+    @PatchMapping("/{roomId}/requests/{requestId}/cancel")
+    public ResponseEntity<Void> cancelGameRequest(
+            @LoginMemberId Long memberId,
+            @PathVariable Long roomId,
+            @PathVariable Long requestId
+    ) {
+        gameRequestCommandService.cancelGameRequest(memberId, roomId, requestId);
+        return ResponseEntity.noContent().build();
+    }
 }

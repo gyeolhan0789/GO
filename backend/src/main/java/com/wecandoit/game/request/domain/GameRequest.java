@@ -56,8 +56,16 @@ public class GameRequest extends BaseEntity {
         status = RequestStatus.DECLINED;
     }
 
+    public void cancel() {
+        status = RequestStatus.CANCELED;
+    }
+
     public boolean isPending() {
         return status == RequestStatus.PENDING;
+    }
+
+    public boolean isInviter(Long memberId) {
+        return inviterId.equals(memberId);
     }
 
     public boolean isInvitee(Long memberId) {

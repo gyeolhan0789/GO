@@ -68,6 +68,19 @@ public class GameRequestCommandService {
         gameRequest.reject();
     }
 
+    public void cancelGameRequest(Long memberId, Long roomId, Long requestId) {
+        validateRoomExists(roomId);
+        GameRequest gameRequest = findRequest(roomId, requestId);
+        validateRequestInviterAndPending(gameRequest, memberId);
+        gameRequest.cancel();
+    }
+
+    private void validateRoomExists(Long roomId) {
+        if (!roomRepository.existsById(roomId)) {
+            throw new CustomException(ErrorCode.ROOM_NOT_FOUND);
+        }
+    }
+
     private void validateInviter(Long memberId, Long roomId) {
         if (!roomMemberRepository.existsByRoomIdAndMemberId(roomId, memberId)) {
             throw new CustomException(ErrorCode.GAME_REQUEST_FORBIDDEN);
@@ -115,6 +128,17 @@ public class GameRequestCommandService {
         if (!gameRequest.isInvitee(memberId)) {
             throw new CustomException(ErrorCode.GAME_REQUEST_FORBIDDEN);
         }
+        validateRequestPending(gameRequest);
+    }
+
+    private void validateRequestInviterAndPending(GameRequest gameRequest, Long memberId) {
+        if (!gameRequest.isInviter(memberId)) {
+            throw new CustomException(ErrorCode.GAME_REQUEST_FORBIDDEN);
+        }
+        validateRequestPending(gameRequest);
+    }
+
+    private void validateRequestPending(GameRequest gameRequest) {
         if (!gameRequest.isPending()) {
             throw new CustomException(ErrorCode.GAME_REQUEST_ALREADY_PROCESSED);
         }
