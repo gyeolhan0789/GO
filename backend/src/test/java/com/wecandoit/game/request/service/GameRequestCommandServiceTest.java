@@ -402,7 +402,7 @@ class GameRequestCommandServiceTest {
     }
 
     private void givenInvitableRoom(GameRoomStatus status) {
-        Room room = Room.create(1L, GameMode.COOPERATE, 3);
+        Room room = Room.create(1L, GameMode.COOPERATE, 3, 3);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", status);
         when(roomRepository.findById(10L)).thenReturn(Optional.of(room));

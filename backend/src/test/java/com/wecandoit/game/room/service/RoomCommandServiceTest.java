@@ -45,7 +45,7 @@ class RoomCommandServiceTest {
         // when
         CreateRoomResponse response = roomCommandService.createRoom(
                 1L,
-                new CreateRoomRequest(GameMode.COOPERATE, 3)
+                new CreateRoomRequest(GameMode.COOPERATE, 3, 3)
         );
 
         // then
@@ -59,6 +59,7 @@ class RoomCommandServiceTest {
         assertThat(room.getMode()).isEqualTo(GameMode.COOPERATE);
         assertThat(room.getStatus()).isEqualTo(GameRoomStatus.CREATED);
         assertThat(room.getTargetBingoCount()).isEqualTo(3);
+        assertThat(room.getBoardSize()).isEqualTo(3);
 
         RoomMember roomMember = roomMemberCaptor.getValue();
         assertThat(roomMember.getRoomId()).isEqualTo(10L);
@@ -74,7 +75,7 @@ class RoomCommandServiceTest {
     @DisplayName("방장이 게임방을 삭제하면 게임방 상태를 종료로 변경한다")
     void deleteRoomClosesRoom() {
         // given
-        Room room = Room.create(1L, GameMode.SINGLE, 3);
+        Room room = Room.create(1L, GameMode.SINGLE, 3, 3);
         ReflectionTestUtils.setField(room, "id", 10L);
         when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
 
@@ -102,7 +103,7 @@ class RoomCommandServiceTest {
     @DisplayName("방장이 아닌 회원이 게임방을 삭제하면 실패한다")
     void deleteRoomRejectsNonHost() {
         // given
-        Room room = Room.create(1L, GameMode.SINGLE, 3);
+        Room room = Room.create(1L, GameMode.SINGLE, 3, 3);
         ReflectionTestUtils.setField(room, "id", 10L);
         when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
 

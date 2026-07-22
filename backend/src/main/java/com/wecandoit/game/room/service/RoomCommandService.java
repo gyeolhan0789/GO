@@ -24,7 +24,8 @@ public class RoomCommandService {
         Room room = roomRepository.save(Room.create(
                 memberId,
                 request.mode(),
-                request.targetBingoCount()
+                request.targetBingoCount(),
+                request.boardSize()
         ));
         roomMemberRepository.save(RoomMember.create(room.getId(), memberId));
         // TODO: Connect game requests, bingo board creation, and mission assignment after policy is confirmed.

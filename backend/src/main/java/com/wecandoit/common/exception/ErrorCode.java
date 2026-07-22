@@ -38,6 +38,12 @@ public enum ErrorCode {
     // Mission
     INVALID_MISSION_TYPE(HttpStatus.BAD_REQUEST, "미션 타입은 OBJECT, ATTRIBUTE, RELATION 중 하나여야 합니다."),
 
+    // Bingo Board
+    BINGO_BOARD_GENERATE_FORBIDDEN(HttpStatus.FORBIDDEN, "빙고판 생성 권한이 없습니다."),
+    ROOM_NOT_IN_PROGRESS(HttpStatus.CONFLICT, "게임이 시작된 방에서만 빙고판을 생성할 수 있습니다."),
+    BINGO_BOARD_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 빙고판이 생성된 게임방입니다."),
+    MISSION_POOL_INSUFFICIENT(HttpStatus.CONFLICT, "빙고판을 채울 미션이 부족합니다."),
+
     // Game Request
     GAME_REQUEST_FORBIDDEN(HttpStatus.FORBIDDEN, "게임방 초대 권한이 없습니다."),
     GAME_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "게임방 초대 요청을 찾을 수 없습니다."),

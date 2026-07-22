@@ -53,4 +53,14 @@ public class BingoCell extends BaseEntity {
     @Column(name = "submit_url", length = 255)
     private String submitUrl;
 
+    private BingoCell(Long boardId, Long missionId, int row, int col) {
+        this.boardId = boardId;
+        this.missionId = missionId;
+        this.row = row;
+        this.col = col;
+    }
+
+    public static BingoCell create(Long boardId, Long missionId, int row, int col) {
+        return new BingoCell(boardId, missionId, row, col);
+    }
 }
