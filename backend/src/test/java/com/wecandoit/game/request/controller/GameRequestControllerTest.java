@@ -51,6 +51,7 @@ class GameRequestControllerTest {
 
     private static final String ACCEPT_ACTION = "accept";
     private static final String REJECT_ACTION = "reject";
+    private static final String CANCEL_ACTION = "cancel";
 
     private final GameRequestCommandService gameRequestCommandService = Mockito.mock(GameRequestCommandService.class);
     private final GameRequestReadService gameRequestReadService = Mockito.mock(GameRequestReadService.class);
@@ -305,6 +306,24 @@ class GameRequestControllerTest {
     }
 
     @Test
+    @DisplayName("보낸 게임방 초대 요청을 취소하면 204 상태를 반환한다")
+    void cancelGameRequestReturnsNoContent() {
+        // when, then
+        given()
+                .when()
+                .patch("/rooms/{roomId}/requests/{requestId}/cancel", 10L, 20L)
+                .then()
+                .statusCode(HttpStatus.NO_CONTENT.value())
+                .apply(document("game-request-cancel",
+                        pathParameters(
+                                parameterWithName("roomId").description("초대를 취소할 게임방 ID"),
+                                parameterWithName("requestId").description("취소할 게임방 초대 요청 ID")
+                        )
+                ));
+        verify(gameRequestCommandService).cancelGameRequest(1L, 10L, 20L);
+    }
+
+    @Test
     @DisplayName("존재하지 않는 게임방 초대 요청을 수락하면 404 상태를 반환한다")
     void acceptGameRequestRejectsMissingRequest() {
         assertProcessErrorResponse(ErrorCode.GAME_REQUEST_NOT_FOUND, "game-request-accept-not-found", ACCEPT_ACTION);
@@ -348,6 +367,34 @@ class GameRequestControllerTest {
         );
     }
 
+    @Test
+    @DisplayName("존재하지 않는 게임방의 초대 요청을 취소하면 404 상태를 반환한다")
+    void cancelGameRequestRejectsMissingRoom() {
+        assertProcessErrorResponse(ErrorCode.ROOM_NOT_FOUND, "game-request-cancel-room-not-found", CANCEL_ACTION);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 게임방 초대 요청을 취소하면 404 상태를 반환한다")
+    void cancelGameRequestRejectsMissingRequest() {
+        assertProcessErrorResponse(ErrorCode.GAME_REQUEST_NOT_FOUND, "game-request-cancel-not-found", CANCEL_ACTION);
+    }
+
+    @Test
+    @DisplayName("초대한 회원이 아니면 게임방 초대 요청을 취소할 수 없다")
+    void cancelGameRequestRejectsForbiddenMember() {
+        assertProcessErrorResponse(ErrorCode.GAME_REQUEST_FORBIDDEN, "game-request-cancel-forbidden", CANCEL_ACTION);
+    }
+
+    @Test
+    @DisplayName("이미 처리된 게임방 초대 요청을 취소하면 409 상태를 반환한다")
+    void cancelGameRequestRejectsProcessedRequest() {
+        assertProcessErrorResponse(
+                ErrorCode.GAME_REQUEST_ALREADY_PROCESSED,
+                "game-request-cancel-processed",
+                CANCEL_ACTION
+        );
+    }
+
     private void assertErrorResponse(ErrorCode errorCode, String documentIdentifier) {
         GameRequestCreateRequest request = new GameRequestCreateRequest(2L);
         doThrow(new CustomException(errorCode))
@@ -387,10 +434,14 @@ class GameRequestControllerTest {
             doThrow(new CustomException(errorCode))
                     .when(gameRequestCommandService)
                     .acceptGameRequest(1L, 10L, 20L);
-        } else {
+        } else if (REJECT_ACTION.equals(action)) {
             doThrow(new CustomException(errorCode))
                     .when(gameRequestCommandService)
                     .rejectGameRequest(1L, 10L, 20L);
+        } else {
+            doThrow(new CustomException(errorCode))
+                    .when(gameRequestCommandService)
+                    .cancelGameRequest(1L, 10L, 20L);
         }
 
         given()
@@ -412,8 +463,10 @@ class GameRequestControllerTest {
                 ));
         if (ACCEPT_ACTION.equals(action)) {
             verify(gameRequestCommandService).acceptGameRequest(1L, 10L, 20L);
-        } else {
+        } else if (REJECT_ACTION.equals(action)) {
             verify(gameRequestCommandService).rejectGameRequest(1L, 10L, 20L);
+        } else {
+            verify(gameRequestCommandService).cancelGameRequest(1L, 10L, 20L);
         }
     }
 }

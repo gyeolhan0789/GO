@@ -238,6 +238,97 @@ class GameRequestCommandServiceTest {
     }
 
     @Test
+    @DisplayName("보낸 게임방 초대 요청을 취소하면 요청 상태를 변경한다")
+    void cancelGameRequestUpdatesStatus() {
+        // given
+        GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
+        when(roomRepository.existsById(10L)).thenReturn(true);
+        when(gameRequestRepository.findById(20L)).thenReturn(Optional.of(gameRequest));
+
+        // when
+        gameRequestCommandService.cancelGameRequest(1L, 10L, 20L);
+
+        // then
+        assertThat(gameRequest.getStatus()).isEqualTo(RequestStatus.CANCELED);
+        verify(roomMemberRepository, never()).save(Mockito.any(RoomMember.class));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 게임방의 초대 요청을 취소하면 실패한다")
+    void cancelGameRequestRejectsMissingRoom() {
+        // given
+        when(roomRepository.existsById(10L)).thenReturn(false);
+
+        // when, then
+        assertErrorCode(
+                () -> gameRequestCommandService.cancelGameRequest(1L, 10L, 20L),
+                ErrorCode.ROOM_NOT_FOUND
+        );
+        verify(gameRequestRepository, never()).findById(20L);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 게임방 초대 요청을 취소하면 실패한다")
+    void cancelGameRequestRejectsMissingRequest() {
+        // given
+        when(roomRepository.existsById(10L)).thenReturn(true);
+        when(gameRequestRepository.findById(20L)).thenReturn(Optional.empty());
+
+        // when, then
+        assertErrorCode(
+                () -> gameRequestCommandService.cancelGameRequest(1L, 10L, 20L),
+                ErrorCode.GAME_REQUEST_NOT_FOUND
+        );
+    }
+
+    @Test
+    @DisplayName("요청의 게임방과 경로의 게임방이 다르면 초대 취소에 실패한다")
+    void cancelGameRequestRejectsDifferentRoom() {
+        // given
+        GameRequest gameRequest = gameRequest(20L, 11L, 1L, 2L);
+        when(roomRepository.existsById(10L)).thenReturn(true);
+        when(gameRequestRepository.findById(20L)).thenReturn(Optional.of(gameRequest));
+
+        // when, then
+        assertErrorCode(
+                () -> gameRequestCommandService.cancelGameRequest(1L, 10L, 20L),
+                ErrorCode.GAME_REQUEST_NOT_FOUND
+        );
+    }
+
+    @Test
+    @DisplayName("초대한 회원이 아니면 게임방 초대 요청을 취소할 수 없다")
+    void cancelGameRequestRejectsForbiddenMember() {
+        // given
+        GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
+        when(roomRepository.existsById(10L)).thenReturn(true);
+        when(gameRequestRepository.findById(20L)).thenReturn(Optional.of(gameRequest));
+
+        // when, then
+        assertErrorCode(
+                () -> gameRequestCommandService.cancelGameRequest(3L, 10L, 20L),
+                ErrorCode.GAME_REQUEST_FORBIDDEN
+        );
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = RequestStatus.class, names = {"ACCEPTED", "DECLINED", "CANCELED"})
+    @DisplayName("이미 처리된 게임방 초대 요청은 취소할 수 없다")
+    void cancelGameRequestRejectsAlreadyProcessedRequest(RequestStatus status) {
+        // given
+        GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
+        updateStatus(gameRequest, status);
+        when(roomRepository.existsById(10L)).thenReturn(true);
+        when(gameRequestRepository.findById(20L)).thenReturn(Optional.of(gameRequest));
+
+        // when, then
+        assertErrorCode(
+                () -> gameRequestCommandService.cancelGameRequest(1L, 10L, 20L),
+                ErrorCode.GAME_REQUEST_ALREADY_PROCESSED
+        );
+    }
+
+    @Test
     @DisplayName("존재하지 않는 게임방 초대 요청을 처리하면 실패한다")
     void processGameRequestRejectsMissingRequest() {
         // given
@@ -321,6 +412,16 @@ class GameRequestCommandServiceTest {
         GameRequest gameRequest = GameRequest.create(roomId, inviterId, inviteeId);
         ReflectionTestUtils.setField(gameRequest, "id", id);
         return gameRequest;
+    }
+
+    private void updateStatus(GameRequest gameRequest, RequestStatus status) {
+        if (status == RequestStatus.ACCEPTED) {
+            gameRequest.accept();
+        } else if (status == RequestStatus.DECLINED) {
+            gameRequest.reject();
+        } else if (status == RequestStatus.CANCELED) {
+            gameRequest.cancel();
+        }
     }
 
     private void createGameRequest(Long memberId, Long inviteeId) {
