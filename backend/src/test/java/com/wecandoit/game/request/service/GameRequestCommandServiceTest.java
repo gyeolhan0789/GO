@@ -30,13 +30,13 @@ import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @DisplayName("게임방 초대 요청 서비스")
-class GameRequestServiceTest {
+class GameRequestCommandServiceTest {
 
     private final GameRequestRepository gameRequestRepository = Mockito.mock(GameRequestRepository.class);
     private final RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
     private final RoomMemberRepository roomMemberRepository = Mockito.mock(RoomMemberRepository.class);
     private final FriendRepository friendRepository = Mockito.mock(FriendRepository.class);
-    private final GameRequestService gameRequestService = new GameRequestService(
+    private final GameRequestCommandService gameRequestCommandService = new GameRequestCommandService(
             gameRequestRepository,
             roomRepository,
             roomMemberRepository,
@@ -65,7 +65,7 @@ class GameRequestServiceTest {
         });
 
         // when
-        GameRequestCreateResponse response = gameRequestService.createGameRequest(
+        GameRequestCreateResponse response = gameRequestCommandService.createGameRequest(
                 1L,
                 10L,
                 new GameRequestCreateRequest(2L)
@@ -102,7 +102,7 @@ class GameRequestServiceTest {
                 .thenReturn(Optional.of(existingRequest));
 
         // when
-        GameRequestCreateResponse response = gameRequestService.createGameRequest(
+        GameRequestCreateResponse response = gameRequestCommandService.createGameRequest(
                 1L,
                 10L,
                 new GameRequestCreateRequest(2L)
@@ -211,7 +211,7 @@ class GameRequestServiceTest {
         when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).thenReturn(false);
 
         // when
-        gameRequestService.acceptGameRequest(2L, 10L, 20L);
+        gameRequestCommandService.acceptGameRequest(2L, 10L, 20L);
 
         // then
         ArgumentCaptor<RoomMember> captor = ArgumentCaptor.forClass(RoomMember.class);
@@ -230,7 +230,7 @@ class GameRequestServiceTest {
         when(gameRequestRepository.findById(20L)).thenReturn(Optional.of(gameRequest));
 
         // when
-        gameRequestService.rejectGameRequest(2L, 10L, 20L);
+        gameRequestCommandService.rejectGameRequest(2L, 10L, 20L);
 
         // then
         assertThat(gameRequest.getStatus()).isEqualTo(RequestStatus.DECLINED);
@@ -245,7 +245,7 @@ class GameRequestServiceTest {
 
         // when, then
         assertErrorCode(
-                () -> gameRequestService.acceptGameRequest(2L, 10L, 20L),
+                () -> gameRequestCommandService.acceptGameRequest(2L, 10L, 20L),
                 ErrorCode.GAME_REQUEST_NOT_FOUND
         );
     }
@@ -259,7 +259,7 @@ class GameRequestServiceTest {
 
         // when, then
         assertErrorCode(
-                () -> gameRequestService.acceptGameRequest(2L, 10L, 20L),
+                () -> gameRequestCommandService.acceptGameRequest(2L, 10L, 20L),
                 ErrorCode.GAME_REQUEST_NOT_FOUND
         );
     }
@@ -273,7 +273,7 @@ class GameRequestServiceTest {
 
         // when, then
         assertErrorCode(
-                () -> gameRequestService.acceptGameRequest(3L, 10L, 20L),
+                () -> gameRequestCommandService.acceptGameRequest(3L, 10L, 20L),
                 ErrorCode.GAME_REQUEST_FORBIDDEN
         );
     }
@@ -288,7 +288,7 @@ class GameRequestServiceTest {
 
         // when, then
         assertErrorCode(
-                () -> gameRequestService.rejectGameRequest(2L, 10L, 20L),
+                () -> gameRequestCommandService.rejectGameRequest(2L, 10L, 20L),
                 ErrorCode.GAME_REQUEST_ALREADY_PROCESSED
         );
     }
@@ -303,7 +303,7 @@ class GameRequestServiceTest {
 
         // when, then
         assertErrorCode(
-                () -> gameRequestService.acceptGameRequest(2L, 10L, 20L),
+                () -> gameRequestCommandService.acceptGameRequest(2L, 10L, 20L),
                 ErrorCode.GAME_REQUEST_ALREADY_ROOM_MEMBER
         );
         assertThat(gameRequest.getStatus()).isEqualTo(RequestStatus.PENDING);
@@ -324,7 +324,7 @@ class GameRequestServiceTest {
     }
 
     private void createGameRequest(Long memberId, Long inviteeId) {
-        gameRequestService.createGameRequest(
+        gameRequestCommandService.createGameRequest(
                 memberId,
                 10L,
                 new GameRequestCreateRequest(inviteeId)

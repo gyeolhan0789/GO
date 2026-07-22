@@ -14,6 +14,7 @@ import static org.springframework.restdocs.payload.PayloadDocumentation.response
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.exception.ErrorCode;
@@ -21,9 +22,12 @@ import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.common.status.RequestStatus;
 import com.wecandoit.game.request.controller.request.GameRequestCreateRequest;
 import com.wecandoit.game.request.controller.response.GameRequestCreateResponse;
-import com.wecandoit.game.request.service.GameRequestService;
+import com.wecandoit.game.request.controller.response.ReceivedGameRequestResponse;
+import com.wecandoit.game.request.service.GameRequestCommandService;
+import com.wecandoit.game.request.service.GameRequestReadService;
 import io.restassured.http.ContentType;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +36,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.restdocs.RestDocumentationExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -46,7 +52,8 @@ class GameRequestControllerTest {
     private static final String ACCEPT_ACTION = "accept";
     private static final String REJECT_ACTION = "reject";
 
-    private final GameRequestService gameRequestService = Mockito.mock(GameRequestService.class);
+    private final GameRequestCommandService gameRequestCommandService = Mockito.mock(GameRequestCommandService.class);
+    private final GameRequestReadService gameRequestReadService = Mockito.mock(GameRequestReadService.class);
 
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
@@ -54,9 +61,15 @@ class GameRequestControllerTest {
                 UsernamePasswordAuthenticationToken.authenticated(1L, null, List.of())
         );
 
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new GameRequestController(gameRequestService))
+        MockMvc mockMvc = MockMvcBuilders
+                .standaloneSetup(new GameRequestController(gameRequestCommandService, gameRequestReadService))
                 .setControllerAdvice(new CustomExceptionHandler())
                 .setCustomArgumentResolvers(new LoginMemberIdArgumentResolver())
+                .setMessageConverters(new MappingJackson2HttpMessageConverter(
+                        Jackson2ObjectMapperBuilder.json()
+                                .featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                                .build()
+                ))
                 .apply(documentationConfiguration(restDocumentation))
                 .build();
 
@@ -70,11 +83,51 @@ class GameRequestControllerTest {
     }
 
     @Test
+    @DisplayName("받은 게임방 초대 요청 목록을 조회하면 200 상태와 대기 중 초대 목록을 반환한다")
+    void getReceivedGameRequestsReturnsPendingRequests() {
+        // given
+        LocalDateTime createdAt = LocalDateTime.of(2026, 7, 22, 10, 0);
+        when(gameRequestReadService.getReceivedGameRequests(1L))
+                .thenReturn(List.of(new ReceivedGameRequestResponse(
+                        20L,
+                        10L,
+                        2L,
+                        "초대자",
+                        RequestStatus.PENDING,
+                        createdAt
+                )));
+
+        // when, then
+        given()
+                .when()
+                .get("/rooms/requests/received")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("[0].requestId", equalTo(20))
+                .body("[0].roomId", equalTo(10))
+                .body("[0].inviterId", equalTo(2))
+                .body("[0].inviterNickname", equalTo("초대자"))
+                .body("[0].status", equalTo("PENDING"))
+                .body("[0].createdAt", equalTo("2026-07-22T10:00:00"))
+                .apply(document("game-request-received-list",
+                        responseFields(
+                                fieldWithPath("[].requestId").description("게임방 초대 요청 ID"),
+                                fieldWithPath("[].roomId").description("초대받은 게임방 ID"),
+                                fieldWithPath("[].inviterId").description("초대한 회원 ID"),
+                                fieldWithPath("[].inviterNickname").description("초대한 회원 닉네임"),
+                                fieldWithPath("[].status").description("게임방 초대 요청 상태"),
+                                fieldWithPath("[].createdAt").description("게임방 초대 요청 생성 시각")
+                        )
+                ));
+        verify(gameRequestReadService).getReceivedGameRequests(1L);
+    }
+
+    @Test
     @DisplayName("친구 초대 요청을 생성하면 201 상태와 생성 결과를 반환한다")
     void createGameRequestReturnsCreatedRequest() {
         // given
         GameRequestCreateRequest request = new GameRequestCreateRequest(2L);
-        when(gameRequestService.createGameRequest(1L, 10L, request))
+        when(gameRequestCommandService.createGameRequest(1L, 10L, request))
                 .thenReturn(new GameRequestCreateResponse(20L, RequestStatus.PENDING, true));
 
         // when, then
@@ -105,7 +158,7 @@ class GameRequestControllerTest {
                                 fieldWithPath("created").description("신규 생성 여부")
                         )
                 ));
-        verify(gameRequestService).createGameRequest(1L, 10L, request);
+        verify(gameRequestCommandService).createGameRequest(1L, 10L, request);
     }
 
     @Test
@@ -113,7 +166,7 @@ class GameRequestControllerTest {
     void createGameRequestReturnsExistingRequest() {
         // given
         GameRequestCreateRequest request = new GameRequestCreateRequest(2L);
-        when(gameRequestService.createGameRequest(1L, 10L, request))
+        when(gameRequestCommandService.createGameRequest(1L, 10L, request))
                 .thenReturn(new GameRequestCreateResponse(20L, RequestStatus.PENDING, false));
 
         // when, then
@@ -144,7 +197,7 @@ class GameRequestControllerTest {
                                 fieldWithPath("created").description("신규 생성 여부")
                         )
                 ));
-        verify(gameRequestService).createGameRequest(1L, 10L, request);
+        verify(gameRequestCommandService).createGameRequest(1L, 10L, request);
     }
 
     @Test
@@ -168,7 +221,7 @@ class GameRequestControllerTest {
                                 fieldWithPath("message").description("오류 메시지")
                         )
                 ));
-        verify(gameRequestService, never()).createGameRequest(
+        verify(gameRequestCommandService, never()).createGameRequest(
                 Mockito.anyLong(),
                 Mockito.anyLong(),
                 Mockito.any()
@@ -190,7 +243,7 @@ class GameRequestControllerTest {
                 .post("/rooms/{roomId}/requests", 10L)
                 .then()
                 .statusCode(HttpStatus.BAD_REQUEST.value());
-        verify(gameRequestService, never()).createGameRequest(
+        verify(gameRequestCommandService, never()).createGameRequest(
                 Mockito.anyLong(),
                 Mockito.anyLong(),
                 Mockito.any()
@@ -230,7 +283,7 @@ class GameRequestControllerTest {
                                 parameterWithName("requestId").description("수락할 게임방 초대 요청 ID")
                         )
                 ));
-        verify(gameRequestService).acceptGameRequest(1L, 10L, 20L);
+        verify(gameRequestCommandService).acceptGameRequest(1L, 10L, 20L);
     }
 
     @Test
@@ -248,7 +301,7 @@ class GameRequestControllerTest {
                                 parameterWithName("requestId").description("거절할 게임방 초대 요청 ID")
                         )
                 ));
-        verify(gameRequestService).rejectGameRequest(1L, 10L, 20L);
+        verify(gameRequestCommandService).rejectGameRequest(1L, 10L, 20L);
     }
 
     @Test
@@ -298,7 +351,7 @@ class GameRequestControllerTest {
     private void assertErrorResponse(ErrorCode errorCode, String documentIdentifier) {
         GameRequestCreateRequest request = new GameRequestCreateRequest(2L);
         doThrow(new CustomException(errorCode))
-                .when(gameRequestService)
+                .when(gameRequestCommandService)
                 .createGameRequest(1L, 10L, request);
 
         given()
@@ -326,17 +379,17 @@ class GameRequestControllerTest {
                                 fieldWithPath("message").description("오류 메시지")
                         )
                 ));
-        verify(gameRequestService).createGameRequest(1L, 10L, request);
+        verify(gameRequestCommandService).createGameRequest(1L, 10L, request);
     }
 
     private void assertProcessErrorResponse(ErrorCode errorCode, String documentIdentifier, String action) {
         if (ACCEPT_ACTION.equals(action)) {
             doThrow(new CustomException(errorCode))
-                    .when(gameRequestService)
+                    .when(gameRequestCommandService)
                     .acceptGameRequest(1L, 10L, 20L);
         } else {
             doThrow(new CustomException(errorCode))
-                    .when(gameRequestService)
+                    .when(gameRequestCommandService)
                     .rejectGameRequest(1L, 10L, 20L);
         }
 
@@ -358,9 +411,9 @@ class GameRequestControllerTest {
                         )
                 ));
         if (ACCEPT_ACTION.equals(action)) {
-            verify(gameRequestService).acceptGameRequest(1L, 10L, 20L);
+            verify(gameRequestCommandService).acceptGameRequest(1L, 10L, 20L);
         } else {
-            verify(gameRequestService).rejectGameRequest(1L, 10L, 20L);
+            verify(gameRequestCommandService).rejectGameRequest(1L, 10L, 20L);
         }
     }
 }

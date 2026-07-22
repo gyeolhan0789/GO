@@ -3,11 +3,15 @@ package com.wecandoit.game.request.controller;
 import com.wecandoit.common.security.LoginMemberId;
 import com.wecandoit.game.request.controller.request.GameRequestCreateRequest;
 import com.wecandoit.game.request.controller.response.GameRequestCreateResponse;
-import com.wecandoit.game.request.service.GameRequestService;
+import com.wecandoit.game.request.controller.response.ReceivedGameRequestResponse;
+import com.wecandoit.game.request.service.GameRequestCommandService;
+import com.wecandoit.game.request.service.GameRequestReadService;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,7 +24,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class GameRequestController {
 
-    private final GameRequestService gameRequestService;
+    private final GameRequestCommandService gameRequestCommandService;
+    private final GameRequestReadService gameRequestReadService;
+
+    @GetMapping("/requests/received")
+    public ResponseEntity<List<ReceivedGameRequestResponse>> getReceivedGameRequests(
+            @LoginMemberId Long memberId
+    ) {
+        return ResponseEntity.ok(gameRequestReadService.getReceivedGameRequests(memberId));
+    }
 
     @PostMapping("/{roomId}/requests")
     public ResponseEntity<GameRequestCreateResponse> createGameRequest(
@@ -28,7 +40,7 @@ public class GameRequestController {
             @PathVariable Long roomId,
             @Valid @RequestBody GameRequestCreateRequest request
     ) {
-        GameRequestCreateResponse response = gameRequestService.createGameRequest(
+        GameRequestCreateResponse response = gameRequestCommandService.createGameRequest(
                 memberId,
                 roomId,
                 request
@@ -43,7 +55,7 @@ public class GameRequestController {
             @PathVariable Long roomId,
             @PathVariable Long requestId
     ) {
-        gameRequestService.acceptGameRequest(memberId, roomId, requestId);
+        gameRequestCommandService.acceptGameRequest(memberId, roomId, requestId);
         return ResponseEntity.noContent().build();
     }
 
@@ -53,7 +65,7 @@ public class GameRequestController {
             @PathVariable Long roomId,
             @PathVariable Long requestId
     ) {
-        gameRequestService.rejectGameRequest(memberId, roomId, requestId);
+        gameRequestCommandService.rejectGameRequest(memberId, roomId, requestId);
         return ResponseEntity.noContent().build();
     }
 }
