@@ -1,5 +1,6 @@
 package com.wecandoit.item.service;
 
+import static com.wecandoit.item.domain.ItemFixture.item;
 import static com.wecandoit.item.domain.MemberItemFixture.memberItem;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -12,8 +13,10 @@ import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.item.domain.MemberEquippedItem;
 import com.wecandoit.item.domain.MemberItem;
+import com.wecandoit.item.repository.ItemRepository;
 import com.wecandoit.item.repository.MemberEquippedItemRepository;
 import com.wecandoit.item.repository.MemberItemRepository;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,8 +30,140 @@ class CharacterItemCommandServiceTest {
             MemberEquippedItemRepository.class
     );
     private final MemberItemRepository memberItemRepository = Mockito.mock(MemberItemRepository.class);
+    private final ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
     private final CharacterItemCommandService characterItemCommandService =
-            new CharacterItemCommandService(memberEquippedItemRepository, memberItemRepository);
+            new CharacterItemCommandService(
+                    memberEquippedItemRepository,
+                    memberItemRepository,
+                    itemRepository
+            );
+
+    @Test
+    @DisplayName("요청 상태와 다른 아이템만 장착하고 제거된 카테고리만 해제한다")
+    void saveEquippedItemsAppliesOnlyDifferences() {
+        // given
+        MemberItem hat = memberItem(10L, 1L, 100L);
+        MemberItem top = memberItem(20L, 1L, 200L);
+        MemberItem bottom = memberItem(30L, 1L, 300L);
+        MemberEquippedItem equippedHat = MemberEquippedItem.create(1L, 10L, ItemCategory.HAT);
+        MemberEquippedItem equippedBottom = MemberEquippedItem.create(1L, 30L, ItemCategory.BOTTOM);
+        when(memberItemRepository.findAllByMemberId(1L)).thenReturn(List.of(hat, top, bottom));
+        when(itemRepository.findAllById(List.of(100L, 200L)))
+                .thenReturn(List.of(item(100L, "HAT"), item(200L, "TOP")));
+        when(memberEquippedItemRepository.findAllByMemberId(1L))
+                .thenReturn(List.of(equippedHat, equippedBottom));
+        when(memberEquippedItemRepository.findByMemberIdAndCategory(1L, ItemCategory.TOP))
+                .thenReturn(Optional.empty());
+        when(memberItemRepository.findByIdAndMemberId(30L, 1L)).thenReturn(Optional.of(bottom));
+        when(memberEquippedItemRepository.findByMemberIdAndMemberItemId(1L, 30L))
+                .thenReturn(Optional.of(equippedBottom));
+
+        // when
+        characterItemCommandService.saveEquippedItems(1L, List.of(10L, 20L));
+
+        // then
+        verify(memberEquippedItemRepository).save(Mockito.argThat(equippedItem ->
+                equippedItem.getMemberItemId().equals(20L)
+                        && equippedItem.getCategory() == ItemCategory.TOP
+        ));
+        verify(memberEquippedItemRepository).delete(equippedBottom);
+        verify(memberEquippedItemRepository, never())
+                .findByMemberIdAndCategory(1L, ItemCategory.HAT);
+    }
+
+    @Test
+    @DisplayName("빈 목록을 저장하면 장착한 모든 아이템을 해제한다")
+    void saveEquippedItemsUnequipsAllForEmptyRequest() {
+        // given
+        MemberItem hat = memberItem(10L, 1L, 100L);
+        MemberEquippedItem equippedHat = MemberEquippedItem.create(1L, 10L, ItemCategory.HAT);
+        when(memberItemRepository.findAllByMemberId(1L)).thenReturn(List.of(hat));
+        when(itemRepository.findAllById(List.of())).thenReturn(List.of());
+        when(memberEquippedItemRepository.findAllByMemberId(1L)).thenReturn(List.of(equippedHat));
+        when(memberItemRepository.findByIdAndMemberId(10L, 1L)).thenReturn(Optional.of(hat));
+        when(memberEquippedItemRepository.findByMemberIdAndMemberItemId(1L, 10L))
+                .thenReturn(Optional.of(equippedHat));
+
+        // when
+        characterItemCommandService.saveEquippedItems(1L, List.of());
+
+        // then
+        verify(memberEquippedItemRepository).delete(equippedHat);
+        verify(memberEquippedItemRepository, never()).save(Mockito.any());
+    }
+
+    @Test
+    @DisplayName("다른 회원의 보유 아이템이 포함되면 변경 전에 거부한다")
+    void saveEquippedItemsRejectsOtherMemberItemBeforeChanges() {
+        // given
+        when(memberItemRepository.findAllByMemberId(1L))
+                .thenReturn(List.of(memberItem(10L, 1L, 100L)));
+
+        // when, then
+        assertThatThrownBy(() -> characterItemCommandService.saveEquippedItems(
+                1L,
+                List.of(10L, 20L)
+        ))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.ACCESS_DENIED);
+        verify(itemRepository, never()).findAllById(Mockito.any());
+        verify(memberEquippedItemRepository, never()).findAllByMemberId(Mockito.anyLong());
+    }
+
+    @Test
+    @DisplayName("같은 카테고리의 아이템이 여러 개이면 변경 전에 거부한다")
+    void saveEquippedItemsRejectsDuplicateCategoriesBeforeChanges() {
+        // given
+        MemberItem firstHat = memberItem(10L, 1L, 100L);
+        MemberItem secondHat = memberItem(20L, 1L, 200L);
+        when(memberItemRepository.findAllByMemberId(1L)).thenReturn(List.of(firstHat, secondHat));
+        when(itemRepository.findAllById(List.of(100L, 200L)))
+                .thenReturn(List.of(item(100L, "HAT"), item(200L, "HAT")));
+
+        // when, then
+        assertThatThrownBy(() -> characterItemCommandService.saveEquippedItems(
+                1L,
+                List.of(10L, 20L)
+        ))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.DUPLICATE_ITEM_CATEGORY);
+        verify(memberEquippedItemRepository, never()).findAllByMemberId(Mockito.anyLong());
+    }
+
+    @Test
+    @DisplayName("원본 아이템을 찾을 수 없으면 변경 전에 실패한다")
+    void saveEquippedItemsRejectsMissingItemBeforeChanges() {
+        // given
+        MemberItem memberItem = memberItem(10L, 1L, 100L);
+        when(memberItemRepository.findAllByMemberId(1L)).thenReturn(List.of(memberItem));
+        when(itemRepository.findAllById(List.of(100L))).thenReturn(List.of());
+
+        // when, then
+        assertThatThrownBy(() -> characterItemCommandService.saveEquippedItems(1L, List.of(10L)))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.ITEM_NOT_FOUND);
+        verify(memberEquippedItemRepository, never()).findAllByMemberId(Mockito.anyLong());
+    }
+
+    @Test
+    @DisplayName("원본 아이템의 카테고리가 올바르지 않으면 변경 전에 실패한다")
+    void saveEquippedItemsRejectsInvalidCategoryBeforeChanges() {
+        // given
+        MemberItem memberItem = memberItem(10L, 1L, 100L);
+        when(memberItemRepository.findAllByMemberId(1L)).thenReturn(List.of(memberItem));
+        when(itemRepository.findAllById(List.of(100L)))
+                .thenReturn(List.of(item(100L, "UNKNOWN")));
+
+        // when, then
+        assertThatThrownBy(() -> characterItemCommandService.saveEquippedItems(1L, List.of(10L)))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_ITEM_CATEGORY);
+        verify(memberEquippedItemRepository, never()).findAllByMemberId(Mockito.anyLong());
+    }
 
     @Test
     @DisplayName("보유 아이템의 카테고리가 비어 있으면 새로 장착한다")

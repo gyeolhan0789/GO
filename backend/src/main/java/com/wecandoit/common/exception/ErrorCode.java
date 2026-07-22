@@ -38,6 +38,11 @@ public enum ErrorCode {
     // Mission
     INVALID_MISSION_TYPE(HttpStatus.BAD_REQUEST, "미션 타입은 OBJECT, ATTRIBUTE, RELATION 중 하나여야 합니다."),
 
+    // Item
+    ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "아이템을 찾을 수 없습니다."),
+    INVALID_ITEM_CATEGORY(HttpStatus.BAD_REQUEST, "유효하지 않은 아이템 카테고리입니다."),
+    DUPLICATE_ITEM_CATEGORY(HttpStatus.BAD_REQUEST, "같은 카테고리의 아이템을 중복 장착할 수 없습니다."),
+
     // Bingo Board
     BINGO_BOARD_GENERATE_FORBIDDEN(HttpStatus.FORBIDDEN, "빙고판 생성 권한이 없습니다."),
     ROOM_NOT_IN_PROGRESS(HttpStatus.CONFLICT, "게임이 시작된 방에서만 빙고판을 생성할 수 있습니다."),
