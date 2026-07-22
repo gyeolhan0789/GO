@@ -4,6 +4,7 @@ import com.wecandoit.common.security.LoginMemberId;
 import com.wecandoit.game.room.controller.request.CreateRoomRequest;
 import com.wecandoit.game.room.controller.response.CreateRoomResponse;
 import com.wecandoit.game.room.controller.response.MyRoomResponse;
+import com.wecandoit.game.room.controller.response.RoomDetailResponse;
 import com.wecandoit.game.room.controller.response.RoomMemberResponse;
 import com.wecandoit.game.room.service.RoomCommandService;
 import com.wecandoit.game.room.service.RoomReadService;
@@ -32,6 +33,15 @@ public class RoomController {
     public ResponseEntity<List<MyRoomResponse>> getMyRooms(@LoginMemberId Long memberId) {
         List<MyRoomResponse> responses = roomReadService.getMyRooms(memberId);
         return ResponseEntity.ok(responses);
+    }
+
+    @GetMapping("/{roomId}")
+    public ResponseEntity<RoomDetailResponse> getRoomDetail(
+            @LoginMemberId Long memberId,
+            @PathVariable Long roomId
+    ) {
+        RoomDetailResponse response = roomReadService.getRoomDetail(memberId, roomId);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping

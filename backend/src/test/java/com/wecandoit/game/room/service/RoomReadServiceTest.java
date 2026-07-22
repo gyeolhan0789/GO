@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.room.controller.response.MyRoomResponse;
+import com.wecandoit.game.room.controller.response.RoomDetailResponse;
 import com.wecandoit.game.room.controller.response.RoomMemberResponse;
 import com.wecandoit.game.room.domain.GameMode;
 import com.wecandoit.game.room.domain.GameRoomStatus;
@@ -36,6 +37,106 @@ class RoomReadServiceTest {
             roomMemberRepository,
             memberReadService
     );
+
+    @Test
+    @DisplayName("게임방 상세를 조회하면 방 정보와 참여자 상세 목록을 반환한다")
+    void getRoomDetailReturnsRoomDetailWithMembers() {
+        // given
+        Room room = room(10L, 1L);
+        ReflectionTestUtils.setField(room, "startedAt", LocalDateTime.of(2026, 7, 22, 9, 50));
+        RoomMember hostMember = roomMember(10L, 1L, 2, LocalDateTime.of(2026, 7, 22, 10, 0));
+        RoomMember guestMember = roomMember(10L, 2L, 1, LocalDateTime.of(2026, 7, 22, 10, 5));
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
+        when(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L))
+                .thenReturn(List.of(hostMember, guestMember));
+        when(memberReadService.getNicknamesByIds(List.of(1L, 2L)))
+                .thenReturn(Map.of(1L, "방장", 2L, "참여자"));
+
+        // when
+        RoomDetailResponse response = roomReadService.getRoomDetail(1L, 10L);
+
+        // then
+        assertThat(response.roomId()).isEqualTo(10L);
+        assertThat(response.mode()).isEqualTo(GameMode.SINGLE);
+        assertThat(response.status()).isEqualTo(GameRoomStatus.CREATED);
+        assertThat(response.targetBingoCount()).isEqualTo(3);
+        assertThat(response.hostId()).isEqualTo(1L);
+        assertThat(response.startedAt()).isEqualTo(LocalDateTime.of(2026, 7, 22, 9, 50));
+        assertThat(response.members()).hasSize(2);
+        assertThat(response.members().get(0).memberId()).isEqualTo(1L);
+        assertThat(response.members().get(0).nickname()).isEqualTo("방장");
+        assertThat(response.members().get(0).host()).isTrue();
+        assertThat(response.members().get(0).completedMissionCount()).isEqualTo(2);
+        assertThat(response.members().get(0).joinedAt()).isEqualTo(LocalDateTime.of(2026, 7, 22, 10, 0));
+        assertThat(response.members().get(1).memberId()).isEqualTo(2L);
+        assertThat(response.members().get(1).nickname()).isEqualTo("참여자");
+        assertThat(response.members().get(1).host()).isFalse();
+        verify(roomMemberRepository).findAllByRoomIdOrderByJoinedAtAsc(10L);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 게임방의 상세를 조회하면 실패한다")
+    void getRoomDetailRejectsMissingRoom() {
+        // given
+        when(roomRepository.findById(10L)).thenReturn(Optional.empty());
+
+        // when, then
+        assertErrorCode(
+                () -> roomReadService.getRoomDetail(1L, 10L),
+                ErrorCode.ROOM_NOT_FOUND
+        );
+    }
+
+    @Test
+    @DisplayName("게임방 참여자가 아니면 상세 조회에 실패한다")
+    void getRoomDetailRejectsNonMember() {
+        // given
+        Room room = room(10L, 1L);
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).thenReturn(false);
+
+        // when, then
+        assertErrorCode(
+                () -> roomReadService.getRoomDetail(2L, 10L),
+                ErrorCode.ROOM_MEMBER_FORBIDDEN
+        );
+    }
+
+    @Test
+    @DisplayName("종료된 게임방의 상세를 조회하면 실패한다")
+    void getRoomDetailRejectsClosedRoom() {
+        // given
+        Room room = room(10L, 1L);
+        room.close();
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
+
+        // when, then
+        assertErrorCode(
+                () -> roomReadService.getRoomDetail(1L, 10L),
+                ErrorCode.ROOM_CLOSED
+        );
+    }
+
+    @Test
+    @DisplayName("참여자 회원을 찾을 수 없으면 상세 조회에 실패한다")
+    void getRoomDetailRejectsMissingMember() {
+        // given
+        Room room = room(10L, 1L);
+        RoomMember roomMember = roomMember(10L, 1L, 0, LocalDateTime.of(2026, 7, 22, 10, 0));
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
+        when(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).thenReturn(List.of(roomMember));
+        when(memberReadService.getNicknamesByIds(List.of(1L)))
+                .thenThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+
+        // when, then
+        assertErrorCode(
+                () -> roomReadService.getRoomDetail(1L, 10L),
+                ErrorCode.MEMBER_NOT_FOUND
+        );
+    }
 
     @Test
     @DisplayName("내 게임방 목록을 참여자 닉네임 요약과 함께 반환한다")
