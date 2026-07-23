@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.wecandoit.history.domain.MemberHistory;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -111,5 +112,72 @@ class MemberHistoryRepositoryTest {
         assertThat(foundMemberHistory.get().getMemberId()).isEqualTo(1L);
         assertThat(foundMemberHistory.get().getHistoryDate()).isEqualTo(historyDate);
         assertThat(foundMemberHistory.get().getStep()).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("회원 ID와 날짜 범위로 히스토리를 날짜 오름차순 조회한다")
+    void findAllByMemberIdAndHistoryDateBetweenReturnsHistoriesOrderByHistoryDate() {
+        // given
+        memberHistoryRepository.saveAndFlush(MemberHistory.create(1L, LocalDate.of(2026, 7, 23), 30, 3_000, 300));
+        memberHistoryRepository.saveAndFlush(MemberHistory.create(1L, LocalDate.of(2026, 7, 21), 10, 1_000, 100));
+        memberHistoryRepository.saveAndFlush(MemberHistory.create(1L, LocalDate.of(2026, 7, 22), 20, 2_000, 200));
+
+        // when
+        List<MemberHistory> memberHistories = memberHistoryRepository
+                .findAllByMemberIdAndHistoryDateBetweenOrderByHistoryDateAsc(
+                        1L,
+                        LocalDate.of(2026, 7, 21),
+                        LocalDate.of(2026, 7, 23)
+                );
+
+        // then
+        assertThat(memberHistories)
+                .extracting(MemberHistory::getHistoryDate)
+                .containsExactly(
+                        LocalDate.of(2026, 7, 21),
+                        LocalDate.of(2026, 7, 22),
+                        LocalDate.of(2026, 7, 23)
+                );
+    }
+
+    @Test
+    @DisplayName("다른 회원의 히스토리는 범위 조회 결과에 포함하지 않는다")
+    void findAllByMemberIdAndHistoryDateBetweenExcludesOtherMemberHistories() {
+        // given
+        memberHistoryRepository.saveAndFlush(MemberHistory.create(1L, LocalDate.of(2026, 7, 22), 10, 1_000, 100));
+        memberHistoryRepository.saveAndFlush(MemberHistory.create(2L, LocalDate.of(2026, 7, 22), 20, 2_000, 200));
+
+        // when
+        List<MemberHistory> memberHistories = memberHistoryRepository
+                .findAllByMemberIdAndHistoryDateBetweenOrderByHistoryDateAsc(
+                        1L,
+                        LocalDate.of(2026, 7, 21),
+                        LocalDate.of(2026, 7, 23)
+                );
+
+        // then
+        assertThat(memberHistories).hasSize(1);
+        assertThat(memberHistories.getFirst().getMemberId()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("날짜 범위 밖 히스토리는 범위 조회 결과에 포함하지 않는다")
+    void findAllByMemberIdAndHistoryDateBetweenExcludesOutOfRangeHistories() {
+        // given
+        memberHistoryRepository.saveAndFlush(MemberHistory.create(1L, LocalDate.of(2026, 7, 20), 10, 1_000, 100));
+        memberHistoryRepository.saveAndFlush(MemberHistory.create(1L, LocalDate.of(2026, 7, 22), 20, 2_000, 200));
+        memberHistoryRepository.saveAndFlush(MemberHistory.create(1L, LocalDate.of(2026, 7, 24), 30, 3_000, 300));
+
+        // when
+        List<MemberHistory> memberHistories = memberHistoryRepository
+                .findAllByMemberIdAndHistoryDateBetweenOrderByHistoryDateAsc(
+                        1L,
+                        LocalDate.of(2026, 7, 21),
+                        LocalDate.of(2026, 7, 23)
+                );
+
+        // then
+        assertThat(memberHistories).hasSize(1);
+        assertThat(memberHistories.getFirst().getHistoryDate()).isEqualTo(LocalDate.of(2026, 7, 22));
     }
 }
