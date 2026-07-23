@@ -15,6 +15,17 @@ public final class ItemFixture {
     }
 
     public static Item item(
+            Long id,
+            String name,
+            String category,
+            String imageUrl
+    ) {
+        Item item = item(name, category, 0L, imageUrl);
+        ReflectionTestUtils.setField(item, "id", id);
+        return item;
+    }
+
+    public static Item item(
             String name,
             String category,
             long price,
