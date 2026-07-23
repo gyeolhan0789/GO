@@ -240,6 +240,74 @@ class BingoControllerTest {
     }
 
     @Test
+    @DisplayName("칸을 제출하면 204 No Content를 반환한다")
+    void submitCellReturnsNoContent() {
+        // given & when, then
+        given()
+                .contentType(ContentType.JSON)
+                .body("{\"submitUrl\":\"https://example.com/proof.png\"}")
+                .when()
+                .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/submit", 10L, 1000L)
+                .then()
+                .statusCode(HttpStatus.NO_CONTENT.value())
+                .apply(document("bingo-cells-submit",
+                        pathParameters(
+                                parameterWithName("roomId").description("칸을 제출할 게임방 ID"),
+                                parameterWithName("cellId").description("제출할 빙고 칸 ID")
+                        )
+                ));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 칸이면 제출에 실패한다")
+    void submitCellRejectsMissingCell() {
+        // given
+        doThrow(new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND))
+                .when(bingoService)
+                .submitCell(1L, 10L, 1000L, "https://example.com/proof.png");
+
+        // when, then
+        given()
+                .contentType(ContentType.JSON)
+                .body("{\"submitUrl\":\"https://example.com/proof.png\"}")
+                .when()
+                .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/submit", 10L, 1000L)
+                .then()
+                .statusCode(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("방 멤버가 아니면 제출에 실패한다")
+    void submitCellRejectsNonMember() {
+        // given
+        doThrow(new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN))
+                .when(bingoService)
+                .submitCell(1L, 10L, 1000L, "https://example.com/proof.png");
+
+        // when, then
+        given()
+                .contentType(ContentType.JSON)
+                .body("{\"submitUrl\":\"https://example.com/proof.png\"}")
+                .when()
+                .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/submit", 10L, 1000L)
+                .then()
+                .statusCode(HttpStatus.FORBIDDEN.value());
+    }
+
+    @Test
+    @DisplayName("submitUrl이 비어있으면 제출에 실패한다")
+    void submitCellRejectsBlankSubmitUrl() {
+        // given & when, then
+        given()
+                .contentType(ContentType.JSON)
+                .body("{\"submitUrl\":\"\"}")
+                .when()
+                .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/submit", 10L, 1000L)
+                .then()
+                .statusCode(HttpStatus.BAD_REQUEST.value());
+    }
+
+    @Test
     @DisplayName("조기 갱신하면 새로 발급된 빙고판을 반환한다")
     void renewBoardReturnsNewlyIssuedBoard() {
         // given

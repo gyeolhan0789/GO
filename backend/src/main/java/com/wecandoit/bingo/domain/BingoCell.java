@@ -63,4 +63,9 @@ public class BingoCell extends BaseEntity {
     public static BingoCell create(Long boardId, Long missionId, int row, int col) {
         return new BingoCell(boardId, missionId, row, col);
     }
+
+    public void submit(Long memberId, String submitUrl) {
+        this.memberId = memberId;
+        this.submitUrl = submitUrl;
+    }
 }

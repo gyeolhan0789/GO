@@ -33,6 +33,20 @@ public class GameResult extends BaseEntity {
     @Column(name = "completed_mission_count", nullable = false)
     private int completedMissionCount;
 
+    // TODO: 보상 정책 확정 후 계산 로직 추가 (현재는 0으로 고정)
     @Column(name = "reward_cash", nullable = false)
     private long rewardCash;
+
+    private GameResult(Long roomId, boolean result, int bingoCount, int completedMissionCount, long rewardCash) {
+        this.roomId = roomId;
+        this.result = result;
+        this.bingoCount = bingoCount;
+        this.completedMissionCount = completedMissionCount;
+        this.rewardCash = rewardCash;
+    }
+
+    public static GameResult create(
+            Long roomId, boolean result, int bingoCount, int completedMissionCount, long rewardCash) {
+        return new GameResult(roomId, result, bingoCount, completedMissionCount, rewardCash);
+    }
 }

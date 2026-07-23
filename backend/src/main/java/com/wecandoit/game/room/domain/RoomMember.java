@@ -44,4 +44,8 @@ public class RoomMember extends BaseEntity {
     public static RoomMember create(Long roomId, Long memberId) {
         return new RoomMember(roomId, memberId);
     }
+
+    public void updateCompletedMissionCount(int count) {
+        this.completedMissionCount = count;
+    }
 }
