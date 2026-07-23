@@ -1,8 +1,8 @@
-package com.wecandoit.mission.controller;
+package com.wecandoit.admin.mission.controller;
 
-import com.wecandoit.mission.controller.request.CreateMissionRequest;
-import com.wecandoit.mission.controller.response.MissionResponse;
-import com.wecandoit.mission.service.MissionService;
+import com.wecandoit.admin.mission.controller.request.CreateMissionRequest;
+import com.wecandoit.admin.mission.controller.response.AdminMissionResponse;
+import com.wecandoit.admin.mission.service.AdminMissionService;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -17,18 +17,18 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/admin/missions")
 @RequiredArgsConstructor
-public class MissionController {
+public class AdminMissionController {
 
-    private final MissionService missionService;
+    private final AdminMissionService adminMissionService;
 
     @GetMapping
-    public ResponseEntity<List<MissionResponse>> getMissions() {
-        return ResponseEntity.ok(missionService.getMissions());
+    public ResponseEntity<List<AdminMissionResponse>> getMissions() {
+        return ResponseEntity.ok(adminMissionService.getMissions());
     }
 
     @PostMapping
     public ResponseEntity<Void> createMission(@Valid @RequestBody CreateMissionRequest request) {
-        missionService.createMission(request);
+        adminMissionService.createMission(request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 }

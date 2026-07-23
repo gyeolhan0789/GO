@@ -1,4 +1,4 @@
-package com.wecandoit.mission.service;
+package com.wecandoit.admin.mission.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -6,13 +6,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.wecandoit.admin.mission.controller.request.CreateMissionRequest;
+import com.wecandoit.admin.mission.controller.response.AdminMissionResponse;
+import com.wecandoit.admin.mission.repository.AdminMissionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
-import com.wecandoit.mission.controller.request.CreateMissionRequest;
-import com.wecandoit.mission.controller.response.MissionResponse;
 import com.wecandoit.mission.domain.Mission;
-import com.wecandoit.mission.repository.MissionRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -22,10 +22,10 @@ import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @DisplayName("미션 서비스")
-class MissionServiceTest {
+class AdminMissionServiceTest {
 
-    private final MissionRepository missionRepository = Mockito.mock(MissionRepository.class);
-    private final MissionService missionService = new MissionService(missionRepository);
+    private final AdminMissionRepository adminMissionRepository = Mockito.mock(AdminMissionRepository.class);
+    private final AdminMissionService adminMissionService = new AdminMissionService(adminMissionRepository);
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
@@ -41,11 +41,11 @@ class MissionServiceTest {
         );
 
         // when
-        missionService.createMission(request);
+        adminMissionService.createMission(request);
 
         // then
         ArgumentCaptor<Mission> captor = ArgumentCaptor.forClass(Mission.class);
-        verify(missionRepository).save(captor.capture());
+        verify(adminMissionRepository).save(captor.capture());
         Mission mission = captor.getValue();
         assertThat(mission.getMissionImageUrl()).isEqualTo("https://example.com/flower.png");
         assertThat(mission.getType()).isEqualTo("OBJECT");
@@ -68,11 +68,11 @@ class MissionServiceTest {
         );
 
         // when, then
-        assertThatThrownBy(() -> missionService.createMission(request))
+        assertThatThrownBy(() -> adminMissionService.createMission(request))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_MISSION_TYPE);
-        verifyNoInteractions(missionRepository);
+        verifyNoInteractions(adminMissionRepository);
     }
 
     @Test
@@ -82,13 +82,13 @@ class MissionServiceTest {
         Mission mission = Mission.create("https://example.com/new.png", "OBJECT", "새 미션", null, null);
         ReflectionTestUtils.setField(mission, "id", 2L);
         ReflectionTestUtils.setField(mission, "createdAt", LocalDateTime.of(2026, 7, 22, 12, 0));
-        when(missionRepository.findAllByOrderByCreatedAtDescIdDesc()).thenReturn(List.of(mission));
+        when(adminMissionRepository.findAllByOrderByCreatedAtDescIdDesc()).thenReturn(List.of(mission));
 
         // when
-        List<MissionResponse> responses = missionService.getMissions();
+        List<AdminMissionResponse> responses = adminMissionService.getMissions();
 
         // then
-        assertThat(responses).extracting(MissionResponse::missionId).containsExactly(2L);
+        assertThat(responses).extracting(AdminMissionResponse::missionId).containsExactly(2L);
         assertThat(responses.getFirst().createdAt()).isEqualTo(LocalDateTime.of(2026, 7, 22, 12, 0));
     }
 }

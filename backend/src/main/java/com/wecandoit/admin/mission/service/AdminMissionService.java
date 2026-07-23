@@ -1,12 +1,12 @@
-package com.wecandoit.mission.service;
+package com.wecandoit.admin.mission.service;
 
+import com.wecandoit.admin.mission.controller.request.CreateMissionRequest;
+import com.wecandoit.admin.mission.controller.response.AdminMissionResponse;
+import com.wecandoit.admin.mission.repository.AdminMissionRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
-import com.wecandoit.mission.controller.request.CreateMissionRequest;
-import com.wecandoit.mission.controller.response.MissionResponse;
 import com.wecandoit.mission.domain.Mission;
 import com.wecandoit.mission.domain.MissionType;
-import com.wecandoit.mission.repository.MissionRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,13 +15,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class MissionService {
+public class AdminMissionService {
 
-    private final MissionRepository missionRepository;
+    private final AdminMissionRepository adminMissionRepository;
 
     public void createMission(CreateMissionRequest request) {
         validateMissionType(request.type());
-        missionRepository.save(Mission.create(
+        adminMissionRepository.save(Mission.create(
                 request.missionImageUrl(),
                 request.type(),
                 request.title(),
@@ -31,9 +31,9 @@ public class MissionService {
     }
 
     @Transactional(readOnly = true)
-    public List<MissionResponse> getMissions() {
-        return missionRepository.findAllByOrderByCreatedAtDescIdDesc().stream()
-                .map(MissionResponse::from)
+    public List<AdminMissionResponse> getMissions() {
+        return adminMissionRepository.findAllByOrderByCreatedAtDescIdDesc().stream()
+                .map(AdminMissionResponse::from)
                 .toList();
     }
 

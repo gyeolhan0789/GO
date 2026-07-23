@@ -1,4 +1,4 @@
-package com.wecandoit.mission.controller.request;
+package com.wecandoit.admin.mission.controller.request;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.validation.constraints.NotBlank;
