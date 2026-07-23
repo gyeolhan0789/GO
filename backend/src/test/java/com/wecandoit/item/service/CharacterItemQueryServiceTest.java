@@ -114,6 +114,72 @@ class CharacterItemQueryServiceTest {
     }
 
     @Test
+    @DisplayName("카테고리로 보유 아이템을 조회하면 해당 카테고리만 반환한다")
+    void getMyItemsByCategoryReturnsMatchingItems() {
+        // given
+        Member member = member(1L, "테스터");
+        MemberItem hat = memberItem(10L, 1L, 100L);
+        MemberItem top = memberItem(20L, 1L, 200L);
+        Item hatItem = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+        when(memberItemRepository.findAllByMemberId(1L)).thenReturn(List.of(hat, top));
+        when(itemRepository.findAllByIdInAndCategory(List.of(100L, 200L), "HAT"))
+                .thenReturn(List.of(hatItem));
+
+        // when
+        List<MemberItemResponse> responses = characterItemQueryService.getMyItems(1L, "HAT");
+
+        // then
+        assertThat(responses)
+                .extracting(MemberItemResponse::memberItemId, MemberItemResponse::category)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple(10L, "HAT"));
+        verify(itemRepository).findAllByIdInAndCategory(List.of(100L, 200L), "HAT");
+        verify(itemRepository, never()).findAllById(Mockito.anyIterable());
+    }
+
+    @Test
+    @DisplayName("카테고리에 해당하는 보유 아이템이 없으면 빈 목록을 반환한다")
+    void getMyItemsByCategoryReturnsEmptyList() {
+        // given
+        Member member = member(1L, "테스터");
+        MemberItem hat = memberItem(10L, 1L, 100L);
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+        when(memberItemRepository.findAllByMemberId(1L)).thenReturn(List.of(hat));
+        when(itemRepository.findAllByIdInAndCategory(List.of(100L), "TOP"))
+                .thenReturn(List.of());
+
+        // when
+        List<MemberItemResponse> responses = characterItemQueryService.getMyItems(1L, "TOP");
+
+        // then
+        assertThat(responses).isEmpty();
+    }
+
+    @Test
+    @DisplayName("유효하지 않은 카테고리로 조회하면 실패한다")
+    void getMyItemsByCategoryRejectsInvalidCategory() {
+        // when, then
+        assertThatThrownBy(() -> characterItemQueryService.getMyItems(1L, "UNKNOWN"))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_ITEM_CATEGORY);
+        verify(memberRepository, never()).findById(Mockito.anyLong());
+        verify(memberItemRepository, never()).findAllByMemberId(Mockito.anyLong());
+    }
+
+    @Test
+    @DisplayName("소문자 카테고리로 조회하면 실패한다")
+    void getMyItemsByCategoryRejectsLowercaseCategory() {
+        // when, then
+        assertThatThrownBy(() -> characterItemQueryService.getMyItems(1L, "hat"))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_ITEM_CATEGORY);
+        verify(memberRepository, never()).findById(Mockito.anyLong());
+        verify(memberItemRepository, never()).findAllByMemberId(Mockito.anyLong());
+    }
+
+    @Test
     @DisplayName("내 캐릭터를 조회하면 회원 정보와 장착 아이템을 반환한다")
     void getMyCharacterReturnsMemberAndEquippedItems() {
         // given
