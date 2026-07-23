@@ -15,6 +15,7 @@ import com.wecandoit.game.room.repository.RoomMemberRepository;
 import com.wecandoit.game.room.repository.RoomRepository;
 import com.wecandoit.mission.domain.Mission;
 import com.wecandoit.mission.repository.MissionRepository;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -89,7 +90,8 @@ public class BingoService {
         // Room.status == COMPLETED인 경우도 IN_PROGRESS가 아니므로 여기서 이미 거부된다 (별도 가드 불필요).
         validateRoomInProgress(room);
 
-        BingoBoard activeBoard = findActiveBoard(roomId);
+        BingoBoard activeBoard = bingoBoardRepository.findActiveBoardForUpdate(roomId, INACTIVE_BOARD_STATUSES)
+                .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
         validateRenewalHost(memberId, room);
         validateBoardCompleted(activeBoard.getId());
 
@@ -97,6 +99,25 @@ public class BingoService {
         activeBoard.complete();
         bingoBoardRepository.save(activeBoard);
         return newBoardResponse;
+    }
+
+    /**
+     * 스케줄러 등 시스템 주체가 호출하는 강제 갱신. 컨트롤러로 노출되지 않으며,
+     * host 여부나 완료 여부와 무관하게 생성 후 7일이 지난 활성 보드를 닫고 새 보드를 발급한다.
+     */
+    public void autoRenewBoard(Long roomId) {
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+
+        bingoBoardRepository.findActiveBoardForUpdate(roomId, INACTIVE_BOARD_STATUSES)
+                .ifPresent(board -> {
+                    if (board.getCreatedAt().plusDays(7).isAfter(LocalDateTime.now())) {
+                        return;
+                    }
+                    board.close();
+                    bingoBoardRepository.save(board);
+                    generateNewBoard(room);
+                });
     }
 
     private BingoBoardResponse generateNewBoard(Room room) {

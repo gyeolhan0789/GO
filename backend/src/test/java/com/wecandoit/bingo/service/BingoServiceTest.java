@@ -330,7 +330,7 @@ class BingoServiceTest {
         Room room = inProgressRoom(1L, 10L, 2);
         when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
         BingoBoard activeBoard = activeBoard(100L, 10L, 2);
-        when(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
+        when(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
                 .thenReturn(Optional.of(activeBoard));
         when(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).thenReturn(false);
         List<Mission> missions = createMissions(4);
@@ -363,7 +363,7 @@ class BingoServiceTest {
         Room room = inProgressRoom(1L, 10L, 2);
         when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
         BingoBoard activeBoard = activeBoard(100L, 10L, 2);
-        when(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
+        when(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
                 .thenReturn(Optional.of(activeBoard));
         when(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).thenReturn(true);
 
@@ -379,7 +379,7 @@ class BingoServiceTest {
         Room room = inProgressRoom(1L, 10L, 2);
         when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
         BingoBoard activeBoard = activeBoard(100L, 10L, 2);
-        when(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
+        when(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
                 .thenReturn(Optional.of(activeBoard));
 
         // when, then
@@ -416,7 +416,7 @@ class BingoServiceTest {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
         when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
+        when(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
                 .thenReturn(Optional.empty());
 
         // when, then
@@ -430,7 +430,7 @@ class BingoServiceTest {
         Room room = inProgressRoom(1L, 10L, 2);
         when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
         BingoBoard activeBoard = activeBoard(100L, 10L, 2);
-        when(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
+        when(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
                 .thenReturn(Optional.of(activeBoard));
         when(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).thenReturn(false);
         when(missionRepository.findRandomMissions(4)).thenReturn(createMissions(3));
@@ -439,6 +439,88 @@ class BingoServiceTest {
         assertErrorCode(() -> bingoService.renewBoard(1L, 10L), ErrorCode.MISSION_POOL_INSUFFICIENT);
         assertThat(activeBoard.getStatus()).isEqualTo(BingoBoardStatus.IN_PROGRESS);
         Mockito.verify(bingoBoardRepository, Mockito.never()).save(activeBoard);
+    }
+
+    @Test
+    @DisplayName("생성된 지 7일 이상 지난 보드는 미완료 상태여도 강제로 닫히고 새 보드가 발급된다")
+    void autoRenewBoardForcesRenewalForOldIncompleteBoard() {
+        // given
+        Room room = inProgressRoom(1L, 10L, 2);
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        BingoBoard activeBoard = activeBoard(100L, 10L, 2);
+        ReflectionTestUtils.setField(activeBoard, "createdAt", LocalDateTime.now().minusDays(8));
+        when(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+                .thenReturn(Optional.of(activeBoard));
+        when(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).thenReturn(true);
+        List<Mission> missions = createMissions(4);
+        when(missionRepository.findRandomMissions(4)).thenReturn(missions);
+        when(bingoBoardRepository.save(Mockito.any(BingoBoard.class))).thenAnswer(invocation -> {
+            BingoBoard board = invocation.getArgument(0);
+            if (board.getId() == null) {
+                ReflectionTestUtils.setField(board, "id", 200L);
+            }
+            return board;
+        });
+        when(bingoCellRepository.save(Mockito.any(BingoCell.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        bingoService.autoRenewBoard(10L);
+
+        // then
+        assertThat(activeBoard.getStatus()).isEqualTo(BingoBoardStatus.CLOSED);
+        Mockito.verify(bingoBoardRepository).save(activeBoard);
+        Mockito.verify(missionRepository).findRandomMissions(4);
+    }
+
+    @Test
+    @DisplayName("생성된 지 7일 이상 지난 보드는 100% 완료된 상태여도 동일하게 강제 갱신된다")
+    void autoRenewBoardForcesRenewalForOldCompletedBoard() {
+        // given
+        Room room = inProgressRoom(1L, 10L, 2);
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        BingoBoard activeBoard = activeBoard(100L, 10L, 2);
+        ReflectionTestUtils.setField(activeBoard, "createdAt", LocalDateTime.now().minusDays(8));
+        when(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+                .thenReturn(Optional.of(activeBoard));
+        when(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).thenReturn(false);
+        List<Mission> missions = createMissions(4);
+        when(missionRepository.findRandomMissions(4)).thenReturn(missions);
+        when(bingoBoardRepository.save(Mockito.any(BingoBoard.class))).thenAnswer(invocation -> {
+            BingoBoard board = invocation.getArgument(0);
+            if (board.getId() == null) {
+                ReflectionTestUtils.setField(board, "id", 200L);
+            }
+            return board;
+        });
+        when(bingoCellRepository.save(Mockito.any(BingoCell.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        bingoService.autoRenewBoard(10L);
+
+        // then
+        assertThat(activeBoard.getStatus()).isEqualTo(BingoBoardStatus.CLOSED);
+        Mockito.verify(bingoBoardRepository).save(activeBoard);
+        Mockito.verify(missionRepository).findRandomMissions(4);
+    }
+
+    @Test
+    @DisplayName("생성된 지 7일이 지나지 않은 보드는 자동 갱신되지 않는다")
+    void autoRenewBoardSkipsRecentBoard() {
+        // given
+        Room room = inProgressRoom(1L, 10L, 2);
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        BingoBoard activeBoard = activeBoard(100L, 10L, 2);
+        ReflectionTestUtils.setField(activeBoard, "createdAt", LocalDateTime.now().minusDays(3));
+        when(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+                .thenReturn(Optional.of(activeBoard));
+
+        // when
+        bingoService.autoRenewBoard(10L);
+
+        // then
+        assertThat(activeBoard.getStatus()).isEqualTo(BingoBoardStatus.IN_PROGRESS);
+        Mockito.verify(bingoBoardRepository, Mockito.never()).save(Mockito.any(BingoBoard.class));
+        Mockito.verify(missionRepository, Mockito.never()).findRandomMissions(Mockito.anyInt());
     }
 
     private BingoBoard activeBoard(Long boardId, Long roomId, int boardSize) {
