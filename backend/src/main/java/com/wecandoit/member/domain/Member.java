@@ -30,11 +30,12 @@ public class Member extends BaseEntity {
     @Column
     private String password;
 
-    @Column(nullable = false, length = 50)
+    @Column(nullable = false, unique = true, length = 50)
     private String nickname;
 
+    @Enumerated(EnumType.STRING)
     @Column(length = 100)
-    private String region;
+    private Region region;
 
     @Column(nullable = false)
     private long cash;
@@ -51,7 +52,7 @@ public class Member extends BaseEntity {
     private AuthProvider provider;
 
     @Builder
-    private Member(String email, String password, String nickname, String region, long cash,
+    private Member(String email, String password, String nickname, Region region, long cash,
             boolean onboardingCompleted, Role role, AuthProvider provider) {
         this.email = email;
         this.password = password;
@@ -64,10 +65,15 @@ public class Member extends BaseEntity {
     }
 
     public static Member create(String email, String encodedPassword, String nickname) {
+        return create(email, encodedPassword, nickname, null);
+    }
+
+    public static Member create(String email, String encodedPassword, String nickname, Region region) {
         return Member.builder()
                 .email(email)
                 .password(encodedPassword)
                 .nickname(nickname)
+                .region(region)
                 .role(Role.USER)
                 .provider(AuthProvider.LOCAL)
                 .build();
@@ -80,6 +86,18 @@ public class Member extends BaseEntity {
                 .role(Role.USER)
                 .provider(provider)
                 .build();
+    }
+
+    public void changeNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
+    public void changeRegion(Region region) {
+        this.region = region;
+    }
+
+    public void changePassword(String encodedPassword) {
+        this.password = encodedPassword;
     }
 
 }

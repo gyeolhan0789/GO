@@ -18,6 +18,8 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
     boolean existsByEmail(String email);
 
+    boolean existsByNickname(String nickname);
+
     List<Member> findByNicknameContainingIgnoreCaseAndIdNot(String keyword, Long memberId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

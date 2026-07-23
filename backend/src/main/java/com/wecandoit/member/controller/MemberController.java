@@ -1,12 +1,18 @@
 package com.wecandoit.member.controller;
 
 import com.wecandoit.common.security.LoginMemberId;
+import com.wecandoit.member.dto.MemberProfileUpdateRequest;
 import com.wecandoit.member.dto.MemberSearchResponse;
+import com.wecandoit.member.dto.PasswordChangeRequest;
 import com.wecandoit.member.service.MemberReadService;
+import com.wecandoit.member.service.MemberService;
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class MemberController {
 
     private final MemberReadService memberReadService;
+    private final MemberService memberService;
 
     @GetMapping("/search")
     public ResponseEntity<List<MemberSearchResponse>> searchMembers(
@@ -24,5 +31,23 @@ public class MemberController {
             @RequestParam(defaultValue = "") String keyword
     ) {
         return ResponseEntity.ok(memberReadService.searchMembers(memberId, keyword));
+    }
+
+    @PatchMapping("/me")
+    public ResponseEntity<Void> updateProfile(
+            @LoginMemberId Long memberId,
+            @Valid @RequestBody MemberProfileUpdateRequest request
+    ) {
+        memberService.updateProfile(memberId, request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/password")
+    public ResponseEntity<Void> changePassword(
+            @LoginMemberId Long memberId,
+            @Valid @RequestBody PasswordChangeRequest request
+    ) {
+        memberService.changePassword(memberId, request);
+        return ResponseEntity.noContent().build();
     }
 }
