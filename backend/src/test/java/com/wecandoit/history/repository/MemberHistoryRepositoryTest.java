@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.wecandoit.history.domain.MemberHistory;
 import java.time.LocalDate;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -90,5 +91,25 @@ class MemberHistoryRepositoryTest {
         assertThat(memberHistory.getId()).isNotNull();
         assertThat(memberHistory.getMemberId()).isEqualTo(2L);
         assertThat(memberHistory.getHistoryDate()).isEqualTo(historyDate);
+    }
+
+    @Test
+    @DisplayName("회원 ID와 히스토리 날짜로 히스토리를 조회한다")
+    void findByMemberIdAndHistoryDateReturnsHistory() {
+        // given
+        LocalDate historyDate = LocalDate.of(2026, 7, 22);
+        memberHistoryRepository.saveAndFlush(MemberHistory.create(1L, historyDate, 10, 1_000, 100));
+
+        // when
+        Optional<MemberHistory> foundMemberHistory = memberHistoryRepository.findByMemberIdAndHistoryDate(
+                1L,
+                historyDate
+        );
+
+        // then
+        assertThat(foundMemberHistory).isPresent();
+        assertThat(foundMemberHistory.get().getMemberId()).isEqualTo(1L);
+        assertThat(foundMemberHistory.get().getHistoryDate()).isEqualTo(historyDate);
+        assertThat(foundMemberHistory.get().getStep()).isEqualTo(10);
     }
 }

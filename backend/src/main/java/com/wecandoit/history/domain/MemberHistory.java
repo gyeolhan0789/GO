@@ -70,4 +70,10 @@ public class MemberHistory extends BaseEntity {
     ) {
         return new MemberHistory(memberId, historyDate, step, distance, calories);
     }
+
+    public void add(int step, int distance, int calories) {
+        this.step += step;
+        this.distance += distance;
+        this.calories += calories;
+    }
 }
