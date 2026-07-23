@@ -59,7 +59,15 @@ git branch --show-current
 - 작업 유형은 반드시 브랜치명에서만 추출한다. 패턴이 맞지 않으면 브래킷 없이 제목만 사용한다.
 - Jira URL: `https://ssafy.atlassian.net/browse/{이슈키}`
 
-이슈 키를 파싱했으면 Jira MCP로 이슈 제목을 가져온다:
+현재 브랜치의 열린 MR을 먼저 확인한다:
+
+```bash
+glab mr list --source-branch "$(git branch --show-current)" --state opened
+```
+
+MR이 존재하면 기존 description만 갱신하므로 제목 조회와 제목 입력을 건너뛴다.
+
+MR이 없는 경우에만 이슈 키를 파싱했으면 Jira MCP로 이슈 제목을 가져온다:
 
 ```
 mcp__jira__jira_get_issue(issue_key="{이슈키}")
@@ -132,13 +140,7 @@ Jira: {Jira URL}
 | Note | 리뷰어 참고사항 (LLM 판단) | 예 — 없으면 섹션 생략 |
 | Related Issue | Jira URL | 파싱 실패 시 생략 가능 |
 
-### 4. MR 존재 여부 확인
-
-```bash
-glab mr list --source-branch "$(git branch --show-current)" --state opened
-```
-
-### 5. MR 업데이트 또는 생성
+### 4. MR 업데이트 또는 생성
 
 **MR이 존재하는 경우** — 기존 description을 전체 덮어쓴다:
 
@@ -155,7 +157,7 @@ glab mr create \
   --target-branch develop
 ```
 
-### 6. 완료 확인
+### 5. 완료 확인
 
 업데이트된 MR URL을 출력한다:
 

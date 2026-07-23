@@ -1,8 +1,11 @@
 package com.wecandoit.member.dto;
 
+import com.wecandoit.member.domain.Region;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 public record SignupRequest(
 
@@ -12,12 +15,20 @@ public record SignupRequest(
 
         @NotBlank(message = "비밀번호는 필수입니다.")
         @Pattern(
-                regexp = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[^A-Za-z0-9\\s]).{8,}$",
-                message = "비밀번호는 8자 이상이며 영문, 숫자, 특수문자를 모두 포함해야 합니다."
+                regexp = MemberValidationRules.PASSWORD_PATTERN,
+                message = MemberValidationRules.PASSWORD_PATTERN_MESSAGE
         )
         String password,
 
         @NotBlank(message = "닉네임은 필수입니다.")
-        String nickname
+        @Size(
+                min = MemberValidationRules.NICKNAME_MIN_LENGTH,
+                max = MemberValidationRules.NICKNAME_MAX_LENGTH,
+                message = MemberValidationRules.NICKNAME_LENGTH_MESSAGE
+        )
+        String nickname,
+
+        @NotNull(message = "지역은 필수입니다.")
+        Region region
 ) {
 }
