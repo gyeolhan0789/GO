@@ -31,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class BingoService {
 
     private static final List<BingoBoardStatus> INACTIVE_BOARD_STATUSES =
-            List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.CLOSED);
+            List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED);
 
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
@@ -114,7 +114,7 @@ public class BingoService {
                     if (board.getCreatedAt().plusDays(7).isAfter(LocalDateTime.now())) {
                         return;
                     }
-                    board.close();
+                    board.expire();
                     bingoBoardRepository.save(board);
                     generateNewBoard(room);
                 });
