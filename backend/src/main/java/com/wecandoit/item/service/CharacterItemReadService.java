@@ -25,7 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class CharacterItemQueryService {
+public class CharacterItemReadService {
 
     private final MemberRepository memberRepository;
     private final MemberEquippedItemRepository memberEquippedItemRepository;

@@ -19,7 +19,7 @@ import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.item.controller.response.MemberItemResponse;
-import com.wecandoit.item.service.CharacterItemQueryService;
+import com.wecandoit.item.service.CharacterItemReadService;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -40,8 +40,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 @ExtendWith(RestDocumentationExtension.class)
 class MemberItemControllerTest {
 
-    private final CharacterItemQueryService characterItemQueryService = Mockito.mock(
-            CharacterItemQueryService.class
+    private final CharacterItemReadService characterItemReadService = Mockito.mock(
+            CharacterItemReadService.class
     );
 
     @BeforeEach
@@ -50,7 +50,7 @@ class MemberItemControllerTest {
                 UsernamePasswordAuthenticationToken.authenticated(1L, null, List.of())
         );
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(
-                        new MemberItemController(characterItemQueryService)
+                        new MemberItemController(characterItemReadService)
                 )
                 .setControllerAdvice(new CustomExceptionHandler())
                 .setCustomArgumentResolvers(new LoginMemberIdArgumentResolver())
@@ -69,7 +69,7 @@ class MemberItemControllerTest {
     @DisplayName("전체 보유 아이템 목록을 반환한다")
     void getMyItemsReturnsMemberItems() {
         // given
-        when(characterItemQueryService.getMyItems(1L, null)).thenReturn(List.of(
+        when(characterItemReadService.getMyItems(1L, null)).thenReturn(List.of(
                 new MemberItemResponse(
                         10L,
                         100L,
@@ -100,14 +100,14 @@ class MemberItemControllerTest {
                                 fieldWithPath("[].imageUrl").description("아이템 이미지 URL")
                         )
                 ));
-        verify(characterItemQueryService).getMyItems(1L, null);
+        verify(characterItemReadService).getMyItems(1L, null);
     }
 
     @Test
     @DisplayName("카테고리에 해당하는 보유 아이템 목록을 반환한다")
     void getMyItemsByCategoryReturnsMemberItems() {
         // given
-        when(characterItemQueryService.getMyItems(1L, "HAT")).thenReturn(List.of(
+        when(characterItemReadService.getMyItems(1L, "HAT")).thenReturn(List.of(
                 new MemberItemResponse(
                         10L,
                         100L,
@@ -138,14 +138,14 @@ class MemberItemControllerTest {
                                 fieldWithPath("[].imageUrl").description("아이템 이미지 URL")
                         )
                 ));
-        verify(characterItemQueryService).getMyItems(1L, "HAT");
+        verify(characterItemReadService).getMyItems(1L, "HAT");
     }
 
     @Test
     @DisplayName("카테고리에 해당하는 보유 아이템이 없으면 빈 목록을 반환한다")
     void getMyItemsByCategoryReturnsEmptyList() {
         // given
-        when(characterItemQueryService.getMyItems(1L, "TOP")).thenReturn(List.of());
+        when(characterItemReadService.getMyItems(1L, "TOP")).thenReturn(List.of());
 
         // when, then
         given()
@@ -155,7 +155,7 @@ class MemberItemControllerTest {
                 .then()
                 .statusCode(HttpStatus.OK.value())
                 .body("$", hasSize(0));
-        verify(characterItemQueryService).getMyItems(1L, "TOP");
+        verify(characterItemReadService).getMyItems(1L, "TOP");
     }
 
     @Test
@@ -163,7 +163,7 @@ class MemberItemControllerTest {
     void getMyItemsByCategoryRejectsInvalidCategory() {
         // given
         doThrow(new CustomException(ErrorCode.INVALID_ITEM_CATEGORY))
-                .when(characterItemQueryService)
+                .when(characterItemReadService)
                 .getMyItems(1L, "UNKNOWN");
 
         // when, then
@@ -182,7 +182,7 @@ class MemberItemControllerTest {
                                 fieldWithPath("message").description("오류 메시지")
                         )
                 ));
-        verify(characterItemQueryService).getMyItems(1L, "UNKNOWN");
+        verify(characterItemReadService).getMyItems(1L, "UNKNOWN");
     }
 
     @Test
@@ -190,7 +190,7 @@ class MemberItemControllerTest {
     void getMyItemsByCategoryRejectsLowercaseCategory() {
         // given
         doThrow(new CustomException(ErrorCode.INVALID_ITEM_CATEGORY))
-                .when(characterItemQueryService)
+                .when(characterItemReadService)
                 .getMyItems(1L, "hat");
 
         // when, then
@@ -200,7 +200,7 @@ class MemberItemControllerTest {
                 .get("/members/items")
                 .then()
                 .statusCode(HttpStatus.BAD_REQUEST.value());
-        verify(characterItemQueryService).getMyItems(1L, "hat");
-        verify(characterItemQueryService, never()).getMyItems(1L);
+        verify(characterItemReadService).getMyItems(1L, "hat");
+        verify(characterItemReadService, never()).getMyItems(1L);
     }
 }

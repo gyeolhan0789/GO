@@ -20,7 +20,7 @@ import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.item.controller.response.ItemPurchaseResponse;
 import com.wecandoit.item.controller.response.ShopItemResponse;
 import com.wecandoit.item.service.ShopItemCommandService;
-import com.wecandoit.item.service.ShopItemQueryService;
+import com.wecandoit.item.service.ShopItemReadService;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -41,7 +41,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 @ExtendWith(RestDocumentationExtension.class)
 class ShopItemControllerTest {
 
-    private final ShopItemQueryService shopItemQueryService = Mockito.mock(ShopItemQueryService.class);
+    private final ShopItemReadService shopItemReadService = Mockito.mock(ShopItemReadService.class);
     private final ShopItemCommandService shopItemCommandService = Mockito.mock(ShopItemCommandService.class);
 
     @BeforeEach
@@ -50,7 +50,7 @@ class ShopItemControllerTest {
                 UsernamePasswordAuthenticationToken.authenticated(1L, null, List.of())
         );
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(
-                        new ShopItemController(shopItemQueryService, shopItemCommandService)
+                        new ShopItemController(shopItemReadService, shopItemCommandService)
                 )
                 .setControllerAdvice(new CustomExceptionHandler())
                 .setCustomArgumentResolvers(new LoginMemberIdArgumentResolver())
@@ -69,7 +69,7 @@ class ShopItemControllerTest {
     @DisplayName("전체 상점 아이템 목록을 반환한다")
     void getShopItemsReturnsAllItems() {
         // given
-        when(shopItemQueryService.getShopItems(null)).thenReturn(List.of(
+        when(shopItemReadService.getShopItems(null)).thenReturn(List.of(
                 new ShopItemResponse(
                         100L,
                         "빨간 모자",
@@ -115,14 +115,14 @@ class ShopItemControllerTest {
                                 fieldWithPath("[].imageUrl").description("아이템 이미지 URL")
                         )
                 ));
-        verify(shopItemQueryService).getShopItems(null);
+        verify(shopItemReadService).getShopItems(null);
     }
 
     @Test
     @DisplayName("상점 아이템이 없으면 빈 배열을 반환한다")
     void getShopItemsReturnsEmptyList() {
         // given
-        when(shopItemQueryService.getShopItems(null)).thenReturn(List.of());
+        when(shopItemReadService.getShopItems(null)).thenReturn(List.of());
 
         // when, then
         given()
@@ -131,14 +131,14 @@ class ShopItemControllerTest {
                 .then()
                 .statusCode(HttpStatus.OK.value())
                 .body("$", hasSize(0));
-        verify(shopItemQueryService).getShopItems(null);
+        verify(shopItemReadService).getShopItems(null);
     }
 
     @Test
     @DisplayName("카테고리에 해당하는 상점 아이템 목록을 반환한다")
     void getShopItemsByCategoryReturnsMatchingItems() {
         // given
-        when(shopItemQueryService.getShopItems("HAT")).thenReturn(List.of(
+        when(shopItemReadService.getShopItems("HAT")).thenReturn(List.of(
                 new ShopItemResponse(
                         100L,
                         "빨간 모자",
@@ -173,14 +173,14 @@ class ShopItemControllerTest {
                                 fieldWithPath("[].imageUrl").description("아이템 이미지 URL")
                         )
                 ));
-        verify(shopItemQueryService).getShopItems("HAT");
+        verify(shopItemReadService).getShopItems("HAT");
     }
 
     @Test
     @DisplayName("카테고리에 해당하는 상점 아이템이 없으면 빈 배열을 반환한다")
     void getShopItemsByCategoryReturnsEmptyList() {
         // given
-        when(shopItemQueryService.getShopItems("TOP")).thenReturn(List.of());
+        when(shopItemReadService.getShopItems("TOP")).thenReturn(List.of());
 
         // when, then
         given()
@@ -190,14 +190,14 @@ class ShopItemControllerTest {
                 .then()
                 .statusCode(HttpStatus.OK.value())
                 .body("$", hasSize(0));
-        verify(shopItemQueryService).getShopItems("TOP");
+        verify(shopItemReadService).getShopItems("TOP");
     }
 
     @Test
     @DisplayName("유효하지 않은 카테고리는 잘못된 요청으로 처리한다")
     void getShopItemsByCategoryRejectsInvalidCategory() {
         // given
-        when(shopItemQueryService.getShopItems("UNKNOWN"))
+        when(shopItemReadService.getShopItems("UNKNOWN"))
                 .thenThrow(new CustomException(ErrorCode.INVALID_ITEM_CATEGORY));
 
         // when, then
@@ -218,14 +218,14 @@ class ShopItemControllerTest {
                                 fieldWithPath("message").description("오류 메시지")
                         )
                 ));
-        verify(shopItemQueryService).getShopItems("UNKNOWN");
+        verify(shopItemReadService).getShopItems("UNKNOWN");
     }
 
     @Test
     @DisplayName("소문자 카테고리는 잘못된 요청으로 처리한다")
     void getShopItemsByCategoryRejectsLowercaseCategory() {
         // given
-        when(shopItemQueryService.getShopItems("hat"))
+        when(shopItemReadService.getShopItems("hat"))
                 .thenThrow(new CustomException(ErrorCode.INVALID_ITEM_CATEGORY));
 
         // when, then
@@ -235,7 +235,7 @@ class ShopItemControllerTest {
                 .get("/shop/items")
                 .then()
                 .statusCode(HttpStatus.BAD_REQUEST.value());
-        verify(shopItemQueryService).getShopItems("hat");
+        verify(shopItemReadService).getShopItems("hat");
     }
 
     @Test
