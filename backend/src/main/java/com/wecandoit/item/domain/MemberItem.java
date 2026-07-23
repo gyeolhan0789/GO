@@ -27,4 +27,13 @@ public class MemberItem extends BaseEntity {
     @Column(name = "item_id", nullable = false)
     private Long itemId;
 
+    private MemberItem(Long memberId, Long itemId) {
+        this.memberId = memberId;
+        this.itemId = itemId;
+    }
+
+    public static MemberItem create(Long memberId, Long itemId) {
+        return new MemberItem(memberId, itemId);
+    }
+
 }

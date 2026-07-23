@@ -1,6 +1,8 @@
 package com.wecandoit.member.domain;
 
 import com.wecandoit.common.entity.BaseEntity;
+import com.wecandoit.common.exception.CustomException;
+import com.wecandoit.common.exception.ErrorCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -98,6 +100,13 @@ public class Member extends BaseEntity {
 
     public void changePassword(String encodedPassword) {
         this.password = encodedPassword;
+    }
+
+    public void deductCash(long amount) {
+        if (cash < amount) {
+            throw new CustomException(ErrorCode.INSUFFICIENT_CASH);
+        }
+        cash -= amount;
     }
 
 }
