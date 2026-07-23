@@ -12,9 +12,9 @@ Java 21, Spring Boot 3.5.2, JPA/Hibernate, MySQL 기반 코드에 적용한다.
 ## Service CQRS와 네이밍
 
 - 모든 Service는 CQRS(Command Query Responsibility Segregation)를 적용한다. 하나의 Service 클래스에 상태 변경과 조회 책임을 함께 두지 않는다.
-- 상태 변경 책임은 `XxxCommandService`, 조회 책임은 `XxxQueryService`로 분리한다.
-- Command Service 메서드는 생성·수정·삭제와 같이 상태를 변경하는 동사로, Query Service 메서드는 조회 의도가 드러나는 이름으로 작성한다.
-- Controller와 다른 Service는 필요한 Command Service 또는 Query Service만 의존하며, Query Service에서 상태를 변경하지 않는다.
+- 상태 변경 책임은 `XxxCommandService`, 조회 책임은 `XxxReadService`로 분리한다.
+- Command Service 메서드는 생성·수정·삭제와 같이 상태를 변경하는 동사로, Read Service 메서드는 조회 의도가 드러나는 이름으로 작성한다.
+- Controller와 다른 Service는 필요한 Command Service 또는 Read Service만 의존하며, Read Service에서 상태를 변경하지 않는다.
 
 ## REST API와 예외 응답
 
@@ -25,7 +25,7 @@ Java 21, Spring Boot 3.5.2, JPA/Hibernate, MySQL 기반 코드에 적용한다.
 ## 트랜잭션과 JPA
 
 - `@Transactional`은 메서드가 아니라 Service 클래스 레벨에 선언한다.
-- `XxxCommandService`에는 `@Transactional`, `XxxQueryService`에는 `@Transactional(readOnly = true)`를 클래스 레벨에 선언한다.
+- `XxxCommandService`에는 `@Transactional`, `XxxReadService`에는 `@Transactional(readOnly = true)`를 클래스 레벨에 선언한다.
 - 예외적인 메서드 수준 트랜잭션 설정이 필요하면 별도 클래스 분리를 우선 검토하고, 불가피한 이유를 코드 리뷰에서 설명한다.
 - 엔티티 상태 변경은 `user.requestWithdrawal()`처럼 의도가 드러나는 도메인 메서드로 수행한다.
 - 엔티티에 `@Table(name = "...")`을 명시하고 연관관계 기본 fetch 전략은 `FetchType.LAZY`를 사용한다.

@@ -4,7 +4,7 @@ import com.wecandoit.common.security.LoginMemberId;
 import com.wecandoit.item.controller.response.ItemPurchaseResponse;
 import com.wecandoit.item.controller.response.ShopItemResponse;
 import com.wecandoit.item.service.ShopItemCommandService;
-import com.wecandoit.item.service.ShopItemQueryService;
+import com.wecandoit.item.service.ShopItemReadService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,14 +21,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class ShopItemController {
 
-    private final ShopItemQueryService shopItemQueryService;
+    private final ShopItemReadService shopItemReadService;
     private final ShopItemCommandService shopItemCommandService;
 
     @GetMapping
     public ResponseEntity<List<ShopItemResponse>> getShopItems(
             @RequestParam(required = false) String category
     ) {
-        return ResponseEntity.ok(shopItemQueryService.getShopItems(category));
+        return ResponseEntity.ok(shopItemReadService.getShopItems(category));
     }
 
     @PostMapping("/{itemId}/purchase")

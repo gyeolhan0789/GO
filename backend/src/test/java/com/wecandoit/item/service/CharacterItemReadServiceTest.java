@@ -29,7 +29,7 @@ import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @DisplayName("캐릭터 아이템 조회 서비스")
-class CharacterItemQueryServiceTest {
+class CharacterItemReadServiceTest {
 
     private final MemberRepository memberRepository = Mockito.mock(MemberRepository.class);
     private final MemberEquippedItemRepository memberEquippedItemRepository = Mockito.mock(
@@ -37,7 +37,7 @@ class CharacterItemQueryServiceTest {
     );
     private final MemberItemRepository memberItemRepository = Mockito.mock(MemberItemRepository.class);
     private final ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
-    private final CharacterItemQueryService characterItemQueryService = new CharacterItemQueryService(
+    private final CharacterItemReadService characterItemReadService = new CharacterItemReadService(
             memberRepository,
             memberEquippedItemRepository,
             memberItemRepository,
@@ -58,7 +58,7 @@ class CharacterItemQueryServiceTest {
         when(itemRepository.findAllById(List.of(100L, 200L))).thenReturn(List.of(hatItem, topItem));
 
         // when
-        List<MemberItemResponse> responses = characterItemQueryService.getMyItems(1L);
+        List<MemberItemResponse> responses = characterItemReadService.getMyItems(1L);
 
         // then
         assertThat(responses)
@@ -91,7 +91,7 @@ class CharacterItemQueryServiceTest {
         when(memberItemRepository.findAllByMemberId(1L)).thenReturn(List.of());
 
         // when
-        List<MemberItemResponse> responses = characterItemQueryService.getMyItems(1L);
+        List<MemberItemResponse> responses = characterItemReadService.getMyItems(1L);
 
         // then
         assertThat(responses).isEmpty();
@@ -105,7 +105,7 @@ class CharacterItemQueryServiceTest {
         when(memberRepository.findById(1L)).thenReturn(Optional.empty());
 
         // when, then
-        assertThatThrownBy(() -> characterItemQueryService.getMyItems(1L))
+        assertThatThrownBy(() -> characterItemReadService.getMyItems(1L))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
@@ -127,7 +127,7 @@ class CharacterItemQueryServiceTest {
                 .thenReturn(List.of(hatItem));
 
         // when
-        List<MemberItemResponse> responses = characterItemQueryService.getMyItems(1L, "HAT");
+        List<MemberItemResponse> responses = characterItemReadService.getMyItems(1L, "HAT");
 
         // then
         assertThat(responses)
@@ -149,7 +149,7 @@ class CharacterItemQueryServiceTest {
                 .thenReturn(List.of());
 
         // when
-        List<MemberItemResponse> responses = characterItemQueryService.getMyItems(1L, "TOP");
+        List<MemberItemResponse> responses = characterItemReadService.getMyItems(1L, "TOP");
 
         // then
         assertThat(responses).isEmpty();
@@ -159,7 +159,7 @@ class CharacterItemQueryServiceTest {
     @DisplayName("유효하지 않은 카테고리로 조회하면 실패한다")
     void getMyItemsByCategoryRejectsInvalidCategory() {
         // when, then
-        assertThatThrownBy(() -> characterItemQueryService.getMyItems(1L, "UNKNOWN"))
+        assertThatThrownBy(() -> characterItemReadService.getMyItems(1L, "UNKNOWN"))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_ITEM_CATEGORY);
@@ -171,7 +171,7 @@ class CharacterItemQueryServiceTest {
     @DisplayName("소문자 카테고리로 조회하면 실패한다")
     void getMyItemsByCategoryRejectsLowercaseCategory() {
         // when, then
-        assertThatThrownBy(() -> characterItemQueryService.getMyItems(1L, "hat"))
+        assertThatThrownBy(() -> characterItemReadService.getMyItems(1L, "hat"))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_ITEM_CATEGORY);
@@ -197,7 +197,7 @@ class CharacterItemQueryServiceTest {
         when(itemRepository.findAllById(Mockito.anyIterable())).thenReturn(List.of(hatItem, topItem));
 
         // when
-        CharacterResponse response = characterItemQueryService.getMyCharacter(1L);
+        CharacterResponse response = characterItemReadService.getMyCharacter(1L);
 
         // then
         assertThat(response.memberId()).isEqualTo(1L);
@@ -231,7 +231,7 @@ class CharacterItemQueryServiceTest {
         when(memberEquippedItemRepository.findAllByMemberId(1L)).thenReturn(List.of());
 
         // when
-        CharacterResponse response = characterItemQueryService.getMyCharacter(1L);
+        CharacterResponse response = characterItemReadService.getMyCharacter(1L);
 
         // then
         assertThat(response.equippedItems()).isEmpty();
@@ -246,7 +246,7 @@ class CharacterItemQueryServiceTest {
         when(memberRepository.findById(1L)).thenReturn(Optional.empty());
 
         // when, then
-        assertThatThrownBy(() -> characterItemQueryService.getMyCharacter(1L))
+        assertThatThrownBy(() -> characterItemReadService.getMyCharacter(1L))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);

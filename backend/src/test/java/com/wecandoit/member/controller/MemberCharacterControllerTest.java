@@ -14,7 +14,7 @@ import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.item.controller.response.CharacterResponse;
 import com.wecandoit.item.controller.response.EquippedItemResponse;
 import com.wecandoit.item.domain.ItemCategory;
-import com.wecandoit.item.service.CharacterItemQueryService;
+import com.wecandoit.item.service.CharacterItemReadService;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -35,8 +35,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 @ExtendWith(RestDocumentationExtension.class)
 class MemberCharacterControllerTest {
 
-    private final CharacterItemQueryService characterItemQueryService = Mockito.mock(
-            CharacterItemQueryService.class
+    private final CharacterItemReadService characterItemReadService = Mockito.mock(
+            CharacterItemReadService.class
     );
 
     @BeforeEach
@@ -45,7 +45,7 @@ class MemberCharacterControllerTest {
                 UsernamePasswordAuthenticationToken.authenticated(1L, null, List.of())
         );
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(
-                        new MemberCharacterController(characterItemQueryService)
+                        new MemberCharacterController(characterItemReadService)
                 )
                 .setControllerAdvice(new CustomExceptionHandler())
                 .setCustomArgumentResolvers(new LoginMemberIdArgumentResolver())
@@ -75,7 +75,7 @@ class MemberCharacterControllerTest {
                         "https://example.com/hat.png"
                 ))
         );
-        when(characterItemQueryService.getMyCharacter(1L)).thenReturn(response);
+        when(characterItemReadService.getMyCharacter(1L)).thenReturn(response);
 
         // when, then
         given()
@@ -103,6 +103,6 @@ class MemberCharacterControllerTest {
                                 fieldWithPath("equippedItems[].imageUrl").description("아이템 이미지 URL")
                         )
                 ));
-        verify(characterItemQueryService).getMyCharacter(1L);
+        verify(characterItemReadService).getMyCharacter(1L);
     }
 }

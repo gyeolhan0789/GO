@@ -19,10 +19,10 @@ import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @DisplayName("상점 아이템 조회 서비스")
-class ShopItemQueryServiceTest {
+class ShopItemReadServiceTest {
 
     private final ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
-    private final ShopItemQueryService shopItemQueryService = new ShopItemQueryService(itemRepository);
+    private final ShopItemReadService shopItemReadService = new ShopItemReadService(itemRepository);
 
     @Test
     @DisplayName("전체 상점 아이템 목록을 응답 정보로 변환해 반환한다")
@@ -35,7 +35,7 @@ class ShopItemQueryServiceTest {
         when(itemRepository.findAll()).thenReturn(List.of(hat, top));
 
         // when
-        List<ShopItemResponse> responses = shopItemQueryService.getShopItems();
+        List<ShopItemResponse> responses = shopItemReadService.getShopItems();
 
         // then
         assertThat(responses)
@@ -66,7 +66,7 @@ class ShopItemQueryServiceTest {
         when(itemRepository.findAll()).thenReturn(List.of());
 
         // when
-        List<ShopItemResponse> responses = shopItemQueryService.getShopItems();
+        List<ShopItemResponse> responses = shopItemReadService.getShopItems();
 
         // then
         assertThat(responses).isEmpty();
@@ -82,7 +82,7 @@ class ShopItemQueryServiceTest {
         when(itemRepository.findAllByCategory("HAT")).thenReturn(List.of(hat));
 
         // when
-        List<ShopItemResponse> responses = shopItemQueryService.getShopItems("HAT");
+        List<ShopItemResponse> responses = shopItemReadService.getShopItems("HAT");
 
         // then
         assertThat(responses)
@@ -99,7 +99,7 @@ class ShopItemQueryServiceTest {
         when(itemRepository.findAllByCategory("TOP")).thenReturn(List.of());
 
         // when
-        List<ShopItemResponse> responses = shopItemQueryService.getShopItems("TOP");
+        List<ShopItemResponse> responses = shopItemReadService.getShopItems("TOP");
 
         // then
         assertThat(responses).isEmpty();
@@ -110,7 +110,7 @@ class ShopItemQueryServiceTest {
     @DisplayName("유효하지 않은 카테고리로 조회하면 실패한다")
     void getShopItemsByCategoryRejectsInvalidCategory() {
         // when, then
-        assertThatThrownBy(() -> shopItemQueryService.getShopItems("UNKNOWN"))
+        assertThatThrownBy(() -> shopItemReadService.getShopItems("UNKNOWN"))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_ITEM_CATEGORY);
@@ -122,7 +122,7 @@ class ShopItemQueryServiceTest {
     @DisplayName("소문자 카테고리로 조회하면 실패한다")
     void getShopItemsByCategoryRejectsLowercaseCategory() {
         // when, then
-        assertThatThrownBy(() -> shopItemQueryService.getShopItems("hat"))
+        assertThatThrownBy(() -> shopItemReadService.getShopItems("hat"))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_ITEM_CATEGORY);
