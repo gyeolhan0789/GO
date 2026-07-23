@@ -1,11 +1,11 @@
-package com.wecandoit.friendrequest.controller;
+package com.wecandoit.friend.controller;
 
-import com.wecandoit.friendrequest.service.FriendRequestCommandService;
-import com.wecandoit.friendrequest.service.FriendRequestReadService;
+import com.wecandoit.friend.service.FriendRequestCommandService;
+import com.wecandoit.friend.service.FriendRequestReadService;
 
 import com.wecandoit.common.security.LoginMemberId;
-import com.wecandoit.friendrequest.dto.ReceivedFriendRequestResponse;
-import com.wecandoit.friendrequest.dto.SendFriendRequest;
+import com.wecandoit.friend.dto.ReceivedFriendRequestResponse;
+import com.wecandoit.friend.dto.SendFriendRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;

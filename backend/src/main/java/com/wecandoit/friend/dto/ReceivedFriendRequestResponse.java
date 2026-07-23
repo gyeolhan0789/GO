@@ -1,6 +1,6 @@
-package com.wecandoit.friendrequest.dto;
+package com.wecandoit.friend.dto;
 
-import com.wecandoit.friendrequest.domain.FriendRequest;
+import com.wecandoit.friend.domain.FriendRequest;
 import java.time.LocalDateTime;
 
 public record ReceivedFriendRequestResponse(

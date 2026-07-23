@@ -1,4 +1,4 @@
-package com.wecandoit.friendrequest.domain;
+package com.wecandoit.friend.domain;
 
 import com.wecandoit.common.entity.BaseEntity;
 import com.wecandoit.member.domain.Member;

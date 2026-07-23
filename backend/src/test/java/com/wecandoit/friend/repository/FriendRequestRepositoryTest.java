@@ -1,7 +1,7 @@
-package com.wecandoit.friendrequest.repository;
+package com.wecandoit.friend.repository;
 
-import com.wecandoit.friendrequest.domain.FriendRequest;
-import com.wecandoit.friendrequest.domain.FriendRequestStatus;
+import com.wecandoit.friend.domain.FriendRequest;
+import com.wecandoit.friend.domain.FriendRequestStatus;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

@@ -1,4 +1,4 @@
-package com.wecandoit.friendrequest.dto;
+package com.wecandoit.friend.dto;
 
 import jakarta.validation.constraints.NotNull;
 

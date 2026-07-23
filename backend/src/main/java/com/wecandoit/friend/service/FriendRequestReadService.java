@@ -1,9 +1,9 @@
-package com.wecandoit.friendrequest.service;
+package com.wecandoit.friend.service;
 
-import com.wecandoit.friendrequest.domain.FriendRequestStatus;
-import com.wecandoit.friendrequest.repository.FriendRequestRepository;
+import com.wecandoit.friend.domain.FriendRequestStatus;
+import com.wecandoit.friend.repository.FriendRequestRepository;
 
-import com.wecandoit.friendrequest.dto.ReceivedFriendRequestResponse;
+import com.wecandoit.friend.dto.ReceivedFriendRequestResponse;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

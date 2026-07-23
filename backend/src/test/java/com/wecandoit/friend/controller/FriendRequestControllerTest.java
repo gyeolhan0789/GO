@@ -1,7 +1,7 @@
-package com.wecandoit.friendrequest.controller;
+package com.wecandoit.friend.controller;
 
-import com.wecandoit.friendrequest.service.FriendRequestCommandService;
-import com.wecandoit.friendrequest.service.FriendRequestReadService;
+import com.wecandoit.friend.service.FriendRequestCommandService;
+import com.wecandoit.friend.service.FriendRequestReadService;
 
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -14,8 +14,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
-import com.wecandoit.friendrequest.dto.ReceivedFriendRequestResponse;
-import com.wecandoit.friendrequest.dto.SendFriendRequest;
+import com.wecandoit.friend.dto.ReceivedFriendRequestResponse;
+import com.wecandoit.friend.dto.SendFriendRequest;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
