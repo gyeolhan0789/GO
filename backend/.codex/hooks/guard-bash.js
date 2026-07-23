@@ -35,9 +35,10 @@ if (/\bgit\s+commit\b/i.test(command) && !/--amend\s+--no-edit\b/i.test(command)
   const heredoc = command.match(/<<['"]?EOF['"]?\s*\n([\s\S]*?)\nEOF/);
   const match = command.match(/-m\s+"([^"]+)"|-m\s+'([^']+)'/);
   const message = heredoc ? heredoc[1].split('\n')[0] : match && (match[1] || match[2]);
-  const conventionalCommit = /^(feat|fix|refactor|chore|docs|style|test|perf|build|ci|revert)(\([\w./-]+\))?!?:\s+.+/;
+  const conventionalCommit = /^(feat|fix|refactor|chore|docs|style|test|perf|build|ci|revert):\s+.+/;
+  const containsKorean = /[가-힣]/;
 
-  if (message && !conventionalCommit.test(message.trim())) {
-    deny(`Commit message "${message.trim()}" does not follow Conventional Commits.`);
+  if (message && (!conventionalCommit.test(message.trim()) || !containsKorean.test(message))) {
+    deny(`Commit message "${message.trim()}" must use the "type: 한글 설명" format without a scope or breaking-change marker; all-English messages are not allowed.`);
   }
 }

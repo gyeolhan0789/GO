@@ -64,10 +64,11 @@ if (/\bgit\s+commit\b/i.test(command) && !/--amend\s+--no-edit\b/i.test(command)
 
   if (message) {
     const CONVENTIONAL_RE =
-      /^(feat|fix|refactor|chore|docs|style|test|perf|build|ci|revert)(\([\w./-]+\))?!?:\s+.+/;
-    if (!CONVENTIONAL_RE.test(message.trim())) {
+      /^(feat|fix|refactor|chore|docs|style|test|perf|build|ci|revert):\s+.+/;
+    const CONTAINS_KOREAN_RE = /[가-힣]/;
+    if (!CONVENTIONAL_RE.test(message.trim()) || !CONTAINS_KOREAN_RE.test(message)) {
       deny(
-        `Commit message "${message.trim()}" does not follow Conventional Commits (e.g. "feat: add login API", "fix(auth): handle expired token"). Rewrite the message and retry.`
+        `Commit message "${message.trim()}" must use the "type: 한글 설명" format without a scope or breaking-change marker (e.g. "feat: 로그인 API 추가", "fix: 만료된 토큰 처리"). All-English messages are not allowed. Rewrite the message and retry.`
       );
     }
   }
