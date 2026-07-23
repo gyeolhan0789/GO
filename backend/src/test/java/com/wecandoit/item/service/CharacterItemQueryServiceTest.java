@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.item.controller.response.CharacterResponse;
+import com.wecandoit.item.controller.response.MemberItemResponse;
 import com.wecandoit.item.domain.Item;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.item.domain.MemberEquippedItem;
@@ -42,6 +43,75 @@ class CharacterItemQueryServiceTest {
             memberItemRepository,
             itemRepository
     );
+
+    @Test
+    @DisplayName("보유 아이템 목록을 조회하면 원본 아이템 정보를 함께 반환한다")
+    void getMyItemsReturnsMemberItems() {
+        // given
+        Member member = member(1L, "테스터");
+        MemberItem hat = memberItem(10L, 1L, 100L);
+        MemberItem top = memberItem(20L, 1L, 200L);
+        Item hatItem = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
+        Item topItem = item(200L, "파란 상의", "TOP", "https://example.com/top.png");
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+        when(memberItemRepository.findAllByMemberId(1L)).thenReturn(List.of(hat, top));
+        when(itemRepository.findAllById(List.of(100L, 200L))).thenReturn(List.of(hatItem, topItem));
+
+        // when
+        List<MemberItemResponse> responses = characterItemQueryService.getMyItems(1L);
+
+        // then
+        assertThat(responses)
+                .extracting("memberItemId", "itemId", "name", "category", "imageUrl")
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(
+                                10L,
+                                100L,
+                                "빨간 모자",
+                                "HAT",
+                                "https://example.com/hat.png"
+                        ),
+                        org.assertj.core.groups.Tuple.tuple(
+                                20L,
+                                200L,
+                                "파란 상의",
+                                "TOP",
+                                "https://example.com/top.png"
+                        )
+                );
+        verify(itemRepository).findAllById(List.of(100L, 200L));
+    }
+
+    @Test
+    @DisplayName("보유 아이템이 없으면 빈 목록을 반환한다")
+    void getMyItemsReturnsEmptyList() {
+        // given
+        Member member = member(1L, "테스터");
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+        when(memberItemRepository.findAllByMemberId(1L)).thenReturn(List.of());
+
+        // when
+        List<MemberItemResponse> responses = characterItemQueryService.getMyItems(1L);
+
+        // then
+        assertThat(responses).isEmpty();
+        verify(itemRepository, never()).findAllById(Mockito.anyIterable());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 회원의 보유 아이템을 조회하면 실패한다")
+    void getMyItemsRejectsMissingMember() {
+        // given
+        when(memberRepository.findById(1L)).thenReturn(Optional.empty());
+
+        // when, then
+        assertThatThrownBy(() -> characterItemQueryService.getMyItems(1L))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
+        verify(memberItemRepository, never()).findAllByMemberId(Mockito.anyLong());
+        verify(itemRepository, never()).findAllById(Mockito.anyIterable());
+    }
 
     @Test
     @DisplayName("내 캐릭터를 조회하면 회원 정보와 장착 아이템을 반환한다")

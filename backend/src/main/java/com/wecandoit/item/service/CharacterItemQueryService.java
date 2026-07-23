@@ -4,6 +4,7 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.item.controller.response.CharacterResponse;
 import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.item.controller.response.MemberItemResponse;
 import com.wecandoit.item.domain.Item;
 import com.wecandoit.item.domain.MemberEquippedItem;
 import com.wecandoit.item.domain.MemberItem;
@@ -53,6 +54,24 @@ public class CharacterItemQueryService {
         return CharacterResponse.of(member, equippedItemResponses);
     }
 
+    public List<MemberItemResponse> getMyItems(Long memberId) {
+        memberRepository.findById(memberId)
+                .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+        List<MemberItem> memberItems = memberItemRepository.findAllByMemberId(memberId);
+        if (memberItems.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Item> itemsById = itemRepository.findAllById(
+                        memberItems.stream().map(MemberItem::getItemId).toList()
+                ).stream()
+                .collect(Collectors.toMap(Item::getId, Function.identity()));
+
+        return memberItems.stream()
+                .map(memberItem -> toResponse(memberItem, itemsById))
+                .toList();
+    }
+
     private EquippedItemResponse toResponse(
             Long memberId,
             MemberEquippedItem equippedItem,
@@ -68,5 +87,13 @@ public class CharacterItemQueryService {
             throw new CustomException(ErrorCode.ITEM_NOT_FOUND);
         }
         return EquippedItemResponse.of(equippedItem, memberItem, item);
+    }
+
+    private MemberItemResponse toResponse(MemberItem memberItem, Map<Long, Item> itemsById) {
+        Item item = itemsById.get(memberItem.getItemId());
+        if (item == null) {
+            throw new CustomException(ErrorCode.ITEM_NOT_FOUND);
+        }
+        return MemberItemResponse.of(memberItem, item);
     }
 }
