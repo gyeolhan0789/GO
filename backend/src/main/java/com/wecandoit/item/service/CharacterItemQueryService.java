@@ -6,6 +6,7 @@ import com.wecandoit.item.controller.response.CharacterResponse;
 import com.wecandoit.item.controller.response.EquippedItemResponse;
 import com.wecandoit.item.controller.response.MemberItemResponse;
 import com.wecandoit.item.domain.Item;
+import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.item.domain.MemberEquippedItem;
 import com.wecandoit.item.domain.MemberItem;
 import com.wecandoit.item.repository.ItemRepository;
@@ -55,6 +56,11 @@ public class CharacterItemQueryService {
     }
 
     public List<MemberItemResponse> getMyItems(Long memberId) {
+        return getMyItems(memberId, null);
+    }
+
+    public List<MemberItemResponse> getMyItems(Long memberId, String category) {
+        ItemCategory itemCategory = parseCategory(category);
         memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
         List<MemberItem> memberItems = memberItemRepository.findAllByMemberId(memberId);
@@ -62,14 +68,32 @@ public class CharacterItemQueryService {
             return List.of();
         }
 
-        Map<Long, Item> itemsById = itemRepository.findAllById(
-                        memberItems.stream().map(MemberItem::getItemId).toList()
-                ).stream()
+        List<Long> itemIds = memberItems.stream().map(MemberItem::getItemId).toList();
+        Map<Long, Item> itemsById = findItems(itemIds, itemCategory).stream()
                 .collect(Collectors.toMap(Item::getId, Function.identity()));
 
         return memberItems.stream()
+                .filter(memberItem -> itemCategory == null || itemsById.containsKey(memberItem.getItemId()))
                 .map(memberItem -> toResponse(memberItem, itemsById))
                 .toList();
+    }
+
+    private List<Item> findItems(List<Long> itemIds, ItemCategory category) {
+        if (category == null) {
+            return itemRepository.findAllById(itemIds);
+        }
+        return itemRepository.findAllByIdInAndCategory(itemIds, category.name());
+    }
+
+    private ItemCategory parseCategory(String category) {
+        if (category == null) {
+            return null;
+        }
+        try {
+            return ItemCategory.valueOf(category);
+        } catch (IllegalArgumentException e) {
+            throw new CustomException(ErrorCode.INVALID_ITEM_CATEGORY);
+        }
     }
 
     private EquippedItemResponse toResponse(

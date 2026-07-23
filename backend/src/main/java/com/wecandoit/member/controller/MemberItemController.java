@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -18,7 +19,10 @@ public class MemberItemController {
     private final CharacterItemQueryService characterItemQueryService;
 
     @GetMapping
-    public ResponseEntity<List<MemberItemResponse>> getMyItems(@LoginMemberId Long memberId) {
-        return ResponseEntity.ok(characterItemQueryService.getMyItems(memberId));
+    public ResponseEntity<List<MemberItemResponse>> getMyItems(
+            @LoginMemberId Long memberId,
+            @RequestParam(required = false) String category
+    ) {
+        return ResponseEntity.ok(characterItemQueryService.getMyItems(memberId, category));
     }
 }
