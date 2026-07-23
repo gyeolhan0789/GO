@@ -90,7 +90,7 @@ class BingoControllerTest {
                 100L,
                 10L,
                 3,
-                BingoBoardStatus.CREATED,
+                BingoBoardStatus.IN_PROGRESS,
                 List.of(new BingoCellResponse(0, 0, mission)),
                 false,
                 false
@@ -106,7 +106,7 @@ class BingoControllerTest {
                 .body("bingoBoardId", equalTo(100))
                 .body("roomId", equalTo(10))
                 .body("boardSize", equalTo(3))
-                .body("status", equalTo("CREATED"))
+                .body("status", equalTo("IN_PROGRESS"))
                 .body("cells[0].row", equalTo(0))
                 .body("cells[0].col", equalTo(0))
                 .body("cells[0].mission.missionId", equalTo(1))
@@ -324,7 +324,7 @@ class BingoControllerTest {
                 101L,
                 10L,
                 3,
-                BingoBoardStatus.CREATED,
+                BingoBoardStatus.IN_PROGRESS,
                 List.of(new BingoCellResponse(0, 0, mission)),
                 false,
                 false
@@ -338,7 +338,7 @@ class BingoControllerTest {
                 .then()
                 .statusCode(HttpStatus.CREATED.value())
                 .body("bingoBoardId", equalTo(101))
-                .body("status", equalTo("CREATED"))
+                .body("status", equalTo("IN_PROGRESS"))
                 .apply(document("bingo-boards-renewal",
                         pathParameters(
                                 parameterWithName("roomId").description("빙고판을 조기 갱신할 게임방 ID")

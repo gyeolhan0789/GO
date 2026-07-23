@@ -33,7 +33,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 class BingoServiceTest {
 
     private static final List<BingoBoardStatus> INACTIVE_BOARD_STATUSES =
-            List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.CLOSED);
+            List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED);
 
     private final RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
     private final RoomMemberRepository roomMemberRepository = Mockito.mock(RoomMemberRepository.class);
@@ -351,7 +351,7 @@ class BingoServiceTest {
         assertThat(activeBoard.getStatus()).isEqualTo(BingoBoardStatus.COMPLETED);
         assertThat(activeBoard.getCompletedAt()).isNotNull();
         assertThat(response.roomId()).isEqualTo(10L);
-        assertThat(response.status()).isEqualTo(BingoBoardStatus.CREATED);
+        assertThat(response.status()).isEqualTo(BingoBoardStatus.IN_PROGRESS);
         assertThat(response.cells()).hasSize(4);
         Mockito.verify(bingoBoardRepository).save(activeBoard);
     }
@@ -442,7 +442,7 @@ class BingoServiceTest {
     }
 
     @Test
-    @DisplayName("생성된 지 7일 이상 지난 보드는 미완료 상태여도 강제로 닫히고 새 보드가 발급된다")
+    @DisplayName("생성된 지 7일 이상 지난 보드는 미완료 상태여도 강제로 만료되고 새 보드가 발급된다")
     void autoRenewBoardForcesRenewalForOldIncompleteBoard() {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
@@ -467,7 +467,7 @@ class BingoServiceTest {
         bingoService.autoRenewBoard(10L);
 
         // then
-        assertThat(activeBoard.getStatus()).isEqualTo(BingoBoardStatus.CLOSED);
+        assertThat(activeBoard.getStatus()).isEqualTo(BingoBoardStatus.EXPIRED);
         Mockito.verify(bingoBoardRepository).save(activeBoard);
         Mockito.verify(missionRepository).findRandomMissions(4);
     }
@@ -498,7 +498,7 @@ class BingoServiceTest {
         bingoService.autoRenewBoard(10L);
 
         // then
-        assertThat(activeBoard.getStatus()).isEqualTo(BingoBoardStatus.CLOSED);
+        assertThat(activeBoard.getStatus()).isEqualTo(BingoBoardStatus.EXPIRED);
         Mockito.verify(bingoBoardRepository).save(activeBoard);
         Mockito.verify(missionRepository).findRandomMissions(4);
     }
@@ -526,7 +526,6 @@ class BingoServiceTest {
     private BingoBoard activeBoard(Long boardId, Long roomId, int boardSize) {
         BingoBoard board = BingoBoard.create(roomId, boardSize);
         ReflectionTestUtils.setField(board, "id", boardId);
-        ReflectionTestUtils.setField(board, "status", BingoBoardStatus.IN_PROGRESS);
         return board;
     }
 

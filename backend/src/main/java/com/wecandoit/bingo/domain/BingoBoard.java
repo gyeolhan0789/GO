@@ -40,15 +40,15 @@ public class BingoBoard extends BaseEntity {
     private BingoBoard(Long roomId, int boardSize) {
         this.roomId = roomId;
         this.boardSize = boardSize;
-        this.status = BingoBoardStatus.CREATED;
+        this.status = BingoBoardStatus.IN_PROGRESS;
     }
 
     public static BingoBoard create(Long roomId, int boardSize) {
         return new BingoBoard(roomId, boardSize);
     }
 
-    public void close() {
-        this.status = BingoBoardStatus.CLOSED;
+    public void expire() {
+        this.status = BingoBoardStatus.EXPIRED;
     }
 
     public void complete() {
