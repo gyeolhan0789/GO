@@ -62,6 +62,16 @@ public class RoomController {
         return ResponseEntity.ok(responses);
     }
 
+    @PostMapping("/{roomId}/start")
+    public ResponseEntity<RoomDetailResponse> startGame(
+            @LoginMemberId Long memberId,
+            @PathVariable Long roomId
+    ) {
+        roomCommandService.startGame(memberId, roomId);
+        RoomDetailResponse response = roomReadService.getRoomDetail(memberId, roomId);
+        return ResponseEntity.ok(response);
+    }
+
     @DeleteMapping("/{roomId}/members/me")
     public ResponseEntity<Void> leaveRoom(
             @LoginMemberId Long memberId,

@@ -42,6 +42,18 @@ public class RoomCommandService {
         // TODO: Connect game requests, bingo boards, and mission policies after deletion is confirmed.
     }
 
+    public void startGame(Long memberId, Long roomId) {
+        Room room = findRoom(roomId);
+        if (!room.isHost(memberId)) {
+            throw new CustomException(ErrorCode.ROOM_START_FORBIDDEN);
+        }
+        if (!room.isReady()) {
+            throw new CustomException(ErrorCode.ROOM_NOT_READY);
+        }
+
+        room.start();
+    }
+
     public void leaveRoom(Long memberId, Long roomId) {
         Room room = findRoom(roomId);
         validateRoomOpen(room);
