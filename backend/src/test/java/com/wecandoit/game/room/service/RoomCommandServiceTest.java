@@ -200,6 +200,67 @@ class RoomCommandServiceTest {
         );
     }
 
+    @Test
+    @DisplayName("방장이 READY 상태의 게임방에서 게임을 시작하면 IN_PROGRESS로 전이하고 시작 시각을 기록한다")
+    void startGameTransitionsReadyRoomToInProgress() {
+        // given
+        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        ReflectionTestUtils.setField(room, "status", GameRoomStatus.READY);
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+
+        // when
+        roomCommandService.startGame(1L, 10L);
+
+        // then
+        assertThat(room.getStatus()).isEqualTo(GameRoomStatus.IN_PROGRESS);
+        assertThat(room.getStartedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 게임방에서 게임을 시작하면 실패한다")
+    void startGameRejectsMissingRoom() {
+        // given
+        when(roomRepository.findById(10L)).thenReturn(Optional.empty());
+
+        // when, then
+        assertErrorCode(
+                () -> roomCommandService.startGame(1L, 10L),
+                ErrorCode.ROOM_NOT_FOUND
+        );
+    }
+
+    @Test
+    @DisplayName("방장이 아닌 회원이 게임을 시작하면 실패한다")
+    void startGameRejectsNonHost() {
+        // given
+        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        ReflectionTestUtils.setField(room, "status", GameRoomStatus.READY);
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+
+        // when, then
+        assertErrorCode(
+                () -> roomCommandService.startGame(2L, 10L),
+                ErrorCode.ROOM_START_FORBIDDEN
+        );
+    }
+
+    @Test
+    @DisplayName("READY 상태가 아닌 게임방에서 게임을 시작하면 실패한다")
+    void startGameRejectsRoomNotReady() {
+        // given
+        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+
+        // when, then
+        assertErrorCode(
+                () -> roomCommandService.startGame(1L, 10L),
+                ErrorCode.ROOM_NOT_READY
+        );
+    }
+
     private void assertErrorCode(Runnable action, ErrorCode errorCode) {
         assertThatThrownBy(action::run)
                 .isInstanceOf(CustomException.class)

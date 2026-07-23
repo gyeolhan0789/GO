@@ -490,6 +490,89 @@ class RoomControllerTest {
     }
 
     @Test
+    @DisplayName("방장이 게임을 시작하면 200 상태와 갱신된 방 정보를 반환한다")
+    void startGameReturnsUpdatedRoomDetail() {
+        // given
+        LocalDateTime startedAt = LocalDateTime.of(2026, 7, 22, 9, 50);
+        when(roomReadService.getRoomDetail(1L, 10L))
+                .thenReturn(new RoomDetailResponse(
+                        10L,
+                        GameMode.COOPERATE,
+                        GameRoomStatus.IN_PROGRESS,
+                        3,
+                        1L,
+                        startedAt,
+                        List.of(new RoomMemberResponse(1L, "방장", true, 0, startedAt))
+                ));
+
+        // when, then
+        given()
+                .when()
+                .post("/rooms/{roomId}/start", 10L)
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("roomId", equalTo(10))
+                .body("status", equalTo("IN_PROGRESS"))
+                .body("startedAt", equalTo("2026-07-22T09:50:00"))
+                .apply(document("room-start",
+                        pathParameters(
+                                parameterWithName("roomId").description("게임을 시작할 게임방 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("roomId").description("게임방 ID"),
+                                fieldWithPath("mode").description("게임 모드"),
+                                fieldWithPath("status").description("게임방 상태"),
+                                fieldWithPath("targetBingoCount").description("목표 빙고 수"),
+                                fieldWithPath("hostId").description("방장 회원 ID"),
+                                fieldWithPath("startedAt").description("게임 시작 시각"),
+                                fieldWithPath("members[].memberId").description("참여자 회원 ID"),
+                                fieldWithPath("members[].nickname").description("참여자 닉네임"),
+                                fieldWithPath("members[].host").description("방장 여부"),
+                                fieldWithPath("members[].completedMissionCount").description("완료한 미션 수"),
+                                fieldWithPath("members[].joinedAt").description("게임방 참여 시각")
+                        )
+                ));
+        verify(roomCommandService).startGame(1L, 10L);
+        verify(roomReadService).getRoomDetail(1L, 10L);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 게임방에서 게임을 시작하면 404 상태를 반환한다")
+    void startGameRejectsMissingRoom() {
+        // given
+        doThrow(new CustomException(ErrorCode.ROOM_NOT_FOUND))
+                .when(roomCommandService)
+                .startGame(1L, 10L);
+
+        // when, then
+        assertStartGameErrorResponse(HttpStatus.NOT_FOUND, "room-start-room-not-found");
+    }
+
+    @Test
+    @DisplayName("방장이 아닌 회원이 게임을 시작하면 403 상태를 반환한다")
+    void startGameRejectsNonHost() {
+        // given
+        doThrow(new CustomException(ErrorCode.ROOM_START_FORBIDDEN))
+                .when(roomCommandService)
+                .startGame(1L, 10L);
+
+        // when, then
+        assertStartGameErrorResponse(HttpStatus.FORBIDDEN, "room-start-forbidden");
+    }
+
+    @Test
+    @DisplayName("READY 상태가 아닌 게임방에서 게임을 시작하면 409 상태를 반환한다")
+    void startGameRejectsRoomNotReady() {
+        // given
+        doThrow(new CustomException(ErrorCode.ROOM_NOT_READY))
+                .when(roomCommandService)
+                .startGame(1L, 10L);
+
+        // when, then
+        assertStartGameErrorResponse(HttpStatus.CONFLICT, "room-start-not-ready");
+    }
+
+    @Test
     @DisplayName("게임방을 나가면 204 상태를 반환한다")
     void leaveRoomReturnsNoContent() {
         // when, then
@@ -600,6 +683,23 @@ class RoomControllerTest {
                 .apply(document(documentName,
                         pathParameters(
                                 parameterWithName("roomId").description("상세 조회할 게임방 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("status").description("HTTP 상태 코드"),
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+    }
+
+    private void assertStartGameErrorResponse(HttpStatus status, String documentName) {
+        given()
+                .when()
+                .post("/rooms/{roomId}/start", 10L)
+                .then()
+                .statusCode(status.value())
+                .apply(document(documentName,
+                        pathParameters(
+                                parameterWithName("roomId").description("게임을 시작할 게임방 ID")
                         ),
                         responseFields(
                                 fieldWithPath("status").description("HTTP 상태 코드"),
