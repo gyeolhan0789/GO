@@ -62,9 +62,31 @@ public class BingoService {
         return BingoBoardResponse.of(board, cellResponses, completed, canRenew);
     }
 
+    public void submitCell(Long memberId, Long roomId, Long cellId, String submitUrl) {
+        validateMember(memberId, roomId);
+
+        BingoBoard activeBoard = findActiveBoard(roomId);
+        BingoCell cell = bingoCellRepository.findById(cellId)
+                .filter(c -> c.getBoardId().equals(activeBoard.getId()))
+                .orElseThrow(() -> new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND));
+
+        cell.submit(memberId, submitUrl);
+        bingoCellRepository.save(cell);
+    }
+
+    /**
+     * 활성 보드의 셀 목록을 반환한다. 멤버십 검증 없이 내부 서비스(예: GameCompletionService)가
+     * 게임 완료 판정을 위해 재사용하는 조회 전용 메서드다.
+     */
+    public List<BingoCell> getActiveBoardCells(Long roomId) {
+        BingoBoard board = findActiveBoard(roomId);
+        return bingoCellRepository.findAllByBoardId(board.getId());
+    }
+
     public BingoBoardResponse renewBoard(Long memberId, Long roomId) {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+        // Room.status == COMPLETED인 경우도 IN_PROGRESS가 아니므로 여기서 이미 거부된다 (별도 가드 불필요).
         validateRoomInProgress(room);
 
         BingoBoard activeBoard = findActiveBoard(roomId);

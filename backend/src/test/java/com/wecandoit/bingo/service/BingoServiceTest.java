@@ -244,6 +244,86 @@ class BingoServiceTest {
     }
 
     @Test
+    @DisplayName("방 멤버가 칸을 제출하면 memberId와 submitUrl만 세팅되고 completedAt은 null로 유지된다")
+    void submitCellSetsMemberIdAndSubmitUrlWithoutCompleting() {
+        // given
+        Room room = inProgressRoom(1L, 10L, 2);
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).thenReturn(true);
+        BingoBoard board = activeBoard(100L, 10L, 2);
+        when(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
+                .thenReturn(Optional.of(board));
+        BingoCell cell = BingoCell.create(100L, 1L, 0, 0);
+        ReflectionTestUtils.setField(cell, "id", 1000L);
+        when(bingoCellRepository.findById(1000L)).thenReturn(Optional.of(cell));
+        when(bingoCellRepository.save(Mockito.any(BingoCell.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        bingoService.submitCell(2L, 10L, 1000L, "https://example.com/proof.png");
+
+        // then
+        assertThat(cell.getMemberId()).isEqualTo(2L);
+        assertThat(cell.getSubmitUrl()).isEqualTo("https://example.com/proof.png");
+        assertThat(cell.getCompletedAt()).isNull();
+        Mockito.verify(bingoCellRepository).save(cell);
+    }
+
+    @Test
+    @DisplayName("방 멤버가 아니면 칸 제출에 실패한다")
+    void submitCellRejectsNonMember() {
+        // given
+        Room room = inProgressRoom(1L, 10L, 2);
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 3L)).thenReturn(false);
+
+        // when, then
+        assertErrorCode(
+                () -> bingoService.submitCell(3L, 10L, 1000L, "https://example.com/proof.png"),
+                ErrorCode.ROOM_MEMBER_FORBIDDEN
+        );
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 칸이면 칸 제출에 실패한다")
+    void submitCellRejectsMissingCell() {
+        // given
+        Room room = inProgressRoom(1L, 10L, 2);
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
+        BingoBoard board = activeBoard(100L, 10L, 2);
+        when(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
+                .thenReturn(Optional.of(board));
+        when(bingoCellRepository.findById(1000L)).thenReturn(Optional.empty());
+
+        // when, then
+        assertErrorCode(
+                () -> bingoService.submitCell(1L, 10L, 1000L, "https://example.com/proof.png"),
+                ErrorCode.BINGO_CELL_NOT_FOUND
+        );
+    }
+
+    @Test
+    @DisplayName("다른 보드 소속의 칸이면 칸 제출에 실패한다")
+    void submitCellRejectsCellFromDifferentBoard() {
+        // given
+        Room room = inProgressRoom(1L, 10L, 2);
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
+        BingoBoard board = activeBoard(100L, 10L, 2);
+        when(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
+                .thenReturn(Optional.of(board));
+        BingoCell cell = BingoCell.create(999L, 1L, 0, 0);
+        ReflectionTestUtils.setField(cell, "id", 1000L);
+        when(bingoCellRepository.findById(1000L)).thenReturn(Optional.of(cell));
+
+        // when, then
+        assertErrorCode(
+                () -> bingoService.submitCell(1L, 10L, 1000L, "https://example.com/proof.png"),
+                ErrorCode.BINGO_CELL_NOT_FOUND
+        );
+    }
+
+    @Test
     @DisplayName("host가 완료된 보드를 갱신하면 기존 보드는 COMPLETED로 보존되고 새 보드가 발급된다")
     void renewBoardArchivesOldBoardAndIssuesNewOne() {
         // given
@@ -312,6 +392,18 @@ class BingoServiceTest {
         // given
         Room room = Room.create(1L, GameMode.SINGLE, 3, 2);
         ReflectionTestUtils.setField(room, "id", 10L);
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+
+        // when, then
+        assertErrorCode(() -> bingoService.renewBoard(1L, 10L), ErrorCode.ROOM_NOT_IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("게임이 COMPLETED된 방이면 조기 갱신에 실패한다 (ROOM_NOT_IN_PROGRESS 가드로 이미 커버됨)")
+    void renewBoardRejectsCompletedRoom() {
+        // given
+        Room room = inProgressRoom(1L, 10L, 2);
+        ReflectionTestUtils.setField(room, "status", GameRoomStatus.COMPLETED);
         when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
 
         // when, then

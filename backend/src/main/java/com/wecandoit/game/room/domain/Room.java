@@ -67,4 +67,8 @@ public class Room extends BaseEntity {
     public void close() {
         this.status = GameRoomStatus.CLOSED;
     }
+
+    public void complete() {
+        this.status = GameRoomStatus.COMPLETED;
+    }
 }
