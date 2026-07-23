@@ -1,4 +1,4 @@
-package com.wecandoit.friendrequest.domain;
+package com.wecandoit.friend.domain;
 
 public enum FriendRequestStatus {
     PENDING,

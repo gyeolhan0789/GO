@@ -1,13 +1,13 @@
-package com.wecandoit.friendrequest.service;
+package com.wecandoit.friend.service;
 
-import com.wecandoit.friendrequest.domain.FriendRequest;
-import com.wecandoit.friendrequest.repository.FriendRequestRepository;
+import com.wecandoit.friend.domain.FriendRequest;
+import com.wecandoit.friend.repository.FriendRequestRepository;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.friend.domain.Friend;
 import com.wecandoit.friend.repository.FriendRepository;
-import com.wecandoit.friendrequest.dto.SendFriendRequest;
+import com.wecandoit.friend.dto.SendFriendRequest;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;

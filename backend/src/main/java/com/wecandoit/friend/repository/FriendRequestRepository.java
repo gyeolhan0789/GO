@@ -1,7 +1,7 @@
-package com.wecandoit.friendrequest.repository;
+package com.wecandoit.friend.repository;
 
-import com.wecandoit.friendrequest.domain.FriendRequest;
-import com.wecandoit.friendrequest.domain.FriendRequestStatus;
+import com.wecandoit.friend.domain.FriendRequest;
+import com.wecandoit.friend.domain.FriendRequestStatus;
 
 import jakarta.persistence.LockModeType;
 import java.util.Collection;
@@ -17,7 +17,7 @@ public interface FriendRequestRepository extends JpaRepository<FriendRequest, Lo
 
     @Query("""
             select fr from FriendRequest fr
-            where fr.status = com.wecandoit.friendrequest.domain.FriendRequestStatus.PENDING
+            where fr.status = com.wecandoit.friend.domain.FriendRequestStatus.PENDING
               and ((fr.inviter.id = :firstMemberId and fr.invitee.id = :secondMemberId)
                 or (fr.inviter.id = :secondMemberId and fr.invitee.id = :firstMemberId))
             """)
@@ -40,7 +40,7 @@ public interface FriendRequestRepository extends JpaRepository<FriendRequest, Lo
     @EntityGraph(attributePaths = {"inviter", "invitee"})
     @Query("""
             select fr from FriendRequest fr
-            where fr.status = com.wecandoit.friendrequest.domain.FriendRequestStatus.PENDING
+            where fr.status = com.wecandoit.friend.domain.FriendRequestStatus.PENDING
               and ((fr.inviter.id = :memberId and fr.invitee.id in :candidateIds)
                 or (fr.invitee.id = :memberId and fr.inviter.id in :candidateIds))
             """)
