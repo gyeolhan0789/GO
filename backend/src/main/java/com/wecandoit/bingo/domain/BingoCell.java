@@ -3,6 +3,8 @@ package com.wecandoit.bingo.domain;
 import com.wecandoit.common.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -47,6 +49,13 @@ public class BingoCell extends BaseEntity {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "verification_status", length = 20)
+    private BingoCellVerificationStatus verificationStatus;
+
+    @Column(name = "rejection_reason", length = 255)
+    private String rejectionReason;
+
     @Column(name = "member_id")
     private Long memberId;
 
@@ -67,5 +76,19 @@ public class BingoCell extends BaseEntity {
     public void submit(Long memberId, String submitUrl) {
         this.memberId = memberId;
         this.submitUrl = submitUrl;
+        this.verificationStatus = BingoCellVerificationStatus.PENDING;
+        this.rejectionReason = null;
+    }
+
+    public void approve() {
+        this.verificationStatus = BingoCellVerificationStatus.APPROVED;
+        this.rejectionReason = null;
+        this.completedAt = LocalDateTime.now();
+    }
+
+    public void reject(String rejectionReason) {
+        this.verificationStatus = BingoCellVerificationStatus.REJECTED;
+        this.rejectionReason = rejectionReason;
+        this.completedAt = null;
     }
 }

@@ -8,6 +8,7 @@ import com.wecandoit.bingo.controller.response.BingoBoardResponse;
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.domain.BingoCell;
+import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
@@ -244,8 +245,8 @@ class BingoServiceTest {
     }
 
     @Test
-    @DisplayName("방 멤버가 칸을 제출하면 memberId와 submitUrl만 세팅되고 completedAt은 null로 유지된다")
-    void submitCellSetsMemberIdAndSubmitUrlWithoutCompleting() {
+    @DisplayName("방 멤버가 칸을 제출하면 검증 대기 상태가 되고 완료 처리되지 않는다")
+    void submitCellSetsPendingStatusWithoutCompleting() {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
         when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
@@ -264,8 +265,35 @@ class BingoServiceTest {
         // then
         assertThat(cell.getMemberId()).isEqualTo(2L);
         assertThat(cell.getSubmitUrl()).isEqualTo("https://example.com/proof.png");
+        assertThat(cell.getVerificationStatus()).isEqualTo(BingoCellVerificationStatus.PENDING);
+        assertThat(cell.getRejectionReason()).isNull();
         assertThat(cell.getCompletedAt()).isNull();
         Mockito.verify(bingoCellRepository).save(cell);
+    }
+
+    @Test
+    @DisplayName("거절된 칸을 재제출하면 검증 대기 상태로 돌아가고 거절 사유가 초기화된다")
+    void submitCellResetsRejectedCellToPending() {
+        // given
+        Room room = inProgressRoom(1L, 10L, 2);
+        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).thenReturn(true);
+        BingoBoard board = activeBoard(100L, 10L, 2);
+        when(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
+                .thenReturn(Optional.of(board));
+        BingoCell cell = BingoCell.create(100L, 1L, 0, 0);
+        ReflectionTestUtils.setField(cell, "id", 1000L);
+        cell.reject("인증 이미지가 조건과 다릅니다.");
+        when(bingoCellRepository.findById(1000L)).thenReturn(Optional.of(cell));
+        when(bingoCellRepository.save(Mockito.any(BingoCell.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        bingoService.submitCell(2L, 10L, 1000L, "https://example.com/retry.png");
+
+        // then
+        assertThat(cell.getVerificationStatus()).isEqualTo(BingoCellVerificationStatus.PENDING);
+        assertThat(cell.getRejectionReason()).isNull();
+        assertThat(cell.getCompletedAt()).isNull();
     }
 
     @Test

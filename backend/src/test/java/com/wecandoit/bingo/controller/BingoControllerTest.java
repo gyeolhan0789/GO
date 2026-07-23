@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.wecandoit.bingo.controller.response.BingoBoardResponse;
 import com.wecandoit.bingo.controller.response.BingoCellResponse;
 import com.wecandoit.bingo.domain.BingoBoardStatus;
+import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
 import com.wecandoit.bingo.service.BingoService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.CustomExceptionHandler;
@@ -91,7 +92,7 @@ class BingoControllerTest {
                 10L,
                 3,
                 BingoBoardStatus.IN_PROGRESS,
-                List.of(new BingoCellResponse(0, 0, mission)),
+                List.of(new BingoCellResponse(0, 0, mission, null, null)),
                 false,
                 false
         );
@@ -128,6 +129,8 @@ class BingoControllerTest {
                                 fieldWithPath("cells[].mission.detail").description("미션 설명"),
                                 fieldWithPath("cells[].mission.decisionCondition").description("미션 판정 조건"),
                                 fieldWithPath("cells[].mission.createdAt").description("미션 생성 시각"),
+                                fieldWithPath("cells[].verificationStatus").description("미션 인증 상태"),
+                                fieldWithPath("cells[].rejectionReason").description("미션 거절 사유"),
                                 fieldWithPath("completed").description("빙고판 100% 완료 여부"),
                                 fieldWithPath("canRenew").description("조기 갱신 가능 여부(방장이고 완료된 경우에만 true)")
                         )
@@ -184,7 +187,7 @@ class BingoControllerTest {
                 10L,
                 3,
                 BingoBoardStatus.IN_PROGRESS,
-                List.of(new BingoCellResponse(0, 0, mission)),
+                List.of(new BingoCellResponse(0, 0, mission, BingoCellVerificationStatus.REJECTED, "인증 이미지가 조건과 다릅니다.")),
                 true,
                 true
         );
@@ -199,6 +202,8 @@ class BingoControllerTest {
                 .body("bingoBoardId", equalTo(100))
                 .body("completed", equalTo(true))
                 .body("canRenew", equalTo(true))
+                .body("cells[0].verificationStatus", equalTo("REJECTED"))
+                .body("cells[0].rejectionReason", equalTo("인증 이미지가 조건과 다릅니다."))
                 .apply(document("bingo-boards-active",
                         pathParameters(
                                 parameterWithName("roomId").description("활성 빙고판을 조회할 게임방 ID")
@@ -217,6 +222,8 @@ class BingoControllerTest {
                                 fieldWithPath("cells[].mission.detail").description("미션 설명"),
                                 fieldWithPath("cells[].mission.decisionCondition").description("미션 판정 조건"),
                                 fieldWithPath("cells[].mission.createdAt").description("미션 생성 시각"),
+                                fieldWithPath("cells[].verificationStatus").description("미션 인증 상태"),
+                                fieldWithPath("cells[].rejectionReason").description("미션 거절 사유"),
                                 fieldWithPath("completed").description("빙고판 100% 완료 여부"),
                                 fieldWithPath("canRenew").description("조기 갱신 가능 여부(방장이고 완료된 경우에만 true)")
                         )
@@ -325,7 +332,7 @@ class BingoControllerTest {
                 10L,
                 3,
                 BingoBoardStatus.IN_PROGRESS,
-                List.of(new BingoCellResponse(0, 0, mission)),
+                List.of(new BingoCellResponse(0, 0, mission, null, null)),
                 false,
                 false
         );
@@ -357,6 +364,8 @@ class BingoControllerTest {
                                 fieldWithPath("cells[].mission.detail").description("미션 설명"),
                                 fieldWithPath("cells[].mission.decisionCondition").description("미션 판정 조건"),
                                 fieldWithPath("cells[].mission.createdAt").description("미션 생성 시각"),
+                                fieldWithPath("cells[].verificationStatus").description("미션 인증 상태"),
+                                fieldWithPath("cells[].rejectionReason").description("미션 거절 사유"),
                                 fieldWithPath("completed").description("빙고판 100% 완료 여부"),
                                 fieldWithPath("canRenew").description("조기 갱신 가능 여부(방장이고 완료된 경우에만 true)")
                         )
