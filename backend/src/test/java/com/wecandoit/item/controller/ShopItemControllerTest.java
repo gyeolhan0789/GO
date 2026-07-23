@@ -10,12 +10,16 @@ import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.docu
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.restdocs.request.RequestDocumentation.queryParameters;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.exception.ErrorCode;
+import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
+import com.wecandoit.item.controller.response.ItemPurchaseResponse;
 import com.wecandoit.item.controller.response.ShopItemResponse;
+import com.wecandoit.item.service.ShopItemCommandService;
 import com.wecandoit.item.service.ShopItemQueryService;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import java.util.List;
@@ -28,6 +32,8 @@ import org.mockito.Mockito;
 import org.springframework.http.HttpStatus;
 import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.restdocs.RestDocumentationExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -36,11 +42,18 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 class ShopItemControllerTest {
 
     private final ShopItemQueryService shopItemQueryService = Mockito.mock(ShopItemQueryService.class);
+    private final ShopItemCommandService shopItemCommandService = Mockito.mock(ShopItemCommandService.class);
 
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new ShopItemController(shopItemQueryService))
+        SecurityContextHolder.getContext().setAuthentication(
+                UsernamePasswordAuthenticationToken.authenticated(1L, null, List.of())
+        );
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(
+                        new ShopItemController(shopItemQueryService, shopItemCommandService)
+                )
                 .setControllerAdvice(new CustomExceptionHandler())
+                .setCustomArgumentResolvers(new LoginMemberIdArgumentResolver())
                 .apply(documentationConfiguration(restDocumentation))
                 .build();
         RestAssuredMockMvc.mockMvc(mockMvc);
@@ -48,6 +61,7 @@ class ShopItemControllerTest {
 
     @AfterEach
     void tearDown() {
+        SecurityContextHolder.clearContext();
         RestAssuredMockMvc.reset();
     }
 
@@ -222,5 +236,79 @@ class ShopItemControllerTest {
                 .then()
                 .statusCode(HttpStatus.BAD_REQUEST.value());
         verify(shopItemQueryService).getShopItems("hat");
+    }
+
+    @Test
+    @DisplayName("아이템을 구매하면 생성된 보유 아이템과 남은 캐시를 반환한다")
+    void purchaseItemReturnsCreatedMemberItem() {
+        // given
+        when(shopItemCommandService.purchaseItem(1L, 100L))
+                .thenReturn(new ItemPurchaseResponse(15L, 100L, 4_000L));
+
+        // when, then
+        given()
+                .when()
+                .post("/shop/items/{itemId}/purchase", 100L)
+                .then()
+                .statusCode(HttpStatus.CREATED.value())
+                .body("memberItemId", equalTo(15))
+                .body("itemId", equalTo(100))
+                .body("remainingCash", equalTo(4_000))
+                .apply(document("shop-item-purchase",
+                        pathParameters(
+                                parameterWithName("itemId").description("구매할 아이템 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("memberItemId").description("생성된 보유 아이템 ID"),
+                                fieldWithPath("itemId").description("구매한 아이템 ID"),
+                                fieldWithPath("remainingCash").description("구매 후 남은 캐시")
+                        )
+                ));
+        verify(shopItemCommandService).purchaseItem(1L, 100L);
+    }
+
+    @Test
+    @DisplayName("캐시가 부족하면 잘못된 요청으로 처리한다")
+    void purchaseItemRejectsInsufficientCash() {
+        // given
+        when(shopItemCommandService.purchaseItem(1L, 100L))
+                .thenThrow(new CustomException(ErrorCode.INSUFFICIENT_CASH));
+
+        // when, then
+        given()
+                .when()
+                .post("/shop/items/{itemId}/purchase", 100L)
+                .then()
+                .statusCode(HttpStatus.BAD_REQUEST.value())
+                .body("status", equalTo(HttpStatus.BAD_REQUEST.value()))
+                .body("message", equalTo(ErrorCode.INSUFFICIENT_CASH.getMessage()))
+                .apply(document("shop-item-purchase-insufficient-cash",
+                        pathParameters(
+                                parameterWithName("itemId").description("구매할 아이템 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("status").description("HTTP 상태 코드"),
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+        verify(shopItemCommandService).purchaseItem(1L, 100L);
+    }
+
+    @Test
+    @DisplayName("이미 보유한 아이템을 구매하면 충돌로 처리한다")
+    void purchaseItemRejectsAlreadyOwnedItem() {
+        // given
+        when(shopItemCommandService.purchaseItem(1L, 100L))
+                .thenThrow(new CustomException(ErrorCode.ITEM_ALREADY_OWNED));
+
+        // when, then
+        given()
+                .when()
+                .post("/shop/items/{itemId}/purchase", 100L)
+                .then()
+                .statusCode(HttpStatus.CONFLICT.value())
+                .body("status", equalTo(HttpStatus.CONFLICT.value()))
+                .body("message", equalTo(ErrorCode.ITEM_ALREADY_OWNED.getMessage()));
+        verify(shopItemCommandService).purchaseItem(1L, 100L);
     }
 }
