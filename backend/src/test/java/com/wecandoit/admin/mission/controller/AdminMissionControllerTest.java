@@ -1,14 +1,18 @@
-package com.wecandoit.mission.controller;
+package com.wecandoit.admin.mission.controller;
 
 import static io.restassured.module.mockmvc.RestAssuredMockMvc.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import com.wecandoit.admin.mission.controller.request.CreateMissionRequest;
+import com.wecandoit.admin.mission.controller.response.AdminMissionResponse;
+import com.wecandoit.admin.mission.service.AdminMissionService;
 import com.wecandoit.common.exception.CustomExceptionHandler;
-import com.wecandoit.mission.controller.request.CreateMissionRequest;
-import com.wecandoit.mission.service.MissionService;
 import io.restassured.http.ContentType;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
+import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,13 +22,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 @DisplayName("어드민 미션 API")
-class MissionControllerTest {
+class AdminMissionControllerTest {
 
-    private final MissionService missionService = Mockito.mock(MissionService.class);
+    private final AdminMissionService adminMissionService = Mockito.mock(AdminMissionService.class);
 
     @BeforeEach
     void setUp() {
-        RestAssuredMockMvc.mockMvc(MockMvcBuilders.standaloneSetup(new MissionController(missionService))
+        RestAssuredMockMvc.mockMvc(MockMvcBuilders.standaloneSetup(new AdminMissionController(adminMissionService))
                 .setControllerAdvice(new CustomExceptionHandler())
                 .build());
     }
@@ -59,7 +63,7 @@ class MissionControllerTest {
                 .then()
                 .statusCode(HttpStatus.CREATED.value())
                 .body(org.hamcrest.Matchers.isEmptyOrNullString());
-        verify(missionService).createMission(Mockito.any(CreateMissionRequest.class));
+        verify(adminMissionService).createMission(Mockito.any(CreateMissionRequest.class));
     }
 
     @Test
@@ -77,7 +81,7 @@ class MissionControllerTest {
                 .post("/admin/missions")
                 .then()
                 .statusCode(HttpStatus.BAD_REQUEST.value());
-        verify(missionService, never()).createMission(Mockito.any());
+        verify(adminMissionService, never()).createMission(Mockito.any());
     }
 
     @Test
@@ -96,6 +100,27 @@ class MissionControllerTest {
                 .post("/admin/missions")
                 .then()
                 .statusCode(HttpStatus.CREATED.value());
-        verify(missionService).createMission(Mockito.any(CreateMissionRequest.class));
+        verify(adminMissionService).createMission(Mockito.any(CreateMissionRequest.class));
+    }
+
+    @Test
+    @DisplayName("미션 목록을 조회하면 200 상태와 응답 본문을 반환한다")
+    void getMissionsReturnsOk() {
+        when(adminMissionService.getMissions()).thenReturn(List.of(new AdminMissionResponse(
+                1L,
+                "https://example.com/flower.png",
+                "OBJECT",
+                "Red flower",
+                "Find a red flower",
+                null,
+                LocalDateTime.of(2026, 7, 23, 12, 0)
+        )));
+
+        given()
+                .when()
+                .get("/admin/missions")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("[0].missionId", org.hamcrest.Matchers.is(1));
     }
 }
