@@ -2,8 +2,8 @@ package com.wecandoit.history.controller;
 
 import static io.restassured.module.mockmvc.RestAssuredMockMvc.given;
 import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
@@ -30,7 +30,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.BDDMockito;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
@@ -42,11 +45,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 @DisplayName("히스토리 API")
-@ExtendWith(RestDocumentationExtension.class)
+@ExtendWith({RestDocumentationExtension.class, MockitoExtension.class})
 class HistoryControllerTest {
 
-    private final HistoryCommandService historyCommandService = Mockito.mock(HistoryCommandService.class);
-    private final HistoryReadService historyReadService = Mockito.mock(HistoryReadService.class);
+    @Mock
+    private HistoryCommandService historyCommandService;
+    @Mock
+    private HistoryReadService historyReadService;
 
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
@@ -91,9 +96,9 @@ class HistoryControllerTest {
                         HistoryDateResponse.empty(LocalDate.of(2026, 7, 21))
                 )
         );
-        Mockito.when(historyReadService.getHistories(1L, HistoryPeriod.WEEK, date)).thenReturn(response);
+        BDDMockito.given(historyReadService.getHistories(1L, HistoryPeriod.WEEK, date)).willReturn(response);
 
-        // when, then
+        // when & then
         given()
                 .queryParam("period", "WEEK")
                 .queryParam("date", "2026-07-23")
@@ -133,7 +138,7 @@ class HistoryControllerTest {
                                 fieldWithPath("histories[].calories").description("칼로리")
                         )
                 ));
-        verify(historyReadService).getHistories(1L, HistoryPeriod.WEEK, date);
+        then(historyReadService).should().getHistories(1L, HistoryPeriod.WEEK, date);
     }
 
     @Test
@@ -147,7 +152,7 @@ class HistoryControllerTest {
                 50
         );
 
-        // when, then
+        // when & then
         given()
                 .contentType(ContentType.JSON)
                 .body("""
@@ -170,13 +175,13 @@ class HistoryControllerTest {
                                 fieldWithPath("calories").description("칼로리")
                         )
                 ));
-        verify(historyCommandService).saveHistory(1L, request);
+        then(historyCommandService).should().saveHistory(1L, request);
     }
 
     @Test
     @DisplayName("히스토리 날짜가 없으면 저장에 실패한다")
     void saveHistoryRejectsMissingHistoryDate() {
-        // when, then
+        // when & then
         given()
                 .contentType(ContentType.JSON)
                 .body("""
@@ -201,13 +206,13 @@ class HistoryControllerTest {
                                 fieldWithPath("message").description("오류 메시지")
                         )
                 ));
-        verify(historyCommandService, never()).saveHistory(Mockito.anyLong(), Mockito.any());
+        then(historyCommandService).should(never()).saveHistory(Mockito.anyLong(), Mockito.any());
     }
 
     @Test
     @DisplayName("음수 히스토리 값이면 저장에 실패한다")
     void saveHistoryRejectsNegativeHistoryValue() {
-        // when, then
+        // when & then
         given()
                 .contentType(ContentType.JSON)
                 .body("""
@@ -234,6 +239,6 @@ class HistoryControllerTest {
                                 fieldWithPath("message").description("오류 메시지")
                         )
                 ));
-        verify(historyCommandService, never()).saveHistory(Mockito.anyLong(), Mockito.any());
+        then(historyCommandService).should(never()).saveHistory(Mockito.anyLong(), Mockito.any());
     }
 }

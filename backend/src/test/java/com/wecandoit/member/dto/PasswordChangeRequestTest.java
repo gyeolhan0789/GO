@@ -32,20 +32,26 @@ class PasswordChangeRequestTest {
     @Test
     @DisplayName("현재 비밀번호와 새 비밀번호가 모두 규칙을 따르면 검증을 통과한다")
     void validRequestHasNoViolations() {
+        // given
         PasswordChangeRequest request = new PasswordChangeRequest("oldPassword1!", "newPassword1!");
 
+        // when
         Set<ConstraintViolation<PasswordChangeRequest>> violations = validator.validate(request);
 
+        // then
         assertThat(violations).isEmpty();
     }
 
     @Test
     @DisplayName("새 비밀번호가 복잡도 규칙을 위반하면 검증에 실패한다")
     void weakNewPasswordFails() {
+        // given
         PasswordChangeRequest request = new PasswordChangeRequest("oldPassword1!", "weak");
 
+        // when
         Set<ConstraintViolation<PasswordChangeRequest>> violations = validator.validate(request);
 
+        // then
         assertThat(violations)
                 .extracting(ConstraintViolation::getPropertyPath)
                 .extracting(Object::toString)
@@ -55,10 +61,13 @@ class PasswordChangeRequestTest {
     @Test
     @DisplayName("현재 비밀번호가 비어있으면 검증에 실패한다")
     void blankCurrentPasswordFails() {
+        // given
         PasswordChangeRequest request = new PasswordChangeRequest("", "newPassword1!");
 
+        // when
         Set<ConstraintViolation<PasswordChangeRequest>> violations = validator.validate(request);
 
+        // then
         assertThat(violations)
                 .extracting(ConstraintViolation::getPropertyPath)
                 .extracting(Object::toString)

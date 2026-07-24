@@ -2,8 +2,8 @@ package com.wecandoit.game.room.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
@@ -16,29 +16,41 @@ import com.wecandoit.game.room.domain.RoomMember;
 import com.wecandoit.game.room.repository.RoomMemberRepository;
 import com.wecandoit.game.room.repository.RoomRepository;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+@ExtendWith(MockitoExtension.class)
 @DisplayName("게임방 서비스")
 class RoomCommandServiceTest {
 
     private static final int DEFAULT_BOARD_SIZE = 3;
 
-    private final RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
-    private final RoomMemberRepository roomMemberRepository = Mockito.mock(RoomMemberRepository.class);
-    private final RoomCommandService roomCommandService = new RoomCommandService(
-            roomRepository,
-            roomMemberRepository
-    );
+    @Mock
+    private RoomRepository roomRepository;
+    @Mock
+    private RoomMemberRepository roomMemberRepository;
+    private RoomCommandService roomCommandService;
+
+    @BeforeEach
+    void setUp() {
+        roomCommandService = new RoomCommandService(
+                roomRepository,
+                roomMemberRepository
+        );
+    }
 
     @Test
     @DisplayName("게임방을 생성하면 방과 방장 참여 정보를 저장한다")
     void createRoomSavesRoomAndHostMember() {
         // given
-        when(roomRepository.save(Mockito.any(Room.class))).thenAnswer(invocation -> {
+        given(roomRepository.save(Mockito.any(Room.class))).willAnswer(invocation -> {
             Room room = invocation.getArgument(0);
             ReflectionTestUtils.setField(room, "id", 10L);
             return room;
@@ -53,8 +65,8 @@ class RoomCommandServiceTest {
         // then
         ArgumentCaptor<Room> roomCaptor = ArgumentCaptor.forClass(Room.class);
         ArgumentCaptor<RoomMember> roomMemberCaptor = ArgumentCaptor.forClass(RoomMember.class);
-        verify(roomRepository).save(roomCaptor.capture());
-        verify(roomMemberRepository).save(roomMemberCaptor.capture());
+        then(roomRepository).should().save(roomCaptor.capture());
+        then(roomMemberRepository).should().save(roomMemberCaptor.capture());
 
         Room room = roomCaptor.getValue();
         assertThat(room.getHostId()).isEqualTo(1L);
@@ -79,23 +91,23 @@ class RoomCommandServiceTest {
         // given
         Room room = Room.create(1L, GameMode.SINGLE, 3, 3);
         ReflectionTestUtils.setField(room, "id", 10L);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
 
         // when
         roomCommandService.deleteRoom(1L, 10L);
 
         // then
         assertThat(room.getStatus()).isEqualTo(GameRoomStatus.CLOSED);
-        verify(roomMemberRepository).deleteAllByRoomId(10L);
+        then(roomMemberRepository).should().deleteAllByRoomId(10L);
     }
 
     @Test
     @DisplayName("존재하지 않는 게임방을 삭제하면 실패한다")
     void deleteRoomRejectsMissingRoom() {
         // given
-        when(roomRepository.findById(10L)).thenReturn(Optional.empty());
+        given(roomRepository.findById(10L)).willReturn(Optional.empty());
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> roomCommandService.deleteRoom(1L, 10L),
                 ErrorCode.ROOM_NOT_FOUND
@@ -108,9 +120,9 @@ class RoomCommandServiceTest {
         // given
         Room room = Room.create(1L, GameMode.SINGLE, 3, 3);
         ReflectionTestUtils.setField(room, "id", 10L);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> roomCommandService.deleteRoom(2L, 10L),
                 ErrorCode.ROOM_DELETE_FORBIDDEN
@@ -124,16 +136,16 @@ class RoomCommandServiceTest {
         Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
         RoomMember roomMember = RoomMember.create(10L, 2L);
         ReflectionTestUtils.setField(room, "id", 10L);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(roomMemberRepository.findByRoomIdAndMemberId(10L, 2L)).thenReturn(Optional.of(roomMember));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.findByRoomIdAndMemberId(10L, 2L)).willReturn(Optional.of(roomMember));
 
         // when
         roomCommandService.leaveRoom(2L, 10L);
 
         // then
         assertThat(room.getStatus()).isEqualTo(GameRoomStatus.CREATED);
-        verify(roomMemberRepository).delete(roomMember);
-        verify(roomMemberRepository, Mockito.never()).deleteAllByRoomId(10L);
+        then(roomMemberRepository).should().delete(roomMember);
+        then(roomMemberRepository).should(Mockito.never()).deleteAllByRoomId(10L);
     }
 
     @Test
@@ -143,25 +155,25 @@ class RoomCommandServiceTest {
         Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
         RoomMember roomMember = RoomMember.create(10L, 1L);
         ReflectionTestUtils.setField(room, "id", 10L);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(roomMemberRepository.findByRoomIdAndMemberId(10L, 1L)).thenReturn(Optional.of(roomMember));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.findByRoomIdAndMemberId(10L, 1L)).willReturn(Optional.of(roomMember));
 
         // when
         roomCommandService.leaveRoom(1L, 10L);
 
         // then
         assertThat(room.getStatus()).isEqualTo(GameRoomStatus.CLOSED);
-        verify(roomMemberRepository).deleteAllByRoomId(10L);
-        verify(roomMemberRepository, Mockito.never()).delete(Mockito.any(RoomMember.class));
+        then(roomMemberRepository).should().deleteAllByRoomId(10L);
+        then(roomMemberRepository).should(Mockito.never()).delete(Mockito.any(RoomMember.class));
     }
 
     @Test
     @DisplayName("존재하지 않는 게임방을 나가면 실패한다")
     void leaveRoomRejectsMissingRoom() {
         // given
-        when(roomRepository.findById(10L)).thenReturn(Optional.empty());
+        given(roomRepository.findById(10L)).willReturn(Optional.empty());
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> roomCommandService.leaveRoom(1L, 10L),
                 ErrorCode.ROOM_NOT_FOUND
@@ -175,9 +187,9 @@ class RoomCommandServiceTest {
         Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
         room.close();
         ReflectionTestUtils.setField(room, "id", 10L);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> roomCommandService.leaveRoom(1L, 10L),
                 ErrorCode.ROOM_CLOSED
@@ -190,10 +202,10 @@ class RoomCommandServiceTest {
         // given
         Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
         ReflectionTestUtils.setField(room, "id", 10L);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(roomMemberRepository.findByRoomIdAndMemberId(10L, 2L)).thenReturn(Optional.empty());
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.findByRoomIdAndMemberId(10L, 2L)).willReturn(Optional.empty());
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> roomCommandService.leaveRoom(2L, 10L),
                 ErrorCode.ROOM_MEMBER_FORBIDDEN
@@ -207,7 +219,7 @@ class RoomCommandServiceTest {
         Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.READY);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
 
         // when
         roomCommandService.startGame(1L, 10L);
@@ -221,9 +233,9 @@ class RoomCommandServiceTest {
     @DisplayName("존재하지 않는 게임방에서 게임을 시작하면 실패한다")
     void startGameRejectsMissingRoom() {
         // given
-        when(roomRepository.findById(10L)).thenReturn(Optional.empty());
+        given(roomRepository.findById(10L)).willReturn(Optional.empty());
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> roomCommandService.startGame(1L, 10L),
                 ErrorCode.ROOM_NOT_FOUND
@@ -237,9 +249,9 @@ class RoomCommandServiceTest {
         Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.READY);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> roomCommandService.startGame(2L, 10L),
                 ErrorCode.ROOM_START_FORBIDDEN
@@ -252,9 +264,9 @@ class RoomCommandServiceTest {
         // given
         Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
         ReflectionTestUtils.setField(room, "id", 10L);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> roomCommandService.startGame(1L, 10L),
                 ErrorCode.ROOM_NOT_READY

@@ -2,8 +2,7 @@ package com.wecandoit.bingo.controller;
 
 import static io.restassured.module.mockmvc.RestAssuredMockMvc.given;
 import static org.hamcrest.Matchers.equalTo;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.when;
+import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
@@ -31,7 +30,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mockito;
+import org.mockito.BDDMockito;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
@@ -43,10 +44,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 @DisplayName("빙고판 API")
-@ExtendWith(RestDocumentationExtension.class)
+@ExtendWith({RestDocumentationExtension.class, MockitoExtension.class})
 class BingoControllerTest {
 
-    private final BingoService bingoService = Mockito.mock(BingoService.class);
+    @Mock
+    private BingoService bingoService;
 
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
@@ -96,9 +98,9 @@ class BingoControllerTest {
                 false,
                 false
         );
-        when(bingoService.generateBoard(1L, 10L)).thenReturn(response);
+        BDDMockito.given(bingoService.generateBoard(1L, 10L)).willReturn(response);
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .post("/rooms/{roomId}/bingo-boards", 10L)
@@ -141,11 +143,11 @@ class BingoControllerTest {
     @DisplayName("존재하지 않는 게임방이면 빙고판 생성에 실패한다")
     void generateBoardRejectsMissingRoom() {
         // given
-        doThrow(new CustomException(ErrorCode.ROOM_NOT_FOUND))
-                .when(bingoService)
+        willThrow(new CustomException(ErrorCode.ROOM_NOT_FOUND))
+                .given(bingoService)
                 .generateBoard(1L, 10L);
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .post("/rooms/{roomId}/bingo-boards", 10L)
@@ -157,11 +159,11 @@ class BingoControllerTest {
     @DisplayName("방장이 아니면 빙고판 생성에 실패한다")
     void generateBoardRejectsNonHost() {
         // given
-        doThrow(new CustomException(ErrorCode.BINGO_BOARD_GENERATE_FORBIDDEN))
-                .when(bingoService)
+        willThrow(new CustomException(ErrorCode.BINGO_BOARD_GENERATE_FORBIDDEN))
+                .given(bingoService)
                 .generateBoard(1L, 10L);
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .post("/rooms/{roomId}/bingo-boards", 10L)
@@ -191,9 +193,9 @@ class BingoControllerTest {
                 true,
                 true
         );
-        when(bingoService.getActiveBoard(1L, 10L)).thenReturn(response);
+        BDDMockito.given(bingoService.getActiveBoard(1L, 10L)).willReturn(response);
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .get("/rooms/{roomId}/bingo-boards/active", 10L)
@@ -234,11 +236,11 @@ class BingoControllerTest {
     @DisplayName("활성 빙고판이 없으면 조회에 실패한다")
     void getActiveBoardRejectsMissingBoard() {
         // given
-        doThrow(new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND))
-                .when(bingoService)
+        willThrow(new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND))
+                .given(bingoService)
                 .getActiveBoard(1L, 10L);
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .get("/rooms/{roomId}/bingo-boards/active", 10L)
@@ -249,7 +251,7 @@ class BingoControllerTest {
     @Test
     @DisplayName("칸을 제출하면 204 No Content를 반환한다")
     void submitCellReturnsNoContent() {
-        // given & when, then
+        // given & when & then
         given()
                 .contentType(ContentType.JSON)
                 .body("{\"submitUrl\":\"https://example.com/proof.png\"}")
@@ -269,11 +271,11 @@ class BingoControllerTest {
     @DisplayName("존재하지 않는 칸이면 제출에 실패한다")
     void submitCellRejectsMissingCell() {
         // given
-        doThrow(new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND))
-                .when(bingoService)
+        willThrow(new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND))
+                .given(bingoService)
                 .submitCell(1L, 10L, 1000L, "https://example.com/proof.png");
 
-        // when, then
+        // when & then
         given()
                 .contentType(ContentType.JSON)
                 .body("{\"submitUrl\":\"https://example.com/proof.png\"}")
@@ -287,11 +289,11 @@ class BingoControllerTest {
     @DisplayName("방 멤버가 아니면 제출에 실패한다")
     void submitCellRejectsNonMember() {
         // given
-        doThrow(new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN))
-                .when(bingoService)
+        willThrow(new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN))
+                .given(bingoService)
                 .submitCell(1L, 10L, 1000L, "https://example.com/proof.png");
 
-        // when, then
+        // when & then
         given()
                 .contentType(ContentType.JSON)
                 .body("{\"submitUrl\":\"https://example.com/proof.png\"}")
@@ -304,7 +306,7 @@ class BingoControllerTest {
     @Test
     @DisplayName("submitUrl이 비어있으면 제출에 실패한다")
     void submitCellRejectsBlankSubmitUrl() {
-        // given & when, then
+        // given & when & then
         given()
                 .contentType(ContentType.JSON)
                 .body("{\"submitUrl\":\"\"}")
@@ -336,9 +338,9 @@ class BingoControllerTest {
                 false,
                 false
         );
-        when(bingoService.renewBoard(1L, 10L)).thenReturn(response);
+        BDDMockito.given(bingoService.renewBoard(1L, 10L)).willReturn(response);
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .post("/rooms/{roomId}/bingo-boards/renewal", 10L)
@@ -376,11 +378,11 @@ class BingoControllerTest {
     @DisplayName("완료되지 않은 빙고판을 갱신하려 하면 실패한다")
     void renewBoardRejectsIncompleteBoard() {
         // given
-        doThrow(new CustomException(ErrorCode.BINGO_BOARD_NOT_COMPLETED))
-                .when(bingoService)
+        willThrow(new CustomException(ErrorCode.BINGO_BOARD_NOT_COMPLETED))
+                .given(bingoService)
                 .renewBoard(1L, 10L);
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .post("/rooms/{roomId}/bingo-boards/renewal", 10L)
@@ -392,11 +394,11 @@ class BingoControllerTest {
     @DisplayName("방장이 아니면 조기 갱신에 실패한다")
     void renewBoardRejectsNonHost() {
         // given
-        doThrow(new CustomException(ErrorCode.BINGO_BOARD_RENEWAL_FORBIDDEN))
-                .when(bingoService)
+        willThrow(new CustomException(ErrorCode.BINGO_BOARD_RENEWAL_FORBIDDEN))
+                .given(bingoService)
                 .renewBoard(1L, 10L);
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .post("/rooms/{roomId}/bingo-boards/renewal", 10L)

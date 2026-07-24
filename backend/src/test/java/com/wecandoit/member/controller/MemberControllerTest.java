@@ -2,9 +2,9 @@ package com.wecandoit.member.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -27,7 +27,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -35,19 +37,22 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 @DisplayName("회원 API")
+@ExtendWith(MockitoExtension.class)
 class MemberControllerTest {
 
-    private final MemberReadService memberReadService = Mockito.mock(MemberReadService.class);
-    private final MemberService memberService = Mockito.mock(MemberService.class);
+    @Mock
+    private MemberReadService memberReadService;
+    @Mock
+    private MemberService memberService;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final MockMvc mockMvc =
-            MockMvcBuilders.standaloneSetup(new MemberController(memberReadService, memberService))
-                    .setControllerAdvice(new CustomExceptionHandler())
-                    .setCustomArgumentResolvers(new LoginMemberIdArgumentResolver())
-                    .build();
+    private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
+        mockMvc = MockMvcBuilders.standaloneSetup(new MemberController(memberReadService, memberService))
+                .setControllerAdvice(new CustomExceptionHandler())
+                .setCustomArgumentResolvers(new LoginMemberIdArgumentResolver())
+                .build();
         SecurityContextHolder.getContext().setAuthentication(
                 UsernamePasswordAuthenticationToken.authenticated(1L, null, List.of())
         );
@@ -62,11 +67,11 @@ class MemberControllerTest {
     @DisplayName("닉네임 검색 결과에 회원 ID, 닉네임, 관계 상태를 반환한다")
     void searchMembersReturnsRelationshipStatus() throws Exception {
         // given
-        when(memberReadService.searchMembers(1L, "산책")).thenReturn(List.of(
+        given(memberReadService.searchMembers(1L, "산책")).willReturn(List.of(
                 new MemberSearchResponse(2L, "산책친구", MemberRelationshipStatus.FRIEND)
         ));
 
-        // when, then
+        // when & then
         mockMvc.perform(get("/members/search").param("keyword", "산책"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].memberId").value(2L))
@@ -80,13 +85,13 @@ class MemberControllerTest {
         // given
         MemberProfileUpdateRequest request = new MemberProfileUpdateRequest("새닉네임", Region.BUSAN);
 
-        // when, then
+        // when & then
         mockMvc.perform(patch("/members/me")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNoContent());
 
-        verify(memberService).updateProfile(eq(1L), any(MemberProfileUpdateRequest.class));
+        then(memberService).should().updateProfile(eq(1L), any(MemberProfileUpdateRequest.class));
     }
 
     @Test
@@ -95,7 +100,7 @@ class MemberControllerTest {
         // given
         String invalidRegionJson = "{\"nickname\":null,\"region\":\"ATLANTIS\"}";
 
-        // when, then
+        // when & then
         mockMvc.perform(patch("/members/me")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidRegionJson))
@@ -107,10 +112,10 @@ class MemberControllerTest {
     void updateProfileRejectsDuplicateNickname() throws Exception {
         // given
         MemberProfileUpdateRequest request = new MemberProfileUpdateRequest("중복닉네임", null);
-        doThrow(new CustomException(ErrorCode.DUPLICATE_NICKNAME))
-                .when(memberService).updateProfile(eq(1L), any(MemberProfileUpdateRequest.class));
+        willThrow(new CustomException(ErrorCode.DUPLICATE_NICKNAME))
+                .given(memberService).updateProfile(eq(1L), any(MemberProfileUpdateRequest.class));
 
-        // when, then
+        // when & then
         mockMvc.perform(patch("/members/me")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -123,13 +128,13 @@ class MemberControllerTest {
         // given
         PasswordChangeRequest request = new PasswordChangeRequest("oldPassword1!", "newPassword1!");
 
-        // when, then
+        // when & then
         mockMvc.perform(patch("/members/password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNoContent());
 
-        verify(memberService).changePassword(eq(1L), any(PasswordChangeRequest.class));
+        then(memberService).should().changePassword(eq(1L), any(PasswordChangeRequest.class));
     }
 
     @Test
@@ -137,10 +142,10 @@ class MemberControllerTest {
     void changePasswordRejectsWrongCurrentPassword() throws Exception {
         // given
         PasswordChangeRequest request = new PasswordChangeRequest("wrongPassword1!", "newPassword1!");
-        doThrow(new CustomException(ErrorCode.INVALID_PASSWORD))
-                .when(memberService).changePassword(eq(1L), any(PasswordChangeRequest.class));
+        willThrow(new CustomException(ErrorCode.INVALID_PASSWORD))
+                .given(memberService).changePassword(eq(1L), any(PasswordChangeRequest.class));
 
-        // when, then
+        // when & then
         mockMvc.perform(patch("/members/password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))

@@ -1,9 +1,9 @@
 package com.wecandoit.bingo.scheduler;
 
-import static org.mockito.Mockito.doThrow;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.wecandoit.bingo.service.BingoService;
 import com.wecandoit.game.room.domain.GameMode;
@@ -13,16 +13,23 @@ import com.wecandoit.game.room.repository.RoomRepository;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @DisplayName("빙고판 자동 갱신 스케줄러")
+@ExtendWith(MockitoExtension.class)
 class BingoBoardRenewalSchedulerTest {
 
-    private final RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
-    private final BingoService bingoService = Mockito.mock(BingoService.class);
-    private final BingoBoardRenewalScheduler scheduler =
-            new BingoBoardRenewalScheduler(roomRepository, bingoService);
+    @Mock
+    private RoomRepository roomRepository;
+    @Mock
+    private BingoService bingoService;
+    @InjectMocks
+    private BingoBoardRenewalScheduler scheduler;
 
     @Test
     @DisplayName("진행 중인 모든 방에 대해 자동 갱신을 한 번씩 호출한다")
@@ -31,16 +38,16 @@ class BingoBoardRenewalSchedulerTest {
         Room room1 = inProgressRoom(1L);
         Room room2 = inProgressRoom(2L);
         Room room3 = inProgressRoom(3L);
-        when(roomRepository.findAllByStatus(GameRoomStatus.IN_PROGRESS))
-                .thenReturn(List.of(room1, room2, room3));
+        given(roomRepository.findAllByStatus(GameRoomStatus.IN_PROGRESS))
+                .willReturn(List.of(room1, room2, room3));
 
         // when
         scheduler.renewExpiredBoards();
 
         // then
-        verify(bingoService, times(1)).autoRenewBoard(1L);
-        verify(bingoService, times(1)).autoRenewBoard(2L);
-        verify(bingoService, times(1)).autoRenewBoard(3L);
+        then(bingoService).should(times(1)).autoRenewBoard(1L);
+        then(bingoService).should(times(1)).autoRenewBoard(2L);
+        then(bingoService).should(times(1)).autoRenewBoard(3L);
     }
 
     @Test
@@ -50,30 +57,30 @@ class BingoBoardRenewalSchedulerTest {
         Room room1 = inProgressRoom(1L);
         Room room2 = inProgressRoom(2L);
         Room room3 = inProgressRoom(3L);
-        when(roomRepository.findAllByStatus(GameRoomStatus.IN_PROGRESS))
-                .thenReturn(List.of(room1, room2, room3));
-        doThrow(new RuntimeException("갱신 실패")).when(bingoService).autoRenewBoard(2L);
+        given(roomRepository.findAllByStatus(GameRoomStatus.IN_PROGRESS))
+                .willReturn(List.of(room1, room2, room3));
+        willThrow(new RuntimeException("갱신 실패")).given(bingoService).autoRenewBoard(2L);
 
         // when
         scheduler.renewExpiredBoards();
 
         // then
-        verify(bingoService, times(1)).autoRenewBoard(1L);
-        verify(bingoService, times(1)).autoRenewBoard(2L);
-        verify(bingoService, times(1)).autoRenewBoard(3L);
+        then(bingoService).should(times(1)).autoRenewBoard(1L);
+        then(bingoService).should(times(1)).autoRenewBoard(2L);
+        then(bingoService).should(times(1)).autoRenewBoard(3L);
     }
 
     @Test
     @DisplayName("진행 중인 방이 없으면 자동 갱신을 호출하지 않는다")
     void renewExpiredBoardsDoesNothingWhenNoRoomsInProgress() {
         // given
-        when(roomRepository.findAllByStatus(GameRoomStatus.IN_PROGRESS)).thenReturn(List.of());
+        given(roomRepository.findAllByStatus(GameRoomStatus.IN_PROGRESS)).willReturn(List.of());
 
         // when
         scheduler.renewExpiredBoards();
 
         // then
-        verify(bingoService, Mockito.never()).autoRenewBoard(Mockito.anyLong());
+        then(bingoService).should(Mockito.never()).autoRenewBoard(Mockito.anyLong());
     }
 
     private Room inProgressRoom(Long roomId) {

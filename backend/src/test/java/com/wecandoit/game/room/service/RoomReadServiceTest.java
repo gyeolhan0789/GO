@@ -2,8 +2,8 @@ package com.wecandoit.game.room.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
@@ -21,22 +21,34 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+@ExtendWith(MockitoExtension.class)
 @DisplayName("게임방 조회 서비스")
 class RoomReadServiceTest {
 
-    private final RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
-    private final RoomMemberRepository roomMemberRepository = Mockito.mock(RoomMemberRepository.class);
-    private final MemberReadService memberReadService = Mockito.mock(MemberReadService.class);
-    private final RoomReadService roomReadService = new RoomReadService(
-            roomRepository,
-            roomMemberRepository,
-            memberReadService
-    );
+    @Mock
+    private RoomRepository roomRepository;
+    @Mock
+    private RoomMemberRepository roomMemberRepository;
+    @Mock
+    private MemberReadService memberReadService;
+    private RoomReadService roomReadService;
+
+    @BeforeEach
+    void setUp() {
+        roomReadService = new RoomReadService(
+                roomRepository,
+                roomMemberRepository,
+                memberReadService
+        );
+    }
 
     @Test
     @DisplayName("게임방 상세를 조회하면 방 정보와 참여자 상세 목록을 반환한다")
@@ -46,12 +58,12 @@ class RoomReadServiceTest {
         ReflectionTestUtils.setField(room, "startedAt", LocalDateTime.of(2026, 7, 22, 9, 50));
         RoomMember hostMember = roomMember(10L, 1L, 2, LocalDateTime.of(2026, 7, 22, 10, 0));
         RoomMember guestMember = roomMember(10L, 2L, 1, LocalDateTime.of(2026, 7, 22, 10, 5));
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
-        when(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L))
-                .thenReturn(List.of(hostMember, guestMember));
-        when(memberReadService.getNicknamesByIds(List.of(1L, 2L)))
-                .thenReturn(Map.of(1L, "방장", 2L, "참여자"));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L))
+                .willReturn(List.of(hostMember, guestMember));
+        given(memberReadService.getNicknamesByIds(List.of(1L, 2L)))
+                .willReturn(Map.of(1L, "방장", 2L, "참여자"));
 
         // when
         RoomDetailResponse response = roomReadService.getRoomDetail(1L, 10L);
@@ -72,16 +84,16 @@ class RoomReadServiceTest {
         assertThat(response.members().get(1).memberId()).isEqualTo(2L);
         assertThat(response.members().get(1).nickname()).isEqualTo("참여자");
         assertThat(response.members().get(1).host()).isFalse();
-        verify(roomMemberRepository).findAllByRoomIdOrderByJoinedAtAsc(10L);
+        then(roomMemberRepository).should().findAllByRoomIdOrderByJoinedAtAsc(10L);
     }
 
     @Test
     @DisplayName("존재하지 않는 게임방의 상세를 조회하면 실패한다")
     void getRoomDetailRejectsMissingRoom() {
         // given
-        when(roomRepository.findById(10L)).thenReturn(Optional.empty());
+        given(roomRepository.findById(10L)).willReturn(Optional.empty());
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> roomReadService.getRoomDetail(1L, 10L),
                 ErrorCode.ROOM_NOT_FOUND
@@ -93,10 +105,10 @@ class RoomReadServiceTest {
     void getRoomDetailRejectsNonMember() {
         // given
         Room room = room(10L, 1L);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).thenReturn(false);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> roomReadService.getRoomDetail(2L, 10L),
                 ErrorCode.ROOM_MEMBER_FORBIDDEN
@@ -109,10 +121,10 @@ class RoomReadServiceTest {
         // given
         Room room = room(10L, 1L);
         room.close();
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> roomReadService.getRoomDetail(1L, 10L),
                 ErrorCode.ROOM_CLOSED
@@ -125,13 +137,13 @@ class RoomReadServiceTest {
         // given
         Room room = room(10L, 1L);
         RoomMember roomMember = roomMember(10L, 1L, 0, LocalDateTime.of(2026, 7, 22, 10, 0));
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
-        when(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).thenReturn(List.of(roomMember));
-        when(memberReadService.getNicknamesByIds(List.of(1L)))
-                .thenThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of(roomMember));
+        given(memberReadService.getNicknamesByIds(List.of(1L)))
+                .willThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> roomReadService.getRoomDetail(1L, 10L),
                 ErrorCode.MEMBER_NOT_FOUND
@@ -163,14 +175,14 @@ class RoomReadServiceTest {
                 0,
                 LocalDateTime.of(2026, 7, 22, 10, 5)
         );
-        when(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
-                .thenReturn(List.of(myActiveRoomMember, myClosedRoomMember));
-        when(roomRepository.findAllById(List.of(10L, 20L)))
-                .thenReturn(List.of(activeRoom, closedRoom));
-        when(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(10L)))
-                .thenReturn(List.of(myActiveRoomMember, guestMember));
-        when(memberReadService.getNicknamesByIds(List.of(1L, 2L)))
-                .thenReturn(Map.of(1L, "방장", 2L, "참여자"));
+        given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
+                .willReturn(List.of(myActiveRoomMember, myClosedRoomMember));
+        given(roomRepository.findAllById(List.of(10L, 20L)))
+                .willReturn(List.of(activeRoom, closedRoom));
+        given(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(10L)))
+                .willReturn(List.of(myActiveRoomMember, guestMember));
+        given(memberReadService.getNicknamesByIds(List.of(1L, 2L)))
+                .willReturn(Map.of(1L, "방장", 2L, "참여자"));
 
         // when
         List<MyRoomResponse> responses = roomReadService.getMyRooms(1L);
@@ -191,14 +203,14 @@ class RoomReadServiceTest {
         assertThat(response.members().get(1).memberId()).isEqualTo(2L);
         assertThat(response.members().get(1).nickname()).isEqualTo("참여자");
         assertThat(response.members().get(1).host()).isFalse();
-        verify(roomMemberRepository).findAllByMemberIdOrderByJoinedAtDesc(1L);
+        then(roomMemberRepository).should().findAllByMemberIdOrderByJoinedAtDesc(1L);
     }
 
     @Test
     @DisplayName("내가 참여한 게임방이 없으면 빈 목록을 반환한다")
     void getMyRoomsReturnsEmptyList() {
         // given
-        when(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L)).thenReturn(List.of());
+        given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L)).willReturn(List.of());
 
         // when
         List<MyRoomResponse> responses = roomReadService.getMyRooms(1L);
@@ -219,9 +231,9 @@ class RoomReadServiceTest {
                 0,
                 LocalDateTime.of(2026, 7, 22, 10, 0)
         );
-        when(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
-                .thenReturn(List.of(myRoomMember));
-        when(roomRepository.findAllById(List.of(10L))).thenReturn(List.of(closedRoom));
+        given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
+                .willReturn(List.of(myRoomMember));
+        given(roomRepository.findAllById(List.of(10L))).willReturn(List.of(closedRoom));
 
         // when
         List<MyRoomResponse> responses = roomReadService.getMyRooms(1L);
@@ -240,11 +252,11 @@ class RoomReadServiceTest {
                 0,
                 LocalDateTime.of(2026, 7, 22, 10, 0)
         );
-        when(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
-                .thenReturn(List.of(myRoomMember));
-        when(roomRepository.findAllById(List.of(10L))).thenReturn(List.of());
+        given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
+                .willReturn(List.of(myRoomMember));
+        given(roomRepository.findAllById(List.of(10L))).willReturn(List.of());
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> roomReadService.getMyRooms(1L),
                 ErrorCode.ROOM_NOT_FOUND
@@ -262,15 +274,15 @@ class RoomReadServiceTest {
                 0,
                 LocalDateTime.of(2026, 7, 22, 10, 0)
         );
-        when(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
-                .thenReturn(List.of(myRoomMember));
-        when(roomRepository.findAllById(List.of(10L))).thenReturn(List.of(room));
-        when(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(10L)))
-                .thenReturn(List.of(myRoomMember));
-        when(memberReadService.getNicknamesByIds(List.of(1L)))
-                .thenThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+        given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
+                .willReturn(List.of(myRoomMember));
+        given(roomRepository.findAllById(List.of(10L))).willReturn(List.of(room));
+        given(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(10L)))
+                .willReturn(List.of(myRoomMember));
+        given(memberReadService.getNicknamesByIds(List.of(1L)))
+                .willThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> roomReadService.getMyRooms(1L),
                 ErrorCode.MEMBER_NOT_FOUND
@@ -284,12 +296,12 @@ class RoomReadServiceTest {
         Room room = room(10L, 1L);
         RoomMember hostMember = roomMember(10L, 1L, 2, LocalDateTime.of(2026, 7, 22, 10, 0));
         RoomMember guestMember = roomMember(10L, 2L, 1, LocalDateTime.of(2026, 7, 22, 10, 5));
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
-        when(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L))
-                .thenReturn(List.of(hostMember, guestMember));
-        when(memberReadService.getNicknamesByIds(List.of(1L, 2L)))
-                .thenReturn(Map.of(1L, "방장", 2L, "참여자"));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L))
+                .willReturn(List.of(hostMember, guestMember));
+        given(memberReadService.getNicknamesByIds(List.of(1L, 2L)))
+                .willReturn(Map.of(1L, "방장", 2L, "참여자"));
 
         // when
         List<RoomMemberResponse> responses = roomReadService.getRoomMembers(1L, 10L);
@@ -304,7 +316,7 @@ class RoomReadServiceTest {
         assertThat(responses.get(1).memberId()).isEqualTo(2L);
         assertThat(responses.get(1).nickname()).isEqualTo("참여자");
         assertThat(responses.get(1).host()).isFalse();
-        verify(roomMemberRepository).findAllByRoomIdOrderByJoinedAtAsc(10L);
+        then(roomMemberRepository).should().findAllByRoomIdOrderByJoinedAtAsc(10L);
     }
 
     @Test
@@ -312,9 +324,9 @@ class RoomReadServiceTest {
     void getRoomMembersReturnsEmptyList() {
         // given
         Room room = room(10L, 1L);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
-        when(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).thenReturn(List.of());
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of());
 
         // when
         List<RoomMemberResponse> responses = roomReadService.getRoomMembers(1L, 10L);
@@ -327,9 +339,9 @@ class RoomReadServiceTest {
     @DisplayName("존재하지 않는 게임방의 참여자 목록을 조회하면 실패한다")
     void getRoomMembersRejectsMissingRoom() {
         // given
-        when(roomRepository.findById(10L)).thenReturn(Optional.empty());
+        given(roomRepository.findById(10L)).willReturn(Optional.empty());
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> roomReadService.getRoomMembers(1L, 10L),
                 ErrorCode.ROOM_NOT_FOUND
@@ -341,10 +353,10 @@ class RoomReadServiceTest {
     void getRoomMembersRejectsNonMember() {
         // given
         Room room = room(10L, 1L);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).thenReturn(false);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> roomReadService.getRoomMembers(2L, 10L),
                 ErrorCode.ROOM_MEMBER_FORBIDDEN
@@ -357,13 +369,13 @@ class RoomReadServiceTest {
         // given
         Room room = room(10L, 1L);
         RoomMember roomMember = roomMember(10L, 1L, 0, LocalDateTime.of(2026, 7, 22, 10, 0));
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
-        when(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).thenReturn(List.of(roomMember));
-        when(memberReadService.getNicknamesByIds(List.of(1L)))
-                .thenThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of(roomMember));
+        given(memberReadService.getNicknamesByIds(List.of(1L)))
+                .willThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> roomReadService.getRoomMembers(1L, 10L),
                 ErrorCode.MEMBER_NOT_FOUND

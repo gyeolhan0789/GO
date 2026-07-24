@@ -3,10 +3,7 @@ package com.wecandoit.member.controller;
 import static io.restassured.module.mockmvc.RestAssuredMockMvc.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
@@ -27,7 +24,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mockito;
+import org.mockito.BDDMockito;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.restdocs.RestDocumentationExtension;
@@ -37,12 +36,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 @DisplayName("보유 아이템 목록 조회 API")
-@ExtendWith(RestDocumentationExtension.class)
+@ExtendWith({RestDocumentationExtension.class, MockitoExtension.class})
 class MemberItemControllerTest {
 
-    private final CharacterItemReadService characterItemReadService = Mockito.mock(
-            CharacterItemReadService.class
-    );
+    @Mock
+    private CharacterItemReadService characterItemReadService;
 
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
@@ -69,7 +67,7 @@ class MemberItemControllerTest {
     @DisplayName("전체 보유 아이템 목록을 반환한다")
     void getMyItemsReturnsMemberItems() {
         // given
-        when(characterItemReadService.getMyItems(1L, null)).thenReturn(List.of(
+        BDDMockito.given(characterItemReadService.getMyItems(1L, null)).willReturn(List.of(
                 new MemberItemResponse(
                         10L,
                         100L,
@@ -79,7 +77,7 @@ class MemberItemControllerTest {
                 )
         ));
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .get("/members/items")
@@ -100,14 +98,14 @@ class MemberItemControllerTest {
                                 fieldWithPath("[].imageUrl").description("아이템 이미지 URL")
                         )
                 ));
-        verify(characterItemReadService).getMyItems(1L, null);
+        BDDMockito.then(characterItemReadService).should().getMyItems(1L, null);
     }
 
     @Test
     @DisplayName("카테고리에 해당하는 보유 아이템 목록을 반환한다")
     void getMyItemsByCategoryReturnsMemberItems() {
         // given
-        when(characterItemReadService.getMyItems(1L, "HAT")).thenReturn(List.of(
+        BDDMockito.given(characterItemReadService.getMyItems(1L, "HAT")).willReturn(List.of(
                 new MemberItemResponse(
                         10L,
                         100L,
@@ -117,7 +115,7 @@ class MemberItemControllerTest {
                 )
         ));
 
-        // when, then
+        // when & then
         given()
                 .queryParam("category", "HAT")
                 .when()
@@ -138,16 +136,16 @@ class MemberItemControllerTest {
                                 fieldWithPath("[].imageUrl").description("아이템 이미지 URL")
                         )
                 ));
-        verify(characterItemReadService).getMyItems(1L, "HAT");
+        BDDMockito.then(characterItemReadService).should().getMyItems(1L, "HAT");
     }
 
     @Test
     @DisplayName("카테고리에 해당하는 보유 아이템이 없으면 빈 목록을 반환한다")
     void getMyItemsByCategoryReturnsEmptyList() {
         // given
-        when(characterItemReadService.getMyItems(1L, "TOP")).thenReturn(List.of());
+        BDDMockito.given(characterItemReadService.getMyItems(1L, "TOP")).willReturn(List.of());
 
-        // when, then
+        // when & then
         given()
                 .queryParam("category", "TOP")
                 .when()
@@ -155,18 +153,18 @@ class MemberItemControllerTest {
                 .then()
                 .statusCode(HttpStatus.OK.value())
                 .body("$", hasSize(0));
-        verify(characterItemReadService).getMyItems(1L, "TOP");
+        BDDMockito.then(characterItemReadService).should().getMyItems(1L, "TOP");
     }
 
     @Test
     @DisplayName("유효하지 않은 카테고리는 잘못된 요청으로 처리한다")
     void getMyItemsByCategoryRejectsInvalidCategory() {
         // given
-        doThrow(new CustomException(ErrorCode.INVALID_ITEM_CATEGORY))
-                .when(characterItemReadService)
+        BDDMockito.willThrow(new CustomException(ErrorCode.INVALID_ITEM_CATEGORY))
+                .given(characterItemReadService)
                 .getMyItems(1L, "UNKNOWN");
 
-        // when, then
+        // when & then
         given()
                 .queryParam("category", "UNKNOWN")
                 .when()
@@ -182,25 +180,25 @@ class MemberItemControllerTest {
                                 fieldWithPath("message").description("오류 메시지")
                         )
                 ));
-        verify(characterItemReadService).getMyItems(1L, "UNKNOWN");
+        BDDMockito.then(characterItemReadService).should().getMyItems(1L, "UNKNOWN");
     }
 
     @Test
     @DisplayName("소문자 카테고리는 잘못된 요청으로 처리한다")
     void getMyItemsByCategoryRejectsLowercaseCategory() {
         // given
-        doThrow(new CustomException(ErrorCode.INVALID_ITEM_CATEGORY))
-                .when(characterItemReadService)
+        BDDMockito.willThrow(new CustomException(ErrorCode.INVALID_ITEM_CATEGORY))
+                .given(characterItemReadService)
                 .getMyItems(1L, "hat");
 
-        // when, then
+        // when & then
         given()
                 .queryParam("category", "hat")
                 .when()
                 .get("/members/items")
                 .then()
                 .statusCode(HttpStatus.BAD_REQUEST.value());
-        verify(characterItemReadService).getMyItems(1L, "hat");
-        verify(characterItemReadService, never()).getMyItems(1L);
+        BDDMockito.then(characterItemReadService).should().getMyItems(1L, "hat");
+        BDDMockito.then(characterItemReadService).should(never()).getMyItems(1L);
     }
 }

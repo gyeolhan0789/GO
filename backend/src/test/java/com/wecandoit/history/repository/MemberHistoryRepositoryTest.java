@@ -51,7 +51,7 @@ class MemberHistoryRepositoryTest {
         LocalDate historyDate = LocalDate.of(2026, 7, 22);
         memberHistoryRepository.saveAndFlush(MemberHistory.create(1L, historyDate, 10, 1_000, 100));
 
-        // when, then
+        // when & then
         assertThatThrownBy(() -> memberHistoryRepository.saveAndFlush(
                 MemberHistory.create(1L, historyDate, 20, 2_000, 200)
         )).isInstanceOf(DataIntegrityViolationException.class);
