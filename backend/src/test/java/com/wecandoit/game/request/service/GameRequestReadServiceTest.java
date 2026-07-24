@@ -2,7 +2,7 @@ package com.wecandoit.game.request.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.when;
+import static org.mockito.BDDMockito.given;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
@@ -15,20 +15,31 @@ import com.wecandoit.member.service.MemberReadService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+@ExtendWith(MockitoExtension.class)
 @DisplayName("게임방 초대 요청 조회 서비스")
 class GameRequestReadServiceTest {
 
-    private final GameRequestRepository gameRequestRepository = Mockito.mock(GameRequestRepository.class);
-    private final MemberReadService memberReadService = Mockito.mock(MemberReadService.class);
-    private final GameRequestReadService gameRequestReadService = new GameRequestReadService(
-            gameRequestRepository,
-            memberReadService
-    );
+    @Mock
+    private GameRequestRepository gameRequestRepository;
+    @Mock
+    private MemberReadService memberReadService;
+    private GameRequestReadService gameRequestReadService;
+
+    @BeforeEach
+    void setUp() {
+        gameRequestReadService = new GameRequestReadService(
+                gameRequestRepository,
+                memberReadService
+        );
+    }
 
     @Test
     @DisplayName("받은 대기 중 게임방 초대 요청 목록을 초대한 회원 닉네임과 함께 반환한다")
@@ -37,9 +48,9 @@ class GameRequestReadServiceTest {
         LocalDateTime createdAt = LocalDateTime.of(2026, 7, 22, 10, 0);
         GameRequest gameRequest = gameRequest(20L, 10L, 2L, 1L);
         ReflectionTestUtils.setField(gameRequest, "createdAt", createdAt);
-        when(gameRequestRepository.findAllByInviteeIdAndStatusOrderByCreatedAtDesc(1L, RequestStatus.PENDING))
-                .thenReturn(List.of(gameRequest));
-        when(memberReadService.getNicknamesByIds(List.of(2L))).thenReturn(Map.of(2L, "초대자"));
+        given(gameRequestRepository.findAllByInviteeIdAndStatusOrderByCreatedAtDesc(1L, RequestStatus.PENDING))
+                .willReturn(List.of(gameRequest));
+        given(memberReadService.getNicknamesByIds(List.of(2L))).willReturn(Map.of(2L, "초대자"));
 
         // when
         List<ReceivedGameRequestResponse> responses = gameRequestReadService.getReceivedGameRequests(1L);
@@ -59,8 +70,8 @@ class GameRequestReadServiceTest {
     @DisplayName("받은 게임방 초대 요청이 없으면 빈 목록을 반환한다")
     void getReceivedGameRequestsReturnsEmptyList() {
         // given
-        when(gameRequestRepository.findAllByInviteeIdAndStatusOrderByCreatedAtDesc(1L, RequestStatus.PENDING))
-                .thenReturn(List.of());
+        given(gameRequestRepository.findAllByInviteeIdAndStatusOrderByCreatedAtDesc(1L, RequestStatus.PENDING))
+                .willReturn(List.of());
 
         // when
         List<ReceivedGameRequestResponse> responses = gameRequestReadService.getReceivedGameRequests(1L);
@@ -74,12 +85,12 @@ class GameRequestReadServiceTest {
     void getReceivedGameRequestsRejectsMissingInviter() {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 2L, 1L);
-        when(gameRequestRepository.findAllByInviteeIdAndStatusOrderByCreatedAtDesc(1L, RequestStatus.PENDING))
-                .thenReturn(List.of(gameRequest));
-        when(memberReadService.getNicknamesByIds(List.of(2L)))
-                .thenThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+        given(gameRequestRepository.findAllByInviteeIdAndStatusOrderByCreatedAtDesc(1L, RequestStatus.PENDING))
+                .willReturn(List.of(gameRequest));
+        given(memberReadService.getNicknamesByIds(List.of(2L)))
+                .willThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
-        // when, then
+        // when & then
         assertThatThrownBy(() -> gameRequestReadService.getReceivedGameRequests(1L))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
@@ -93,9 +104,9 @@ class GameRequestReadServiceTest {
         LocalDateTime createdAt = LocalDateTime.of(2026, 7, 22, 10, 0);
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
         ReflectionTestUtils.setField(gameRequest, "createdAt", createdAt);
-        when(gameRequestRepository.findAllByInviterIdAndStatusOrderByCreatedAtDesc(1L, RequestStatus.PENDING))
-                .thenReturn(List.of(gameRequest));
-        when(memberReadService.getNicknamesByIds(List.of(2L))).thenReturn(Map.of(2L, "초대받은사람"));
+        given(gameRequestRepository.findAllByInviterIdAndStatusOrderByCreatedAtDesc(1L, RequestStatus.PENDING))
+                .willReturn(List.of(gameRequest));
+        given(memberReadService.getNicknamesByIds(List.of(2L))).willReturn(Map.of(2L, "초대받은사람"));
 
         // when
         List<SentGameRequestResponse> responses = gameRequestReadService.getSentGameRequests(1L);
@@ -115,8 +126,8 @@ class GameRequestReadServiceTest {
     @DisplayName("보낸 게임방 초대 요청이 없으면 빈 목록을 반환한다")
     void getSentGameRequestsReturnsEmptyList() {
         // given
-        when(gameRequestRepository.findAllByInviterIdAndStatusOrderByCreatedAtDesc(1L, RequestStatus.PENDING))
-                .thenReturn(List.of());
+        given(gameRequestRepository.findAllByInviterIdAndStatusOrderByCreatedAtDesc(1L, RequestStatus.PENDING))
+                .willReturn(List.of());
 
         // when
         List<SentGameRequestResponse> responses = gameRequestReadService.getSentGameRequests(1L);
@@ -130,12 +141,12 @@ class GameRequestReadServiceTest {
     void getSentGameRequestsRejectsMissingInvitee() {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
-        when(gameRequestRepository.findAllByInviterIdAndStatusOrderByCreatedAtDesc(1L, RequestStatus.PENDING))
-                .thenReturn(List.of(gameRequest));
-        when(memberReadService.getNicknamesByIds(List.of(2L)))
-                .thenThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+        given(gameRequestRepository.findAllByInviterIdAndStatusOrderByCreatedAtDesc(1L, RequestStatus.PENDING))
+                .willReturn(List.of(gameRequest));
+        given(memberReadService.getNicknamesByIds(List.of(2L)))
+                .willThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
-        // when, then
+        // when & then
         assertThatThrownBy(() -> gameRequestReadService.getSentGameRequests(1L))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")

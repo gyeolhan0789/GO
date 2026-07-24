@@ -5,24 +5,32 @@ import com.wecandoit.friend.domain.FriendRequestStatus;
 import com.wecandoit.friend.repository.FriendRequestRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
+import static org.mockito.BDDMockito.given;
 
 import com.wecandoit.friend.dto.ReceivedFriendRequestResponse;
 import com.wecandoit.member.domain.Member;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+@ExtendWith(MockitoExtension.class)
 @DisplayName("친구 요청 조회 서비스")
 class FriendRequestReadServiceTest {
 
-    private final FriendRequestRepository friendRequestRepository = Mockito.mock(FriendRequestRepository.class);
-    private final FriendRequestReadService friendRequestReadService = new FriendRequestReadService(
-            friendRequestRepository
-    );
+    @Mock
+    private FriendRequestRepository friendRequestRepository;
+    private FriendRequestReadService friendRequestReadService;
+
+    @BeforeEach
+    void setUp() {
+        friendRequestReadService = new FriendRequestReadService(friendRequestRepository);
+    }
 
     @Test
     @DisplayName("받은 대기 친구 요청을 최신순 응답으로 반환한다")
@@ -34,10 +42,10 @@ class FriendRequestReadServiceTest {
         LocalDateTime createdAt = LocalDateTime.of(2026, 7, 19, 12, 0);
         ReflectionTestUtils.setField(friendRequest, "id", 10L);
         ReflectionTestUtils.setField(friendRequest, "createdAt", createdAt);
-        when(friendRequestRepository.findAllByInviteeIdAndStatusOrderByCreatedAtDesc(
+        given(friendRequestRepository.findAllByInviteeIdAndStatusOrderByCreatedAtDesc(
                 2L,
                 FriendRequestStatus.PENDING
-        )).thenReturn(List.of(friendRequest));
+        )).willReturn(List.of(friendRequest));
 
         // when
         List<ReceivedFriendRequestResponse> responses = friendRequestReadService.getReceivedRequests(2L);

@@ -3,8 +3,6 @@ package com.wecandoit.item.controller;
 import static io.restassured.module.mockmvc.RestAssuredMockMvc.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
@@ -28,7 +26,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mockito;
+import org.mockito.BDDMockito;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.restdocs.RestDocumentationExtension;
@@ -38,11 +38,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 @DisplayName("상점 아이템 목록 조회 API")
-@ExtendWith(RestDocumentationExtension.class)
+@ExtendWith({RestDocumentationExtension.class, MockitoExtension.class})
 class ShopItemControllerTest {
 
-    private final ShopItemReadService shopItemReadService = Mockito.mock(ShopItemReadService.class);
-    private final ShopItemCommandService shopItemCommandService = Mockito.mock(ShopItemCommandService.class);
+    @Mock
+    private ShopItemReadService shopItemReadService;
+    @Mock
+    private ShopItemCommandService shopItemCommandService;
 
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
@@ -69,7 +71,7 @@ class ShopItemControllerTest {
     @DisplayName("전체 상점 아이템 목록을 반환한다")
     void getShopItemsReturnsAllItems() {
         // given
-        when(shopItemReadService.getShopItems(null)).thenReturn(List.of(
+        BDDMockito.given(shopItemReadService.getShopItems(null)).willReturn(List.of(
                 new ShopItemResponse(
                         100L,
                         "빨간 모자",
@@ -86,7 +88,7 @@ class ShopItemControllerTest {
                 )
         ));
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .get("/shop/items")
@@ -115,30 +117,30 @@ class ShopItemControllerTest {
                                 fieldWithPath("[].imageUrl").description("아이템 이미지 URL")
                         )
                 ));
-        verify(shopItemReadService).getShopItems(null);
+        BDDMockito.then(shopItemReadService).should().getShopItems(null);
     }
 
     @Test
     @DisplayName("상점 아이템이 없으면 빈 배열을 반환한다")
     void getShopItemsReturnsEmptyList() {
         // given
-        when(shopItemReadService.getShopItems(null)).thenReturn(List.of());
+        BDDMockito.given(shopItemReadService.getShopItems(null)).willReturn(List.of());
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .get("/shop/items")
                 .then()
                 .statusCode(HttpStatus.OK.value())
                 .body("$", hasSize(0));
-        verify(shopItemReadService).getShopItems(null);
+        BDDMockito.then(shopItemReadService).should().getShopItems(null);
     }
 
     @Test
     @DisplayName("카테고리에 해당하는 상점 아이템 목록을 반환한다")
     void getShopItemsByCategoryReturnsMatchingItems() {
         // given
-        when(shopItemReadService.getShopItems("HAT")).thenReturn(List.of(
+        BDDMockito.given(shopItemReadService.getShopItems("HAT")).willReturn(List.of(
                 new ShopItemResponse(
                         100L,
                         "빨간 모자",
@@ -148,7 +150,7 @@ class ShopItemControllerTest {
                 )
         ));
 
-        // when, then
+        // when & then
         given()
                 .queryParam("category", "HAT")
                 .when()
@@ -173,16 +175,16 @@ class ShopItemControllerTest {
                                 fieldWithPath("[].imageUrl").description("아이템 이미지 URL")
                         )
                 ));
-        verify(shopItemReadService).getShopItems("HAT");
+        BDDMockito.then(shopItemReadService).should().getShopItems("HAT");
     }
 
     @Test
     @DisplayName("카테고리에 해당하는 상점 아이템이 없으면 빈 배열을 반환한다")
     void getShopItemsByCategoryReturnsEmptyList() {
         // given
-        when(shopItemReadService.getShopItems("TOP")).thenReturn(List.of());
+        BDDMockito.given(shopItemReadService.getShopItems("TOP")).willReturn(List.of());
 
-        // when, then
+        // when & then
         given()
                 .queryParam("category", "TOP")
                 .when()
@@ -190,17 +192,17 @@ class ShopItemControllerTest {
                 .then()
                 .statusCode(HttpStatus.OK.value())
                 .body("$", hasSize(0));
-        verify(shopItemReadService).getShopItems("TOP");
+        BDDMockito.then(shopItemReadService).should().getShopItems("TOP");
     }
 
     @Test
     @DisplayName("유효하지 않은 카테고리는 잘못된 요청으로 처리한다")
     void getShopItemsByCategoryRejectsInvalidCategory() {
         // given
-        when(shopItemReadService.getShopItems("UNKNOWN"))
-                .thenThrow(new CustomException(ErrorCode.INVALID_ITEM_CATEGORY));
+        BDDMockito.given(shopItemReadService.getShopItems("UNKNOWN"))
+                .willThrow(new CustomException(ErrorCode.INVALID_ITEM_CATEGORY));
 
-        // when, then
+        // when & then
         given()
                 .queryParam("category", "UNKNOWN")
                 .when()
@@ -218,34 +220,34 @@ class ShopItemControllerTest {
                                 fieldWithPath("message").description("오류 메시지")
                         )
                 ));
-        verify(shopItemReadService).getShopItems("UNKNOWN");
+        BDDMockito.then(shopItemReadService).should().getShopItems("UNKNOWN");
     }
 
     @Test
     @DisplayName("소문자 카테고리는 잘못된 요청으로 처리한다")
     void getShopItemsByCategoryRejectsLowercaseCategory() {
         // given
-        when(shopItemReadService.getShopItems("hat"))
-                .thenThrow(new CustomException(ErrorCode.INVALID_ITEM_CATEGORY));
+        BDDMockito.given(shopItemReadService.getShopItems("hat"))
+                .willThrow(new CustomException(ErrorCode.INVALID_ITEM_CATEGORY));
 
-        // when, then
+        // when & then
         given()
                 .queryParam("category", "hat")
                 .when()
                 .get("/shop/items")
                 .then()
                 .statusCode(HttpStatus.BAD_REQUEST.value());
-        verify(shopItemReadService).getShopItems("hat");
+        BDDMockito.then(shopItemReadService).should().getShopItems("hat");
     }
 
     @Test
     @DisplayName("아이템을 구매하면 생성된 보유 아이템과 남은 캐시를 반환한다")
     void purchaseItemReturnsCreatedMemberItem() {
         // given
-        when(shopItemCommandService.purchaseItem(1L, 100L))
-                .thenReturn(new ItemPurchaseResponse(15L, 100L, 4_000L));
+        BDDMockito.given(shopItemCommandService.purchaseItem(1L, 100L))
+                .willReturn(new ItemPurchaseResponse(15L, 100L, 4_000L));
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .post("/shop/items/{itemId}/purchase", 100L)
@@ -264,17 +266,17 @@ class ShopItemControllerTest {
                                 fieldWithPath("remainingCash").description("구매 후 남은 캐시")
                         )
                 ));
-        verify(shopItemCommandService).purchaseItem(1L, 100L);
+        BDDMockito.then(shopItemCommandService).should().purchaseItem(1L, 100L);
     }
 
     @Test
     @DisplayName("캐시가 부족하면 잘못된 요청으로 처리한다")
     void purchaseItemRejectsInsufficientCash() {
         // given
-        when(shopItemCommandService.purchaseItem(1L, 100L))
-                .thenThrow(new CustomException(ErrorCode.INSUFFICIENT_CASH));
+        BDDMockito.given(shopItemCommandService.purchaseItem(1L, 100L))
+                .willThrow(new CustomException(ErrorCode.INSUFFICIENT_CASH));
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .post("/shop/items/{itemId}/purchase", 100L)
@@ -291,17 +293,17 @@ class ShopItemControllerTest {
                                 fieldWithPath("message").description("오류 메시지")
                         )
                 ));
-        verify(shopItemCommandService).purchaseItem(1L, 100L);
+        BDDMockito.then(shopItemCommandService).should().purchaseItem(1L, 100L);
     }
 
     @Test
     @DisplayName("이미 보유한 아이템을 구매하면 충돌로 처리한다")
     void purchaseItemRejectsAlreadyOwnedItem() {
         // given
-        when(shopItemCommandService.purchaseItem(1L, 100L))
-                .thenThrow(new CustomException(ErrorCode.ITEM_ALREADY_OWNED));
+        BDDMockito.given(shopItemCommandService.purchaseItem(1L, 100L))
+                .willThrow(new CustomException(ErrorCode.ITEM_ALREADY_OWNED));
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .post("/shop/items/{itemId}/purchase", 100L)
@@ -309,6 +311,6 @@ class ShopItemControllerTest {
                 .statusCode(HttpStatus.CONFLICT.value())
                 .body("status", equalTo(HttpStatus.CONFLICT.value()))
                 .body("message", equalTo(ErrorCode.ITEM_ALREADY_OWNED.getMessage()));
-        verify(shopItemCommandService).purchaseItem(1L, 100L);
+        BDDMockito.then(shopItemCommandService).should().purchaseItem(1L, 100L);
     }
 }

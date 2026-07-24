@@ -2,9 +2,9 @@ package com.wecandoit.game.request.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
@@ -21,44 +21,58 @@ import com.wecandoit.game.room.domain.RoomMember;
 import com.wecandoit.game.room.repository.RoomMemberRepository;
 import com.wecandoit.game.room.repository.RoomRepository;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+@ExtendWith(MockitoExtension.class)
 @DisplayName("게임방 초대 요청 서비스")
 class GameRequestCommandServiceTest {
 
-    private final GameRequestRepository gameRequestRepository = Mockito.mock(GameRequestRepository.class);
-    private final RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
-    private final RoomMemberRepository roomMemberRepository = Mockito.mock(RoomMemberRepository.class);
-    private final FriendRepository friendRepository = Mockito.mock(FriendRepository.class);
-    private final GameRequestCommandService gameRequestCommandService = new GameRequestCommandService(
-            gameRequestRepository,
-            roomRepository,
-            roomMemberRepository,
-            friendRepository
-    );
+    @Mock
+    private GameRequestRepository gameRequestRepository;
+    @Mock
+    private RoomRepository roomRepository;
+    @Mock
+    private RoomMemberRepository roomMemberRepository;
+    @Mock
+    private FriendRepository friendRepository;
+    private GameRequestCommandService gameRequestCommandService;
+
+    @BeforeEach
+    void setUp() {
+        gameRequestCommandService = new GameRequestCommandService(
+                gameRequestRepository,
+                roomRepository,
+                roomMemberRepository,
+                friendRepository
+        );
+    }
 
     @Test
     @DisplayName("친구를 초대하면 대기 상태의 게임방 초대 요청을 저장한다")
     void createGameRequestSavesPendingRequest() {
         // given
         givenInvitableRoom(GameRoomStatus.CREATED);
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).thenReturn(false);
-        when(friendRepository.existsBetween(1L, 2L)).thenReturn(true);
-        when(gameRequestRepository
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
+        given(friendRepository.existsBetween(1L, 2L)).willReturn(true);
+        given(gameRequestRepository
                 .findFirstByRoomIdAndInviteeIdAndStatusOrderByCreatedAtDesc(
                         10L,
                         2L,
                         RequestStatus.PENDING
                 ))
-                .thenReturn(Optional.empty());
-        when(gameRequestRepository.save(Mockito.any(GameRequest.class))).thenAnswer(invocation -> {
+                .willReturn(Optional.empty());
+        given(gameRequestRepository.save(Mockito.any(GameRequest.class))).willAnswer(invocation -> {
             GameRequest gameRequest = invocation.getArgument(0);
             ReflectionTestUtils.setField(gameRequest, "id", 20L);
             return gameRequest;
@@ -73,7 +87,7 @@ class GameRequestCommandServiceTest {
 
         // then
         ArgumentCaptor<GameRequest> captor = ArgumentCaptor.forClass(GameRequest.class);
-        verify(gameRequestRepository).save(captor.capture());
+        then(gameRequestRepository).should().save(captor.capture());
         GameRequest gameRequest = captor.getValue();
         assertThat(gameRequest.getRoomId()).isEqualTo(10L);
         assertThat(gameRequest.getInviterId()).isEqualTo(1L);
@@ -89,17 +103,17 @@ class GameRequestCommandServiceTest {
     void createGameRequestReturnsExistingPendingRequest() {
         // given
         givenInvitableRoom(GameRoomStatus.WAITING);
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).thenReturn(false);
-        when(friendRepository.existsBetween(1L, 2L)).thenReturn(true);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
+        given(friendRepository.existsBetween(1L, 2L)).willReturn(true);
         GameRequest existingRequest = gameRequest(20L, 10L, 1L, 2L);
-        when(gameRequestRepository
+        given(gameRequestRepository
                 .findFirstByRoomIdAndInviteeIdAndStatusOrderByCreatedAtDesc(
                         10L,
                         2L,
                         RequestStatus.PENDING
                 ))
-                .thenReturn(Optional.of(existingRequest));
+                .willReturn(Optional.of(existingRequest));
 
         // when
         GameRequestCreateResponse response = gameRequestCommandService.createGameRequest(
@@ -112,16 +126,16 @@ class GameRequestCommandServiceTest {
         assertThat(response.requestId()).isEqualTo(20L);
         assertThat(response.status()).isEqualTo(RequestStatus.PENDING);
         assertThat(response.created()).isFalse();
-        verify(gameRequestRepository, never()).save(Mockito.any(GameRequest.class));
+        then(gameRequestRepository).should(never()).save(Mockito.any(GameRequest.class));
     }
 
     @Test
     @DisplayName("존재하지 않는 게임방에 초대를 보내면 실패한다")
     void createGameRequestRejectsMissingRoom() {
         // given
-        when(roomRepository.findById(10L)).thenReturn(Optional.empty());
+        given(roomRepository.findById(10L)).willReturn(Optional.empty());
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> createGameRequest(1L, 2L),
                 ErrorCode.ROOM_NOT_FOUND
@@ -133,9 +147,9 @@ class GameRequestCommandServiceTest {
     void createGameRequestRejectsNonMemberInviter() {
         // given
         givenInvitableRoom(GameRoomStatus.CREATED);
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(false);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(false);
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> createGameRequest(1L, 2L),
                 ErrorCode.GAME_REQUEST_FORBIDDEN
@@ -148,9 +162,9 @@ class GameRequestCommandServiceTest {
     void createGameRequestRejectsUnavailableRoomStatus(GameRoomStatus status) {
         // given
         givenInvitableRoom(status);
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> createGameRequest(1L, 2L),
                 ErrorCode.GAME_REQUEST_NOT_AVAILABLE
@@ -162,9 +176,9 @@ class GameRequestCommandServiceTest {
     void createGameRequestRejectsSelfInvite() {
         // given
         givenInvitableRoom(GameRoomStatus.READY);
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> createGameRequest(1L, 1L),
                 ErrorCode.GAME_REQUEST_SELF_INVITE
@@ -176,10 +190,10 @@ class GameRequestCommandServiceTest {
     void createGameRequestRejectsExistingRoomMember() {
         // given
         givenInvitableRoom(GameRoomStatus.READY);
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).thenReturn(true);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(true);
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> createGameRequest(1L, 2L),
                 ErrorCode.GAME_REQUEST_ALREADY_ROOM_MEMBER
@@ -191,11 +205,11 @@ class GameRequestCommandServiceTest {
     void createGameRequestRejectsNonFriend() {
         // given
         givenInvitableRoom(GameRoomStatus.READY);
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).thenReturn(false);
-        when(friendRepository.existsBetween(1L, 2L)).thenReturn(false);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
+        given(friendRepository.existsBetween(1L, 2L)).willReturn(false);
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> createGameRequest(1L, 2L),
                 ErrorCode.GAME_REQUEST_FRIEND_REQUIRED
@@ -207,15 +221,15 @@ class GameRequestCommandServiceTest {
     void acceptGameRequestSavesRoomMember() {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
-        when(gameRequestRepository.findById(20L)).thenReturn(Optional.of(gameRequest));
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).thenReturn(false);
+        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
 
         // when
         gameRequestCommandService.acceptGameRequest(2L, 10L, 20L);
 
         // then
         ArgumentCaptor<RoomMember> captor = ArgumentCaptor.forClass(RoomMember.class);
-        verify(roomMemberRepository).save(captor.capture());
+        then(roomMemberRepository).should().save(captor.capture());
         RoomMember roomMember = captor.getValue();
         assertThat(gameRequest.getStatus()).isEqualTo(RequestStatus.ACCEPTED);
         assertThat(roomMember.getRoomId()).isEqualTo(10L);
@@ -227,14 +241,14 @@ class GameRequestCommandServiceTest {
     void rejectGameRequestUpdatesStatus() {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
-        when(gameRequestRepository.findById(20L)).thenReturn(Optional.of(gameRequest));
+        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
 
         // when
         gameRequestCommandService.rejectGameRequest(2L, 10L, 20L);
 
         // then
         assertThat(gameRequest.getStatus()).isEqualTo(RequestStatus.DECLINED);
-        verify(roomMemberRepository, never()).save(Mockito.any(RoomMember.class));
+        then(roomMemberRepository).should(never()).save(Mockito.any(RoomMember.class));
     }
 
     @Test
@@ -242,39 +256,39 @@ class GameRequestCommandServiceTest {
     void cancelGameRequestUpdatesStatus() {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
-        when(roomRepository.existsById(10L)).thenReturn(true);
-        when(gameRequestRepository.findById(20L)).thenReturn(Optional.of(gameRequest));
+        given(roomRepository.existsById(10L)).willReturn(true);
+        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
 
         // when
         gameRequestCommandService.cancelGameRequest(1L, 10L, 20L);
 
         // then
         assertThat(gameRequest.getStatus()).isEqualTo(RequestStatus.CANCELED);
-        verify(roomMemberRepository, never()).save(Mockito.any(RoomMember.class));
+        then(roomMemberRepository).should(never()).save(Mockito.any(RoomMember.class));
     }
 
     @Test
     @DisplayName("존재하지 않는 게임방의 초대 요청을 취소하면 실패한다")
     void cancelGameRequestRejectsMissingRoom() {
         // given
-        when(roomRepository.existsById(10L)).thenReturn(false);
+        given(roomRepository.existsById(10L)).willReturn(false);
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> gameRequestCommandService.cancelGameRequest(1L, 10L, 20L),
                 ErrorCode.ROOM_NOT_FOUND
         );
-        verify(gameRequestRepository, never()).findById(20L);
+        then(gameRequestRepository).should(never()).findById(20L);
     }
 
     @Test
     @DisplayName("존재하지 않는 게임방 초대 요청을 취소하면 실패한다")
     void cancelGameRequestRejectsMissingRequest() {
         // given
-        when(roomRepository.existsById(10L)).thenReturn(true);
-        when(gameRequestRepository.findById(20L)).thenReturn(Optional.empty());
+        given(roomRepository.existsById(10L)).willReturn(true);
+        given(gameRequestRepository.findById(20L)).willReturn(Optional.empty());
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> gameRequestCommandService.cancelGameRequest(1L, 10L, 20L),
                 ErrorCode.GAME_REQUEST_NOT_FOUND
@@ -286,10 +300,10 @@ class GameRequestCommandServiceTest {
     void cancelGameRequestRejectsDifferentRoom() {
         // given
         GameRequest gameRequest = gameRequest(20L, 11L, 1L, 2L);
-        when(roomRepository.existsById(10L)).thenReturn(true);
-        when(gameRequestRepository.findById(20L)).thenReturn(Optional.of(gameRequest));
+        given(roomRepository.existsById(10L)).willReturn(true);
+        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> gameRequestCommandService.cancelGameRequest(1L, 10L, 20L),
                 ErrorCode.GAME_REQUEST_NOT_FOUND
@@ -301,10 +315,10 @@ class GameRequestCommandServiceTest {
     void cancelGameRequestRejectsForbiddenMember() {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
-        when(roomRepository.existsById(10L)).thenReturn(true);
-        when(gameRequestRepository.findById(20L)).thenReturn(Optional.of(gameRequest));
+        given(roomRepository.existsById(10L)).willReturn(true);
+        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> gameRequestCommandService.cancelGameRequest(3L, 10L, 20L),
                 ErrorCode.GAME_REQUEST_FORBIDDEN
@@ -318,10 +332,10 @@ class GameRequestCommandServiceTest {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
         updateStatus(gameRequest, status);
-        when(roomRepository.existsById(10L)).thenReturn(true);
-        when(gameRequestRepository.findById(20L)).thenReturn(Optional.of(gameRequest));
+        given(roomRepository.existsById(10L)).willReturn(true);
+        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> gameRequestCommandService.cancelGameRequest(1L, 10L, 20L),
                 ErrorCode.GAME_REQUEST_ALREADY_PROCESSED
@@ -332,9 +346,9 @@ class GameRequestCommandServiceTest {
     @DisplayName("존재하지 않는 게임방 초대 요청을 처리하면 실패한다")
     void processGameRequestRejectsMissingRequest() {
         // given
-        when(gameRequestRepository.findById(20L)).thenReturn(Optional.empty());
+        given(gameRequestRepository.findById(20L)).willReturn(Optional.empty());
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> gameRequestCommandService.acceptGameRequest(2L, 10L, 20L),
                 ErrorCode.GAME_REQUEST_NOT_FOUND
@@ -346,9 +360,9 @@ class GameRequestCommandServiceTest {
     void processGameRequestRejectsDifferentRoom() {
         // given
         GameRequest gameRequest = gameRequest(20L, 11L, 1L, 2L);
-        when(gameRequestRepository.findById(20L)).thenReturn(Optional.of(gameRequest));
+        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> gameRequestCommandService.acceptGameRequest(2L, 10L, 20L),
                 ErrorCode.GAME_REQUEST_NOT_FOUND
@@ -360,9 +374,9 @@ class GameRequestCommandServiceTest {
     void processGameRequestRejectsForbiddenMember() {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
-        when(gameRequestRepository.findById(20L)).thenReturn(Optional.of(gameRequest));
+        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> gameRequestCommandService.acceptGameRequest(3L, 10L, 20L),
                 ErrorCode.GAME_REQUEST_FORBIDDEN
@@ -375,9 +389,9 @@ class GameRequestCommandServiceTest {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
         gameRequest.accept();
-        when(gameRequestRepository.findById(20L)).thenReturn(Optional.of(gameRequest));
+        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> gameRequestCommandService.rejectGameRequest(2L, 10L, 20L),
                 ErrorCode.GAME_REQUEST_ALREADY_PROCESSED
@@ -389,23 +403,23 @@ class GameRequestCommandServiceTest {
     void acceptGameRequestRejectsExistingRoomMember() {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
-        when(gameRequestRepository.findById(20L)).thenReturn(Optional.of(gameRequest));
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).thenReturn(true);
+        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(true);
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> gameRequestCommandService.acceptGameRequest(2L, 10L, 20L),
                 ErrorCode.GAME_REQUEST_ALREADY_ROOM_MEMBER
         );
         assertThat(gameRequest.getStatus()).isEqualTo(RequestStatus.PENDING);
-        verify(roomMemberRepository, never()).save(Mockito.any(RoomMember.class));
+        then(roomMemberRepository).should(never()).save(Mockito.any(RoomMember.class));
     }
 
     private void givenInvitableRoom(GameRoomStatus status) {
         Room room = Room.create(1L, GameMode.COOPERATE, 3, 3);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", status);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
     }
 
     private GameRequest gameRequest(Long id, Long roomId, Long inviterId, Long inviteeId) {

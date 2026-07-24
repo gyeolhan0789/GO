@@ -114,7 +114,7 @@ class MemberEquippedItemRepositoryTest {
         // given
         saveEquippedItem(1L, 10L, ItemCategory.HAT);
 
-        // when, then
+        // when & then
         assertThatThrownBy(() -> saveEquippedItem(1L, 20L, ItemCategory.HAT))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
@@ -125,7 +125,7 @@ class MemberEquippedItemRepositoryTest {
         // given
         saveEquippedItem(1L, 10L, ItemCategory.HAT);
 
-        // when, then
+        // when & then
         assertThatThrownBy(() -> saveEquippedItem(2L, 10L, ItemCategory.TOP))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }

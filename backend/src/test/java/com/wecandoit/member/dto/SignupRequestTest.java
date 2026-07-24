@@ -33,20 +33,26 @@ class SignupRequestTest {
     @Test
     @DisplayName("모든 값이 올바르면 검증을 통과한다")
     void validRequestHasNoViolations() {
+        // given
         SignupRequest request = new SignupRequest("user@example.com", "Password123!", "닉네임", Region.SEOUL);
 
+        // when
         Set<ConstraintViolation<SignupRequest>> violations = validator.validate(request);
 
+        // then
         assertThat(violations).isEmpty();
     }
 
     @Test
     @DisplayName("닉네임이 2자 미만이면 검증에 실패한다")
     void nicknameTooShortFails() {
+        // given
         SignupRequest request = new SignupRequest("user@example.com", "Password123!", "가", Region.SEOUL);
 
+        // when
         Set<ConstraintViolation<SignupRequest>> violations = validator.validate(request);
 
+        // then
         assertThat(violations)
                 .extracting(ConstraintViolation::getPropertyPath)
                 .extracting(Object::toString)
@@ -56,10 +62,13 @@ class SignupRequestTest {
     @Test
     @DisplayName("닉네임이 10자를 초과하면 검증에 실패한다")
     void nicknameTooLongFails() {
+        // given
         SignupRequest request = new SignupRequest("user@example.com", "Password123!", "가나다라마바사아자차카", Region.SEOUL);
 
+        // when
         Set<ConstraintViolation<SignupRequest>> violations = validator.validate(request);
 
+        // then
         assertThat(violations)
                 .extracting(ConstraintViolation::getPropertyPath)
                 .extracting(Object::toString)
@@ -69,10 +78,13 @@ class SignupRequestTest {
     @Test
     @DisplayName("지역이 없으면 검증에 실패한다")
     void missingRegionFails() {
+        // given
         SignupRequest request = new SignupRequest("user@example.com", "Password123!", "닉네임", null);
 
+        // when
         Set<ConstraintViolation<SignupRequest>> violations = validator.validate(request);
 
+        // then
         assertThat(violations)
                 .extracting(ConstraintViolation::getPropertyPath)
                 .extracting(Object::toString)

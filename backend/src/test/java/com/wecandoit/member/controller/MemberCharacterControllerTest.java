@@ -2,8 +2,6 @@ package com.wecandoit.member.controller;
 
 import static io.restassured.module.mockmvc.RestAssuredMockMvc.given;
 import static org.hamcrest.Matchers.equalTo;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
@@ -22,7 +20,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mockito;
+import org.mockito.BDDMockito;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.restdocs.RestDocumentationExtension;
@@ -32,12 +32,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 @DisplayName("내 캐릭터 조회 API")
-@ExtendWith(RestDocumentationExtension.class)
+@ExtendWith({RestDocumentationExtension.class, MockitoExtension.class})
 class MemberCharacterControllerTest {
 
-    private final CharacterItemReadService characterItemReadService = Mockito.mock(
-            CharacterItemReadService.class
-    );
+    @Mock
+    private CharacterItemReadService characterItemReadService;
 
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
@@ -75,9 +74,9 @@ class MemberCharacterControllerTest {
                         "https://example.com/hat.png"
                 ))
         );
-        when(characterItemReadService.getMyCharacter(1L)).thenReturn(response);
+        BDDMockito.given(characterItemReadService.getMyCharacter(1L)).willReturn(response);
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .get("/members/character")
@@ -103,6 +102,6 @@ class MemberCharacterControllerTest {
                                 fieldWithPath("equippedItems[].imageUrl").description("아이템 이미지 URL")
                         )
                 ));
-        verify(characterItemReadService).getMyCharacter(1L);
+        BDDMockito.then(characterItemReadService).should().getMyCharacter(1L);
     }
 }

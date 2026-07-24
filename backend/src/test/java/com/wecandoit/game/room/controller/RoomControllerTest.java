@@ -2,10 +2,10 @@ package com.wecandoit.game.room.controller;
 
 import static io.restassured.module.mockmvc.RestAssuredMockMvc.given;
 import static org.hamcrest.Matchers.equalTo;
-import static org.mockito.Mockito.doThrow;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
@@ -38,7 +38,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
@@ -50,11 +52,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 @DisplayName("게임방 API")
-@ExtendWith(RestDocumentationExtension.class)
+@ExtendWith({RestDocumentationExtension.class, MockitoExtension.class})
 class RoomControllerTest {
 
-    private final RoomCommandService roomCommandService = Mockito.mock(RoomCommandService.class);
-    private final RoomReadService roomReadService = Mockito.mock(RoomReadService.class);
+    @Mock
+    private RoomCommandService roomCommandService;
+    @Mock
+    private RoomReadService roomReadService;
 
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
@@ -90,10 +94,10 @@ class RoomControllerTest {
     void createRoomReturnsCreatedRoom() {
         // given
         CreateRoomRequest request = new CreateRoomRequest(GameMode.SINGLE, 3, 3);
-        when(roomCommandService.createRoom(1L, request))
-                .thenReturn(new CreateRoomResponse(10L, GameRoomStatus.CREATED));
+        given(roomCommandService.createRoom(1L, request))
+                .willReturn(new CreateRoomResponse(10L, GameRoomStatus.CREATED));
 
-        // when, then
+        // when & then
         given()
                 .contentType(ContentType.JSON)
                 .body("""
@@ -120,13 +124,13 @@ class RoomControllerTest {
                                 fieldWithPath("status").description("게임방 상태")
                         )
                 ));
-        verify(roomCommandService).createRoom(1L, request);
+        then(roomCommandService).should().createRoom(1L, request);
     }
 
     @Test
     @DisplayName("게임 모드가 없으면 게임방 생성에 실패한다")
     void createRoomRejectsMissingMode() {
-        // when, then
+        // when & then
         given()
                 .contentType(ContentType.JSON)
                 .body("""
@@ -147,13 +151,13 @@ class RoomControllerTest {
                                 fieldWithPath("message").description("오류 메시지")
                         )
                 ));
-        verify(roomCommandService, never()).createRoom(Mockito.anyLong(), Mockito.any());
+        then(roomCommandService).should(never()).createRoom(Mockito.anyLong(), Mockito.any());
     }
 
     @Test
     @DisplayName("목표 빙고 수가 1보다 작으면 게임방 생성에 실패한다")
     void createRoomRejectsInvalidTargetBingoCount() {
-        // when, then
+        // when & then
         given()
                 .contentType(ContentType.JSON)
                 .body("""
@@ -167,13 +171,13 @@ class RoomControllerTest {
                 .post("/rooms")
                 .then()
                 .statusCode(HttpStatus.BAD_REQUEST.value());
-        verify(roomCommandService, never()).createRoom(Mockito.anyLong(), Mockito.any());
+        then(roomCommandService).should(never()).createRoom(Mockito.anyLong(), Mockito.any());
     }
 
     @Test
     @DisplayName("빙고판 크기가 범위를 벗어나면 게임방 생성에 실패한다")
     void createRoomRejectsInvalidBoardSize() {
-        // when, then
+        // when & then
         given()
                 .contentType(ContentType.JSON)
                 .body("""
@@ -187,7 +191,7 @@ class RoomControllerTest {
                 .post("/rooms")
                 .then()
                 .statusCode(HttpStatus.BAD_REQUEST.value());
-        verify(roomCommandService, never()).createRoom(Mockito.anyLong(), Mockito.any());
+        then(roomCommandService).should(never()).createRoom(Mockito.anyLong(), Mockito.any());
     }
 
     @Test
@@ -195,8 +199,8 @@ class RoomControllerTest {
     void getMyRoomsReturnsRooms() {
         // given
         LocalDateTime joinedAt = LocalDateTime.of(2026, 7, 22, 10, 0);
-        when(roomReadService.getMyRooms(1L))
-                .thenReturn(List.of(new MyRoomResponse(
+        given(roomReadService.getMyRooms(1L))
+                .willReturn(List.of(new MyRoomResponse(
                         10L,
                         GameMode.COOPERATE,
                         GameRoomStatus.WAITING,
@@ -209,7 +213,7 @@ class RoomControllerTest {
                         )
                 )));
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .get("/rooms")
@@ -240,18 +244,18 @@ class RoomControllerTest {
                                 fieldWithPath("[].members[].host").description("방장 여부")
                         )
                 ));
-        verify(roomReadService).getMyRooms(1L);
+        then(roomReadService).should().getMyRooms(1L);
     }
 
     @Test
     @DisplayName("내 게임방 목록 조회 중 참여자 회원을 찾을 수 없으면 404 상태를 반환한다")
     void getMyRoomsRejectsMissingMember() {
         // given
-        doThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND))
-                .when(roomReadService)
+        willThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND))
+                .given(roomReadService)
                 .getMyRooms(1L);
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .get("/rooms")
@@ -271,8 +275,8 @@ class RoomControllerTest {
         // given
         LocalDateTime startedAt = LocalDateTime.of(2026, 7, 22, 9, 50);
         LocalDateTime joinedAt = LocalDateTime.of(2026, 7, 22, 10, 0);
-        when(roomReadService.getRoomDetail(1L, 10L))
-                .thenReturn(new RoomDetailResponse(
+        given(roomReadService.getRoomDetail(1L, 10L))
+                .willReturn(new RoomDetailResponse(
                         10L,
                         GameMode.COOPERATE,
                         GameRoomStatus.WAITING,
@@ -288,7 +292,7 @@ class RoomControllerTest {
                         ))
                 ));
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .get("/rooms/{roomId}", 10L)
@@ -323,18 +327,18 @@ class RoomControllerTest {
                                 fieldWithPath("members[].joinedAt").description("게임방 참여 시각")
                         )
                 ));
-        verify(roomReadService).getRoomDetail(1L, 10L);
+        then(roomReadService).should().getRoomDetail(1L, 10L);
     }
 
     @Test
     @DisplayName("존재하지 않는 게임방의 상세를 조회하면 404 상태를 반환한다")
     void getRoomDetailRejectsMissingRoom() {
         // given
-        doThrow(new CustomException(ErrorCode.ROOM_NOT_FOUND))
-                .when(roomReadService)
+        willThrow(new CustomException(ErrorCode.ROOM_NOT_FOUND))
+                .given(roomReadService)
                 .getRoomDetail(1L, 10L);
 
-        // when, then
+        // when & then
         assertRoomDetailErrorResponse(HttpStatus.NOT_FOUND, "room-detail-room-not-found");
     }
 
@@ -342,11 +346,11 @@ class RoomControllerTest {
     @DisplayName("게임방 참여자가 아니면 상세 조회에 실패한다")
     void getRoomDetailRejectsNonMember() {
         // given
-        doThrow(new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN))
-                .when(roomReadService)
+        willThrow(new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN))
+                .given(roomReadService)
                 .getRoomDetail(1L, 10L);
 
-        // when, then
+        // when & then
         assertRoomDetailErrorResponse(HttpStatus.FORBIDDEN, "room-detail-forbidden");
     }
 
@@ -354,11 +358,11 @@ class RoomControllerTest {
     @DisplayName("종료된 게임방의 상세를 조회하면 409 상태를 반환한다")
     void getRoomDetailRejectsClosedRoom() {
         // given
-        doThrow(new CustomException(ErrorCode.ROOM_CLOSED))
-                .when(roomReadService)
+        willThrow(new CustomException(ErrorCode.ROOM_CLOSED))
+                .given(roomReadService)
                 .getRoomDetail(1L, 10L);
 
-        // when, then
+        // when & then
         assertRoomDetailErrorResponse(HttpStatus.CONFLICT, "room-detail-closed");
     }
 
@@ -366,11 +370,11 @@ class RoomControllerTest {
     @DisplayName("참여자 회원을 찾을 수 없으면 상세 조회에 실패한다")
     void getRoomDetailRejectsMissingMember() {
         // given
-        doThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND))
-                .when(roomReadService)
+        willThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND))
+                .given(roomReadService)
                 .getRoomDetail(1L, 10L);
 
-        // when, then
+        // when & then
         assertRoomDetailErrorResponse(HttpStatus.NOT_FOUND, "room-detail-member-not-found");
     }
 
@@ -379,8 +383,8 @@ class RoomControllerTest {
     void getRoomMembersReturnsMembers() {
         // given
         LocalDateTime joinedAt = LocalDateTime.of(2026, 7, 22, 10, 0);
-        when(roomReadService.getRoomMembers(1L, 10L))
-                .thenReturn(List.of(new RoomMemberResponse(
+        given(roomReadService.getRoomMembers(1L, 10L))
+                .willReturn(List.of(new RoomMemberResponse(
                         1L,
                         "방장",
                         true,
@@ -388,7 +392,7 @@ class RoomControllerTest {
                         joinedAt
                 )));
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .get("/rooms/{roomId}/members", 10L)
@@ -411,18 +415,18 @@ class RoomControllerTest {
                                 fieldWithPath("[].joinedAt").description("게임방 참여 시각")
                         )
                 ));
-        verify(roomReadService).getRoomMembers(1L, 10L);
+        then(roomReadService).should().getRoomMembers(1L, 10L);
     }
 
     @Test
     @DisplayName("존재하지 않는 게임방의 참여자 목록을 조회하면 404 상태를 반환한다")
     void getRoomMembersRejectsMissingRoom() {
         // given
-        doThrow(new CustomException(ErrorCode.ROOM_NOT_FOUND))
-                .when(roomReadService)
+        willThrow(new CustomException(ErrorCode.ROOM_NOT_FOUND))
+                .given(roomReadService)
                 .getRoomMembers(1L, 10L);
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .get("/rooms/{roomId}/members", 10L)
@@ -443,11 +447,11 @@ class RoomControllerTest {
     @DisplayName("게임방 참여자가 아니면 참여자 목록 조회에 실패한다")
     void getRoomMembersRejectsNonMember() {
         // given
-        doThrow(new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN))
-                .when(roomReadService)
+        willThrow(new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN))
+                .given(roomReadService)
                 .getRoomMembers(1L, 10L);
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .get("/rooms/{roomId}/members", 10L)
@@ -468,11 +472,11 @@ class RoomControllerTest {
     @DisplayName("참여자 회원을 찾을 수 없으면 참여자 목록 조회에 실패한다")
     void getRoomMembersRejectsMissingMember() {
         // given
-        doThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND))
-                .when(roomReadService)
+        willThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND))
+                .given(roomReadService)
                 .getRoomMembers(1L, 10L);
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .get("/rooms/{roomId}/members", 10L)
@@ -494,8 +498,8 @@ class RoomControllerTest {
     void startGameReturnsUpdatedRoomDetail() {
         // given
         LocalDateTime startedAt = LocalDateTime.of(2026, 7, 22, 9, 50);
-        when(roomReadService.getRoomDetail(1L, 10L))
-                .thenReturn(new RoomDetailResponse(
+        given(roomReadService.getRoomDetail(1L, 10L))
+                .willReturn(new RoomDetailResponse(
                         10L,
                         GameMode.COOPERATE,
                         GameRoomStatus.IN_PROGRESS,
@@ -505,7 +509,7 @@ class RoomControllerTest {
                         List.of(new RoomMemberResponse(1L, "방장", true, 0, startedAt))
                 ));
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .post("/rooms/{roomId}/start", 10L)
@@ -532,19 +536,19 @@ class RoomControllerTest {
                                 fieldWithPath("members[].joinedAt").description("게임방 참여 시각")
                         )
                 ));
-        verify(roomCommandService).startGame(1L, 10L);
-        verify(roomReadService).getRoomDetail(1L, 10L);
+        then(roomCommandService).should().startGame(1L, 10L);
+        then(roomReadService).should().getRoomDetail(1L, 10L);
     }
 
     @Test
     @DisplayName("존재하지 않는 게임방에서 게임을 시작하면 404 상태를 반환한다")
     void startGameRejectsMissingRoom() {
         // given
-        doThrow(new CustomException(ErrorCode.ROOM_NOT_FOUND))
-                .when(roomCommandService)
+        willThrow(new CustomException(ErrorCode.ROOM_NOT_FOUND))
+                .given(roomCommandService)
                 .startGame(1L, 10L);
 
-        // when, then
+        // when & then
         assertStartGameErrorResponse(HttpStatus.NOT_FOUND, "room-start-room-not-found");
     }
 
@@ -552,11 +556,11 @@ class RoomControllerTest {
     @DisplayName("방장이 아닌 회원이 게임을 시작하면 403 상태를 반환한다")
     void startGameRejectsNonHost() {
         // given
-        doThrow(new CustomException(ErrorCode.ROOM_START_FORBIDDEN))
-                .when(roomCommandService)
+        willThrow(new CustomException(ErrorCode.ROOM_START_FORBIDDEN))
+                .given(roomCommandService)
                 .startGame(1L, 10L);
 
-        // when, then
+        // when & then
         assertStartGameErrorResponse(HttpStatus.FORBIDDEN, "room-start-forbidden");
     }
 
@@ -564,18 +568,18 @@ class RoomControllerTest {
     @DisplayName("READY 상태가 아닌 게임방에서 게임을 시작하면 409 상태를 반환한다")
     void startGameRejectsRoomNotReady() {
         // given
-        doThrow(new CustomException(ErrorCode.ROOM_NOT_READY))
-                .when(roomCommandService)
+        willThrow(new CustomException(ErrorCode.ROOM_NOT_READY))
+                .given(roomCommandService)
                 .startGame(1L, 10L);
 
-        // when, then
+        // when & then
         assertStartGameErrorResponse(HttpStatus.CONFLICT, "room-start-not-ready");
     }
 
     @Test
     @DisplayName("게임방을 나가면 204 상태를 반환한다")
     void leaveRoomReturnsNoContent() {
-        // when, then
+        // when & then
         given()
                 .when()
                 .delete("/rooms/{roomId}/members/me", 10L)
@@ -586,18 +590,18 @@ class RoomControllerTest {
                                 parameterWithName("roomId").description("나갈 게임방 ID")
                         )
                 ));
-        verify(roomCommandService).leaveRoom(1L, 10L);
+        then(roomCommandService).should().leaveRoom(1L, 10L);
     }
 
     @Test
     @DisplayName("존재하지 않는 게임방을 나가면 404 상태를 반환한다")
     void leaveRoomRejectsMissingRoom() {
         // given
-        doThrow(new CustomException(ErrorCode.ROOM_NOT_FOUND))
-                .when(roomCommandService)
+        willThrow(new CustomException(ErrorCode.ROOM_NOT_FOUND))
+                .given(roomCommandService)
                 .leaveRoom(1L, 10L);
 
-        // when, then
+        // when & then
         assertLeaveRoomErrorResponse(HttpStatus.NOT_FOUND, "room-leave-room-not-found");
     }
 
@@ -605,11 +609,11 @@ class RoomControllerTest {
     @DisplayName("종료된 게임방을 나가면 409 상태를 반환한다")
     void leaveRoomRejectsClosedRoom() {
         // given
-        doThrow(new CustomException(ErrorCode.ROOM_CLOSED))
-                .when(roomCommandService)
+        willThrow(new CustomException(ErrorCode.ROOM_CLOSED))
+                .given(roomCommandService)
                 .leaveRoom(1L, 10L);
 
-        // when, then
+        // when & then
         assertLeaveRoomErrorResponse(HttpStatus.CONFLICT, "room-leave-closed");
     }
 
@@ -617,18 +621,18 @@ class RoomControllerTest {
     @DisplayName("게임방 참여자가 아니면 나가기에 실패한다")
     void leaveRoomRejectsNonMember() {
         // given
-        doThrow(new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN))
-                .when(roomCommandService)
+        willThrow(new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN))
+                .given(roomCommandService)
                 .leaveRoom(1L, 10L);
 
-        // when, then
+        // when & then
         assertLeaveRoomErrorResponse(HttpStatus.FORBIDDEN, "room-leave-forbidden");
     }
 
     @Test
     @DisplayName("방장이 게임방을 삭제하면 204 상태를 반환한다")
     void deleteRoomReturnsNoContent() {
-        // when, then
+        // when & then
         given()
                 .when()
                 .delete("/rooms/{roomId}", 10L)
@@ -639,18 +643,18 @@ class RoomControllerTest {
                                 parameterWithName("roomId").description("삭제할 게임방 ID")
                         )
                 ));
-        verify(roomCommandService).deleteRoom(1L, 10L);
+        then(roomCommandService).should().deleteRoom(1L, 10L);
     }
 
     @Test
     @DisplayName("존재하지 않는 게임방을 삭제하면 404 상태를 반환한다")
     void deleteRoomRejectsMissingRoom() {
         // given
-        doThrow(new CustomException(ErrorCode.ROOM_NOT_FOUND))
-                .when(roomCommandService)
+        willThrow(new CustomException(ErrorCode.ROOM_NOT_FOUND))
+                .given(roomCommandService)
                 .deleteRoom(1L, 10L);
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .delete("/rooms/{roomId}", 10L)
@@ -662,11 +666,11 @@ class RoomControllerTest {
     @DisplayName("방장이 아닌 회원이 게임방을 삭제하면 403 상태를 반환한다")
     void deleteRoomRejectsNonHost() {
         // given
-        doThrow(new CustomException(ErrorCode.ROOM_DELETE_FORBIDDEN))
-                .when(roomCommandService)
+        willThrow(new CustomException(ErrorCode.ROOM_DELETE_FORBIDDEN))
+                .given(roomCommandService)
                 .deleteRoom(1L, 10L);
 
-        // when, then
+        // when & then
         given()
                 .when()
                 .delete("/rooms/{roomId}", 10L)

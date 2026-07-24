@@ -1,9 +1,9 @@
 package com.wecandoit.admin.mission.controller;
 
 import static io.restassured.module.mockmvc.RestAssuredMockMvc.given;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.wecandoit.admin.mission.controller.request.CreateMissionRequest;
 import com.wecandoit.admin.mission.controller.response.AdminMissionResponse;
@@ -17,14 +17,19 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 @DisplayName("어드민 미션 API")
+@ExtendWith(MockitoExtension.class)
 class AdminMissionControllerTest {
 
-    private final AdminMissionService adminMissionService = Mockito.mock(AdminMissionService.class);
+    @Mock
+    private AdminMissionService adminMissionService;
 
     @BeforeEach
     void setUp() {
@@ -41,7 +46,7 @@ class AdminMissionControllerTest {
     @Test
     @DisplayName("미션을 생성하면 201 상태와 빈 본문을 반환한다")
     void createMissionReturnsCreated() {
-        // when, then
+        // when & then
         given()
                 .contentType(ContentType.JSON)
                 .body("""
@@ -63,13 +68,13 @@ class AdminMissionControllerTest {
                 .then()
                 .statusCode(HttpStatus.CREATED.value())
                 .body(org.hamcrest.Matchers.isEmptyOrNullString());
-        verify(adminMissionService).createMission(Mockito.any(CreateMissionRequest.class));
+        then(adminMissionService).should().createMission(Mockito.any(CreateMissionRequest.class));
     }
 
     @Test
     @DisplayName("미션 이미지 URL이 없으면 요청을 거절한다")
     void createMissionRejectsMissingMissionImageUrl() {
-        // when, then
+        // when & then
         given()
                 .contentType(ContentType.JSON)
                 .body("""
@@ -81,13 +86,13 @@ class AdminMissionControllerTest {
                 .post("/admin/missions")
                 .then()
                 .statusCode(HttpStatus.BAD_REQUEST.value());
-        verify(adminMissionService, never()).createMission(Mockito.any());
+        then(adminMissionService).should(never()).createMission(Mockito.any());
     }
 
     @Test
     @DisplayName("선택 필드가 없어도 요청을 수락한다")
     void createMissionAcceptsOmittedOptionalFields() {
-        // when, then
+        // when & then
         given()
                 .contentType(ContentType.JSON)
                 .body("""
@@ -100,13 +105,14 @@ class AdminMissionControllerTest {
                 .post("/admin/missions")
                 .then()
                 .statusCode(HttpStatus.CREATED.value());
-        verify(adminMissionService).createMission(Mockito.any(CreateMissionRequest.class));
+        then(adminMissionService).should().createMission(Mockito.any(CreateMissionRequest.class));
     }
 
     @Test
     @DisplayName("미션 목록을 조회하면 200 상태와 응답 본문을 반환한다")
     void getMissionsReturnsOk() {
-        when(adminMissionService.getMissions()).thenReturn(List.of(new AdminMissionResponse(
+        // given
+        given(adminMissionService.getMissions()).willReturn(List.of(new AdminMissionResponse(
                 1L,
                 "https://example.com/flower.png",
                 "OBJECT",
@@ -116,6 +122,7 @@ class AdminMissionControllerTest {
                 LocalDateTime.of(2026, 7, 23, 12, 0)
         )));
 
+        // when & then
         given()
                 .when()
                 .get("/admin/missions")

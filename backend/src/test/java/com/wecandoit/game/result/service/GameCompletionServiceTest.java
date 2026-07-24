@@ -1,7 +1,8 @@
 package com.wecandoit.game.result.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.service.BingoService;
@@ -16,31 +17,45 @@ import com.wecandoit.game.room.repository.RoomRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+@ExtendWith(MockitoExtension.class)
 @DisplayName("게임 완료 오케스트레이션 서비스")
 class GameCompletionServiceTest {
 
-    private final RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
-    private final RoomMemberRepository roomMemberRepository = Mockito.mock(RoomMemberRepository.class);
-    private final GameResultRepository gameResultRepository = Mockito.mock(GameResultRepository.class);
-    private final BingoService bingoService = Mockito.mock(BingoService.class);
-    private final GameCompletionService gameCompletionService = new GameCompletionService(
-            roomRepository,
-            roomMemberRepository,
-            gameResultRepository,
-            bingoService
-    );
+    @Mock
+    private RoomRepository roomRepository;
+    @Mock
+    private RoomMemberRepository roomMemberRepository;
+    @Mock
+    private GameResultRepository gameResultRepository;
+    @Mock
+    private BingoService bingoService;
+    private GameCompletionService gameCompletionService;
+
+    @BeforeEach
+    void setUp() {
+        gameCompletionService = new GameCompletionService(
+                roomRepository,
+                roomMemberRepository,
+                gameResultRepository,
+                bingoService
+        );
+    }
 
     @Test
     @DisplayName("완성된 줄 수가 targetBingoCount 미만이면 방 상태와 결과를 변경하지 않는다")
     void doesNotCompleteWhenTargetNotReached() {
         // given
         Room room = inProgressRoom(1L, 10L, 3, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         // row0 완성(1줄)만 존재 -> targetBingoCount=3에 미달
         List<BingoCell> cells = List.of(
                 completedCell(100L, 0, 0, 1L),
@@ -48,15 +63,15 @@ class GameCompletionServiceTest {
                 incompleteCell(100L, 1, 0),
                 incompleteCell(100L, 1, 1)
         );
-        when(bingoService.getActiveBoardCells(10L)).thenReturn(cells);
+        given(bingoService.getActiveBoardCells(10L)).willReturn(cells);
 
         // when
         gameCompletionService.evaluateAndCompleteIfNeeded(10L);
 
         // then
         assertThat(room.getStatus()).isEqualTo(GameRoomStatus.IN_PROGRESS);
-        Mockito.verify(gameResultRepository, Mockito.never()).save(Mockito.any());
-        Mockito.verify(roomMemberRepository, Mockito.never()).findAllByRoomIdOrderByJoinedAtAsc(Mockito.anyLong());
+        then(gameResultRepository).should(Mockito.never()).save(Mockito.any());
+        then(roomMemberRepository).should(Mockito.never()).findAllByRoomIdOrderByJoinedAtAsc(Mockito.anyLong());
     }
 
     @Test
@@ -64,7 +79,7 @@ class GameCompletionServiceTest {
     void completesRoomAndSavesResultWhenTargetReached() {
         // given
         Room room = inProgressRoom(1L, 10L, 2, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         // row0(1줄) + col0(1줄) + anti-diagonal(1줄) = 3줄 완성 -> targetBingoCount=2 달성
         List<BingoCell> cells = List.of(
                 completedCell(100L, 0, 0, 1L),
@@ -72,9 +87,9 @@ class GameCompletionServiceTest {
                 completedCell(100L, 1, 0, 1L),
                 incompleteCell(100L, 1, 1)
         );
-        when(bingoService.getActiveBoardCells(10L)).thenReturn(cells);
+        given(bingoService.getActiveBoardCells(10L)).willReturn(cells);
         RoomMember member = roomMember(1L, 10L, 1L);
-        when(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).thenReturn(List.of(member));
+        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of(member));
 
         // when
         gameCompletionService.evaluateAndCompleteIfNeeded(10L);
@@ -83,7 +98,7 @@ class GameCompletionServiceTest {
         assertThat(room.getStatus()).isEqualTo(GameRoomStatus.COMPLETED);
         assertThat(member.getCompletedMissionCount()).isEqualTo(3);
 
-        Mockito.verify(gameResultRepository).save(Mockito.argThat((GameResult result) ->
+        then(gameResultRepository).should().save(Mockito.argThat((GameResult result) ->
                 result.getRoomId().equals(10L)
                         && result.isResult()
                         && result.getBingoCount() == 3
@@ -97,16 +112,16 @@ class GameCompletionServiceTest {
     void isIdempotentForAlreadyCompletedRoom() {
         // given
         Room room = inProgressRoom(1L, 10L, 2, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         List<BingoCell> cells = List.of(
                 completedCell(100L, 0, 0, 1L),
                 completedCell(100L, 0, 1, 1L),
                 completedCell(100L, 1, 0, 1L),
                 incompleteCell(100L, 1, 1)
         );
-        when(bingoService.getActiveBoardCells(10L)).thenReturn(cells);
+        given(bingoService.getActiveBoardCells(10L)).willReturn(cells);
         RoomMember member = roomMember(1L, 10L, 1L);
-        when(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).thenReturn(List.of(member));
+        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of(member));
 
         // when: 첫 호출로 완료 처리, 두 번째 호출은 멱등성 가드에 의해 조기 반환
         gameCompletionService.evaluateAndCompleteIfNeeded(10L);
@@ -114,7 +129,7 @@ class GameCompletionServiceTest {
 
         // then
         assertThat(room.getStatus()).isEqualTo(GameRoomStatus.COMPLETED);
-        Mockito.verify(gameResultRepository, Mockito.times(1)).save(Mockito.any());
+        then(gameResultRepository).should(Mockito.times(1)).save(Mockito.any());
     }
 
     @Test
@@ -122,7 +137,7 @@ class GameCompletionServiceTest {
     void updatesEachMemberWithOwnCompletedCellCountAndSumMatchesTotal() {
         // given
         Room room = inProgressRoom(1L, 10L, 2, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         // memberA(10L)가 row0(2칸), memberB(20L)가 (1,0) 1칸 완료 -> row0 + col0 = 2줄
         List<BingoCell> cells = List.of(
                 completedCell(100L, 0, 0, 10L),
@@ -130,10 +145,10 @@ class GameCompletionServiceTest {
                 completedCell(100L, 1, 0, 20L),
                 incompleteCell(100L, 1, 1)
         );
-        when(bingoService.getActiveBoardCells(10L)).thenReturn(cells);
+        given(bingoService.getActiveBoardCells(10L)).willReturn(cells);
         RoomMember memberA = roomMember(1L, 10L, 10L);
         RoomMember memberB = roomMember(2L, 10L, 20L);
-        when(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).thenReturn(List.of(memberA, memberB));
+        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of(memberA, memberB));
 
         // when
         gameCompletionService.evaluateAndCompleteIfNeeded(10L);
@@ -143,7 +158,7 @@ class GameCompletionServiceTest {
         assertThat(memberB.getCompletedMissionCount()).isEqualTo(1);
         int sum = memberA.getCompletedMissionCount() + memberB.getCompletedMissionCount();
 
-        Mockito.verify(gameResultRepository).save(Mockito.argThat((GameResult result) ->
+        then(gameResultRepository).should().save(Mockito.argThat((GameResult result) ->
                 result.getCompletedMissionCount() == sum && result.getCompletedMissionCount() == 3
         ));
     }

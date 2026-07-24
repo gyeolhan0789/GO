@@ -95,7 +95,7 @@ class ItemRepositoryTest {
         // given
         Item item = item(null, "HAT", 1000L, "https://example.com/hat.png");
 
-        // when, then
+        // when & then
         assertThatThrownBy(() -> itemRepository.saveAndFlush(item))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
@@ -106,7 +106,7 @@ class ItemRepositoryTest {
         // given
         Item item = item("검은 모자", null, 1000L, "https://example.com/hat.png");
 
-        // when, then
+        // when & then
         assertThatThrownBy(() -> itemRepository.saveAndFlush(item))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }

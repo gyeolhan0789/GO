@@ -77,6 +77,10 @@ src/test/java/com/example/order/domain/OrderFixture.java
 - 도메인 객체, 값 객체, 단순 엔티티는 Mock으로 처리하지 않는다.
 - 상호작용 자체가 검증 대상일 때만 interaction verification을 한다.
 - 상태·결과 검증을 interaction verification보다 선호한다.
+- Mockito 대신 BDDMockito를 사용한다.
+- 스터빙은 `when(...).thenReturn(...)` 대신 `given(...).willReturn(...)` / `willThrow(...).given(...)`을 사용한다.
+- 검증은 `verify(mock)...` 대신 `then(mock).should()...`을 사용한다.
+- Mock 생성은 `Mockito.mock(X.class)` 대신 `@Mock`과 `@ExtendWith(MockitoExtension.class)`를 사용한다.
 
 ## 단언(Assertion)
 

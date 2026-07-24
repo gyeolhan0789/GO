@@ -2,7 +2,7 @@ package com.wecandoit.member.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.when;
+import static org.mockito.BDDMockito.given;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
@@ -15,30 +15,41 @@ import com.wecandoit.member.dto.SignupRequest;
 import com.wecandoit.member.dto.SignupResponse;
 import com.wecandoit.member.repository.MemberRepository;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatchers;
-import org.mockito.Mockito;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @DisplayName("회원 서비스")
+@ExtendWith(MockitoExtension.class)
 class MemberServiceTest {
 
-    private final MemberRepository memberRepository = Mockito.mock(MemberRepository.class);
-    private final PasswordEncoder passwordEncoder = Mockito.mock(PasswordEncoder.class);
-    private final MemberService memberService = new MemberService(memberRepository, passwordEncoder);
+    @Mock
+    private MemberRepository memberRepository;
+    @Mock
+    private PasswordEncoder passwordEncoder;
+    private MemberService memberService;
+
+    @BeforeEach
+    void setUp() {
+        memberService = new MemberService(memberRepository, passwordEncoder);
+    }
 
     @Test
     @DisplayName("이메일, 닉네임이 중복되지 않으면 회원가입에 성공한다")
     void signupSucceeds() {
         // given
         SignupRequest request = new SignupRequest("user@example.com", "Password123!", "닉네임", Region.SEOUL);
-        when(memberRepository.existsByEmail(request.email())).thenReturn(false);
-        when(memberRepository.existsByNickname(request.nickname())).thenReturn(false);
-        when(passwordEncoder.encode(request.password())).thenReturn("encoded-password");
-        when(memberRepository.save(ArgumentMatchers.any(Member.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+        given(memberRepository.existsByEmail(request.email())).willReturn(false);
+        given(memberRepository.existsByNickname(request.nickname())).willReturn(false);
+        given(passwordEncoder.encode(request.password())).willReturn("encoded-password");
+        given(memberRepository.save(ArgumentMatchers.any(Member.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
 
         // when
         SignupResponse response = memberService.signup(request);
@@ -53,9 +64,9 @@ class MemberServiceTest {
     void signupRejectsDuplicateEmail() {
         // given
         SignupRequest request = new SignupRequest("user@example.com", "Password123!", "닉네임", Region.SEOUL);
-        when(memberRepository.existsByEmail(request.email())).thenReturn(true);
+        given(memberRepository.existsByEmail(request.email())).willReturn(true);
 
-        // when, then
+        // when & then
         assertThatThrownBy(() -> memberService.signup(request))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
@@ -67,10 +78,10 @@ class MemberServiceTest {
     void signupRejectsDuplicateNickname() {
         // given
         SignupRequest request = new SignupRequest("user@example.com", "Password123!", "닉네임", Region.SEOUL);
-        when(memberRepository.existsByEmail(request.email())).thenReturn(false);
-        when(memberRepository.existsByNickname(request.nickname())).thenReturn(true);
+        given(memberRepository.existsByEmail(request.email())).willReturn(false);
+        given(memberRepository.existsByNickname(request.nickname())).willReturn(true);
 
-        // when, then
+        // when & then
         assertThatThrownBy(() -> memberService.signup(request))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
@@ -82,8 +93,8 @@ class MemberServiceTest {
     void updateProfileUpdatesNicknameOnly() {
         // given
         Member member = localMember(1L, "기존닉네임", Region.SEOUL);
-        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
-        when(memberRepository.existsByNickname("새닉네임")).thenReturn(false);
+        given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+        given(memberRepository.existsByNickname("새닉네임")).willReturn(false);
 
         // when
         memberService.updateProfile(1L, new MemberProfileUpdateRequest("새닉네임", null));
@@ -98,7 +109,7 @@ class MemberServiceTest {
     void updateProfileUpdatesRegionOnly() {
         // given
         Member member = localMember(1L, "기존닉네임", Region.SEOUL);
-        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+        given(memberRepository.findById(1L)).willReturn(Optional.of(member));
 
         // when
         memberService.updateProfile(1L, new MemberProfileUpdateRequest(null, Region.BUSAN));
@@ -113,8 +124,8 @@ class MemberServiceTest {
     void updateProfileUpdatesBoth() {
         // given
         Member member = localMember(1L, "기존닉네임", Region.SEOUL);
-        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
-        when(memberRepository.existsByNickname("새닉네임")).thenReturn(false);
+        given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+        given(memberRepository.existsByNickname("새닉네임")).willReturn(false);
 
         // when
         memberService.updateProfile(1L, new MemberProfileUpdateRequest("새닉네임", Region.BUSAN));
@@ -129,10 +140,10 @@ class MemberServiceTest {
     void updateProfileRejectsDuplicateNickname() {
         // given
         Member member = localMember(1L, "기존닉네임", Region.SEOUL);
-        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
-        when(memberRepository.existsByNickname("중복닉네임")).thenReturn(true);
+        given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+        given(memberRepository.existsByNickname("중복닉네임")).willReturn(true);
 
-        // when, then
+        // when & then
         assertThatThrownBy(() -> memberService.updateProfile(1L, new MemberProfileUpdateRequest("중복닉네임", null)))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
@@ -143,9 +154,9 @@ class MemberServiceTest {
     @DisplayName("존재하지 않는 회원의 프로필을 수정하면 실패한다")
     void updateProfileRejectsMissingMember() {
         // given
-        when(memberRepository.findById(1L)).thenReturn(Optional.empty());
+        given(memberRepository.findById(1L)).willReturn(Optional.empty());
 
-        // when, then
+        // when & then
         assertThatThrownBy(() -> memberService.updateProfile(1L, new MemberProfileUpdateRequest("새닉네임", null)))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
@@ -157,9 +168,9 @@ class MemberServiceTest {
     void changePasswordSucceeds() {
         // given
         Member member = localMember(1L, "닉네임", Region.SEOUL);
-        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
-        when(passwordEncoder.matches("oldPassword1!", member.getPassword())).thenReturn(true);
-        when(passwordEncoder.encode("newPassword1!")).thenReturn("encoded-new-password");
+        given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+        given(passwordEncoder.matches("oldPassword1!", member.getPassword())).willReturn(true);
+        given(passwordEncoder.encode("newPassword1!")).willReturn("encoded-new-password");
 
         // when
         memberService.changePassword(1L, new PasswordChangeRequest("oldPassword1!", "newPassword1!"));
@@ -173,10 +184,10 @@ class MemberServiceTest {
     void changePasswordRejectsWrongCurrentPassword() {
         // given
         Member member = localMember(1L, "닉네임", Region.SEOUL);
-        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
-        when(passwordEncoder.matches("wrongPassword1!", member.getPassword())).thenReturn(false);
+        given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+        given(passwordEncoder.matches("wrongPassword1!", member.getPassword())).willReturn(false);
 
-        // when, then
+        // when & then
         assertThatThrownBy(() ->
                 memberService.changePassword(1L, new PasswordChangeRequest("wrongPassword1!", "newPassword1!")))
                 .isInstanceOf(CustomException.class)
@@ -190,9 +201,9 @@ class MemberServiceTest {
         // given
         Member member = Member.createSocial("social@example.com", "닉네임", AuthProvider.GOOGLE);
         ReflectionTestUtils.setField(member, "id", 1L);
-        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+        given(memberRepository.findById(1L)).willReturn(Optional.of(member));
 
-        // when, then
+        // when & then
         assertThatThrownBy(() ->
                 memberService.changePassword(1L, new PasswordChangeRequest("oldPassword1!", "newPassword1!")))
                 .isInstanceOf(CustomException.class)
