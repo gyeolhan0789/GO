@@ -51,7 +51,8 @@ export function OnboardingScreen() {
   const finish = useCallback(() => {
     // 개발 단계: 완료 저장 생략. TODO(온보딩 복구): await complete(); 복원.
     // await complete();
-    navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+    // 온보딩 이후 권한 요청 플로우로 이동.
+    navigation.reset({ index: 0, routes: [{ name: 'Permissions' }] });
   }, [navigation]);
 
   const handleNext = useCallback(() => {

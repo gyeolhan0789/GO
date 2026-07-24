@@ -4,10 +4,12 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 // TODO(온보딩 복구): 아래 useOnboardingStatus 게이트 주석을 해제할 것.
 // import { useOnboardingStatus } from '../../shared/hooks/useOnboardingStatus';
 import { OnboardingScreen } from '../../screens/OnboardingScreen/OnboardingScreen';
+import { PermissionsScreen } from '../../screens/PermissionsScreen/PermissionsScreen';
 import { MainTabNavigator } from './MainTabNavigator';
 
 export type RootStackParamList = {
   Onboarding: undefined;
+  Permissions: undefined;
   Main: undefined;
 };
 
@@ -27,6 +29,7 @@ export function RootNavigator() {
       screenOptions={{ headerShown: false }}
     >
       <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+      <Stack.Screen name="Permissions" component={PermissionsScreen} />
       <Stack.Screen name="Main" component={MainTabNavigator} />
     </Stack.Navigator>
   );
