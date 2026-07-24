@@ -1,27 +1,21 @@
-# Repository Agent Instructions
+# Agent Instructions
 
-## Frontend UI work
+## Shared skills
 
-For tasks involving frontend pages, user-facing components, responsive layouts, interactions, state placement, accessibility, UX fixes, or visual polish, use the `frontend-ui-engineering` skill.
+Edit skills only in `agent-skills/`. Run `npm run agents:sync` to generate the identical skill sets consumed by Codex (`.agents/skills`) and Claude Code (`.claude/skills`). Never edit generated files directly; verify them with `npm run agents:check`.
 
-- Codex skill entry: `.agents/skills/frontend-ui-engineering/SKILL.md`
-- Claude Code skill entry: `.claude/skills/frontend-ui-engineering/SKILL.md`
+Use the relevant skill before starting work:
 
-## Instruction priority
+- `react-native-development`: React Native CLI implementation, native adapters, iOS/Android impact.
+- `react-native-testing`: React Native tests, mocks, and accessibility queries.
+- `go-walking-session`: Go walking-session domain changes.
+- `go-permission-handling`: platform permissions and consent flows.
+- `go-ui-design`: user-facing Go UI, interaction, and accessibility work.
 
-When instructions conflict, use this order:
+## Engineering rules
 
-1. The user's explicit request
-2. Repository-specific architecture, conventions, and local instruction files
-3. Existing design-system components, tokens, and product patterns
-4. The frontend UI engineering skill
-5. Examples in the skill document
-
-## General execution rules
-
-- Inspect the relevant repository code before editing.
-- Prefer the smallest coherent change that satisfies the request.
-- Reuse existing components, utilities, types, tokens, and state patterns before adding new abstractions.
-- Do not introduce dependencies or reorganize the architecture unless the request clearly requires it.
-- Run only checks that exist in the repository, such as formatting, linting, type checking, tests, and builds.
-- Report checks that could not be run and assumptions that could not be verified.
+- This is a TypeScript React Native Community CLI app. Do not add Expo APIs or Expo tooling.
+- Consider both Android and iOS whenever changing native behavior, permissions, platform APIs, or UI.
+- Keep state local by default; introduce shared state only when several consumers genuinely need it.
+- Reuse existing components, tokens, types, and public APIs before adding abstractions.
+- Before handoff, run the applicable checks from `package.json` and report anything that cannot be verified.

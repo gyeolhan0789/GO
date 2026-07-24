@@ -38,4 +38,25 @@ bundle exec pod install --project-directory=ios
 - `ios/`: iOS Xcode 프로젝트
 - `__tests__/`: Jest 테스트
 
-기존 Vite 웹 애플리케이션은 프로젝트 루트의 `frontend-web-backup`에 보관되어 있습니다.
+
+## 에이전트 스킬
+
+Codex와 Claude Code는 `agent-skills/`의 동일한 원본 스킬을 사용합니다. `.agents/skills/`와 `.claude/skills/`는 생성물이며 직접 편집하지 않습니다.
+
+```bash
+npm run agents:sync
+npm run agents:check
+```
+
+- `npm run agents:sync`: `agent-skills/` 원본을 Codex용 `.agents/skills/`와 Claude Code용 `.claude/skills/`에 복사합니다. 스킬을 추가하거나 수정한 뒤 실행합니다.
+- `npm run agents:check`: 두 생성본이 원본과 정확히 일치하는지 검사합니다. 누락, 직접 수정, 오래된 파일이 있으면 실패합니다.
+
+권장 순서:
+
+```bash
+# agent-skills/에서 스킬을 수정한 뒤
+npm run agents:sync
+npm run agents:check
+```
+
+`agents:check`이 실패하면 생성본을 직접 고치지 말고 `npm run agents:sync`를 다시 실행합니다.

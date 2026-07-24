@@ -39,19 +39,19 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     padding: 24,
   },
   title: {
+    color: '#111827',
     fontSize: 32,
     fontWeight: '700',
-    color: '#111827',
   },
   description: {
-    marginTop: 8,
-    fontSize: 16,
     color: '#6b7280',
+    fontSize: 16,
+    marginTop: 8,
   },
 });
 
