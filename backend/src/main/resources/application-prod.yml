@@ -32,3 +32,7 @@ oauth:
     kakao:
       client-id: KAKAO_REST_API_KEY_HERE
       jwk-uri: https://kauth.kakao.com/.well-known/jwks.json
+
+# todo: 실제 AI 서버 주소로 변경 필요
+ai-server:
+  base-url: http://localhost:8000

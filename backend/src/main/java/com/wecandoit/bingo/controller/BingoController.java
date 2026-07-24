@@ -2,7 +2,9 @@ package com.wecandoit.bingo.controller;
 
 import com.wecandoit.bingo.controller.request.SubmitBingoCellRequest;
 import com.wecandoit.bingo.controller.response.BingoBoardResponse;
+import com.wecandoit.bingo.controller.response.BingoCellResponse;
 import com.wecandoit.bingo.service.BingoService;
+import com.wecandoit.bingo.service.MissionVerificationFacade;
 import com.wecandoit.common.security.LoginMemberId;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class BingoController {
 
     private final BingoService bingoService;
+    private final MissionVerificationFacade missionVerificationFacade;
 
     @PostMapping("/{roomId}/bingo-boards")
     public ResponseEntity<BingoBoardResponse> generateBoard(
@@ -41,14 +44,15 @@ public class BingoController {
     }
 
     @PostMapping("/{roomId}/bingo-boards/cells/{cellId}/submit")
-    public ResponseEntity<Void> submitCell(
+    public ResponseEntity<BingoCellResponse> submitCell(
             @LoginMemberId Long memberId,
             @PathVariable Long roomId,
             @PathVariable Long cellId,
             @Valid @RequestBody SubmitBingoCellRequest request
     ) {
-        bingoService.submitCell(memberId, roomId, cellId, request.submitUrl());
-        return ResponseEntity.noContent().build();
+        BingoCellResponse response = missionVerificationFacade.submitAndVerify(
+                memberId, roomId, cellId, request.submitUrl());
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/{roomId}/bingo-boards/renewal")

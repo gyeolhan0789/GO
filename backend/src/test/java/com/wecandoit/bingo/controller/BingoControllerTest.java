@@ -16,6 +16,7 @@ import com.wecandoit.bingo.controller.response.BingoCellResponse;
 import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
 import com.wecandoit.bingo.service.BingoService;
+import com.wecandoit.bingo.service.MissionVerificationFacade;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.exception.ErrorCode;
@@ -50,13 +51,16 @@ class BingoControllerTest {
     @Mock
     private BingoService bingoService;
 
+    @Mock
+    private MissionVerificationFacade missionVerificationFacade;
+
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
         SecurityContextHolder.getContext().setAuthentication(
                 UsernamePasswordAuthenticationToken.authenticated(1L, null, List.of())
         );
 
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new BingoController(bingoService))
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new BingoController(bingoService, missionVerificationFacade))
                 .setControllerAdvice(new CustomExceptionHandler())
                 .setCustomArgumentResolvers(new LoginMemberIdArgumentResolver())
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(
@@ -249,22 +253,73 @@ class BingoControllerTest {
     }
 
     @Test
-    @DisplayName("칸을 제출하면 204 No Content를 반환한다")
-    void submitCellReturnsNoContent() {
-        // given & when & then
+    @DisplayName("칸을 제출하면 AI 검증 결과를 반환한다")
+    void submitCellReturnsVerificationResult() {
+        // given
+        MissionResponse mission = new MissionResponse(
+                1L,
+                "https://example.com/mission.png",
+                "OBJECT",
+                "미션 제목",
+                "미션 설명",
+                null,
+                LocalDateTime.of(2026, 7, 22, 10, 0)
+        );
+        BingoCellResponse response = new BingoCellResponse(
+                0, 0, mission, BingoCellVerificationStatus.APPROVED, null
+        );
+        BDDMockito.given(missionVerificationFacade.submitAndVerify(1L, 10L, 1000L, "https://example.com/proof.png"))
+                .willReturn(response);
+
+        // when & then
         given()
                 .contentType(ContentType.JSON)
                 .body("{\"submitUrl\":\"https://example.com/proof.png\"}")
                 .when()
                 .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/submit", 10L, 1000L)
                 .then()
-                .statusCode(HttpStatus.NO_CONTENT.value())
+                .statusCode(HttpStatus.OK.value())
+                .body("row", equalTo(0))
+                .body("col", equalTo(0))
+                .body("mission.missionId", equalTo(1))
+                .body("verificationStatus", equalTo("APPROVED"))
                 .apply(document("bingo-cells-submit",
                         pathParameters(
                                 parameterWithName("roomId").description("칸을 제출할 게임방 ID"),
                                 parameterWithName("cellId").description("제출할 빙고 칸 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("row").description("칸의 행 위치"),
+                                fieldWithPath("col").description("칸의 열 위치"),
+                                fieldWithPath("mission.missionId").description("배정된 미션 ID"),
+                                fieldWithPath("mission.missionImageUrl").description("미션 이미지 URL"),
+                                fieldWithPath("mission.type").description("미션 타입"),
+                                fieldWithPath("mission.title").description("미션 제목"),
+                                fieldWithPath("mission.detail").description("미션 설명"),
+                                fieldWithPath("mission.decisionCondition").description("미션 판정 조건"),
+                                fieldWithPath("mission.createdAt").description("미션 생성 시각"),
+                                fieldWithPath("verificationStatus").description("AI 검증 후 인증 상태(APPROVED/REJECTED)"),
+                                fieldWithPath("rejectionReason").description("거절 사유(승인 시 null)")
                         )
                 ));
+    }
+
+    @Test
+    @DisplayName("AI 검증 서버 호출에 실패하면 503을 반환한다")
+    void submitCellReturnsServiceUnavailableWhenAiVerificationFails() {
+        // given
+        willThrow(new CustomException(ErrorCode.AI_VERIFICATION_FAILED))
+                .given(missionVerificationFacade)
+                .submitAndVerify(1L, 10L, 1000L, "https://example.com/proof.png");
+
+        // when & then
+        given()
+                .contentType(ContentType.JSON)
+                .body("{\"submitUrl\":\"https://example.com/proof.png\"}")
+                .when()
+                .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/submit", 10L, 1000L)
+                .then()
+                .statusCode(HttpStatus.SERVICE_UNAVAILABLE.value());
     }
 
     @Test
@@ -272,8 +327,8 @@ class BingoControllerTest {
     void submitCellRejectsMissingCell() {
         // given
         willThrow(new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND))
-                .given(bingoService)
-                .submitCell(1L, 10L, 1000L, "https://example.com/proof.png");
+                .given(missionVerificationFacade)
+                .submitAndVerify(1L, 10L, 1000L, "https://example.com/proof.png");
 
         // when & then
         given()
@@ -290,8 +345,8 @@ class BingoControllerTest {
     void submitCellRejectsNonMember() {
         // given
         willThrow(new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN))
-                .given(bingoService)
-                .submitCell(1L, 10L, 1000L, "https://example.com/proof.png");
+                .given(missionVerificationFacade)
+                .submitAndVerify(1L, 10L, 1000L, "https://example.com/proof.png");
 
         // when & then
         given()
