@@ -1,10 +1,14 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { Screen } from '../../shared/components/Screen/Screen';
+
 export function ShopScreen() {
   return (
-    <View style={styles.content}>
-      <Text style={styles.title}>상점</Text>
-    </View>
+    <Screen>
+      <View style={styles.content}>
+        <Text style={styles.title}>상점</Text>
+      </View>
+    </Screen>
   );
 }
 

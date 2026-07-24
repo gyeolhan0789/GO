@@ -1,10 +1,14 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { Screen } from '../../shared/components/Screen/Screen';
+
 export function RecordScreen() {
   return (
-    <View style={styles.content}>
-      <Text style={styles.title}>기록</Text>
-    </View>
+    <Screen>
+      <View style={styles.content}>
+        <Text style={styles.title}>기록</Text>
+      </View>
+    </Screen>
   );
 }
 
