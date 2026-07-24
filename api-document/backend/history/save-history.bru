@@ -1,0 +1,75 @@
+meta {
+  name: 활동 히스토리 저장
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{backendBaseUrl}}/histories
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+body:json {
+  {
+    "historyDate": "2026-07-24",
+    "step": 6000,
+    "distance": 4000,
+    "calories": 220
+  }
+}
+
+docs {
+  ## 활동 히스토리 저장
+
+  하루치 걸음 수/거리/칼로리 기록을 저장한다.
+
+  ### 성공 응답 (201 Created)
+  본문 없음
+
+  ### 에러 케이스
+
+  **historyDate 누락**
+  ```json
+  {
+    "status": 400,
+    "message": "히스토리 날짜는 필수입니다."
+  }
+  ```
+
+  **step이 0 미만**
+  ```json
+  {
+    "status": 400,
+    "message": "걸음 수는 0 이상이어야 합니다."
+  }
+  ```
+
+  **distance가 0 미만**
+  ```json
+  {
+    "status": 400,
+    "message": "거리는 0 이상이어야 합니다."
+  }
+  ```
+
+  **calories가 0 미만**
+  ```json
+  {
+    "status": 400,
+    "message": "칼로리는 0 이상이어야 합니다."
+  }
+  ```
+
+  **Authorization 헤더 없음**
+  ```json
+  {
+    "status": 401,
+    "message": "인증이 필요합니다."
+  }
+  ```
+}

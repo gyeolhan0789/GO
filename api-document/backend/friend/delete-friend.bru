@@ -1,0 +1,42 @@
+meta {
+  name: 친구 삭제
+  type: http
+  seq: 2
+}
+
+delete {
+  url: {{backendBaseUrl}}/friends/1
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+docs {
+  ## 친구 삭제
+
+  `friendId`와 나 사이의 친구 관계를 삭제한다(양방향 관계 해제).
+
+  ### 성공 응답 (204 No Content)
+  본문 없음
+
+  ### 에러 케이스
+
+  **나와 해당 회원 사이에 친구 관계가 없음**
+  ```json
+  {
+    "status": 404,
+    "message": "친구 관계를 찾을 수 없습니다."
+  }
+  ```
+
+  **Authorization 헤더 없음**
+  ```json
+  {
+    "status": 401,
+    "message": "인증이 필요합니다."
+  }
+  ```
+}

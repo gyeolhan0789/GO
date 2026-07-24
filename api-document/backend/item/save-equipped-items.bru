@@ -1,0 +1,80 @@
+meta {
+  name: 캐릭터 장착 아이템 저장
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{backendBaseUrl}}/character-items
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+body:json {
+  {
+    "memberItemIds": [10, 12]
+  }
+}
+
+docs {
+  ## 캐릭터 장착 아이템 저장
+
+  전달한 `memberItemIds` 목록을 카테고리별로 새로 장착하고, 목록에 없는 카테고리는 장착 해제한다(전체 교체 방식). 한 카테고리에 아이템이 두 개 이상 포함되면 오류가 발생한다.
+
+  ### 성공 응답 (204 No Content)
+  본문 없음
+
+  ### 에러 케이스
+
+  **memberItemIds 목록 자체가 누락**
+  ```json
+  {
+    "status": 400,
+    "message": "보유 아이템 ID 목록은 필수입니다."
+  }
+  ```
+
+  **memberItemIds 안에 null 원소 포함**
+  ```json
+  {
+    "status": 400,
+    "message": "보유 아이템 ID는 필수입니다."
+  }
+  ```
+
+  **내가 보유하지 않은 memberItemId 포함**
+  ```json
+  {
+    "status": 403,
+    "message": "접근 권한이 없습니다."
+  }
+  ```
+
+  **memberItemId에 대응하는 아이템 정보가 없음(데이터 정합성 오류)**
+  ```json
+  {
+    "status": 404,
+    "message": "아이템을 찾을 수 없습니다."
+  }
+  ```
+
+  **같은 카테고리의 아이템을 두 개 이상 포함**
+  ```json
+  {
+    "status": 400,
+    "message": "같은 카테고리의 아이템을 중복 장착할 수 없습니다."
+  }
+  ```
+
+  **Authorization 헤더 없음**
+  ```json
+  {
+    "status": 401,
+    "message": "인증이 필요합니다."
+  }
+  ```
+}

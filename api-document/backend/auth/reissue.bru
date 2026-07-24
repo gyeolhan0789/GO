@@ -1,0 +1,56 @@
+meta {
+  name: 액세스 토큰 재발급
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{backendBaseUrl}}/auth/reissue
+  body: none
+  auth: none
+}
+
+script:post-response {
+  if (res.body && res.body.accessToken) {
+    bru.setEnvVar("accessToken", res.body.accessToken);
+  }
+}
+
+docs {
+  ## Access Token 재발급
+
+  브라우저가 보관 중인 refreshToken(HttpOnly 쿠키)으로 새 accessToken/refreshToken 쌍을 발급받는다. 요청 바디는 없다.
+
+  ### 성공 응답 (200 OK)
+  ```json
+  {
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9...."
+  }
+  ```
+
+  ### 에러 케이스
+
+  **refreshToken 쿠키 없음/서명 검증 실패/만료**
+  ```json
+  {
+    "status": 401,
+    "message": "유효하지 않은 Refresh Token입니다."
+  }
+  ```
+
+  **토큰의 회원이 존재하지 않음**
+  ```json
+  {
+    "status": 401,
+    "message": "유효하지 않은 Refresh Token입니다."
+  }
+  ```
+
+  **서버에 저장된 refreshToken과 불일치(탈취 의심, 즉시 폐기)**
+  ```json
+  {
+    "status": 401,
+    "message": "유효하지 않은 Refresh Token입니다."
+  }
+  ```
+}

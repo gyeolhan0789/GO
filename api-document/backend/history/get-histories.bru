@@ -1,0 +1,63 @@
+meta {
+  name: 활동 히스토리 조회
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{backendBaseUrl}}/histories?period=WEEK&date=2026-07-24
+  body: none
+  auth: inherit
+}
+
+params:query {
+  period: WEEK
+  date: 2026-07-24
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+docs {
+  ## 활동 히스토리 조회
+
+  `period`(DAY/WEEK/MONTH) 기준으로 `date`가 포함된 기간의 걸음 수/거리/칼로리 합계와 일자별 상세를 조회한다. 두 파라미터 모두 필수다.
+
+  ### 성공 응답 (200 OK)
+  ```json
+  {
+    "period": "WEEK",
+    "startDate": "2026-07-20",
+    "endDate": "2026-07-26",
+    "totalStep": 12000,
+    "totalDistance": 8000,
+    "totalCalories": 450,
+    "histories": [
+      { "historyDate": "2026-07-24", "step": 6000, "distance": 4000, "calories": 220 }
+    ]
+  }
+  ```
+
+  ### 에러 케이스
+
+  **period/date 누락 또는 형식 오류(예: period가 DAY/WEEK/MONTH가 아님, date가 yyyy-MM-dd 형식이 아님)**
+
+  이 경우는 `@Valid` 대상이 아닌 쿼리 파라미터 바인딩 오류라 `CustomExceptionHandler`를 거치지 않고 Spring Boot 기본 에러 응답이 내려간다(`{status, message}` 형태가 아님):
+  ```json
+  {
+    "timestamp": "2026-07-24T10:00:00.000+00:00",
+    "status": 400,
+    "error": "Bad Request",
+    "path": "/histories"
+  }
+  ```
+
+  **Authorization 헤더 없음**
+  ```json
+  {
+    "status": 401,
+    "message": "인증이 필요합니다."
+  }
+  ```
+}

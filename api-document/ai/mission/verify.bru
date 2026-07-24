@@ -1,0 +1,113 @@
+meta {
+  name: 미션 이미지 인증 판정
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{aiBaseUrl}}/mission/verify
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  image: @file()
+  mission_type: OBJECT
+  decision_condition: {"target": "빨간 우산"}
+}
+
+docs {
+  ## 미션 이미지 인증 판정
+
+  사용자가 제출한 이미지가 빙고 미션을 만족하는지 Gemini로 판정한다. `multipart/form-data`로 이미지 파일과 미션 정보를 함께 전송한다. 인증이 필요 없다.
+
+  ### 요청 필드
+  - `image`: 인증할 이미지 파일
+  - `mission_type`: `OBJECT` | `ATTRIBUTE` | `RELATION` (대소문자 무관)
+  - `decision_condition`: JSON을 문자열로 인코딩한 값. `mission_type`별 형태가 다르다.
+    - `OBJECT`: `{"target": "빨간 우산"}`
+    - `ATTRIBUTE`: `{"target": "우산", "constraints": {"color": "빨간색"}}`
+    - `RELATION`: `{"target": {"subject": "사람", "object": "강아지"}, "constraints": {"relation": "산책시키는 중"}}`
+
+  ### 성공 응답 (200 OK)
+  ```json
+  {
+    "success": true,
+    "confidence": 0.92,
+    "reason": "사진 속에 빨간 우산이 명확하게 보입니다."
+  }
+  ```
+
+  ### 에러 케이스
+
+  **image/mission_type/decision_condition 중 하나라도 누락 (FastAPI 자체 검증 실패)**
+
+  이 경우는 `HTTPException`이 아닌 FastAPI의 기본 요청 검증 오류라 아래처럼 다른 형태(배열)로 응답한다:
+  ```json
+  {
+    "detail": [
+      {
+        "loc": ["body", "image"],
+        "msg": "Field required",
+        "type": "missing"
+      }
+    ]
+  }
+  ```
+
+  **decision_condition이 유효한 JSON 문자열이 아님**
+  ```json
+  {
+    "detail": "decision_condition은 JSON 형식이어야 합니다."
+  }
+  ```
+
+  **지원하지 않는 mission_type (OBJECT/ATTRIBUTE/RELATION 이외)**
+  ```json
+  {
+    "detail": "지원하지 않는 미션 타입입니다. (동물)"
+  }
+  ```
+
+  **decision_condition.target 없음 (OBJECT/ATTRIBUTE)**
+  ```json
+  {
+    "detail": "decision_condition.target가 없습니다."
+  }
+  ```
+
+  **decision_condition.constraints 없음 (ATTRIBUTE)**
+  ```json
+  {
+    "detail": "decision_condition.constraints가 없습니다."
+  }
+  ```
+
+  **RELATION: target.subject 없음**
+  ```json
+  {
+    "detail": "relation subject가 없습니다."
+  }
+  ```
+
+  **RELATION: target.object 없음**
+  ```json
+  {
+    "detail": "relation object가 없습니다."
+  }
+  ```
+
+  **RELATION: constraints.relation 없음**
+  ```json
+  {
+    "detail": "relation이 없습니다."
+  }
+  ```
+
+  **그 외 서버 내부 오류 (이미지 디코딩 실패, Gemini 호출 실패 등)**
+  ```json
+  {
+    "detail": "<예외 메시지>"
+  }
+  ```
+}
