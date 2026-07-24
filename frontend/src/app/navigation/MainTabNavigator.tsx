@@ -1,5 +1,6 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { type IoniconsIconName } from '@react-native-vector-icons/ionicons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TabBarIcon } from '../../shared/components/TabBarIcon/TabBarIcon';
 import { RecordScreen } from '../../screens/RecordScreen/RecordScreen';
@@ -30,13 +31,25 @@ const ShopTabIcon = createTabBarIcon('storefront-outline');
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
+const TAB_BAR_PADDING_TOP = 17;
+// Icon box (see TabBarIcon) plus breathing room, excluding the device's
+// bottom safe-area inset. react-navigation subtracts insets.bottom from a
+// fixed `height` as paddingBottom, so a static height clips the icons on
+// devices with a tall 3-button navigation bar.
+const TAB_BAR_FIXED_CONTENT_HEIGHT = 83;
+
 export function MainTabNavigator() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
-        tabBarStyle: { paddingTop: 17, height: 70 },
+        tabBarStyle: {
+          paddingTop: TAB_BAR_PADDING_TOP,
+          height: TAB_BAR_FIXED_CONTENT_HEIGHT + insets.bottom,
+        },
       }}
     >
       <Tab.Screen
