@@ -63,7 +63,7 @@ public class BingoService {
         return BingoBoardResponse.of(board, cellResponses, completed, canRenew);
     }
 
-    public void submitCell(Long memberId, Long roomId, Long cellId, String submitUrl) {
+    public BingoCell submitCell(Long memberId, Long roomId, Long cellId, String submitUrl) {
         validateMember(memberId, roomId);
 
         BingoBoard activeBoard = findActiveBoard(roomId);
@@ -72,7 +72,7 @@ public class BingoService {
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND));
 
         cell.submit(memberId, submitUrl);
-        bingoCellRepository.save(cell);
+        return bingoCellRepository.save(cell);
     }
 
     /**

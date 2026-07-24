@@ -42,6 +42,7 @@ public enum ErrorCode {
 
     // Mission
     INVALID_MISSION_TYPE(HttpStatus.BAD_REQUEST, "미션 타입은 OBJECT, ATTRIBUTE, RELATION 중 하나여야 합니다."),
+    MISSION_NOT_FOUND(HttpStatus.NOT_FOUND, "미션을 찾을 수 없습니다."),
 
     // Item
     ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "아이템을 찾을 수 없습니다."),
@@ -75,6 +76,9 @@ public enum ErrorCode {
     OAUTH_TOKEN_EXCHANGE_FAILED(HttpStatus.BAD_GATEWAY, "소셜 로그인 토큰 교환에 실패했습니다."),
     OAUTH_PROVIDER_MISMATCH(HttpStatus.CONFLICT, "동일한 이메일로 다른 방식으로 가입된 계정이 있습니다."),
     OAUTH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "유효하지 않은 소셜 로그인 토큰입니다."),
+
+    // AI Verification
+    AI_VERIFICATION_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "AI 검증 서버 호출에 실패했습니다."),
     ;
 
     private final HttpStatus httpStatus;

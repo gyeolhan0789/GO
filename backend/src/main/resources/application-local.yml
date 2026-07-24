@@ -38,3 +38,7 @@ oauth:
     kakao:
       client-id: KAKAO_REST_API_KEY_HERE
       jwk-uri: https://kauth.kakao.com/.well-known/jwks.json
+
+# 로컬에서 실행 중인 AI 서버 주소
+ai-server:
+  base-url: http://localhost:8000
