@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.then;
 
 import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.service.BingoService;
+import com.wecandoit.cash.repository.CashHistoryRepository;
 import com.wecandoit.game.result.domain.GameResult;
 import com.wecandoit.game.result.repository.GameResultRepository;
 import com.wecandoit.game.room.domain.GameMode;
@@ -14,6 +15,8 @@ import com.wecandoit.game.room.domain.Room;
 import com.wecandoit.game.room.domain.RoomMember;
 import com.wecandoit.game.room.repository.RoomMemberRepository;
 import com.wecandoit.game.room.repository.RoomRepository;
+import com.wecandoit.member.domain.Member;
+import com.wecandoit.member.repository.MemberRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -38,6 +41,10 @@ class GameCompletionServiceTest {
     private GameResultRepository gameResultRepository;
     @Mock
     private BingoService bingoService;
+    @Mock
+    private MemberRepository memberRepository;
+    @Mock
+    private CashHistoryRepository cashHistoryRepository;
     private GameCompletionService gameCompletionService;
 
     @BeforeEach
@@ -46,7 +53,9 @@ class GameCompletionServiceTest {
                 roomRepository,
                 roomMemberRepository,
                 gameResultRepository,
-                bingoService
+                bingoService,
+                memberRepository,
+                cashHistoryRepository
         );
     }
 
@@ -55,7 +64,7 @@ class GameCompletionServiceTest {
     void doesNotCompleteWhenTargetNotReached() {
         // given
         Room room = inProgressRoom(1L, 10L, 3, 2);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
         // row0 완성(1줄)만 존재 -> targetBingoCount=3에 미달
         List<BingoCell> cells = List.of(
                 completedCell(100L, 0, 0, 1L),
@@ -79,7 +88,7 @@ class GameCompletionServiceTest {
     void completesRoomAndSavesResultWhenTargetReached() {
         // given
         Room room = inProgressRoom(1L, 10L, 2, 2);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
         // row0(1줄) + col0(1줄) + anti-diagonal(1줄) = 3줄 완성 -> targetBingoCount=2 달성
         List<BingoCell> cells = List.of(
                 completedCell(100L, 0, 0, 1L),
@@ -90,6 +99,8 @@ class GameCompletionServiceTest {
         given(bingoService.getActiveBoardCells(10L)).willReturn(cells);
         RoomMember member = roomMember(1L, 10L, 1L);
         given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of(member));
+        Member rewardMember = member(1L, 0L);
+        given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(rewardMember));
 
         // when
         gameCompletionService.evaluateAndCompleteIfNeeded(10L);
@@ -97,13 +108,19 @@ class GameCompletionServiceTest {
         // then
         assertThat(room.getStatus()).isEqualTo(GameRoomStatus.COMPLETED);
         assertThat(member.getCompletedMissionCount()).isEqualTo(3);
+        assertThat(rewardMember.getCash()).isEqualTo(500L);
+        then(cashHistoryRepository).should().save(Mockito.argThat(history ->
+                history.getMemberId().equals(1L)
+                        && history.getReferenceId().equals(10L)
+                        && history.getAmount() == 500L
+        ));
 
         then(gameResultRepository).should().save(Mockito.argThat((GameResult result) ->
                 result.getRoomId().equals(10L)
                         && result.isResult()
                         && result.getBingoCount() == 3
                         && result.getCompletedMissionCount() == 3
-                        && result.getRewardCash() == 0L
+                        && result.getRewardCash() == 500L
         ));
     }
 
@@ -112,7 +129,7 @@ class GameCompletionServiceTest {
     void isIdempotentForAlreadyCompletedRoom() {
         // given
         Room room = inProgressRoom(1L, 10L, 2, 2);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
         List<BingoCell> cells = List.of(
                 completedCell(100L, 0, 0, 1L),
                 completedCell(100L, 0, 1, 1L),
@@ -122,6 +139,7 @@ class GameCompletionServiceTest {
         given(bingoService.getActiveBoardCells(10L)).willReturn(cells);
         RoomMember member = roomMember(1L, 10L, 1L);
         given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of(member));
+        given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(member(1L, 0L)));
 
         // when: 첫 호출로 완료 처리, 두 번째 호출은 멱등성 가드에 의해 조기 반환
         gameCompletionService.evaluateAndCompleteIfNeeded(10L);
@@ -130,6 +148,7 @@ class GameCompletionServiceTest {
         // then
         assertThat(room.getStatus()).isEqualTo(GameRoomStatus.COMPLETED);
         then(gameResultRepository).should(Mockito.times(1)).save(Mockito.any());
+        then(cashHistoryRepository).should(Mockito.times(1)).save(Mockito.any());
     }
 
     @Test
@@ -137,7 +156,7 @@ class GameCompletionServiceTest {
     void updatesEachMemberWithOwnCompletedCellCountAndSumMatchesTotal() {
         // given
         Room room = inProgressRoom(1L, 10L, 2, 2);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
         // memberA(10L)가 row0(2칸), memberB(20L)가 (1,0) 1칸 완료 -> row0 + col0 = 2줄
         List<BingoCell> cells = List.of(
                 completedCell(100L, 0, 0, 10L),
@@ -149,6 +168,8 @@ class GameCompletionServiceTest {
         RoomMember memberA = roomMember(1L, 10L, 10L);
         RoomMember memberB = roomMember(2L, 10L, 20L);
         given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of(memberA, memberB));
+        given(memberRepository.findByIdForUpdate(10L)).willReturn(Optional.of(member(10L, 0L)));
+        given(memberRepository.findByIdForUpdate(20L)).willReturn(Optional.of(member(20L, 0L)));
 
         // when
         gameCompletionService.evaluateAndCompleteIfNeeded(10L);
@@ -185,5 +206,15 @@ class GameCompletionServiceTest {
         ReflectionTestUtils.setField(room, "id", roomId);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         return room;
+    }
+
+    private Member member(Long id, long cash) {
+        Member member = Member.builder()
+                .email("member" + id + "@example.com")
+                .nickname("member" + id)
+                .cash(cash)
+                .build();
+        ReflectionTestUtils.setField(member, "id", id);
+        return member;
     }
 }

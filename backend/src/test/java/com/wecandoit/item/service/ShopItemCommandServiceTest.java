@@ -12,6 +12,7 @@ import static org.mockito.Mockito.never;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
+import com.wecandoit.cash.repository.CashHistoryRepository;
 import com.wecandoit.item.controller.response.ItemPurchaseResponse;
 import com.wecandoit.item.domain.Item;
 import com.wecandoit.item.domain.MemberItem;
@@ -39,6 +40,8 @@ class ShopItemCommandServiceTest {
     private ItemRepository itemRepository;
     @Mock
     private MemberItemRepository memberItemRepository;
+    @Mock
+    private CashHistoryRepository cashHistoryRepository;
     private ShopItemCommandService shopItemCommandService;
 
     @BeforeEach
@@ -46,7 +49,8 @@ class ShopItemCommandServiceTest {
         shopItemCommandService = new ShopItemCommandService(
                 memberRepository,
                 itemRepository,
-                memberItemRepository
+                memberItemRepository,
+                cashHistoryRepository
         );
     }
 
@@ -74,6 +78,11 @@ class ShopItemCommandServiceTest {
         then(itemRepository).should(inOrder).findById(100L);
         then(memberItemRepository).should(inOrder).existsByMemberIdAndItemId(1L, 100L);
         then(memberItemRepository).should(inOrder).save(any(MemberItem.class));
+        then(cashHistoryRepository).should().save(org.mockito.ArgumentMatchers.argThat(history ->
+                history.getMemberId().equals(1L)
+                        && history.getReferenceId().equals(100L)
+                        && history.getAmount() == -1_000L
+        ));
     }
 
     @Test
@@ -95,6 +104,7 @@ class ShopItemCommandServiceTest {
         // then
         assertThat(member.getCash()).isZero();
         assertThat(response.remainingCash()).isZero();
+        then(cashHistoryRepository).should().save(any());
     }
 
     @Test
@@ -112,6 +122,7 @@ class ShopItemCommandServiceTest {
         assertErrorCode(() -> shopItemCommandService.purchaseItem(1L, 100L), ErrorCode.INSUFFICIENT_CASH);
         assertThat(member.getCash()).isEqualTo(999L);
         then(memberItemRepository).should(never()).save(any(MemberItem.class));
+        then(cashHistoryRepository).should(never()).save(any());
     }
 
     @Test
@@ -128,6 +139,7 @@ class ShopItemCommandServiceTest {
         assertErrorCode(() -> shopItemCommandService.purchaseItem(1L, 100L), ErrorCode.ITEM_ALREADY_OWNED);
         assertThat(member.getCash()).isEqualTo(5_000L);
         then(memberItemRepository).should(never()).save(any(MemberItem.class));
+        then(cashHistoryRepository).should(never()).save(any());
     }
 
     @Test
@@ -142,6 +154,7 @@ class ShopItemCommandServiceTest {
         assertErrorCode(() -> shopItemCommandService.purchaseItem(1L, 100L), ErrorCode.ITEM_NOT_FOUND);
         then(memberItemRepository).should(never()).existsByMemberIdAndItemId(1L, 100L);
         then(memberItemRepository).should(never()).save(any(MemberItem.class));
+        then(cashHistoryRepository).should(never()).save(any());
     }
 
     @Test
@@ -154,6 +167,7 @@ class ShopItemCommandServiceTest {
         assertErrorCode(() -> shopItemCommandService.purchaseItem(1L, 100L), ErrorCode.MEMBER_NOT_FOUND);
         then(itemRepository).should(never()).findById(100L);
         then(memberItemRepository).should(never()).save(any(MemberItem.class));
+        then(cashHistoryRepository).should(never()).save(any());
     }
 
     private Member member(Long id, long cash) {

@@ -109,4 +109,8 @@ public class Member extends BaseEntity {
         cash -= amount;
     }
 
+    public void addCash(long amount) {
+        cash += amount;
+    }
+
 }

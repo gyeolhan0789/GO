@@ -91,7 +91,7 @@ class RoomCommandServiceTest {
         // given
         Room room = Room.create(1L, GameMode.SINGLE, 3, 3);
         ReflectionTestUtils.setField(room, "id", 10L);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
 
         // when
         roomCommandService.deleteRoom(1L, 10L);
@@ -105,7 +105,7 @@ class RoomCommandServiceTest {
     @DisplayName("존재하지 않는 게임방을 삭제하면 실패한다")
     void deleteRoomRejectsMissingRoom() {
         // given
-        given(roomRepository.findById(10L)).willReturn(Optional.empty());
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.empty());
 
         // when & then
         assertErrorCode(
@@ -120,7 +120,7 @@ class RoomCommandServiceTest {
         // given
         Room room = Room.create(1L, GameMode.SINGLE, 3, 3);
         ReflectionTestUtils.setField(room, "id", 10L);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
 
         // when & then
         assertErrorCode(
@@ -136,7 +136,7 @@ class RoomCommandServiceTest {
         Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
         RoomMember roomMember = RoomMember.create(10L, 2L);
         ReflectionTestUtils.setField(room, "id", 10L);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
         given(roomMemberRepository.findByRoomIdAndMemberId(10L, 2L)).willReturn(Optional.of(roomMember));
 
         // when
@@ -155,7 +155,7 @@ class RoomCommandServiceTest {
         Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
         RoomMember roomMember = RoomMember.create(10L, 1L);
         ReflectionTestUtils.setField(room, "id", 10L);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
         given(roomMemberRepository.findByRoomIdAndMemberId(10L, 1L)).willReturn(Optional.of(roomMember));
 
         // when
@@ -171,7 +171,7 @@ class RoomCommandServiceTest {
     @DisplayName("존재하지 않는 게임방을 나가면 실패한다")
     void leaveRoomRejectsMissingRoom() {
         // given
-        given(roomRepository.findById(10L)).willReturn(Optional.empty());
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.empty());
 
         // when & then
         assertErrorCode(
@@ -187,7 +187,7 @@ class RoomCommandServiceTest {
         Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
         room.close();
         ReflectionTestUtils.setField(room, "id", 10L);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
 
         // when & then
         assertErrorCode(
@@ -202,7 +202,7 @@ class RoomCommandServiceTest {
         // given
         Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
         ReflectionTestUtils.setField(room, "id", 10L);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
         given(roomMemberRepository.findByRoomIdAndMemberId(10L, 2L)).willReturn(Optional.empty());
 
         // when & then
@@ -219,7 +219,7 @@ class RoomCommandServiceTest {
         Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.READY);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
 
         // when
         roomCommandService.startGame(1L, 10L);
@@ -233,7 +233,7 @@ class RoomCommandServiceTest {
     @DisplayName("존재하지 않는 게임방에서 게임을 시작하면 실패한다")
     void startGameRejectsMissingRoom() {
         // given
-        given(roomRepository.findById(10L)).willReturn(Optional.empty());
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.empty());
 
         // when & then
         assertErrorCode(
@@ -249,7 +249,7 @@ class RoomCommandServiceTest {
         Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.READY);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
 
         // when & then
         assertErrorCode(
@@ -264,7 +264,7 @@ class RoomCommandServiceTest {
         // given
         Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
         ReflectionTestUtils.setField(room, "id", 10L);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
 
         // when & then
         assertErrorCode(

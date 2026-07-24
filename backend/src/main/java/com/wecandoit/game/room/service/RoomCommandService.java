@@ -69,7 +69,7 @@ public class RoomCommandService {
     }
 
     private Room findRoom(Long roomId) {
-        return roomRepository.findById(roomId)
+        return roomRepository.findByIdForUpdate(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
     }
 
