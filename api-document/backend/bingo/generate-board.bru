@@ -1,0 +1,100 @@
+meta {
+  name: 빙고판 생성
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{backendBaseUrl}}/rooms/1/bingo-boards
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+docs {
+  ## 빙고판 생성
+
+  호스트가 진행 중(IN_PROGRESS)인 게임방에 빙고판을 생성한다. 방당 한 번만 생성 가능하다.
+
+  ### 성공 응답 (201 Created)
+  ```json
+  {
+    "bingoBoardId": 1,
+    "roomId": 1,
+    "boardSize": 4,
+    "status": "IN_PROGRESS",
+    "cells": [
+      {
+        "row": 0,
+        "col": 0,
+        "mission": {
+          "missionId": 10,
+          "missionImageUrl": "https://cdn.example.com/missions/10.png",
+          "type": "OBJECT",
+          "title": "빨간 우산 찾기",
+          "detail": "빨간색 우산을 찾아 사진을 찍으세요.",
+          "decisionCondition": "사진 속 우산 색상이 빨간색인지 확인",
+          "createdAt": "2026-07-24T10:00:00"
+        },
+        "verificationStatus": "PENDING",
+        "rejectionReason": null
+      }
+    ],
+    "completed": false,
+    "canRenew": false
+  }
+  ```
+
+  ### 에러 케이스
+
+  **존재하지 않는 게임방**
+  ```json
+  {
+    "status": 404,
+    "message": "게임방을 찾을 수 없습니다."
+  }
+  ```
+
+  **호스트가 아닌 회원이 생성 시도**
+  ```json
+  {
+    "status": 403,
+    "message": "빙고판 생성 권한이 없습니다."
+  }
+  ```
+
+  **게임방이 IN_PROGRESS 상태가 아님**
+  ```json
+  {
+    "status": 409,
+    "message": "게임이 시작된 방에서만 빙고판을 생성할 수 있습니다."
+  }
+  ```
+
+  **이미 빙고판이 생성된 게임방**
+  ```json
+  {
+    "status": 409,
+    "message": "이미 빙고판이 생성된 게임방입니다."
+  }
+  ```
+
+  **채울 미션 수가 boardSize^2 보다 부족함**
+  ```json
+  {
+    "status": 409,
+    "message": "빙고판을 채울 미션이 부족합니다."
+  }
+  ```
+
+  **Authorization 헤더 없음**
+  ```json
+  {
+    "status": 401,
+    "message": "인증이 필요합니다."
+  }
+  ```
+}

@@ -1,0 +1,72 @@
+meta {
+  name: 빙고 칸 미션 인증 제출
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{backendBaseUrl}}/rooms/1/bingo-boards/cells/1/submit
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+body:json {
+  {
+    "submitUrl": "https://cdn.example.com/submissions/proof-1.jpg"
+  }
+}
+
+docs {
+  ## 빙고 칸 미션 인증 제출
+
+  게임방 참여자가 특정 빙고 칸의 미션 수행 인증(이미지/URL)을 제출한다.
+
+  ### 성공 응답 (204 No Content)
+  본문 없음
+
+  ### 에러 케이스
+
+  **submitUrl 누락**
+  ```json
+  {
+    "status": 400,
+    "message": "제출 URL은 필수입니다."
+  }
+  ```
+
+  **게임방 참여자가 아님**
+  ```json
+  {
+    "status": 403,
+    "message": "게임방 참여자만 접근할 수 있습니다."
+  }
+  ```
+
+  **활성화된 빙고판이 없음**
+  ```json
+  {
+    "status": 404,
+    "message": "활성화된 빙고판이 없습니다."
+  }
+  ```
+
+  **존재하지 않는 칸(또는 활성 보드 소속 아님)**
+  ```json
+  {
+    "status": 404,
+    "message": "해당 칸을 찾을 수 없습니다."
+  }
+  ```
+
+  **Authorization 헤더 없음**
+  ```json
+  {
+    "status": 401,
+    "message": "인증이 필요합니다."
+  }
+  ```
+}
