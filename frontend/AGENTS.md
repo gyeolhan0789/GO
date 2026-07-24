@@ -8,8 +8,6 @@ Use the relevant skill before starting work:
 
 - `react-native-development`: React Native CLI implementation, native adapters, iOS/Android impact.
 - `react-native-testing`: React Native tests, mocks, and accessibility queries.
-- `go-walking-session`: Go walking-session domain changes.
-- `go-permission-handling`: platform permissions and consent flows.
 - `go-ui-design`: user-facing Go UI, interaction, and accessibility work.
 
 ## Engineering rules

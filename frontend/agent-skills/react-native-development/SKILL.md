@@ -6,9 +6,10 @@ description: Implement and review TypeScript React Native Community CLI features
 # React Native Development
 
 - Use React Native Community CLI and TypeScript. Do not introduce Expo packages or Expo APIs.
-- Start with the smallest affected FSD slice. Respect `app → pages → widgets → features → entities → shared`; import another slice only from its `index.ts`.
-- Place reusable platform, device, and React Native adapters in `src/shared/native` and expose them through its public API.
-- Keep page composition in `pages`/`widgets`, user actions in `features`, domain data in `entities`, and cross-domain primitives in `shared`.
-- Prefer local component state. Add shared state only for real multi-consumer requirements.
+- Inspect the existing dependencies, patterns, and native configuration before adding a library. Avoid duplicate libraries; verify maintenance status and React Native version compatibility for every new dependency.
+- Keep business logic out of screen components. Extract reusable service, state, and platform-boundary logic when it has a clear owner.
+- Use an appropriate virtualized list for long or unbounded collections. Do not optimize re-renders without a measured issue or a demonstrated rendering cost.
+- Use animations for clear user feedback without harming input responsiveness.
+- Do not use `any`; model uncertain values with explicit types, narrowing, or generics.
 - Check Android and iOS behavior for platform APIs, native modules, permissions, status bars, safe areas, and interaction differences.
 - Run applicable TypeScript, lint, and Jest checks before handoff.
