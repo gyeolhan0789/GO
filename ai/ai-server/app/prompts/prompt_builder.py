@@ -12,9 +12,6 @@ class PromptBuilder:
         mission_type: str,
         decision_condition: dict
     ) -> str:
-        """
-        Mission Metadata 기반 Gemini Prompt 생성
-        """
 
         mission_type = mission_type.upper()
 
@@ -37,15 +34,12 @@ class PromptBuilder:
             f"지원하지 않는 미션 타입입니다. ({mission_type})"
         )
 
-
     @staticmethod
     def _build_object_prompt(
         decision_condition: dict
     ) -> str:
 
-        target = decision_condition.get(
-            "target"
-        )
+        target = decision_condition.get("target")
 
         if not target:
             raise ValueError(
@@ -56,15 +50,12 @@ class PromptBuilder:
             target=target
         )
 
-
     @staticmethod
     def _build_attribute_prompt(
         decision_condition: dict
     ) -> str:
 
-        target = decision_condition.get(
-            "target"
-        )
+        target = decision_condition.get("target")
 
         constraints = decision_condition.get(
             "constraints",
@@ -81,20 +72,15 @@ class PromptBuilder:
                 "decision_condition.constraints가 없습니다."
             )
 
-
-        attribute = next(
-            iter(constraints.keys())
+        constraint_text = "\n".join(
+            f"- {key}: {value}"
+            for key, value in constraints.items()
         )
-
-        value = constraints[attribute]
-
 
         return ATTRIBUTE_PROMPT.format(
             target=target,
-            attribute=attribute,
-            value=value
+            constraints=constraint_text
         )
-
 
     @staticmethod
     def _build_relation_prompt(
@@ -111,19 +97,9 @@ class PromptBuilder:
             {}
         )
 
-
-        subject = target.get(
-            "subject"
-        )
-
-        obj = target.get(
-            "object"
-        )
-
-        relation = constraints.get(
-            "relation"
-        )
-
+        subject = target.get("subject")
+        obj = target.get("object")
+        relation = constraints.get("relation")
 
         if not subject:
             raise ValueError(
@@ -139,7 +115,6 @@ class PromptBuilder:
             raise ValueError(
                 "relation이 없습니다."
             )
-
 
         return RELATION_PROMPT.format(
             subject=subject,
