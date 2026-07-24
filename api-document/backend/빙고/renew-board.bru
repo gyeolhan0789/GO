@@ -1,0 +1,87 @@
+meta {
+  name: 빙고판 갱신
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{backendBaseUrl}}/rooms/1/bingo-boards/renewal
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+docs {
+  ## 빙고판 갱신
+
+  호스트가 100% 완료된 빙고판을 종료 처리하고 새 빙고판을 생성한다. 게임방이 IN_PROGRESS 상태여야 한다.
+
+  ### 성공 응답 (201 Created)
+  갱신된 새 빙고판을 반환한다 (Generate Bingo Board 응답과 동일한 형태). 응답의 `status`는 `BingoBoardStatus`(`IN_PROGRESS` · `COMPLETED` · `EXPIRED`) 값 중 하나이며, 새로 생성된 보드이므로 항상 `IN_PROGRESS`이다.
+
+  ### 비즈니스 규칙
+
+  - 이 엔드포인트는 "수동 갱신"이다: 활성 빙고판의 모든 칸이 `APPROVED`로 100% 완료되어 있어야 하고, 호출자가 반드시 방 호스트여야 한다. 조건을 만족하지 않으면 각각 `BINGO_BOARD_NOT_COMPLETED`(409), `BINGO_BOARD_RENEWAL_FORBIDDEN`(403)이 반환된다.
+  - 이와 별개로 시스템은 빙고판 생성 시각(`createdAt`)으로부터 7일이 지나면 완료 여부·호스트 여부와 무관하게 자동으로 기존 보드를 `EXPIRED` 처리하고 새 보드를 발급한다("자동 갱신"). 자동 갱신은 서버 스케줄러가 수행하며 이 API를 통해 호출되지 않는다.
+
+  ### 에러 케이스
+
+  **존재하지 않는 게임방**
+  ```json
+  {
+    "status": 404,
+    "message": "게임방을 찾을 수 없습니다."
+  }
+  ```
+
+  **게임방이 IN_PROGRESS 상태가 아님**
+  ```json
+  {
+    "status": 409,
+    "message": "게임이 시작된 방에서만 빙고판을 생성할 수 있습니다."
+  }
+  ```
+
+  **활성화된 빙고판이 없음**
+  ```json
+  {
+    "status": 404,
+    "message": "활성화된 빙고판이 없습니다."
+  }
+  ```
+
+  **호스트가 아닌 회원이 갱신 시도**
+  ```json
+  {
+    "status": 403,
+    "message": "빙고판 갱신 권한이 없습니다."
+  }
+  ```
+
+  **기존 빙고판이 아직 100% 완료되지 않음**
+  ```json
+  {
+    "status": 409,
+    "message": "빙고판이 아직 100% 완료되지 않았습니다."
+  }
+  ```
+
+  **채울 미션 수가 boardSize^2 보다 부족함**
+  ```json
+  {
+    "status": 409,
+    "message": "빙고판을 채울 미션이 부족합니다."
+  }
+  ```
+
+  **Authorization 헤더 없음**
+  ```json
+  {
+    "status": 401,
+    "message": "인증이 필요합니다."
+  }
+  ```
+}
