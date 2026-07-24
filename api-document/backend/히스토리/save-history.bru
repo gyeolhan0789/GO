@@ -1,0 +1,88 @@
+meta {
+  name: 활동 히스토리 저장
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{backendBaseUrl}}/histories
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+body:json {
+  {
+    "historyDate": "2026-07-24",
+    "step": 6000,
+    "distance": 4000,
+    "calories": 220
+  }
+}
+
+docs {
+  ## 활동 히스토리 저장
+
+  하루치 걸음 수/거리/칼로리 기록을 저장한다.
+
+  ### Request 필드
+  | 필드 | 필수 | 제약조건 |
+  |---|---|---|
+  | historyDate | Y | 날짜 (`yyyy-MM-dd`, ISO-8601) |
+  | step | N | 0 이상의 정수 (`@Min(0)`, 생략 시 0으로 처리됨) |
+  | distance | N | 0 이상의 정수 (`@Min(0)`, 생략 시 0으로 처리됨) |
+  | calories | N | 0 이상의 정수 (`@Min(0)`, 생략 시 0으로 처리됨) |
+
+  ### 성공 응답 (201 Created)
+  본문 없음
+
+  ### 비즈니스 규칙
+  - `(memberId, historyDate)` 조합으로 레코드가 유일하게 유지된다.
+  - 같은 날짜의 기록이 이미 있으면 요청으로 들어온 step/distance/calories를 기존 값에 **더한다** (덮어쓰지 않음). 즉 같은 날짜에 여러 번 호출하면 값이 누적된다.
+  - 같은 날짜의 기록이 없으면 새 레코드를 생성한다.
+
+  ### 에러 케이스
+
+  **historyDate 누락**
+  ```json
+  {
+    "status": 400,
+    "message": "히스토리 날짜는 필수입니다."
+  }
+  ```
+
+  **step이 0 미만**
+  ```json
+  {
+    "status": 400,
+    "message": "걸음 수는 0 이상이어야 합니다."
+  }
+  ```
+
+  **distance가 0 미만**
+  ```json
+  {
+    "status": 400,
+    "message": "거리는 0 이상이어야 합니다."
+  }
+  ```
+
+  **calories가 0 미만**
+  ```json
+  {
+    "status": 400,
+    "message": "칼로리는 0 이상이어야 합니다."
+  }
+  ```
+
+  **Authorization 헤더 없음**
+  ```json
+  {
+    "status": 401,
+    "message": "인증이 필요합니다."
+  }
+  ```
+}

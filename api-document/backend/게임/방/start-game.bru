@@ -1,0 +1,63 @@
+meta {
+  name: 게임 시작
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{backendBaseUrl}}/rooms/1/start
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+docs {
+  ## 게임 시작
+
+  호스트가 게임방을 `READY` 상태에서 `IN_PROGRESS`로 전환한다. 호스트만 시작할 수 있다.
+
+  ### 성공 응답 (200 OK)
+  시작 후 게임방 상세 정보를 반환한다 (Get Room Detail 응답과 동일한 형태, `status: "IN_PROGRESS"`).
+
+  ### 비즈니스 규칙
+
+  - 게임방 상태는 `CREATED` → `WAITING` → `READY` → `IN_PROGRESS` → `COMPLETED`/`CLOSED` 순으로 전환된다(`GameRoomStatus`). 이 API는 그중 `READY` → `IN_PROGRESS` 전환만 수행하며, 그 외 상태 전환(예: `WAITING` → `READY`)은 별도 API(게임방 초대/참여 요청 처리)에서 이루어진다.
+  - 시작에 성공하면 게임방의 `startedAt`이 현재 시각으로 기록된다.
+
+  ### 에러 케이스
+
+  **존재하지 않는 게임방**
+  ```json
+  {
+    "status": 404,
+    "message": "게임방을 찾을 수 없습니다."
+  }
+  ```
+
+  **호스트가 아닌 회원이 시작 시도**
+  ```json
+  {
+    "status": 403,
+    "message": "게임 시작 권한이 없습니다."
+  }
+  ```
+
+  **방 상태가 READY가 아님**
+  ```json
+  {
+    "status": 409,
+    "message": "READY 상태의 방에서만 게임을 시작할 수 있습니다."
+  }
+  ```
+
+  **Authorization 헤더 없음**
+  ```json
+  {
+    "status": 401,
+    "message": "인증이 필요합니다."
+  }
+  ```
+}
