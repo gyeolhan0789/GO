@@ -18,9 +18,13 @@ router = APIRouter(
     tags=["Mission"]
 )
 
-
 service = GeminiService()
 
+ALLOWED_EXTENSIONS = {
+    "jpg",
+    "jpeg",
+    "png"
+}
 
 
 @router.get("/test")
@@ -31,7 +35,6 @@ def test():
     return {
         "result": result
     }
-
 
 
 @router.post("/verify")
@@ -45,12 +48,63 @@ async def verify_mission(
 
 ):
 
+    # -----------------------------
+    # image 검증
+    # -----------------------------
+
+    if not image.filename:
+
+        raise HTTPException(
+            status_code=400,
+            detail="이미지를 선택해주세요."
+        )
+
+    extension = image.filename.split(".")[-1].lower()
+
+    if extension not in ALLOWED_EXTENSIONS:
+
+        raise HTTPException(
+            status_code=400,
+            detail="jpg, jpeg, png 파일만 업로드 가능합니다."
+        )
+
+    image_bytes = await image.read()
+
+    if len(image_bytes) == 0:
+
+        raise HTTPException(
+            status_code=400,
+            detail="빈 이미지입니다."
+        )
+
+    # -----------------------------
+    # mission_type 검증
+    # -----------------------------
+
+    mission_type = mission_type.upper()
+
+    if mission_type not in {
+
+        "OBJECT",
+        "ATTRIBUTE",
+        "RELATION"
+
+    }:
+
+        raise HTTPException(
+            status_code=400,
+            detail="지원하지 않는 mission_type입니다."
+        )
+
+    # -----------------------------
+    # decision_condition 검증
+    # -----------------------------
+
     try:
 
         decision_condition = json.loads(
             decision_condition
         )
-
 
     except Exception:
 
@@ -59,6 +113,9 @@ async def verify_mission(
             detail="decision_condition은 JSON 형식이어야 합니다."
         )
 
+    # -----------------------------
+    # Prompt 생성
+    # -----------------------------
 
     try:
 
@@ -67,18 +124,12 @@ async def verify_mission(
             decision_condition=decision_condition
         )
 
-
-        image_bytes = await image.read()
-
-
         result = service.verify_mission(
             image_bytes=image_bytes,
             prompt=prompt
         )
 
-
         return result
-
 
     except ValueError as e:
 
@@ -87,6 +138,12 @@ async def verify_mission(
             detail=str(e)
         )
 
+    except RuntimeError as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
 
     except Exception as e:
 
@@ -94,5 +151,5 @@ async def verify_mission(
 
         raise HTTPException(
             status_code=500,
-            detail=str(e)
+            detail="AI 서버 내부 오류가 발생했습니다."
         )

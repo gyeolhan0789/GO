@@ -32,26 +32,53 @@ class GeminiService:
         prompt: str
     ) -> MissionResponse:
 
-        image = Image.open(
-            BytesIO(image_bytes)
-        )
+        # -----------------------------
+        # 이미지 검증
+        # -----------------------------
 
-        image = image.convert("RGB")
+        try:
 
-
-        response = self.client.models.generate_content(
-
-            model="gemini-2.5-flash",
-
-            contents=[
-                prompt,
-                image
-            ],
-
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=MissionResponse
+            image = Image.open(
+                BytesIO(image_bytes)
             )
-        )
 
-        return response.parsed
+            image.verify()
+
+            image = Image.open(
+                BytesIO(image_bytes)
+            ).convert("RGB")
+
+        except Exception:
+
+            raise ValueError(
+                "손상된 이미지입니다."
+            )
+
+        # -----------------------------
+        # Gemini 호출
+        # -----------------------------
+
+        try:
+
+            response = self.client.models.generate_content(
+
+                model="gemini-2.5-flash",
+
+                contents=[
+                    prompt,
+                    image
+                ],
+
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=MissionResponse
+                )
+            )
+
+            return response.parsed
+
+        except Exception as e:
+
+            raise RuntimeError(
+                f"Gemini API 호출에 실패했습니다. ({e})"
+            )
