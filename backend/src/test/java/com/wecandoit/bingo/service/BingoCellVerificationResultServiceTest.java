@@ -1,7 +1,8 @@
 package com.wecandoit.bingo.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.domain.BingoCell;
@@ -12,20 +13,25 @@ import com.wecandoit.game.result.service.GameCompletionService;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @DisplayName("빙고 셀 검증 결과 서비스")
+@ExtendWith(MockitoExtension.class)
 class BingoCellVerificationResultServiceTest {
 
-    private final BingoCellRepository bingoCellRepository = Mockito.mock(BingoCellRepository.class);
-    private final BingoBoardRepository bingoBoardRepository = Mockito.mock(BingoBoardRepository.class);
-    private final GameCompletionService gameCompletionService = Mockito.mock(GameCompletionService.class);
-    private final BingoCellVerificationResultService verificationResultService = new BingoCellVerificationResultService(
-            bingoCellRepository,
-            bingoBoardRepository,
-            gameCompletionService
-    );
+    @Mock
+    private BingoCellRepository bingoCellRepository;
+    @Mock
+    private BingoBoardRepository bingoBoardRepository;
+    @Mock
+    private GameCompletionService gameCompletionService;
+    @InjectMocks
+    private BingoCellVerificationResultService verificationResultService;
 
     @Test
     @DisplayName("승인 결과는 셀을 완료 처리하고 게임 완료 여부를 재평가한다")
@@ -33,9 +39,9 @@ class BingoCellVerificationResultServiceTest {
         // given
         BingoCell cell = cell(1000L, 100L);
         BingoBoard board = board(100L, 10L);
-        when(bingoCellRepository.findById(1000L)).thenReturn(Optional.of(cell));
-        when(bingoBoardRepository.findById(100L)).thenReturn(Optional.of(board));
-        when(bingoCellRepository.save(cell)).thenReturn(cell);
+        given(bingoCellRepository.findById(1000L)).willReturn(Optional.of(cell));
+        given(bingoBoardRepository.findById(100L)).willReturn(Optional.of(board));
+        given(bingoCellRepository.save(cell)).willReturn(cell);
 
         // when
         verificationResultService.applyResult(1000L, true, null);
@@ -44,7 +50,7 @@ class BingoCellVerificationResultServiceTest {
         assertThat(cell.getVerificationStatus()).isEqualTo(BingoCellVerificationStatus.APPROVED);
         assertThat(cell.getRejectionReason()).isNull();
         assertThat(cell.getCompletedAt()).isNotNull();
-        Mockito.verify(gameCompletionService).evaluateAndCompleteIfNeeded(10L);
+        then(gameCompletionService).should().evaluateAndCompleteIfNeeded(10L);
     }
 
     @Test
@@ -52,8 +58,8 @@ class BingoCellVerificationResultServiceTest {
     void applyRejectedResultStoresReasonWithoutCompletingCell() {
         // given
         BingoCell cell = cell(1000L, 100L);
-        when(bingoCellRepository.findById(1000L)).thenReturn(Optional.of(cell));
-        when(bingoCellRepository.save(cell)).thenReturn(cell);
+        given(bingoCellRepository.findById(1000L)).willReturn(Optional.of(cell));
+        given(bingoCellRepository.save(cell)).willReturn(cell);
 
         // when
         verificationResultService.applyResult(1000L, false, "인증 이미지가 조건과 다릅니다.");
@@ -62,7 +68,7 @@ class BingoCellVerificationResultServiceTest {
         assertThat(cell.getVerificationStatus()).isEqualTo(BingoCellVerificationStatus.REJECTED);
         assertThat(cell.getRejectionReason()).isEqualTo("인증 이미지가 조건과 다릅니다.");
         assertThat(cell.getCompletedAt()).isNull();
-        Mockito.verify(gameCompletionService, Mockito.never()).evaluateAndCompleteIfNeeded(Mockito.anyLong());
+        then(gameCompletionService).should(Mockito.never()).evaluateAndCompleteIfNeeded(Mockito.anyLong());
     }
 
     private BingoCell cell(Long id, Long boardId) {

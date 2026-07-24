@@ -21,13 +21,16 @@ class AdminMissionRepositoryTest {
     @Test
     @DisplayName("생성일 내림차순으로 미션을 조회한다")
     void findAllByOrderByCreatedAtDescIdDescReturnsNewestFirst() {
+        // given
         Mission first = adminMissionRepository.save(Mission.create(
                 "https://example.com/first.png", "OBJECT", "first", null, null));
         Mission second = adminMissionRepository.save(Mission.create(
                 "https://example.com/second.png", "OBJECT", "second", null, null));
 
+        // when
         List<Mission> missions = adminMissionRepository.findAllByOrderByCreatedAtDescIdDesc();
 
+        // then
         assertThat(missions).extracting(Mission::getId).containsExactly(second.getId(), first.getId());
     }
 }

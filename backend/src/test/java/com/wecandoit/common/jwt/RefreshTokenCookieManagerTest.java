@@ -20,10 +20,13 @@ class RefreshTokenCookieManagerTest {
     @Test
     @DisplayName("Refresh Token 쿠키는 재발급 경로에만 설정된다")
     void setCookieLimitsCookieToReissuePath() {
+        // given
         MockHttpServletResponse response = new MockHttpServletResponse();
 
+        // when
         refreshTokenCookieManager.setCookie(response, "refresh-token");
 
+        // then
         assertThat(response.getHeader("Set-Cookie"))
                 .contains("HttpOnly")
                 .contains("Secure")
@@ -35,10 +38,13 @@ class RefreshTokenCookieManagerTest {
     @Test
     @DisplayName("Refresh Token 쿠키 삭제는 동일한 경로를 사용한다")
     void deleteCookieUsesSamePath() {
+        // given
         MockHttpServletResponse response = new MockHttpServletResponse();
 
+        // when
         refreshTokenCookieManager.deleteCookie(response);
 
+        // then
         assertThat(response.getHeader("Set-Cookie"))
                 .contains("Max-Age=0")
                 .contains("Path=/auth/reissue");
@@ -47,19 +53,24 @@ class RefreshTokenCookieManagerTest {
     @Test
     @DisplayName("Refresh Token 쿠키 값을 조회한다")
     void getRefreshTokenReturnsMatchingCookieValue() {
+        // given
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setCookies(new Cookie("other", "value"), new Cookie("refreshToken", "refresh-token"));
 
+        // when
         String refreshToken = refreshTokenCookieManager.getRefreshToken(request);
 
+        // then
         assertThat(refreshToken).isEqualTo("refresh-token");
     }
 
     @Test
     @DisplayName("Refresh Token 쿠키가 없으면 예외가 발생한다")
     void getRefreshTokenRejectsMissingCookie() {
+        // given
         MockHttpServletRequest request = new MockHttpServletRequest();
 
+        // when & then
         assertThatThrownBy(() -> refreshTokenCookieManager.getRefreshToken(request))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
@@ -69,9 +80,11 @@ class RefreshTokenCookieManagerTest {
     @Test
     @DisplayName("Refresh Token 쿠키 값이 비어 있으면 예외가 발생한다")
     void getRefreshTokenRejectsBlankCookie() {
+        // given
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setCookies(new Cookie("refreshToken", " "));
 
+        // when & then
         assertThatThrownBy(() -> refreshTokenCookieManager.getRefreshToken(request))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")

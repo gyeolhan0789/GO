@@ -72,7 +72,7 @@ class FriendRepositoryTest {
         Member secondMember = saveMember("second@example.com", "두번째");
         friendRepository.saveAndFlush(Friend.create(firstMember, secondMember));
 
-        // when, then
+        // when & then
         assertThatThrownBy(() -> friendRepository.saveAndFlush(
                 Friend.create(secondMember, firstMember)
         )).isInstanceOf(DataIntegrityViolationException.class);

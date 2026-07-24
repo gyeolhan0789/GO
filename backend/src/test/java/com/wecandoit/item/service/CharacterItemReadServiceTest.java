@@ -4,9 +4,9 @@ import static com.wecandoit.item.domain.ItemFixture.item;
 import static com.wecandoit.item.domain.MemberItemFixture.memberItem;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
@@ -23,26 +23,38 @@ import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+@ExtendWith(MockitoExtension.class)
 @DisplayName("캐릭터 아이템 조회 서비스")
 class CharacterItemReadServiceTest {
 
-    private final MemberRepository memberRepository = Mockito.mock(MemberRepository.class);
-    private final MemberEquippedItemRepository memberEquippedItemRepository = Mockito.mock(
-            MemberEquippedItemRepository.class
-    );
-    private final MemberItemRepository memberItemRepository = Mockito.mock(MemberItemRepository.class);
-    private final ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
-    private final CharacterItemReadService characterItemReadService = new CharacterItemReadService(
-            memberRepository,
-            memberEquippedItemRepository,
-            memberItemRepository,
-            itemRepository
-    );
+    @Mock
+    private MemberRepository memberRepository;
+    @Mock
+    private MemberEquippedItemRepository memberEquippedItemRepository;
+    @Mock
+    private MemberItemRepository memberItemRepository;
+    @Mock
+    private ItemRepository itemRepository;
+    private CharacterItemReadService characterItemReadService;
+
+    @BeforeEach
+    void setUp() {
+        characterItemReadService = new CharacterItemReadService(
+                memberRepository,
+                memberEquippedItemRepository,
+                memberItemRepository,
+                itemRepository
+        );
+    }
 
     @Test
     @DisplayName("보유 아이템 목록을 조회하면 원본 아이템 정보를 함께 반환한다")
@@ -53,9 +65,9 @@ class CharacterItemReadServiceTest {
         MemberItem top = memberItem(20L, 1L, 200L);
         Item hatItem = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
         Item topItem = item(200L, "파란 상의", "TOP", "https://example.com/top.png");
-        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
-        when(memberItemRepository.findAllByMemberId(1L)).thenReturn(List.of(hat, top));
-        when(itemRepository.findAllById(List.of(100L, 200L))).thenReturn(List.of(hatItem, topItem));
+        given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+        given(memberItemRepository.findAllByMemberId(1L)).willReturn(List.of(hat, top));
+        given(itemRepository.findAllById(List.of(100L, 200L))).willReturn(List.of(hatItem, topItem));
 
         // when
         List<MemberItemResponse> responses = characterItemReadService.getMyItems(1L);
@@ -79,7 +91,7 @@ class CharacterItemReadServiceTest {
                                 "https://example.com/top.png"
                         )
                 );
-        verify(itemRepository).findAllById(List.of(100L, 200L));
+        then(itemRepository).should().findAllById(List.of(100L, 200L));
     }
 
     @Test
@@ -87,30 +99,30 @@ class CharacterItemReadServiceTest {
     void getMyItemsReturnsEmptyList() {
         // given
         Member member = member(1L, "테스터");
-        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
-        when(memberItemRepository.findAllByMemberId(1L)).thenReturn(List.of());
+        given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+        given(memberItemRepository.findAllByMemberId(1L)).willReturn(List.of());
 
         // when
         List<MemberItemResponse> responses = characterItemReadService.getMyItems(1L);
 
         // then
         assertThat(responses).isEmpty();
-        verify(itemRepository, never()).findAllById(Mockito.anyIterable());
+        then(itemRepository).should(never()).findAllById(Mockito.anyIterable());
     }
 
     @Test
     @DisplayName("존재하지 않는 회원의 보유 아이템을 조회하면 실패한다")
     void getMyItemsRejectsMissingMember() {
         // given
-        when(memberRepository.findById(1L)).thenReturn(Optional.empty());
+        given(memberRepository.findById(1L)).willReturn(Optional.empty());
 
-        // when, then
+        // when & then
         assertThatThrownBy(() -> characterItemReadService.getMyItems(1L))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
-        verify(memberItemRepository, never()).findAllByMemberId(Mockito.anyLong());
-        verify(itemRepository, never()).findAllById(Mockito.anyIterable());
+        then(memberItemRepository).should(never()).findAllByMemberId(Mockito.anyLong());
+        then(itemRepository).should(never()).findAllById(Mockito.anyIterable());
     }
 
     @Test
@@ -121,10 +133,10 @@ class CharacterItemReadServiceTest {
         MemberItem hat = memberItem(10L, 1L, 100L);
         MemberItem top = memberItem(20L, 1L, 200L);
         Item hatItem = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
-        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
-        when(memberItemRepository.findAllByMemberId(1L)).thenReturn(List.of(hat, top));
-        when(itemRepository.findAllByIdInAndCategory(List.of(100L, 200L), "HAT"))
-                .thenReturn(List.of(hatItem));
+        given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+        given(memberItemRepository.findAllByMemberId(1L)).willReturn(List.of(hat, top));
+        given(itemRepository.findAllByIdInAndCategory(List.of(100L, 200L), "HAT"))
+                .willReturn(List.of(hatItem));
 
         // when
         List<MemberItemResponse> responses = characterItemReadService.getMyItems(1L, "HAT");
@@ -133,8 +145,8 @@ class CharacterItemReadServiceTest {
         assertThat(responses)
                 .extracting(MemberItemResponse::memberItemId, MemberItemResponse::category)
                 .containsExactly(org.assertj.core.groups.Tuple.tuple(10L, "HAT"));
-        verify(itemRepository).findAllByIdInAndCategory(List.of(100L, 200L), "HAT");
-        verify(itemRepository, never()).findAllById(Mockito.anyIterable());
+        then(itemRepository).should().findAllByIdInAndCategory(List.of(100L, 200L), "HAT");
+        then(itemRepository).should(never()).findAllById(Mockito.anyIterable());
     }
 
     @Test
@@ -143,10 +155,10 @@ class CharacterItemReadServiceTest {
         // given
         Member member = member(1L, "테스터");
         MemberItem hat = memberItem(10L, 1L, 100L);
-        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
-        when(memberItemRepository.findAllByMemberId(1L)).thenReturn(List.of(hat));
-        when(itemRepository.findAllByIdInAndCategory(List.of(100L), "TOP"))
-                .thenReturn(List.of());
+        given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+        given(memberItemRepository.findAllByMemberId(1L)).willReturn(List.of(hat));
+        given(itemRepository.findAllByIdInAndCategory(List.of(100L), "TOP"))
+                .willReturn(List.of());
 
         // when
         List<MemberItemResponse> responses = characterItemReadService.getMyItems(1L, "TOP");
@@ -158,25 +170,25 @@ class CharacterItemReadServiceTest {
     @Test
     @DisplayName("유효하지 않은 카테고리로 조회하면 실패한다")
     void getMyItemsByCategoryRejectsInvalidCategory() {
-        // when, then
+        // when & then
         assertThatThrownBy(() -> characterItemReadService.getMyItems(1L, "UNKNOWN"))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_ITEM_CATEGORY);
-        verify(memberRepository, never()).findById(Mockito.anyLong());
-        verify(memberItemRepository, never()).findAllByMemberId(Mockito.anyLong());
+        then(memberRepository).should(never()).findById(Mockito.anyLong());
+        then(memberItemRepository).should(never()).findAllByMemberId(Mockito.anyLong());
     }
 
     @Test
     @DisplayName("소문자 카테고리로 조회하면 실패한다")
     void getMyItemsByCategoryRejectsLowercaseCategory() {
-        // when, then
+        // when & then
         assertThatThrownBy(() -> characterItemReadService.getMyItems(1L, "hat"))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_ITEM_CATEGORY);
-        verify(memberRepository, never()).findById(Mockito.anyLong());
-        verify(memberItemRepository, never()).findAllByMemberId(Mockito.anyLong());
+        then(memberRepository).should(never()).findById(Mockito.anyLong());
+        then(memberItemRepository).should(never()).findAllByMemberId(Mockito.anyLong());
     }
 
     @Test
@@ -190,11 +202,11 @@ class CharacterItemReadServiceTest {
         MemberItem top = memberItem(20L, 1L, 200L);
         Item hatItem = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
         Item topItem = item(200L, "파란 상의", "TOP", "https://example.com/top.png");
-        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
-        when(memberEquippedItemRepository.findAllByMemberId(1L))
-                .thenReturn(List.of(equippedHat, equippedTop));
-        when(memberItemRepository.findAllById(List.of(10L, 20L))).thenReturn(List.of(hat, top));
-        when(itemRepository.findAllById(Mockito.anyIterable())).thenReturn(List.of(hatItem, topItem));
+        given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+        given(memberEquippedItemRepository.findAllByMemberId(1L))
+                .willReturn(List.of(equippedHat, equippedTop));
+        given(memberItemRepository.findAllById(List.of(10L, 20L))).willReturn(List.of(hat, top));
+        given(itemRepository.findAllById(Mockito.anyIterable())).willReturn(List.of(hatItem, topItem));
 
         // when
         CharacterResponse response = characterItemReadService.getMyCharacter(1L);
@@ -227,30 +239,30 @@ class CharacterItemReadServiceTest {
     void getMyCharacterReturnsEmptyEquippedItems() {
         // given
         Member member = member(1L, "테스터");
-        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
-        when(memberEquippedItemRepository.findAllByMemberId(1L)).thenReturn(List.of());
+        given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+        given(memberEquippedItemRepository.findAllByMemberId(1L)).willReturn(List.of());
 
         // when
         CharacterResponse response = characterItemReadService.getMyCharacter(1L);
 
         // then
         assertThat(response.equippedItems()).isEmpty();
-        verify(memberItemRepository, never()).findAllById(Mockito.anyIterable());
-        verify(itemRepository, never()).findAllById(Mockito.anyIterable());
+        then(memberItemRepository).should(never()).findAllById(Mockito.anyIterable());
+        then(itemRepository).should(never()).findAllById(Mockito.anyIterable());
     }
 
     @Test
     @DisplayName("존재하지 않는 회원의 캐릭터를 조회하면 실패한다")
     void getMyCharacterRejectsMissingMember() {
         // given
-        when(memberRepository.findById(1L)).thenReturn(Optional.empty());
+        given(memberRepository.findById(1L)).willReturn(Optional.empty());
 
-        // when, then
+        // when & then
         assertThatThrownBy(() -> characterItemReadService.getMyCharacter(1L))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
-        verify(memberEquippedItemRepository, never()).findAllByMemberId(Mockito.anyLong());
+        then(memberEquippedItemRepository).should(never()).findAllByMemberId(Mockito.anyLong());
     }
 
     private Member member(Long id, String nickname) {

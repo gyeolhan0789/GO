@@ -2,7 +2,8 @@ package com.wecandoit.bingo.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.when;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import com.wecandoit.bingo.controller.response.BingoBoardResponse;
 import com.wecandoit.bingo.domain.BingoBoard;
@@ -27,43 +28,51 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @DisplayName("빙고판 서비스")
+@ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class BingoServiceTest {
 
     private static final List<BingoBoardStatus> INACTIVE_BOARD_STATUSES =
             List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED);
 
-    private final RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
-    private final RoomMemberRepository roomMemberRepository = Mockito.mock(RoomMemberRepository.class);
-    private final BingoBoardRepository bingoBoardRepository = Mockito.mock(BingoBoardRepository.class);
-    private final BingoCellRepository bingoCellRepository = Mockito.mock(BingoCellRepository.class);
-    private final MissionRepository missionRepository = Mockito.mock(MissionRepository.class);
-    private final BingoService bingoService = new BingoService(
-            roomRepository,
-            roomMemberRepository,
-            bingoBoardRepository,
-            bingoCellRepository,
-            missionRepository
-    );
+    @Mock
+    private RoomRepository roomRepository;
+    @Mock
+    private RoomMemberRepository roomMemberRepository;
+    @Mock
+    private BingoBoardRepository bingoBoardRepository;
+    @Mock
+    private BingoCellRepository bingoCellRepository;
+    @Mock
+    private MissionRepository missionRepository;
+    @InjectMocks
+    private BingoService bingoService;
 
     @Test
     @DisplayName("방장이 진행 중인 방에서 빙고판을 생성하면 보드 크기만큼 무작위 미션이 배정된다")
     void generateBoardCreatesBoardWithRandomMissions() {
         // given
         Room room = inProgressRoom(1L, 10L, 3);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(bingoBoardRepository.existsByRoomId(10L)).thenReturn(false);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(bingoBoardRepository.existsByRoomId(10L)).willReturn(false);
         List<Mission> missions = createMissions(9);
-        when(missionRepository.findRandomMissions(9)).thenReturn(missions);
-        when(bingoBoardRepository.save(Mockito.any(BingoBoard.class))).thenAnswer(invocation -> {
+        given(missionRepository.findRandomMissions(9)).willReturn(missions);
+        given(bingoBoardRepository.save(Mockito.any(BingoBoard.class))).willAnswer(invocation -> {
             BingoBoard board = invocation.getArgument(0);
             ReflectionTestUtils.setField(board, "id", 100L);
             return board;
         });
-        when(bingoCellRepository.save(Mockito.any(BingoCell.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        given(bingoCellRepository.save(Mockito.any(BingoCell.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         // when
         BingoBoardResponse response = bingoService.generateBoard(1L, 10L);
@@ -88,9 +97,9 @@ class BingoServiceTest {
     @DisplayName("존재하지 않는 게임방이면 빙고판 생성에 실패한다")
     void generateBoardRejectsMissingRoom() {
         // given
-        when(roomRepository.findById(10L)).thenReturn(Optional.empty());
+        given(roomRepository.findById(10L)).willReturn(Optional.empty());
 
-        // when, then
+        // when & then
         assertErrorCode(() -> bingoService.generateBoard(1L, 10L), ErrorCode.ROOM_NOT_FOUND);
     }
 
@@ -99,9 +108,9 @@ class BingoServiceTest {
     void generateBoardRejectsNonHost() {
         // given
         Room room = inProgressRoom(1L, 10L, 3);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
 
-        // when, then
+        // when & then
         assertErrorCode(() -> bingoService.generateBoard(2L, 10L), ErrorCode.BINGO_BOARD_GENERATE_FORBIDDEN);
     }
 
@@ -111,9 +120,9 @@ class BingoServiceTest {
         // given
         Room room = Room.create(1L, GameMode.SINGLE, 3, 3);
         ReflectionTestUtils.setField(room, "id", 10L);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
 
-        // when, then
+        // when & then
         assertErrorCode(() -> bingoService.generateBoard(1L, 10L), ErrorCode.ROOM_NOT_IN_PROGRESS);
     }
 
@@ -122,10 +131,10 @@ class BingoServiceTest {
     void generateBoardRejectsExistingBoard() {
         // given
         Room room = inProgressRoom(1L, 10L, 3);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(bingoBoardRepository.existsByRoomId(10L)).thenReturn(true);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(bingoBoardRepository.existsByRoomId(10L)).willReturn(true);
 
-        // when, then
+        // when & then
         assertErrorCode(() -> bingoService.generateBoard(1L, 10L), ErrorCode.BINGO_BOARD_ALREADY_EXISTS);
     }
 
@@ -134,11 +143,11 @@ class BingoServiceTest {
     void generateBoardRejectsInsufficientMissions() {
         // given
         Room room = inProgressRoom(1L, 10L, 3);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(bingoBoardRepository.existsByRoomId(10L)).thenReturn(false);
-        when(missionRepository.findRandomMissions(9)).thenReturn(createMissions(8));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(bingoBoardRepository.existsByRoomId(10L)).willReturn(false);
+        given(missionRepository.findRandomMissions(9)).willReturn(createMissions(8));
 
-        // when, then
+        // when & then
         assertErrorCode(() -> bingoService.generateBoard(1L, 10L), ErrorCode.MISSION_POOL_INSUFFICIENT);
     }
 
@@ -147,18 +156,18 @@ class BingoServiceTest {
     void getActiveBoardReturnsCompletedAndCanRenewForHost() {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
         BingoBoard board = activeBoard(100L, 10L, 2);
-        when(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
-                .thenReturn(Optional.of(board));
+        given(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.of(board));
         List<BingoCell> cells = completedCells(board.getId(), 4);
-        when(bingoCellRepository.findAllByBoardId(100L)).thenReturn(cells);
-        when(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).thenReturn(false);
+        given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
+        given(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).willReturn(false);
         // 미션 목록을 셀과 다른 순서로 반환해 id 기반 매핑을 검증한다
         List<Mission> shuffledMissions = new ArrayList<>(missionsForCells(cells));
         Collections.reverse(shuffledMissions);
-        when(missionRepository.findAllById(Mockito.anyIterable())).thenReturn(shuffledMissions);
+        given(missionRepository.findAllById(Mockito.anyIterable())).willReturn(shuffledMissions);
 
         // when
         BingoBoardResponse response = bingoService.getActiveBoard(1L, 10L);
@@ -177,15 +186,15 @@ class BingoServiceTest {
     void getActiveBoardCanRenewFalseForNonHost() {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).thenReturn(true);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(true);
         BingoBoard board = activeBoard(100L, 10L, 2);
-        when(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
-                .thenReturn(Optional.of(board));
+        given(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.of(board));
         List<BingoCell> cells = completedCells(board.getId(), 4);
-        when(bingoCellRepository.findAllByBoardId(100L)).thenReturn(cells);
-        when(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).thenReturn(false);
-        when(missionRepository.findAllById(Mockito.anyIterable())).thenReturn(missionsForCells(cells));
+        given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
+        given(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).willReturn(false);
+        given(missionRepository.findAllById(Mockito.anyIterable())).willReturn(missionsForCells(cells));
 
         // when
         BingoBoardResponse response = bingoService.getActiveBoard(2L, 10L);
@@ -200,15 +209,15 @@ class BingoServiceTest {
     void getActiveBoardReturnsNotCompleted() {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
         BingoBoard board = activeBoard(100L, 10L, 2);
-        when(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
-                .thenReturn(Optional.of(board));
+        given(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.of(board));
         List<BingoCell> cells = completedCells(board.getId(), 4);
-        when(bingoCellRepository.findAllByBoardId(100L)).thenReturn(cells);
-        when(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).thenReturn(true);
-        when(missionRepository.findAllById(Mockito.anyIterable())).thenReturn(missionsForCells(cells));
+        given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
+        given(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).willReturn(true);
+        given(missionRepository.findAllById(Mockito.anyIterable())).willReturn(missionsForCells(cells));
 
         // when
         BingoBoardResponse response = bingoService.getActiveBoard(1L, 10L);
@@ -223,10 +232,10 @@ class BingoServiceTest {
     void getActiveBoardRejectsNonMember() {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 3L)).thenReturn(false);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 3L)).willReturn(false);
 
-        // when, then
+        // when & then
         assertErrorCode(() -> bingoService.getActiveBoard(3L, 10L), ErrorCode.ROOM_MEMBER_FORBIDDEN);
     }
 
@@ -235,12 +244,12 @@ class BingoServiceTest {
     void getActiveBoardRejectsMissingBoard() {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
-        when(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
-                .thenReturn(Optional.empty());
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.empty());
 
-        // when, then
+        // when & then
         assertErrorCode(() -> bingoService.getActiveBoard(1L, 10L), ErrorCode.BINGO_BOARD_NOT_FOUND);
     }
 
@@ -249,15 +258,15 @@ class BingoServiceTest {
     void submitCellSetsPendingStatusWithoutCompleting() {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).thenReturn(true);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(true);
         BingoBoard board = activeBoard(100L, 10L, 2);
-        when(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
-                .thenReturn(Optional.of(board));
+        given(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.of(board));
         BingoCell cell = BingoCell.create(100L, 1L, 0, 0);
         ReflectionTestUtils.setField(cell, "id", 1000L);
-        when(bingoCellRepository.findById(1000L)).thenReturn(Optional.of(cell));
-        when(bingoCellRepository.save(Mockito.any(BingoCell.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        given(bingoCellRepository.findById(1000L)).willReturn(Optional.of(cell));
+        given(bingoCellRepository.save(Mockito.any(BingoCell.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         // when
         bingoService.submitCell(2L, 10L, 1000L, "https://example.com/proof.png");
@@ -268,7 +277,7 @@ class BingoServiceTest {
         assertThat(cell.getVerificationStatus()).isEqualTo(BingoCellVerificationStatus.PENDING);
         assertThat(cell.getRejectionReason()).isNull();
         assertThat(cell.getCompletedAt()).isNull();
-        Mockito.verify(bingoCellRepository).save(cell);
+        then(bingoCellRepository).should().save(cell);
     }
 
     @Test
@@ -276,16 +285,16 @@ class BingoServiceTest {
     void submitCellResetsRejectedCellToPending() {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).thenReturn(true);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(true);
         BingoBoard board = activeBoard(100L, 10L, 2);
-        when(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
-                .thenReturn(Optional.of(board));
+        given(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.of(board));
         BingoCell cell = BingoCell.create(100L, 1L, 0, 0);
         ReflectionTestUtils.setField(cell, "id", 1000L);
         cell.reject("인증 이미지가 조건과 다릅니다.");
-        when(bingoCellRepository.findById(1000L)).thenReturn(Optional.of(cell));
-        when(bingoCellRepository.save(Mockito.any(BingoCell.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        given(bingoCellRepository.findById(1000L)).willReturn(Optional.of(cell));
+        given(bingoCellRepository.save(Mockito.any(BingoCell.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         // when
         bingoService.submitCell(2L, 10L, 1000L, "https://example.com/retry.png");
@@ -301,10 +310,10 @@ class BingoServiceTest {
     void submitCellRejectsNonMember() {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 3L)).thenReturn(false);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 3L)).willReturn(false);
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> bingoService.submitCell(3L, 10L, 1000L, "https://example.com/proof.png"),
                 ErrorCode.ROOM_MEMBER_FORBIDDEN
@@ -316,14 +325,14 @@ class BingoServiceTest {
     void submitCellRejectsMissingCell() {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
         BingoBoard board = activeBoard(100L, 10L, 2);
-        when(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
-                .thenReturn(Optional.of(board));
-        when(bingoCellRepository.findById(1000L)).thenReturn(Optional.empty());
+        given(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.of(board));
+        given(bingoCellRepository.findById(1000L)).willReturn(Optional.empty());
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> bingoService.submitCell(1L, 10L, 1000L, "https://example.com/proof.png"),
                 ErrorCode.BINGO_CELL_NOT_FOUND
@@ -335,16 +344,16 @@ class BingoServiceTest {
     void submitCellRejectsCellFromDifferentBoard() {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).thenReturn(true);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
         BingoBoard board = activeBoard(100L, 10L, 2);
-        when(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
-                .thenReturn(Optional.of(board));
+        given(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.of(board));
         BingoCell cell = BingoCell.create(999L, 1L, 0, 0);
         ReflectionTestUtils.setField(cell, "id", 1000L);
-        when(bingoCellRepository.findById(1000L)).thenReturn(Optional.of(cell));
+        given(bingoCellRepository.findById(1000L)).willReturn(Optional.of(cell));
 
-        // when, then
+        // when & then
         assertErrorCode(
                 () -> bingoService.submitCell(1L, 10L, 1000L, "https://example.com/proof.png"),
                 ErrorCode.BINGO_CELL_NOT_FOUND
@@ -356,21 +365,21 @@ class BingoServiceTest {
     void renewBoardArchivesOldBoardAndIssuesNewOne() {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         BingoBoard activeBoard = activeBoard(100L, 10L, 2);
-        when(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
-                .thenReturn(Optional.of(activeBoard));
-        when(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).thenReturn(false);
+        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.of(activeBoard));
+        given(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).willReturn(false);
         List<Mission> missions = createMissions(4);
-        when(missionRepository.findRandomMissions(4)).thenReturn(missions);
-        when(bingoBoardRepository.save(Mockito.any(BingoBoard.class))).thenAnswer(invocation -> {
+        given(missionRepository.findRandomMissions(4)).willReturn(missions);
+        given(bingoBoardRepository.save(Mockito.any(BingoBoard.class))).willAnswer(invocation -> {
             BingoBoard board = invocation.getArgument(0);
             if (board.getId() == null) {
                 ReflectionTestUtils.setField(board, "id", 200L);
             }
             return board;
         });
-        when(bingoCellRepository.save(Mockito.any(BingoCell.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        given(bingoCellRepository.save(Mockito.any(BingoCell.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         // when
         BingoBoardResponse response = bingoService.renewBoard(1L, 10L);
@@ -381,7 +390,7 @@ class BingoServiceTest {
         assertThat(response.roomId()).isEqualTo(10L);
         assertThat(response.status()).isEqualTo(BingoBoardStatus.IN_PROGRESS);
         assertThat(response.cells()).hasSize(4);
-        Mockito.verify(bingoBoardRepository).save(activeBoard);
+        then(bingoBoardRepository).should().save(activeBoard);
     }
 
     @Test
@@ -389,13 +398,13 @@ class BingoServiceTest {
     void renewBoardRejectsIncompleteBoard() {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         BingoBoard activeBoard = activeBoard(100L, 10L, 2);
-        when(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
-                .thenReturn(Optional.of(activeBoard));
-        when(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).thenReturn(true);
+        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.of(activeBoard));
+        given(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).willReturn(true);
 
-        // when, then
+        // when & then
         assertErrorCode(() -> bingoService.renewBoard(1L, 10L), ErrorCode.BINGO_BOARD_NOT_COMPLETED);
         assertThat(activeBoard.getStatus()).isEqualTo(BingoBoardStatus.IN_PROGRESS);
     }
@@ -405,12 +414,12 @@ class BingoServiceTest {
     void renewBoardRejectsNonHost() {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         BingoBoard activeBoard = activeBoard(100L, 10L, 2);
-        when(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
-                .thenReturn(Optional.of(activeBoard));
+        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.of(activeBoard));
 
-        // when, then
+        // when & then
         assertErrorCode(() -> bingoService.renewBoard(2L, 10L), ErrorCode.BINGO_BOARD_RENEWAL_FORBIDDEN);
     }
 
@@ -420,9 +429,9 @@ class BingoServiceTest {
         // given
         Room room = Room.create(1L, GameMode.SINGLE, 3, 2);
         ReflectionTestUtils.setField(room, "id", 10L);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
 
-        // when, then
+        // when & then
         assertErrorCode(() -> bingoService.renewBoard(1L, 10L), ErrorCode.ROOM_NOT_IN_PROGRESS);
     }
 
@@ -432,9 +441,9 @@ class BingoServiceTest {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.COMPLETED);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
 
-        // when, then
+        // when & then
         assertErrorCode(() -> bingoService.renewBoard(1L, 10L), ErrorCode.ROOM_NOT_IN_PROGRESS);
     }
 
@@ -443,11 +452,11 @@ class BingoServiceTest {
     void renewBoardRejectsMissingBoard() {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
-        when(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
-                .thenReturn(Optional.empty());
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.empty());
 
-        // when, then
+        // when & then
         assertErrorCode(() -> bingoService.renewBoard(1L, 10L), ErrorCode.BINGO_BOARD_NOT_FOUND);
     }
 
@@ -456,17 +465,17 @@ class BingoServiceTest {
     void renewBoardRejectsInsufficientMissionsAndKeepsOldBoard() {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         BingoBoard activeBoard = activeBoard(100L, 10L, 2);
-        when(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
-                .thenReturn(Optional.of(activeBoard));
-        when(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).thenReturn(false);
-        when(missionRepository.findRandomMissions(4)).thenReturn(createMissions(3));
+        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.of(activeBoard));
+        given(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).willReturn(false);
+        given(missionRepository.findRandomMissions(4)).willReturn(createMissions(3));
 
-        // when, then
+        // when & then
         assertErrorCode(() -> bingoService.renewBoard(1L, 10L), ErrorCode.MISSION_POOL_INSUFFICIENT);
         assertThat(activeBoard.getStatus()).isEqualTo(BingoBoardStatus.IN_PROGRESS);
-        Mockito.verify(bingoBoardRepository, Mockito.never()).save(activeBoard);
+        then(bingoBoardRepository).should(Mockito.never()).save(activeBoard);
     }
 
     @Test
@@ -474,30 +483,30 @@ class BingoServiceTest {
     void autoRenewBoardForcesRenewalForOldIncompleteBoard() {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         BingoBoard activeBoard = activeBoard(100L, 10L, 2);
         ReflectionTestUtils.setField(activeBoard, "createdAt", LocalDateTime.now().minusDays(8));
-        when(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
-                .thenReturn(Optional.of(activeBoard));
-        when(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).thenReturn(true);
+        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.of(activeBoard));
+        given(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).willReturn(true);
         List<Mission> missions = createMissions(4);
-        when(missionRepository.findRandomMissions(4)).thenReturn(missions);
-        when(bingoBoardRepository.save(Mockito.any(BingoBoard.class))).thenAnswer(invocation -> {
+        given(missionRepository.findRandomMissions(4)).willReturn(missions);
+        given(bingoBoardRepository.save(Mockito.any(BingoBoard.class))).willAnswer(invocation -> {
             BingoBoard board = invocation.getArgument(0);
             if (board.getId() == null) {
                 ReflectionTestUtils.setField(board, "id", 200L);
             }
             return board;
         });
-        when(bingoCellRepository.save(Mockito.any(BingoCell.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        given(bingoCellRepository.save(Mockito.any(BingoCell.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         // when
         bingoService.autoRenewBoard(10L);
 
         // then
         assertThat(activeBoard.getStatus()).isEqualTo(BingoBoardStatus.EXPIRED);
-        Mockito.verify(bingoBoardRepository).save(activeBoard);
-        Mockito.verify(missionRepository).findRandomMissions(4);
+        then(bingoBoardRepository).should().save(activeBoard);
+        then(missionRepository).should().findRandomMissions(4);
     }
 
     @Test
@@ -505,30 +514,30 @@ class BingoServiceTest {
     void autoRenewBoardForcesRenewalForOldCompletedBoard() {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         BingoBoard activeBoard = activeBoard(100L, 10L, 2);
         ReflectionTestUtils.setField(activeBoard, "createdAt", LocalDateTime.now().minusDays(8));
-        when(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
-                .thenReturn(Optional.of(activeBoard));
-        when(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).thenReturn(false);
+        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.of(activeBoard));
+        given(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).willReturn(false);
         List<Mission> missions = createMissions(4);
-        when(missionRepository.findRandomMissions(4)).thenReturn(missions);
-        when(bingoBoardRepository.save(Mockito.any(BingoBoard.class))).thenAnswer(invocation -> {
+        given(missionRepository.findRandomMissions(4)).willReturn(missions);
+        given(bingoBoardRepository.save(Mockito.any(BingoBoard.class))).willAnswer(invocation -> {
             BingoBoard board = invocation.getArgument(0);
             if (board.getId() == null) {
                 ReflectionTestUtils.setField(board, "id", 200L);
             }
             return board;
         });
-        when(bingoCellRepository.save(Mockito.any(BingoCell.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        given(bingoCellRepository.save(Mockito.any(BingoCell.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         // when
         bingoService.autoRenewBoard(10L);
 
         // then
         assertThat(activeBoard.getStatus()).isEqualTo(BingoBoardStatus.EXPIRED);
-        Mockito.verify(bingoBoardRepository).save(activeBoard);
-        Mockito.verify(missionRepository).findRandomMissions(4);
+        then(bingoBoardRepository).should().save(activeBoard);
+        then(missionRepository).should().findRandomMissions(4);
     }
 
     @Test
@@ -536,19 +545,19 @@ class BingoServiceTest {
     void autoRenewBoardSkipsRecentBoard() {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
-        when(roomRepository.findById(10L)).thenReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         BingoBoard activeBoard = activeBoard(100L, 10L, 2);
         ReflectionTestUtils.setField(activeBoard, "createdAt", LocalDateTime.now().minusDays(3));
-        when(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
-                .thenReturn(Optional.of(activeBoard));
+        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.of(activeBoard));
 
         // when
         bingoService.autoRenewBoard(10L);
 
         // then
         assertThat(activeBoard.getStatus()).isEqualTo(BingoBoardStatus.IN_PROGRESS);
-        Mockito.verify(bingoBoardRepository, Mockito.never()).save(Mockito.any(BingoBoard.class));
-        Mockito.verify(missionRepository, Mockito.never()).findRandomMissions(Mockito.anyInt());
+        then(bingoBoardRepository).should(Mockito.never()).save(Mockito.any(BingoBoard.class));
+        then(missionRepository).should(Mockito.never()).findRandomMissions(Mockito.anyInt());
     }
 
     private BingoBoard activeBoard(Long boardId, Long roomId, int boardSize) {

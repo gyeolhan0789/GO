@@ -1,7 +1,7 @@
 package com.wecandoit.history.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
+import static org.mockito.BDDMockito.given;
 
 import com.wecandoit.history.controller.response.HistoryResponse;
 import com.wecandoit.history.domain.HistoryPeriod;
@@ -11,21 +11,27 @@ import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 @DisplayName("히스토리 조회 서비스")
+@ExtendWith(MockitoExtension.class)
 class HistoryReadServiceTest {
 
-    private final MemberHistoryRepository memberHistoryRepository = Mockito.mock(MemberHistoryRepository.class);
-    private final HistoryReadService historyReadService = new HistoryReadService(memberHistoryRepository);
+    @Mock
+    private MemberHistoryRepository memberHistoryRepository;
+    @InjectMocks
+    private HistoryReadService historyReadService;
 
     @Test
     @DisplayName("하루 히스토리는 기준 날짜 하루만 반환한다")
     void getHistoriesReturnsDayHistory() {
         // given
         LocalDate date = LocalDate.of(2026, 7, 23);
-        when(memberHistoryRepository.findAllByMemberIdAndHistoryDateBetweenOrderByHistoryDateAsc(1L, date, date))
-                .thenReturn(List.of(MemberHistory.create(1L, date, 1_000, 700, 50)));
+        given(memberHistoryRepository.findAllByMemberIdAndHistoryDateBetweenOrderByHistoryDateAsc(1L, date, date))
+                .willReturn(List.of(MemberHistory.create(1L, date, 1_000, 700, 50)));
 
         // when
         HistoryResponse response = historyReadService.getHistories(1L, HistoryPeriod.DAY, date);
@@ -49,11 +55,11 @@ class HistoryReadServiceTest {
         LocalDate date = LocalDate.of(2026, 7, 23);
         LocalDate startDate = LocalDate.of(2026, 7, 20);
         LocalDate endDate = LocalDate.of(2026, 7, 26);
-        when(memberHistoryRepository.findAllByMemberIdAndHistoryDateBetweenOrderByHistoryDateAsc(
+        given(memberHistoryRepository.findAllByMemberIdAndHistoryDateBetweenOrderByHistoryDateAsc(
                 1L,
                 startDate,
                 endDate
-        )).thenReturn(List.of(
+        )).willReturn(List.of(
                 MemberHistory.create(1L, LocalDate.of(2026, 7, 20), 1_000, 700, 50),
                 MemberHistory.create(1L, LocalDate.of(2026, 7, 23), 2_000, 1_400, 100)
         ));
@@ -83,11 +89,11 @@ class HistoryReadServiceTest {
         LocalDate date = LocalDate.of(2026, 7, 23);
         LocalDate startDate = LocalDate.of(2026, 7, 1);
         LocalDate endDate = LocalDate.of(2026, 7, 31);
-        when(memberHistoryRepository.findAllByMemberIdAndHistoryDateBetweenOrderByHistoryDateAsc(
+        given(memberHistoryRepository.findAllByMemberIdAndHistoryDateBetweenOrderByHistoryDateAsc(
                 1L,
                 startDate,
                 endDate
-        )).thenReturn(List.of(MemberHistory.create(1L, endDate, 1_000, 700, 50)));
+        )).willReturn(List.of(MemberHistory.create(1L, endDate, 1_000, 700, 50)));
 
         // when
         HistoryResponse response = historyReadService.getHistories(1L, HistoryPeriod.MONTH, date);
@@ -109,11 +115,11 @@ class HistoryReadServiceTest {
         LocalDate date = LocalDate.of(2026, 7, 23);
         LocalDate startDate = LocalDate.of(2026, 7, 20);
         LocalDate endDate = LocalDate.of(2026, 7, 26);
-        when(memberHistoryRepository.findAllByMemberIdAndHistoryDateBetweenOrderByHistoryDateAsc(
+        given(memberHistoryRepository.findAllByMemberIdAndHistoryDateBetweenOrderByHistoryDateAsc(
                 1L,
                 startDate,
                 endDate
-        )).thenReturn(List.of());
+        )).willReturn(List.of());
 
         // when
         HistoryResponse response = historyReadService.getHistories(1L, HistoryPeriod.WEEK, date);

@@ -1,9 +1,9 @@
 package com.wecandoit.history.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.wecandoit.history.controller.request.HistorySaveRequest;
 import com.wecandoit.history.domain.MemberHistory;
@@ -12,14 +12,21 @@ import java.time.LocalDate;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 @DisplayName("히스토리 커맨드 서비스")
+@ExtendWith(MockitoExtension.class)
 class HistoryCommandServiceTest {
 
-    private final MemberHistoryRepository memberHistoryRepository = Mockito.mock(MemberHistoryRepository.class);
-    private final HistoryCommandService historyCommandService = new HistoryCommandService(memberHistoryRepository);
+    @Mock
+    private MemberHistoryRepository memberHistoryRepository;
+    @InjectMocks
+    private HistoryCommandService historyCommandService;
 
     @Test
     @DisplayName("같은 날짜 기록이 없으면 새 히스토리를 저장한다")
@@ -27,14 +34,14 @@ class HistoryCommandServiceTest {
         // given
         LocalDate historyDate = LocalDate.of(2026, 7, 23);
         HistorySaveRequest request = new HistorySaveRequest(historyDate, 1_000, 700, 50);
-        when(memberHistoryRepository.findByMemberIdAndHistoryDate(1L, historyDate)).thenReturn(Optional.empty());
+        given(memberHistoryRepository.findByMemberIdAndHistoryDate(1L, historyDate)).willReturn(Optional.empty());
 
         // when
         historyCommandService.saveHistory(1L, request);
 
         // then
         ArgumentCaptor<MemberHistory> captor = ArgumentCaptor.forClass(MemberHistory.class);
-        verify(memberHistoryRepository).save(captor.capture());
+        then(memberHistoryRepository).should().save(captor.capture());
 
         MemberHistory memberHistory = captor.getValue();
         assertThat(memberHistory.getMemberId()).isEqualTo(1L);
@@ -51,8 +58,8 @@ class HistoryCommandServiceTest {
         LocalDate historyDate = LocalDate.of(2026, 7, 23);
         HistorySaveRequest request = new HistorySaveRequest(historyDate, 500, 300, 20);
         MemberHistory memberHistory = MemberHistory.create(1L, historyDate, 1_000, 700, 50);
-        when(memberHistoryRepository.findByMemberIdAndHistoryDate(1L, historyDate))
-                .thenReturn(Optional.of(memberHistory));
+        given(memberHistoryRepository.findByMemberIdAndHistoryDate(1L, historyDate))
+                .willReturn(Optional.of(memberHistory));
 
         // when
         historyCommandService.saveHistory(1L, request);
@@ -70,13 +77,13 @@ class HistoryCommandServiceTest {
         LocalDate historyDate = LocalDate.of(2026, 7, 23);
         HistorySaveRequest request = new HistorySaveRequest(historyDate, 500, 300, 20);
         MemberHistory memberHistory = MemberHistory.create(1L, historyDate, 1_000, 700, 50);
-        when(memberHistoryRepository.findByMemberIdAndHistoryDate(1L, historyDate))
-                .thenReturn(Optional.of(memberHistory));
+        given(memberHistoryRepository.findByMemberIdAndHistoryDate(1L, historyDate))
+                .willReturn(Optional.of(memberHistory));
 
         // when
         historyCommandService.saveHistory(1L, request);
 
         // then
-        verify(memberHistoryRepository, never()).save(Mockito.any(MemberHistory.class));
+        then(memberHistoryRepository).should(never()).save(Mockito.any(MemberHistory.class));
     }
 }

@@ -5,10 +5,10 @@ import static com.wecandoit.item.domain.MemberItemFixture.memberItem;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
@@ -20,23 +20,35 @@ import com.wecandoit.item.repository.MemberItemRepository;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
-import org.mockito.Mockito;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+@ExtendWith(MockitoExtension.class)
 @DisplayName("상점 아이템 구매 서비스")
 class ShopItemCommandServiceTest {
 
-    private final MemberRepository memberRepository = Mockito.mock(MemberRepository.class);
-    private final ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
-    private final MemberItemRepository memberItemRepository = Mockito.mock(MemberItemRepository.class);
-    private final ShopItemCommandService shopItemCommandService = new ShopItemCommandService(
-            memberRepository,
-            itemRepository,
-            memberItemRepository
-    );
+    @Mock
+    private MemberRepository memberRepository;
+    @Mock
+    private ItemRepository itemRepository;
+    @Mock
+    private MemberItemRepository memberItemRepository;
+    private ShopItemCommandService shopItemCommandService;
+
+    @BeforeEach
+    void setUp() {
+        shopItemCommandService = new ShopItemCommandService(
+                memberRepository,
+                itemRepository,
+                memberItemRepository
+        );
+    }
 
     @Test
     @DisplayName("아이템을 구매하면 캐시를 차감하고 보유 아이템을 생성한다")
@@ -46,10 +58,10 @@ class ShopItemCommandServiceTest {
         Item item = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
         ReflectionTestUtils.setField(item, "price", 1_000L);
         MemberItem savedMemberItem = memberItem(15L, 1L, 100L);
-        when(memberRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(member));
-        when(itemRepository.findById(100L)).thenReturn(Optional.of(item));
-        when(memberItemRepository.existsByMemberIdAndItemId(1L, 100L)).thenReturn(false);
-        when(memberItemRepository.save(any(MemberItem.class))).thenReturn(savedMemberItem);
+        given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(member));
+        given(itemRepository.findById(100L)).willReturn(Optional.of(item));
+        given(memberItemRepository.existsByMemberIdAndItemId(1L, 100L)).willReturn(false);
+        given(memberItemRepository.save(any(MemberItem.class))).willReturn(savedMemberItem);
 
         // when
         ItemPurchaseResponse response = shopItemCommandService.purchaseItem(1L, 100L);
@@ -58,10 +70,10 @@ class ShopItemCommandServiceTest {
         assertThat(member.getCash()).isEqualTo(4_000L);
         assertThat(response).isEqualTo(new ItemPurchaseResponse(15L, 100L, 4_000L));
         InOrder inOrder = inOrder(memberRepository, itemRepository, memberItemRepository);
-        inOrder.verify(memberRepository).findByIdForUpdate(1L);
-        inOrder.verify(itemRepository).findById(100L);
-        inOrder.verify(memberItemRepository).existsByMemberIdAndItemId(1L, 100L);
-        inOrder.verify(memberItemRepository).save(any(MemberItem.class));
+        then(memberRepository).should(inOrder).findByIdForUpdate(1L);
+        then(itemRepository).should(inOrder).findById(100L);
+        then(memberItemRepository).should(inOrder).existsByMemberIdAndItemId(1L, 100L);
+        then(memberItemRepository).should(inOrder).save(any(MemberItem.class));
     }
 
     @Test
@@ -71,11 +83,11 @@ class ShopItemCommandServiceTest {
         Member member = member(1L, 1_000L);
         Item item = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
         ReflectionTestUtils.setField(item, "price", 1_000L);
-        when(memberRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(member));
-        when(itemRepository.findById(100L)).thenReturn(Optional.of(item));
-        when(memberItemRepository.existsByMemberIdAndItemId(1L, 100L)).thenReturn(false);
-        when(memberItemRepository.save(any(MemberItem.class)))
-                .thenReturn(memberItem(15L, 1L, 100L));
+        given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(member));
+        given(itemRepository.findById(100L)).willReturn(Optional.of(item));
+        given(memberItemRepository.existsByMemberIdAndItemId(1L, 100L)).willReturn(false);
+        given(memberItemRepository.save(any(MemberItem.class)))
+                .willReturn(memberItem(15L, 1L, 100L));
 
         // when
         ItemPurchaseResponse response = shopItemCommandService.purchaseItem(1L, 100L);
@@ -92,14 +104,14 @@ class ShopItemCommandServiceTest {
         Member member = member(1L, 999L);
         Item item = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
         ReflectionTestUtils.setField(item, "price", 1_000L);
-        when(memberRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(member));
-        when(itemRepository.findById(100L)).thenReturn(Optional.of(item));
-        when(memberItemRepository.existsByMemberIdAndItemId(1L, 100L)).thenReturn(false);
+        given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(member));
+        given(itemRepository.findById(100L)).willReturn(Optional.of(item));
+        given(memberItemRepository.existsByMemberIdAndItemId(1L, 100L)).willReturn(false);
 
-        // when, then
+        // when & then
         assertErrorCode(() -> shopItemCommandService.purchaseItem(1L, 100L), ErrorCode.INSUFFICIENT_CASH);
         assertThat(member.getCash()).isEqualTo(999L);
-        verify(memberItemRepository, never()).save(any(MemberItem.class));
+        then(memberItemRepository).should(never()).save(any(MemberItem.class));
     }
 
     @Test
@@ -108,14 +120,14 @@ class ShopItemCommandServiceTest {
         // given
         Member member = member(1L, 5_000L);
         Item item = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
-        when(memberRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(member));
-        when(itemRepository.findById(100L)).thenReturn(Optional.of(item));
-        when(memberItemRepository.existsByMemberIdAndItemId(1L, 100L)).thenReturn(true);
+        given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(member));
+        given(itemRepository.findById(100L)).willReturn(Optional.of(item));
+        given(memberItemRepository.existsByMemberIdAndItemId(1L, 100L)).willReturn(true);
 
-        // when, then
+        // when & then
         assertErrorCode(() -> shopItemCommandService.purchaseItem(1L, 100L), ErrorCode.ITEM_ALREADY_OWNED);
         assertThat(member.getCash()).isEqualTo(5_000L);
-        verify(memberItemRepository, never()).save(any(MemberItem.class));
+        then(memberItemRepository).should(never()).save(any(MemberItem.class));
     }
 
     @Test
@@ -123,25 +135,25 @@ class ShopItemCommandServiceTest {
     void purchaseItemRejectsMissingItem() {
         // given
         Member member = member(1L, 5_000L);
-        when(memberRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(member));
-        when(itemRepository.findById(100L)).thenReturn(Optional.empty());
+        given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(member));
+        given(itemRepository.findById(100L)).willReturn(Optional.empty());
 
-        // when, then
+        // when & then
         assertErrorCode(() -> shopItemCommandService.purchaseItem(1L, 100L), ErrorCode.ITEM_NOT_FOUND);
-        verify(memberItemRepository, never()).existsByMemberIdAndItemId(1L, 100L);
-        verify(memberItemRepository, never()).save(any(MemberItem.class));
+        then(memberItemRepository).should(never()).existsByMemberIdAndItemId(1L, 100L);
+        then(memberItemRepository).should(never()).save(any(MemberItem.class));
     }
 
     @Test
     @DisplayName("존재하지 않는 회원은 아이템을 구매할 수 없다")
     void purchaseItemRejectsMissingMember() {
         // given
-        when(memberRepository.findByIdForUpdate(1L)).thenReturn(Optional.empty());
+        given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.empty());
 
-        // when, then
+        // when & then
         assertErrorCode(() -> shopItemCommandService.purchaseItem(1L, 100L), ErrorCode.MEMBER_NOT_FOUND);
-        verify(itemRepository, never()).findById(100L);
-        verify(memberItemRepository, never()).save(any(MemberItem.class));
+        then(itemRepository).should(never()).findById(100L);
+        then(memberItemRepository).should(never()).save(any(MemberItem.class));
     }
 
     private Member member(Long id, long cash) {

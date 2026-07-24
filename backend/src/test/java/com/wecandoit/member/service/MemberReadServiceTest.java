@@ -2,7 +2,7 @@ package com.wecandoit.member.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.when;
+import static org.mockito.BDDMockito.given;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
@@ -15,23 +15,31 @@ import com.wecandoit.member.dto.MemberSearchResponse;
 import com.wecandoit.member.repository.MemberRepository;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatchers;
-import org.mockito.Mockito;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @DisplayName("회원 조회 서비스")
+@ExtendWith(MockitoExtension.class)
 class MemberReadServiceTest {
 
-    private final MemberRepository memberRepository = Mockito.mock(MemberRepository.class);
-    private final FriendRepository friendRepository = Mockito.mock(FriendRepository.class);
-    private final FriendRequestRepository friendRequestRepository = Mockito.mock(FriendRequestRepository.class);
-    private final MemberReadService memberReadService = new MemberReadService(
-            memberRepository,
-            friendRepository,
-            friendRequestRepository
-    );
+    @Mock
+    private MemberRepository memberRepository;
+    @Mock
+    private FriendRepository friendRepository;
+    @Mock
+    private FriendRequestRepository friendRequestRepository;
+    private MemberReadService memberReadService;
+
+    @BeforeEach
+    void setUp() {
+        memberReadService = new MemberReadService(memberRepository, friendRepository, friendRequestRepository);
+    }
 
     @Test
     @DisplayName("닉네임 부분 검색 결과에 현재 관계 상태를 포함한다")
@@ -42,12 +50,12 @@ class MemberReadServiceTest {
         Member sent = member(3L, "산책메이트");
         Member received = member(4L, "산책동료");
         Member none = member(5L, "산책초보");
-        when(memberRepository.findByNicknameContainingIgnoreCaseAndIdNot("산책", 1L))
-                .thenReturn(List.of(friend, sent, received, none));
-        when(friendRepository.findFriendMemberIds(ArgumentMatchers.eq(1L), ArgumentMatchers.anySet()))
-                .thenReturn(List.of(2L));
-        when(friendRequestRepository.findPendingRelatedTo(ArgumentMatchers.eq(1L), ArgumentMatchers.anySet()))
-                .thenReturn(List.of(
+        given(memberRepository.findByNicknameContainingIgnoreCaseAndIdNot("산책", 1L))
+                .willReturn(List.of(friend, sent, received, none));
+        given(friendRepository.findFriendMemberIds(ArgumentMatchers.eq(1L), ArgumentMatchers.anySet()))
+                .willReturn(List.of(2L));
+        given(friendRequestRepository.findPendingRelatedTo(ArgumentMatchers.eq(1L), ArgumentMatchers.anySet()))
+                .willReturn(List.of(
                         FriendRequest.create(loginMember, sent),
                         FriendRequest.create(received, loginMember)
                 ));
@@ -72,8 +80,8 @@ class MemberReadServiceTest {
         // given
         Member firstMember = member(1L, "첫번째");
         Member secondMember = member(2L, "두번째");
-        when(memberRepository.findAllById(ArgumentMatchers.anyIterable()))
-                .thenReturn(List.of(firstMember, secondMember));
+        given(memberRepository.findAllById(ArgumentMatchers.anyIterable()))
+                .willReturn(List.of(firstMember, secondMember));
 
         // when
         Map<Long, String> nicknamesById = memberReadService.getNicknamesByIds(List.of(1L, 2L));
@@ -89,9 +97,9 @@ class MemberReadServiceTest {
     void getNicknamesByIdsRejectsMissingMember() {
         // given
         Member member = member(1L, "첫번째");
-        when(memberRepository.findAllById(ArgumentMatchers.anyIterable())).thenReturn(List.of(member));
+        given(memberRepository.findAllById(ArgumentMatchers.anyIterable())).willReturn(List.of(member));
 
-        // when, then
+        // when & then
         assertThatThrownBy(() -> memberReadService.getNicknamesByIds(List.of(1L, 2L)))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
