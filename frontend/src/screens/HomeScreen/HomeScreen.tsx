@@ -1,11 +1,15 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { Screen } from '../../shared/components/Screen/Screen';
+
 export function HomeScreen() {
   return (
-    <View style={styles.content}>
-      <Text style={styles.title}>Home</Text>
-      <Text style={styles.description}>React Native 앱이 준비되었습니다.</Text>
-    </View>
+    <Screen>
+      <View style={styles.content}>
+        <Text style={styles.title}>Home</Text>
+        <Text style={styles.description}>React Native 앱이 준비되었습니다.</Text>
+      </View>
+    </Screen>
   );
 }
 
