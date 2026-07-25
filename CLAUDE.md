@@ -19,4 +19,4 @@ When working on Java Spring Boot backend code, follow:
 
 ## Frontend
 
-When frontend conventions are added, follow the files under `convention/frontend/`.
+When working on the React Native frontend code, follow [frontend/AGENTS.md](frontend/AGENTS.md).
