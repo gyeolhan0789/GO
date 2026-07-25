@@ -5,7 +5,7 @@ import { radius } from '../../constants/radius';
 import { spacing } from '../../constants/spacing';
 import { fontFamily } from '../../constants/typography';
 
-type BadgeVariant = 'success' | 'highlight';
+type BadgeVariant = 'success' | 'highlight' | 'info' | 'danger';
 
 type BadgeProps = {
   label: string;
@@ -13,29 +13,20 @@ type BadgeProps = {
   showDot?: boolean;
 };
 
+const VARIANT_COLORS: Record<BadgeVariant, { bg: string; text: string }> = {
+  success: { bg: colors.successBg, text: colors.successText },
+  highlight: { bg: colors.highlightBg, text: colors.ink },
+  info: { bg: colors.infoBg, text: colors.infoText },
+  danger: { bg: colors.dangerBg, text: colors.danger },
+};
+
 export function Badge({ label, variant = 'success', showDot = false }: BadgeProps) {
-  const isSuccess = variant === 'success';
+  const { bg, text } = VARIANT_COLORS[variant];
 
   return (
-    <View
-      style={[
-        styles.badge,
-        { backgroundColor: isSuccess ? colors.successBg : colors.highlightBg },
-      ]}
-    >
-      {showDot ? (
-        <View
-          style={[
-            styles.dot,
-            { backgroundColor: isSuccess ? colors.successText : colors.ink },
-          ]}
-        />
-      ) : null}
-      <Text
-        style={[styles.label, { color: isSuccess ? colors.successText : colors.ink }]}
-      >
-        {label}
-      </Text>
+    <View style={[styles.badge, { backgroundColor: bg }]}>
+      {showDot ? <View style={[styles.dot, { backgroundColor: text }]} /> : null}
+      <Text style={[styles.label, { color: text }]}>{label}</Text>
     </View>
   );
 }

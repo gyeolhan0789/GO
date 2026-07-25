@@ -8,7 +8,10 @@ export const colors = {
   highlightBg: '#FBC02D',
   neutralBg: '#EFEAD9',
   danger: '#B3261E',
+  dangerBg: '#FDE7E7',
   muted: '#9CA3AF',
+  infoBg: '#E3EDF7',
+  infoText: '#2E5A8C',
 } as const;
 
 // Per-member identity colors for shared bingo boards (who completed which
