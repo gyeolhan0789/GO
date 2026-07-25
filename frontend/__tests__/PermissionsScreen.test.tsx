@@ -86,7 +86,7 @@ describe('PermissionsScreen', () => {
     expect(texts).toContain('권한 허용하기');
   });
 
-  test('허용 버튼을 누르면 권한을 요청하고, 이후 시작하기로 Main에 진입한다', async () => {
+  test('허용 버튼을 누르면 권한을 요청하고, 이후 시작하기로 로그인에 진입한다', async () => {
     const tree = await renderScreen();
 
     const allowButton = tree.root.find(
@@ -105,7 +105,7 @@ describe('PermissionsScreen', () => {
     });
     expect(mockReset).toHaveBeenCalledWith({
       index: 0,
-      routes: [{ name: 'Main' }],
+      routes: [{ name: 'Login' }],
     });
   });
 });

@@ -48,7 +48,12 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
 
     mutation.mutate(
       { email: email.trim(), password },
-      { onSuccess: () => navigation.popTo('Main') },
+      // 권한 화면에서 reset으로 진입하면 스택에 Main이 없다. 홈에서 들어온
+      // 경우까지 한 가지로 처리하려고 popTo 대신 reset을 쓴다.
+      {
+        onSuccess: () =>
+          navigation.reset({ index: 0, routes: [{ name: 'Main' }] }),
+      },
     );
   }
 
