@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '../../constants/colors';
 import { radius } from '../../constants/radius';
+import { shadow } from '../../constants/shadow';
 import { spacing } from '../../constants/spacing';
 import { fontFamily } from '../../constants/typography';
 
@@ -23,21 +24,38 @@ export function SegmentedControl<T extends string>({
 }: SegmentedControlProps<T>) {
   return (
     <View style={styles.container}>
-      {options.map((option) => {
-        const isActive = option.value === value;
+      {options.map((option) => (
+        <Segment
+          key={option.value}
+          label={option.label}
+          isActive={option.value === value}
+          onPress={() => onChange(option.value)}
+        />
+      ))}
+    </View>
+  );
+}
 
-        return (
-          <Pressable
-            key={option.value}
-            onPress={() => onChange(option.value)}
-            style={[styles.segment, isActive && styles.segmentActive]}
-          >
-            <Text style={[styles.label, isActive && styles.labelActive]}>
-              {option.label}
-            </Text>
-          </Pressable>
-        );
-      })}
+function Segment({
+  label,
+  isActive,
+  onPress,
+}: {
+  label: string;
+  isActive: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <View style={styles.wrapper}>
+      <View style={styles.shadowBox} />
+      <Pressable
+        onPress={onPress}
+        style={[styles.segment, isActive && styles.segmentActive]}
+      >
+        <Text style={[styles.label, isActive && styles.labelActive]}>
+          {label}
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -47,8 +65,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
   },
-  segment: {
+  wrapper: {
     flex: 1,
+    position: 'relative',
+  },
+  shadowBox: {
+    position: 'absolute',
+    top: shadow.offset,
+    left: shadow.offset,
+    width: '100%',
+    height: '100%',
+    borderRadius: radius.sm,
+    backgroundColor: colors.ink,
+  },
+  segment: {
     alignItems: 'center',
     justifyContent: 'center',
     height: 44,

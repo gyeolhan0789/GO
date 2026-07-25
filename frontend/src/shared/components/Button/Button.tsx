@@ -3,6 +3,7 @@ import Ionicons, { type IoniconsIconName } from '@react-native-vector-icons/ioni
 
 import { colors } from '../../constants/colors';
 import { radius } from '../../constants/radius';
+import { shadow } from '../../constants/shadow';
 import { spacing } from '../../constants/spacing';
 import { fontFamily } from '../../constants/typography';
 
@@ -26,39 +27,54 @@ export function Button({
   const isPrimary = variant === 'primary';
 
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={({ pressed }) => [
-        styles.base,
-        isPrimary ? styles.primary : styles.secondary,
-        disabled && styles.disabled,
-        pressed && !disabled && styles.pressed,
-      ]}
-    >
-      <View style={styles.content}>
-        {icon ? (
-          <Ionicons
-            name={icon}
-            size={20}
-            color={isPrimary ? colors.surface : colors.ink}
-            style={styles.icon}
-          />
-        ) : null}
-        <Text
-          style={[
-            styles.label,
-            isPrimary ? styles.labelPrimary : styles.labelSecondary,
-          ]}
-        >
-          {label}
-        </Text>
-      </View>
-    </Pressable>
+    <View style={styles.wrapper}>
+      <View style={styles.shadowBox} />
+      <Pressable
+        onPress={onPress}
+        disabled={disabled}
+        style={({ pressed }) => [
+          styles.base,
+          isPrimary ? styles.primary : styles.secondary,
+          disabled && styles.disabled,
+          pressed && !disabled && styles.pressed,
+        ]}
+      >
+        <View style={styles.content}>
+          {icon ? (
+            <Ionicons
+              name={icon}
+              size={20}
+              color={isPrimary ? colors.surface : colors.ink}
+              style={styles.icon}
+            />
+          ) : null}
+          <Text
+            style={[
+              styles.label,
+              isPrimary ? styles.labelPrimary : styles.labelSecondary,
+            ]}
+          >
+            {label}
+          </Text>
+        </View>
+      </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    position: 'relative',
+  },
+  shadowBox: {
+    position: 'absolute',
+    top: shadow.offset,
+    left: shadow.offset,
+    width: '100%',
+    height: '100%',
+    borderRadius: radius.md,
+    backgroundColor: colors.ink,
+  },
   base: {
     height: 56,
     borderRadius: radius.md,
@@ -77,7 +93,10 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   pressed: {
-    opacity: 0.8,
+    transform: [
+      { translateX: shadow.offset / 2 },
+      { translateY: shadow.offset / 2 },
+    ],
   },
   content: {
     flexDirection: 'row',
