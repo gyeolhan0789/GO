@@ -1,6 +1,8 @@
 import { StyleSheet, View } from 'react-native';
 import Ionicons, { type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 
+import { shadow } from '../../constants/shadow';
+
 type TabBarIconProps = {
   name: IoniconsIconName;
   focused: boolean;
@@ -8,7 +10,7 @@ type TabBarIconProps = {
 
 const ICON_SIZE = 26;
 const BOX_SIZE = 52;
-const SHADOW_OFFSET = 4;
+const SHADOW_OFFSET = shadow.offset;
 
 const ACTIVE_BACKGROUND_COLOR = '#E8F5E9';
 const ACTIVE_ICON_COLOR = '#2C6A47';
