@@ -84,7 +84,7 @@ class BingoBoardRenewalSchedulerTest {
     }
 
     private Room inProgressRoom(Long roomId) {
-        Room room = Room.create(1L, GameMode.SINGLE, 3, 3);
+        Room room = Room.create(1L, GameMode.SINGLE, 3, 3, null);
         ReflectionTestUtils.setField(room, "id", roomId);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         return room;
