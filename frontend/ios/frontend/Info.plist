@@ -57,6 +57,9 @@
 	<key>UIAppFonts</key>
 	<array>
 		<string>BMDOHYEON.ttf</string>
+		<string>Galmuri11-Bold.ttf</string>
+		<string>Galmuri11-Condensed.ttf</string>
+		<string>Galmuri11.ttf</string>
 		<string>NotoSansKR-Bold.ttf</string>
 		<string>NotoSansKR-Regular.ttf</string>
 	</array>
