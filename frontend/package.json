@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "android": "react-native run-android",
+    "android:reverse": "adb reverse tcp:8080 tcp:8080",
     "agents:check": "node scripts/check-agent-skills.mjs",
     "agents:sync": "node scripts/sync-agent-skills.mjs",
     "ios": "react-native run-ios",
