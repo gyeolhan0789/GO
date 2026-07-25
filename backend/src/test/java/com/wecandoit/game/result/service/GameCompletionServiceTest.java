@@ -202,7 +202,7 @@ class GameCompletionServiceTest {
     }
 
     private Room inProgressRoom(Long hostId, Long roomId, int targetBingoCount, int boardSize) {
-        Room room = Room.create(hostId, GameMode.SINGLE, targetBingoCount, boardSize);
+        Room room = Room.create(hostId, GameMode.SINGLE, targetBingoCount, boardSize, null);
         ReflectionTestUtils.setField(room, "id", roomId);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         return room;
