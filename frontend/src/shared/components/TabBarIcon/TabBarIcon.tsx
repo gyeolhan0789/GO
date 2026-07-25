@@ -15,7 +15,7 @@ const SHADOW_OFFSET = shadow.offset;
 
 const ACTIVE_BACKGROUND_COLOR = colors.successBg;
 const ACTIVE_ICON_COLOR = colors.successText;
-const INACTIVE_ICON_COLOR = '#9CA3AF';
+const INACTIVE_ICON_COLOR = colors.muted;
 const BORDER_COLOR = colors.ink;
 
 export function TabBarIcon({ name, focused }: TabBarIconProps) {
