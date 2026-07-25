@@ -118,7 +118,7 @@ class BingoServiceTest {
     @DisplayName("게임이 시작되지 않은 방이면 빙고판 생성에 실패한다")
     void generateBoardRejectsRoomNotInProgress() {
         // given
-        Room room = Room.create(1L, GameMode.SINGLE, 3, 3);
+        Room room = Room.create(1L, GameMode.SINGLE, 3, 3, null);
         ReflectionTestUtils.setField(room, "id", 10L);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
 
@@ -427,7 +427,7 @@ class BingoServiceTest {
     @DisplayName("방이 진행 중이 아니면 조기 갱신에 실패한다")
     void renewBoardRejectsRoomNotInProgress() {
         // given
-        Room room = Room.create(1L, GameMode.SINGLE, 3, 2);
+        Room room = Room.create(1L, GameMode.SINGLE, 3, 2, null);
         ReflectionTestUtils.setField(room, "id", 10L);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
 
@@ -588,7 +588,7 @@ class BingoServiceTest {
     }
 
     private Room inProgressRoom(Long hostId, Long roomId, int boardSize) {
-        Room room = Room.create(hostId, GameMode.SINGLE, 3, boardSize);
+        Room room = Room.create(hostId, GameMode.SINGLE, 3, boardSize, null);
         ReflectionTestUtils.setField(room, "id", roomId);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         return room;

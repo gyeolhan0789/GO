@@ -59,7 +59,7 @@ class RoomCommandServiceTest {
         // when
         CreateRoomResponse response = roomCommandService.createRoom(
                 1L,
-                new CreateRoomRequest(GameMode.COOPERATE, 3, 3)
+                new CreateRoomRequest(GameMode.COOPERATE, 3, 3, 10000)
         );
 
         // then
@@ -74,6 +74,7 @@ class RoomCommandServiceTest {
         assertThat(room.getStatus()).isEqualTo(GameRoomStatus.CREATED);
         assertThat(room.getTargetBingoCount()).isEqualTo(3);
         assertThat(room.getBoardSize()).isEqualTo(3);
+        assertThat(room.getTargetStepCount()).isEqualTo(10000);
 
         RoomMember roomMember = roomMemberCaptor.getValue();
         assertThat(roomMember.getRoomId()).isEqualTo(10L);
@@ -83,13 +84,65 @@ class RoomCommandServiceTest {
 
         assertThat(response.roomId()).isEqualTo(10L);
         assertThat(response.status()).isEqualTo(GameRoomStatus.CREATED);
+        assertThat(response.targetStepCount()).isEqualTo(10000);
+    }
+
+    @Test
+    @DisplayName("개인 모드에서 목표 걸음 수 없이 게임방을 생성하면 값이 null로 저장된다")
+    void createSingleRoomWithoutTargetStepCount() {
+        // given
+        given(roomRepository.save(Mockito.any(Room.class))).willAnswer(invocation -> {
+            Room room = invocation.getArgument(0);
+            ReflectionTestUtils.setField(room, "id", 10L);
+            return room;
+        });
+
+        // when
+        CreateRoomResponse response = roomCommandService.createRoom(
+                1L,
+                new CreateRoomRequest(GameMode.SINGLE, 3, 3, null)
+        );
+
+        // then
+        ArgumentCaptor<Room> roomCaptor = ArgumentCaptor.forClass(Room.class);
+        then(roomRepository).should().save(roomCaptor.capture());
+        assertThat(roomCaptor.getValue().getTargetStepCount()).isNull();
+        assertThat(response.targetStepCount()).isNull();
+    }
+
+    @Test
+    @DisplayName("협동 모드에서 목표 걸음 수가 없으면 게임방 생성에 실패한다")
+    void createCooperateRoomRejectsMissingTargetStepCount() {
+        // when & then
+        assertErrorCode(
+                () -> roomCommandService.createRoom(
+                        1L,
+                        new CreateRoomRequest(GameMode.COOPERATE, 3, 3, null)
+                ),
+                ErrorCode.ROOM_TARGET_STEP_COUNT_REQUIRED
+        );
+        then(roomRepository).should(Mockito.never()).save(Mockito.any(Room.class));
+    }
+
+    @Test
+    @DisplayName("개인 모드에서 목표 걸음 수가 있으면 게임방 생성에 실패한다")
+    void createSingleRoomRejectsTargetStepCount() {
+        // when & then
+        assertErrorCode(
+                () -> roomCommandService.createRoom(
+                        1L,
+                        new CreateRoomRequest(GameMode.SINGLE, 3, 3, 10000)
+                ),
+                ErrorCode.ROOM_TARGET_STEP_COUNT_NOT_ALLOWED
+        );
+        then(roomRepository).should(Mockito.never()).save(Mockito.any(Room.class));
     }
 
     @Test
     @DisplayName("방장이 게임방을 삭제하면 게임방 상태를 종료로 변경한다")
     void deleteRoomClosesRoom() {
         // given
-        Room room = Room.create(1L, GameMode.SINGLE, 3, 3);
+        Room room = Room.create(1L, GameMode.SINGLE, 3, 3, null);
         ReflectionTestUtils.setField(room, "id", 10L);
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
 
@@ -118,7 +171,7 @@ class RoomCommandServiceTest {
     @DisplayName("방장이 아닌 회원이 게임방을 삭제하면 실패한다")
     void deleteRoomRejectsNonHost() {
         // given
-        Room room = Room.create(1L, GameMode.SINGLE, 3, 3);
+        Room room = Room.create(1L, GameMode.SINGLE, 3, 3, null);
         ReflectionTestUtils.setField(room, "id", 10L);
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
 
@@ -133,7 +186,7 @@ class RoomCommandServiceTest {
     @DisplayName("일반 참여자가 게임방을 나가면 본인 참여 정보만 삭제한다")
     void leaveRoomDeletesMemberOnly() {
         // given
-        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
+        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE, null);
         RoomMember roomMember = RoomMember.create(10L, 2L);
         ReflectionTestUtils.setField(room, "id", 10L);
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
@@ -152,7 +205,7 @@ class RoomCommandServiceTest {
     @DisplayName("방장이 게임방을 나가면 게임방을 종료하고 참여자 정보를 모두 삭제한다")
     void leaveRoomByHostClosesRoomAndDeletesMembers() {
         // given
-        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
+        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE, null);
         RoomMember roomMember = RoomMember.create(10L, 1L);
         ReflectionTestUtils.setField(room, "id", 10L);
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
@@ -184,7 +237,7 @@ class RoomCommandServiceTest {
     @DisplayName("종료된 게임방을 나가면 실패한다")
     void leaveRoomRejectsClosedRoom() {
         // given
-        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
+        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE, null);
         room.close();
         ReflectionTestUtils.setField(room, "id", 10L);
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
@@ -200,7 +253,7 @@ class RoomCommandServiceTest {
     @DisplayName("게임방 참여자가 아니면 나가기에 실패한다")
     void leaveRoomRejectsNonMember() {
         // given
-        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
+        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE, null);
         ReflectionTestUtils.setField(room, "id", 10L);
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
         given(roomMemberRepository.findByRoomIdAndMemberId(10L, 2L)).willReturn(Optional.empty());
@@ -216,7 +269,7 @@ class RoomCommandServiceTest {
     @DisplayName("방장이 READY 상태의 게임방에서 게임을 시작하면 IN_PROGRESS로 전이하고 시작 시각을 기록한다")
     void startGameTransitionsReadyRoomToInProgress() {
         // given
-        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
+        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE, null);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.READY);
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
@@ -246,7 +299,7 @@ class RoomCommandServiceTest {
     @DisplayName("방장이 아닌 회원이 게임을 시작하면 실패한다")
     void startGameRejectsNonHost() {
         // given
-        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
+        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE, null);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.READY);
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
@@ -262,7 +315,7 @@ class RoomCommandServiceTest {
     @DisplayName("READY 상태가 아닌 게임방에서 게임을 시작하면 실패한다")
     void startGameRejectsRoomNotReady() {
         // given
-        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
+        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE, null);
         ReflectionTestUtils.setField(room, "id", 10L);
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
 
