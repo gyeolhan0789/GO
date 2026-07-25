@@ -1,0 +1,21 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "assets/fonts/BMDOHYEON.ttf",
+      "sha1": "0e172deca3570d1aadcc86d07bf850c44507557a"
+    },
+    {
+      "path": "assets/fonts/NotoSansKR-Bold.ttf",
+      "sha1": "7bc282b8b81f78ef77da9b7f33b1c162c80e5ebc"
+    },
+    {
+      "path": "assets/fonts/NotoSansKR-Regular.ttf",
+      "sha1": "1a4eefec848fa26d5fe1a88edb08aed3356fdb98"
+    },
+    {
+      "path": "assets/fonts/README.md",
+      "sha1": "382e361bd24ab63f449c625d72e458bd12d016b9"
+    }
+  ]
+}
