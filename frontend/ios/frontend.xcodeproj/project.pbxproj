@@ -11,10 +11,12 @@
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
-		C2A5D4CE38DA464D97427AB1 /* BMDOHYEON.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 22E2D5439EFF4C32A99338F3 /* BMDOHYEON.ttf */; };
-		DC32244E21D64AF0811FDD16 /* NotoSansKR-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = EC682831E3984BB0B9A9DAC3 /* NotoSansKR-Bold.ttf */; };
-		E7AD7F488E43430899055944 /* NotoSansKR-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2C593A27E73643E78B8F925B /* NotoSansKR-Regular.ttf */; };
-		D75C4FA77CC846D7A3BFEA84 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = F4A7869FAF3C4D9482171C5D /* README.md */; };
+		9A8FF564399F4BD688A1953B /* BMDOHYEON.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEBA5EB6F4284B769D0A2498 /* BMDOHYEON.ttf */; };
+		DD2C5BF5CA374636AC7AC872 /* Galmuri11-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = ACBF7B4960BE4CE9BC495038 /* Galmuri11-Bold.ttf */; };
+		3759D4DE9E60429A95628B53 /* Galmuri11-Condensed.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 56E0FC4FAA8B4019BAE37278 /* Galmuri11-Condensed.ttf */; };
+		BC1F8DF1C4564711A30534E8 /* Galmuri11.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 3B2D92D88EE14A81B676DD0E /* Galmuri11.ttf */; };
+		0DB4D7B5F07448D798DB6EE1 /* NotoSansKR-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2C26367E5FF04BF8A2A3AAEF /* NotoSansKR-Bold.ttf */; };
+		A5F4432F0D394CC39C7D5A7D /* NotoSansKR-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A7CB56243D9E4C4B9E4B9CDE /* NotoSansKR-Regular.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,10 +30,12 @@
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = frontend/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = frontend/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
-		22E2D5439EFF4C32A99338F3 /* BMDOHYEON.ttf */ = {isa = PBXFileReference; name = "BMDOHYEON.ttf"; path = "../assets/fonts/BMDOHYEON.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		EC682831E3984BB0B9A9DAC3 /* NotoSansKR-Bold.ttf */ = {isa = PBXFileReference; name = "NotoSansKR-Bold.ttf"; path = "../assets/fonts/NotoSansKR-Bold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		2C593A27E73643E78B8F925B /* NotoSansKR-Regular.ttf */ = {isa = PBXFileReference; name = "NotoSansKR-Regular.ttf"; path = "../assets/fonts/NotoSansKR-Regular.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		F4A7869FAF3C4D9482171C5D /* README.md */ = {isa = PBXFileReference; name = "README.md"; path = "../assets/fonts/README.md"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		FEBA5EB6F4284B769D0A2498 /* BMDOHYEON.ttf */ = {isa = PBXFileReference; name = "BMDOHYEON.ttf"; path = "../assets/fonts/BMDOHYEON.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		ACBF7B4960BE4CE9BC495038 /* Galmuri11-Bold.ttf */ = {isa = PBXFileReference; name = "Galmuri11-Bold.ttf"; path = "../assets/fonts/Galmuri11-Bold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		56E0FC4FAA8B4019BAE37278 /* Galmuri11-Condensed.ttf */ = {isa = PBXFileReference; name = "Galmuri11-Condensed.ttf"; path = "../assets/fonts/Galmuri11-Condensed.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		3B2D92D88EE14A81B676DD0E /* Galmuri11.ttf */ = {isa = PBXFileReference; name = "Galmuri11.ttf"; path = "../assets/fonts/Galmuri11.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		2C26367E5FF04BF8A2A3AAEF /* NotoSansKR-Bold.ttf */ = {isa = PBXFileReference; name = "NotoSansKR-Bold.ttf"; path = "../assets/fonts/NotoSansKR-Bold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		A7CB56243D9E4C4B9E4B9CDE /* NotoSansKR-Regular.ttf */ = {isa = PBXFileReference; name = "NotoSansKR-Regular.ttf"; path = "../assets/fonts/NotoSansKR-Regular.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -109,10 +113,12 @@
 		6103557F5244494796052E3D /* Resources */ = {
 			isa = "PBXGroup";
 			children = (
-				22E2D5439EFF4C32A99338F3 /* BMDOHYEON.ttf */,
-				EC682831E3984BB0B9A9DAC3 /* NotoSansKR-Bold.ttf */,
-				2C593A27E73643E78B8F925B /* NotoSansKR-Regular.ttf */,
-				F4A7869FAF3C4D9482171C5D /* README.md */,
+				FEBA5EB6F4284B769D0A2498 /* BMDOHYEON.ttf */,
+				ACBF7B4960BE4CE9BC495038 /* Galmuri11-Bold.ttf */,
+				56E0FC4FAA8B4019BAE37278 /* Galmuri11-Condensed.ttf */,
+				3B2D92D88EE14A81B676DD0E /* Galmuri11.ttf */,
+				2C26367E5FF04BF8A2A3AAEF /* NotoSansKR-Bold.ttf */,
+				A7CB56243D9E4C4B9E4B9CDE /* NotoSansKR-Regular.ttf */,
 			);
 			name = Resources;
 			sourceTree = "<group>";
@@ -180,10 +186,12 @@
 			files = (
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
-				C2A5D4CE38DA464D97427AB1 /* BMDOHYEON.ttf in Resources */,
-				DC32244E21D64AF0811FDD16 /* NotoSansKR-Bold.ttf in Resources */,
-				E7AD7F488E43430899055944 /* NotoSansKR-Regular.ttf in Resources */,
-				D75C4FA77CC846D7A3BFEA84 /* README.md in Resources */,
+				9A8FF564399F4BD688A1953B /* BMDOHYEON.ttf in Resources */,
+				DD2C5BF5CA374636AC7AC872 /* Galmuri11-Bold.ttf in Resources */,
+				3759D4DE9E60429A95628B53 /* Galmuri11-Condensed.ttf in Resources */,
+				BC1F8DF1C4564711A30534E8 /* Galmuri11.ttf in Resources */,
+				0DB4D7B5F07448D798DB6EE1 /* NotoSansKR-Bold.ttf in Resources */,
+				A5F4432F0D394CC39C7D5A7D /* NotoSansKR-Regular.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
