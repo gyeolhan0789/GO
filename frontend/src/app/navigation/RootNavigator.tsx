@@ -3,13 +3,19 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 // 개발 단계: 온보딩을 항상 노출하기 위해 완료 체크를 잠시 비활성화한다.
 // TODO(온보딩 복구): 아래 useOnboardingStatus 게이트 주석을 해제할 것.
 // import { useOnboardingStatus } from '../../shared/hooks/useOnboardingStatus';
+import { LoginScreen } from '../../screens/LoginScreen/LoginScreen';
 import { OnboardingScreen } from '../../screens/OnboardingScreen/OnboardingScreen';
 import { PermissionsScreen } from '../../screens/PermissionsScreen/PermissionsScreen';
+import { SignupScreen } from '../../screens/SignupScreen/SignupScreen';
 import { MainTabNavigator } from './MainTabNavigator';
 
+// 진입 순서: Onboarding -> Permissions -> Login -> Main.
+// 각 단계는 reset으로 넘어가므로 앞 단계로 되돌아갈 수 없다.
 export type RootStackParamList = {
   Onboarding: undefined;
   Permissions: undefined;
+  Login: undefined;
+  Signup: undefined;
   Main: undefined;
 };
 
@@ -30,6 +36,18 @@ export function RootNavigator() {
     >
       <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       <Stack.Screen name="Permissions" component={PermissionsScreen} />
+      {/* 헤더를 노출해 플랫폼 기본 뒤로가기 버튼을 사용한다. 권한 화면에서
+          reset으로 진입하면 스택이 비어 있어 뒤로가기가 표시되지 않는다. */}
+      <Stack.Screen
+        name="Login"
+        component={LoginScreen}
+        options={{ headerShown: true, title: '로그인' }}
+      />
+      <Stack.Screen
+        name="Signup"
+        component={SignupScreen}
+        options={{ headerShown: true, title: '회원가입' }}
+      />
       <Stack.Screen name="Main" component={MainTabNavigator} />
     </Stack.Navigator>
   );
