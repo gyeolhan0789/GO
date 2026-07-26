@@ -16,4 +16,5 @@ Use the relevant skill before starting work:
 - Consider both Android and iOS whenever changing native behavior, permissions, platform APIs, or UI.
 - Keep state local by default; introduce shared state only when several consumers genuinely need it.
 - Reuse existing components, tokens, types, and public APIs before adding abstractions.
+- Touch only what the task requires — don't refactor or reformat unrelated code, and don't remove pre-existing dead code unless asked.
 - Before handoff, run the applicable checks from `package.json` and report anything that cannot be verified.
