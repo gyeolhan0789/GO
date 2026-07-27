@@ -8,21 +8,33 @@ public record BingoBoardResponse(
         Long bingoBoardId,
         Long roomId,
         int boardSize,
+        int targetBingoCount,
+        int completedBingoCount,
+        int totalCellCount,
+        int approvedCellCount,
         BingoBoardStatus status,
         List<BingoCellResponse> cells,
         boolean completed,
         boolean canRenew
 ) {
 
-    public static BingoBoardResponse of(BingoBoard board, List<BingoCellResponse> cells) {
-        return of(board, cells, false, false);
-    }
-
-    public static BingoBoardResponse of(BingoBoard board, List<BingoCellResponse> cells, boolean completed, boolean canRenew) {
+    public static BingoBoardResponse of(
+            BingoBoard board,
+            List<BingoCellResponse> cells,
+            int targetBingoCount,
+            int completedBingoCount,
+            int approvedCellCount,
+            boolean completed,
+            boolean canRenew
+    ) {
         return new BingoBoardResponse(
                 board.getId(),
                 board.getRoomId(),
                 board.getBoardSize(),
+                targetBingoCount,
+                completedBingoCount,
+                cells.size(),
+                approvedCellCount,
                 board.getStatus(),
                 cells,
                 completed,
