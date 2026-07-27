@@ -65,6 +65,7 @@ class GameResultReadServiceTest {
         // then
         assertThat(response.roomId()).isEqualTo(10L);
         assertThat(response.result()).isTrue();
+        assertThat(response.boardSize()).isEqualTo(3);
         assertThat(response.bingoCount()).isEqualTo(3);
         assertThat(response.completedMissionCount()).isEqualTo(9);
         assertThat(response.rewardCash()).isEqualTo(500L);
@@ -129,6 +130,8 @@ class GameResultReadServiceTest {
                 .willReturn(List.of(secondRoomMember, firstRoomMember));
         given(gameResultRepository.findByRoomIdInOrderByCreatedAtDesc(List.of(20L, 10L), pageable))
                 .willReturn(new SliceImpl<>(List.of(latestResult), pageable, false));
+        given(roomRepository.findAllById(List.of(20L)))
+                .willReturn(List.of(completedRoom(20L, 1L)));
 
         // when
         SliceResponse<GameResultResponse> response = gameResultReadService.getMyGameResults(1L, pageable);
@@ -136,6 +139,7 @@ class GameResultReadServiceTest {
         // then
         assertThat(response.content()).hasSize(1);
         assertThat(response.content().get(0).roomId()).isEqualTo(20L);
+        assertThat(response.content().get(0).boardSize()).isEqualTo(3);
         assertThat(response.hasNext()).isFalse();
     }
 

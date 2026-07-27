@@ -11,6 +11,8 @@ import com.wecandoit.game.room.domain.RoomMember;
 import com.wecandoit.game.room.repository.RoomMemberRepository;
 import com.wecandoit.game.room.repository.RoomRepository;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -39,7 +41,7 @@ public class GameResultReadService {
 
         GameResult gameResult = gameResultRepository.findByRoomId(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.GAME_NOT_COMPLETED));
-        return GameResultResponse.from(gameResult);
+        return GameResultResponse.from(gameResult, room);
     }
 
     public SliceResponse<GameResultResponse> getMyGameResults(Long memberId, Pageable pageable) {
@@ -52,6 +54,14 @@ public class GameResultReadService {
         }
 
         Slice<GameResult> gameResults = gameResultRepository.findByRoomIdInOrderByCreatedAtDesc(roomIds, pageable);
-        return SliceResponse.from(gameResults.map(GameResultResponse::from));
+        Map<Long, Room> roomsById = roomRepository.findAllById(gameResults.getContent().stream()
+                        .map(GameResult::getRoomId)
+                        .toList())
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(Room::getId, Function.identity()));
+        return SliceResponse.from(gameResults.map(gameResult -> GameResultResponse.from(
+                gameResult,
+                roomsById.get(gameResult.getRoomId())
+        )));
     }
 }
