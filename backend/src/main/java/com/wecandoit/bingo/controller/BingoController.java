@@ -25,15 +25,6 @@ public class BingoController {
     private final BingoService bingoService;
     private final MissionVerificationFacade missionVerificationFacade;
 
-    @PostMapping("/{roomId}/bingo-boards")
-    public ResponseEntity<BingoBoardResponse> generateBoard(
-            @LoginMemberId Long memberId,
-            @PathVariable Long roomId
-    ) {
-        BingoBoardResponse response = bingoService.generateBoard(memberId, roomId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
-
     @GetMapping("/{roomId}/bingo-boards/active")
     public ResponseEntity<BingoBoardResponse> getActiveBoard(
             @LoginMemberId Long memberId,
