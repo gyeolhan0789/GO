@@ -9,6 +9,13 @@ Java 21, Spring Boot 3.5.2, JPA/Hibernate, MySQL 기반 코드에 적용한다.
 - Controller는 Service만 호출하고 Repository를 직접 호출하지 않는다. Service는 Controller에 의존하지 않는다. Repository에 비즈니스 판단 로직을 두지 않는다.
 - Domain Entity는 상위 레이어에 의존하지 않으며 Entity와 DTO 변환은 Service/API 경계에서 수행한다. Service 간 순환 의존은 금지한다.
 
+## 검증 책임 분리
+
+- DTO는 `@Valid`와 Bean Validation 어노테이션으로 null, 범위, 길이, 형식 등 요청 값 자체를 검증한다.
+- Service는 권한, 중복, 현재 상태, 엔티티 간 관계 등 유스케이스 단위의 비즈니스 규칙을 검증한다.
+- Domain Entity 메서드는 Service의 검증을 통과한 상태 변경을 수행한다. 동일한 유스케이스 규칙을 Domain Entity에 중복 검증하지 않는다.
+- Domain Entity 자체의 불변식이 필요한 경우에만 해당 메서드에서 검증한다.
+
 ## Service CQRS와 네이밍
 
 - 모든 Service는 CQRS(Command Query Responsibility Segregation)를 적용한다. 하나의 Service 클래스에 상태 변경과 조회 책임을 함께 두지 않는다.
