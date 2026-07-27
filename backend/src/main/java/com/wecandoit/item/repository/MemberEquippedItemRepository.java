@@ -17,7 +17,4 @@ public interface MemberEquippedItemRepository extends JpaRepository<MemberEquipp
 
     Optional<MemberEquippedItem> findByMemberIdAndMemberItemId(Long memberId, Long memberItemId);
 
-    void deleteByMemberIdAndCategory(Long memberId, ItemCategory category);
-
-    void deleteByMemberIdAndMemberItemId(Long memberId, Long memberItemId);
 }

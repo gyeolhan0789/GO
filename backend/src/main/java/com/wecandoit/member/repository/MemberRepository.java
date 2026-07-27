@@ -1,6 +1,5 @@
 package com.wecandoit.member.repository;
 
-import com.wecandoit.member.domain.AuthProvider;
 import com.wecandoit.member.domain.Member;
 import jakarta.persistence.LockModeType;
 import java.util.Optional;
@@ -14,8 +13,6 @@ import org.springframework.data.repository.query.Param;
 public interface MemberRepository extends JpaRepository<Member, Long> {
 
     Optional<Member> findByEmail(String email);
-
-    Optional<Member> findByEmailAndProvider(String email, AuthProvider provider);
 
     boolean existsByEmail(String email);
 
