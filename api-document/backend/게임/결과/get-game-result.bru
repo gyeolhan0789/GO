@@ -24,6 +24,7 @@ docs {
   {
     "roomId": 1,
     "result": true,
+    "boardSize": 3,
     "bingoCount": 3,
     "completedMissionCount": 9,
     "rewardCash": 500
@@ -32,7 +33,9 @@ docs {
 
   ### 비즈니스 규칙
   - `result`는 현재 항상 `true`다(패배·타임아웃 종료 경로가 아직 없어 완료된 게임은 모두 승리로 기록된다).
-  - `bingoCount`는 게임 종료 시점에 달성한 빙고 줄 수, `completedMissionCount`는 참여자 전원의 완료 미션 수 합계다.
+  - `boardSize`는 N x N 빙고판에서 한 변의 길이 N이다.
+  - 싱글·협동 모드에서는 `completedMissionCount`로 성공한 칸 수를 확인한다.
+  - 경쟁 모드에서는 `bingoCount`로 성공한 빙고 줄 수를 확인한다.
   - `rewardCash`는 게임 완료 시 지급된 보상 캐시 총액이다.
 
   ### 에러 케이스
