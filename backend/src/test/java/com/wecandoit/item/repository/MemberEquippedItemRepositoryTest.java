@@ -62,6 +62,31 @@ class MemberEquippedItemRepositoryTest {
     }
 
     @Test
+    @DisplayName("여러 회원의 장착 아이템을 한 번에 조회한다")
+    void findAllByMemberIdInReturnsMemberEquippedItems() {
+        // given
+        saveEquippedItem(1L, 10L, ItemCategory.HAT);
+        saveEquippedItem(2L, 20L, ItemCategory.TOP);
+        saveEquippedItem(3L, 30L, ItemCategory.BOTTOM);
+        clearPersistenceContext();
+
+        // when
+        List<MemberEquippedItem> equippedItems =
+                memberEquippedItemRepository.findAllByMemberIdIn(List.of(1L, 2L));
+
+        // then
+        assertThat(equippedItems)
+                .extracting(
+                        MemberEquippedItem::getMemberId,
+                        MemberEquippedItem::getMemberItemId
+                )
+                .containsExactlyInAnyOrder(
+                        org.assertj.core.groups.Tuple.tuple(1L, 10L),
+                        org.assertj.core.groups.Tuple.tuple(2L, 20L)
+                );
+    }
+
+    @Test
     @DisplayName("회원과 카테고리로 장착 아이템을 조회한다")
     void findByMemberIdAndCategoryReturnsEquippedItem() {
         // given
