@@ -36,11 +36,11 @@ public class GameRequestCommandService {
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
         validateInviter(memberId, roomId);
         validateRoomStatus(room.getStatus());
+        validateRoomCapacity(room, roomMemberRepository.countByRoomId(roomId));
 
         Long inviteeId = request.inviteeId();
         validateInvitee(memberId, inviteeId, roomId);
 
-        // TODO: 최대 방 인원과 초대 가능 인원 정책이 확정되면 검증을 추가한다.
         return gameRequestRepository
                 .findFirstByRoomIdAndInviteeIdAndStatusOrderByCreatedAtDesc(
                         roomId,
@@ -54,12 +54,18 @@ public class GameRequestCommandService {
     public void acceptGameRequest(Long memberId, Long roomId, Long requestId) {
         GameRequest gameRequest = findRequest(roomId, requestId);
         validateRequestInviteeAndPending(gameRequest, memberId);
+        Room room = roomRepository.findByIdForUpdate(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+        validateRoomStatus(room.getStatus());
         if (roomMemberRepository.existsByRoomIdAndMemberId(roomId, memberId)) {
             throw new CustomException(ErrorCode.GAME_REQUEST_ALREADY_ROOM_MEMBER);
         }
 
+        long participantCount = roomMemberRepository.countByRoomId(roomId);
+        validateRoomCapacity(room, participantCount);
         gameRequest.accept();
         roomMemberRepository.save(RoomMember.create(roomId, memberId));
+        room.updateParticipantStatus(participantCount + 1);
     }
 
     public void rejectGameRequest(Long memberId, Long roomId, Long requestId) {
@@ -92,6 +98,12 @@ public class GameRequestCommandService {
                 && status != GameRoomStatus.WAITING
                 && status != GameRoomStatus.READY) {
             throw new CustomException(ErrorCode.GAME_REQUEST_NOT_AVAILABLE);
+        }
+    }
+
+    private void validateRoomCapacity(Room room, long participantCount) {
+        if (participantCount >= room.getMode().getMaximumParticipants()) {
+            throw new CustomException(ErrorCode.ROOM_MAXIMUM_PARTICIPANTS_REACHED);
         }
     }
 

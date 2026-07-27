@@ -39,6 +39,8 @@ public enum ErrorCode {
     ROOM_MEMBER_FORBIDDEN(HttpStatus.FORBIDDEN, "게임방 참여자만 접근할 수 있습니다."),
     ROOM_CLOSED(HttpStatus.CONFLICT, "종료된 게임방은 처리할 수 없습니다."),
     ROOM_START_FORBIDDEN(HttpStatus.FORBIDDEN, "게임 시작 권한이 없습니다."),
+    ROOM_MINIMUM_PARTICIPANTS_REQUIRED(HttpStatus.CONFLICT, "게임 시작에 필요한 최소 인원이 충족되지 않았습니다."),
+    ROOM_MAXIMUM_PARTICIPANTS_REACHED(HttpStatus.CONFLICT, "게임방 최대 인원에 도달했습니다."),
     ROOM_NOT_READY(HttpStatus.CONFLICT, "READY 상태의 방에서만 게임을 시작할 수 있습니다."),
     ROOM_TARGET_STEP_COUNT_REQUIRED(HttpStatus.BAD_REQUEST, "협동 모드에서는 목표 걸음 수가 필수입니다."),
     ROOM_TARGET_STEP_COUNT_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "개인 모드에서는 목표 걸음 수를 설정할 수 없습니다."),
