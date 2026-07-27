@@ -1,10 +1,13 @@
 package com.wecandoit.history.repository;
 
 import com.wecandoit.history.domain.MemberHistory;
+import com.wecandoit.member.domain.Region;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface MemberHistoryRepository extends JpaRepository<MemberHistory, Long> {
 
@@ -14,5 +17,23 @@ public interface MemberHistoryRepository extends JpaRepository<MemberHistory, Lo
             Long memberId,
             LocalDate startDate,
             LocalDate endDate
+    );
+
+    @Query("""
+            select m.id as memberId,
+                   m.nickname as nickname,
+                   coalesce(sum(h.step), 0) as weeklySteps
+            from Member m
+            left join MemberHistory h
+                   on h.memberId = m.id
+                  and h.historyDate between :startDate and :endDate
+            where m.region = :region
+            group by m.id, m.nickname
+            order by coalesce(sum(h.step), 0) desc, m.id asc
+            """)
+    List<WeeklyRankingSummary> findWeeklyRankingsByRegion(
+            @Param("region") Region region,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
     );
 }
