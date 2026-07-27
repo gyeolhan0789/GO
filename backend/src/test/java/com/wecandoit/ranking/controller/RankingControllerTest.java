@@ -14,8 +14,10 @@ import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.member.domain.Region;
+import com.wecandoit.ranking.controller.response.FriendRankingResponse;
 import com.wecandoit.ranking.controller.response.RankingItemResponse;
 import com.wecandoit.ranking.controller.response.RankingResponse;
+import com.wecandoit.ranking.service.FriendRankingReadService;
 import com.wecandoit.ranking.service.RankingReadService;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import java.util.List;
@@ -41,13 +43,18 @@ class RankingControllerTest {
 
     @Mock
     private RankingReadService rankingReadService;
+    @Mock
+    private FriendRankingReadService friendRankingReadService;
 
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
         SecurityContextHolder.getContext().setAuthentication(
                 UsernamePasswordAuthenticationToken.authenticated(1L, null, List.of())
         );
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new RankingController(rankingReadService))
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new RankingController(
+                        rankingReadService,
+                        friendRankingReadService
+                ))
                 .setControllerAdvice(new CustomExceptionHandler())
                 .setCustomArgumentResolvers(new LoginMemberIdArgumentResolver())
                 .apply(documentationConfiguration(restDocumentation))
@@ -142,5 +149,62 @@ class RankingControllerTest {
                 .body("status", equalTo(401))
                 .body("message", equalTo("인증이 필요합니다."));
         then(rankingReadService).should(never()).getRankings(Mockito.anyLong());
+    }
+
+    @Test
+    @DisplayName("로그인 회원과 친구의 주간 랭킹을 반환한다")
+    void getFriendRankingsReturnsRankings() {
+        // given
+        FriendRankingResponse response = new FriendRankingResponse(
+                2,
+                12_500,
+                List.of(
+                        new RankingItemResponse(1, 2L, "친구", 20_000),
+                        new RankingItemResponse(2, 1L, "로그인회원", 12_500)
+                )
+        );
+        org.mockito.BDDMockito.given(friendRankingReadService.getFriendRankings(1L))
+                .willReturn(response);
+
+        // when & then
+        given()
+                .when()
+                .get("/rankings/friends")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("myRank", equalTo(2))
+                .body("myWeeklySteps", equalTo(12_500))
+                .body("rankings[0].rank", equalTo(1))
+                .body("rankings[0].memberId", equalTo(2))
+                .body("rankings[0].nickname", equalTo("친구"))
+                .body("rankings[0].weeklySteps", equalTo(20_000))
+                .apply(document("friend-ranking-list",
+                        responseFields(
+                                fieldWithPath("myRank").description("로그인 회원의 친구 랭킹 순위"),
+                                fieldWithPath("myWeeklySteps").description("로그인 회원의 이번 주 걸음 수"),
+                                fieldWithPath("rankings[].rank").description("친구 랭킹 순위"),
+                                fieldWithPath("rankings[].memberId").description("회원 ID"),
+                                fieldWithPath("rankings[].nickname").description("회원 닉네임"),
+                                fieldWithPath("rankings[].weeklySteps").description("이번 주 걸음 수")
+                        )
+                ));
+        then(friendRankingReadService).should().getFriendRankings(1L);
+    }
+
+    @Test
+    @DisplayName("인증되지 않은 친구 랭킹 요청은 401 응답을 받는다")
+    void getFriendRankingsRejectsUnauthenticatedRequest() {
+        // given
+        SecurityContextHolder.clearContext();
+
+        // when & then
+        given()
+                .when()
+                .get("/rankings/friends")
+                .then()
+                .statusCode(HttpStatus.UNAUTHORIZED.value())
+                .body("status", equalTo(401))
+                .body("message", equalTo("인증이 필요합니다."));
+        then(friendRankingReadService).should(never()).getFriendRankings(Mockito.anyLong());
     }
 }
