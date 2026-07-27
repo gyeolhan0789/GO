@@ -1,6 +1,6 @@
 package com.wecandoit.game.room.service;
 
-import com.wecandoit.bingo.service.BingoService;
+import com.wecandoit.bingo.service.BingoCommandService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.room.controller.request.CreateRoomRequest;
@@ -21,7 +21,7 @@ public class RoomCommandService {
 
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
-    private final BingoService bingoService;
+    private final BingoCommandService bingoCommandService;
 
     public CreateRoomResponse createRoom(Long memberId, CreateRoomRequest request) {
         validateTargetStepCount(request.mode(), request.targetStepCount());
@@ -66,7 +66,7 @@ public class RoomCommandService {
         }
 
         room.start();
-        bingoService.generateInitialBoard(room);
+        bingoCommandService.generateInitialBoard(room);
     }
 
     public void leaveRoom(Long memberId, Long roomId) {

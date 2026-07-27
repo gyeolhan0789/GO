@@ -2,7 +2,7 @@ package com.wecandoit.game.result.service;
 
 import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.domain.BingoLineCounter;
-import com.wecandoit.bingo.service.BingoService;
+import com.wecandoit.bingo.service.BingoReadService;
 import com.wecandoit.cash.domain.CashHistory;
 import com.wecandoit.cash.repository.CashHistoryRepository;
 import com.wecandoit.common.exception.CustomException;
@@ -33,7 +33,7 @@ public class GameCompletionService {
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
     private final GameResultRepository gameResultRepository;
-    private final BingoService bingoService;
+    private final BingoReadService bingoReadService;
     private final MemberRepository memberRepository;
     private final CashHistoryRepository cashHistoryRepository;
 
@@ -45,7 +45,7 @@ public class GameCompletionService {
             return;
         }
 
-        List<BingoCell> cells = bingoService.getActiveBoardCells(roomId);
+        List<BingoCell> cells = bingoReadService.getActiveBoardCells(roomId);
         int lineCount = BingoLineCounter.countCompletedLines(room.getBoardSize(), cells);
         if (lineCount < room.getTargetBingoCount()) {
             return;

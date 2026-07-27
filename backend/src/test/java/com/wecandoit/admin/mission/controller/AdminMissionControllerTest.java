@@ -7,7 +7,8 @@ import static org.mockito.Mockito.never;
 
 import com.wecandoit.admin.mission.controller.request.CreateMissionRequest;
 import com.wecandoit.admin.mission.controller.response.AdminMissionResponse;
-import com.wecandoit.admin.mission.service.AdminMissionService;
+import com.wecandoit.admin.mission.service.AdminMissionCommandService;
+import com.wecandoit.admin.mission.service.AdminMissionReadService;
 import com.wecandoit.common.exception.CustomExceptionHandler;
 import io.restassured.http.ContentType;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
@@ -29,11 +30,14 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 class AdminMissionControllerTest {
 
     @Mock
-    private AdminMissionService adminMissionService;
+    private AdminMissionCommandService adminMissionCommandService;
+    @Mock
+    private AdminMissionReadService adminMissionReadService;
 
     @BeforeEach
     void setUp() {
-        RestAssuredMockMvc.mockMvc(MockMvcBuilders.standaloneSetup(new AdminMissionController(adminMissionService))
+        RestAssuredMockMvc.mockMvc(MockMvcBuilders.standaloneSetup(
+                        new AdminMissionController(adminMissionCommandService, adminMissionReadService))
                 .setControllerAdvice(new CustomExceptionHandler())
                 .build());
     }
@@ -68,7 +72,7 @@ class AdminMissionControllerTest {
                 .then()
                 .statusCode(HttpStatus.CREATED.value())
                 .body(org.hamcrest.Matchers.isEmptyOrNullString());
-        then(adminMissionService).should().createMission(Mockito.any(CreateMissionRequest.class));
+        then(adminMissionCommandService).should().createMission(Mockito.any(CreateMissionRequest.class));
     }
 
     @Test
@@ -86,7 +90,7 @@ class AdminMissionControllerTest {
                 .post("/admin/missions")
                 .then()
                 .statusCode(HttpStatus.BAD_REQUEST.value());
-        then(adminMissionService).should(never()).createMission(Mockito.any());
+        then(adminMissionCommandService).should(never()).createMission(Mockito.any());
     }
 
     @Test
@@ -105,14 +109,14 @@ class AdminMissionControllerTest {
                 .post("/admin/missions")
                 .then()
                 .statusCode(HttpStatus.CREATED.value());
-        then(adminMissionService).should().createMission(Mockito.any(CreateMissionRequest.class));
+        then(adminMissionCommandService).should().createMission(Mockito.any(CreateMissionRequest.class));
     }
 
     @Test
     @DisplayName("미션 목록을 조회하면 200 상태와 응답 본문을 반환한다")
     void getMissionsReturnsOk() {
         // given
-        given(adminMissionService.getMissions()).willReturn(List.of(new AdminMissionResponse(
+        given(adminMissionReadService.getMissions()).willReturn(List.of(new AdminMissionResponse(
                 1L,
                 "https://example.com/flower.png",
                 "OBJECT",
