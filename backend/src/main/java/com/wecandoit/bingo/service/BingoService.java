@@ -39,13 +39,8 @@ public class BingoService {
     private final BingoCellRepository bingoCellRepository;
     private final MissionRepository missionRepository;
 
-    public BingoBoardResponse generateBoard(Long memberId, Long roomId) {
-        Room room = roomRepository.findById(roomId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
-        validateHost(memberId, room);
-        validateRoomInProgress(room);
-        validateBoardNotExists(roomId);
-
+    public BingoBoardResponse generateInitialBoard(Room room) {
+        validateBoardNotExists(room.getId());
         return generateNewBoard(room);
     }
 
@@ -131,12 +126,6 @@ public class BingoService {
         BingoBoard board = bingoBoardRepository.save(BingoBoard.create(room.getId(), boardSize));
         List<BingoCellResponse> cellResponses = createCells(board, boardSize, missions);
         return BingoBoardResponse.of(board, cellResponses);
-    }
-
-    private void validateHost(Long memberId, Room room) {
-        if (!room.getHostId().equals(memberId)) {
-            throw new CustomException(ErrorCode.BINGO_BOARD_GENERATE_FORBIDDEN);
-        }
     }
 
     private void validateRenewalHost(Long memberId, Room room) {

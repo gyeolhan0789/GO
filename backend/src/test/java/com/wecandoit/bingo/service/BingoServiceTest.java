@@ -60,10 +60,9 @@ class BingoServiceTest {
 
     @Test
     @DisplayName("방장이 진행 중인 방에서 빙고판을 생성하면 보드 크기만큼 무작위 미션이 배정된다")
-    void generateBoardCreatesBoardWithRandomMissions() {
+    void generateInitialBoardCreatesBoardWithRandomMissions() {
         // given
         Room room = inProgressRoom(1L, 10L, 3);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         given(bingoBoardRepository.existsByRoomId(10L)).willReturn(false);
         List<Mission> missions = createMissions(9);
         given(missionRepository.findRandomMissions(9)).willReturn(missions);
@@ -75,7 +74,7 @@ class BingoServiceTest {
         given(bingoCellRepository.save(Mockito.any(BingoCell.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         // when
-        BingoBoardResponse response = bingoService.generateBoard(1L, 10L);
+        BingoBoardResponse response = bingoService.generateInitialBoard(room);
 
         // then
         assertThat(response.roomId()).isEqualTo(10L);
@@ -95,60 +94,71 @@ class BingoServiceTest {
 
     @Test
     @DisplayName("존재하지 않는 게임방이면 빙고판 생성에 실패한다")
-    void generateBoardRejectsMissingRoom() {
+    void generateInitialBoardRejectsExistingBoardBeforeMissionSelection() {
         // given
-        given(roomRepository.findById(10L)).willReturn(Optional.empty());
+        Room room = inProgressRoom(1L, 10L, 3);
+        given(bingoBoardRepository.existsByRoomId(10L)).willReturn(true);
 
         // when & then
-        assertErrorCode(() -> bingoService.generateBoard(1L, 10L), ErrorCode.ROOM_NOT_FOUND);
+        assertErrorCode(() -> bingoService.generateInitialBoard(room), ErrorCode.BINGO_BOARD_ALREADY_EXISTS);
+        then(missionRepository).shouldHaveNoInteractions();
     }
 
     @Test
     @DisplayName("방장이 아닌 회원이 요청하면 빙고판 생성에 실패한다")
-    void generateBoardRejectsNonHost() {
+    void generateInitialBoardRejectsInsufficientMissionsBeforeBoardPersistence() {
         // given
         Room room = inProgressRoom(1L, 10L, 3);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-
-        // when & then
-        assertErrorCode(() -> bingoService.generateBoard(2L, 10L), ErrorCode.BINGO_BOARD_GENERATE_FORBIDDEN);
-    }
-
-    @Test
-    @DisplayName("게임이 시작되지 않은 방이면 빙고판 생성에 실패한다")
-    void generateBoardRejectsRoomNotInProgress() {
-        // given
-        Room room = Room.create(1L, GameMode.SINGLE, 3, 3, null);
-        ReflectionTestUtils.setField(room, "id", 10L);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-
-        // when & then
-        assertErrorCode(() -> bingoService.generateBoard(1L, 10L), ErrorCode.ROOM_NOT_IN_PROGRESS);
-    }
-
-    @Test
-    @DisplayName("이미 빙고판이 존재하는 방이면 빙고판 생성에 실패한다")
-    void generateBoardRejectsExistingBoard() {
-        // given
-        Room room = inProgressRoom(1L, 10L, 3);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        given(bingoBoardRepository.existsByRoomId(10L)).willReturn(true);
-
-        // when & then
-        assertErrorCode(() -> bingoService.generateBoard(1L, 10L), ErrorCode.BINGO_BOARD_ALREADY_EXISTS);
-    }
-
-    @Test
-    @DisplayName("미션 풀이 보드 칸 수보다 적으면 빙고판 생성에 실패한다")
-    void generateBoardRejectsInsufficientMissions() {
-        // given
-        Room room = inProgressRoom(1L, 10L, 3);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         given(bingoBoardRepository.existsByRoomId(10L)).willReturn(false);
         given(missionRepository.findRandomMissions(9)).willReturn(createMissions(8));
 
         // when & then
-        assertErrorCode(() -> bingoService.generateBoard(1L, 10L), ErrorCode.MISSION_POOL_INSUFFICIENT);
+        assertErrorCode(() -> bingoService.generateInitialBoard(room), ErrorCode.MISSION_POOL_INSUFFICIENT);
+        then(bingoBoardRepository).should(Mockito.never()).save(Mockito.any(BingoBoard.class));
+    }
+
+    @Test
+    @DisplayName("게임이 시작되지 않은 방이면 빙고판 생성에 실패한다")
+    void generateInitialBoardDoesNotRequireASeparateRoomLookup() {
+        // given
+        Room room = inProgressRoom(1L, 10L, 3);
+        given(bingoBoardRepository.existsByRoomId(10L)).willReturn(false);
+        given(missionRepository.findRandomMissions(9)).willReturn(createMissions(9));
+        given(bingoBoardRepository.save(Mockito.any(BingoBoard.class))).willAnswer(invocation -> {
+            BingoBoard board = invocation.getArgument(0);
+            ReflectionTestUtils.setField(board, "id", 100L);
+            return board;
+        });
+        given(bingoCellRepository.save(Mockito.any(BingoCell.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        bingoService.generateInitialBoard(room);
+
+        // then
+        then(roomRepository).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("이미 빙고판이 존재하는 방이면 빙고판 생성에 실패한다")
+    void generateInitialBoardRejectsExistingBoard() {
+        // given
+        Room room = inProgressRoom(1L, 10L, 3);
+        given(bingoBoardRepository.existsByRoomId(10L)).willReturn(true);
+
+        // when & then
+        assertErrorCode(() -> bingoService.generateInitialBoard(room), ErrorCode.BINGO_BOARD_ALREADY_EXISTS);
+    }
+
+    @Test
+    @DisplayName("미션 풀이 보드 칸 수보다 적으면 빙고판 생성에 실패한다")
+    void generateInitialBoardRejectsInsufficientMissions() {
+        // given
+        Room room = inProgressRoom(1L, 10L, 3);
+        given(bingoBoardRepository.existsByRoomId(10L)).willReturn(false);
+        given(missionRepository.findRandomMissions(9)).willReturn(createMissions(8));
+
+        // when & then
+        assertErrorCode(() -> bingoService.generateInitialBoard(room), ErrorCode.MISSION_POOL_INSUFFICIENT);
     }
 
     @Test
