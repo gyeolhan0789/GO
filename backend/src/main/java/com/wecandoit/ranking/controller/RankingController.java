@@ -1,0 +1,23 @@
+package com.wecandoit.ranking.controller;
+
+import com.wecandoit.common.security.LoginMemberId;
+import com.wecandoit.ranking.controller.response.RankingResponse;
+import com.wecandoit.ranking.service.RankingReadService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/rankings")
+@RequiredArgsConstructor
+public class RankingController {
+
+    private final RankingReadService rankingReadService;
+
+    @GetMapping
+    public ResponseEntity<RankingResponse> getRankings(@LoginMemberId Long memberId) {
+        return ResponseEntity.ok(rankingReadService.getRankings(memberId));
+    }
+}
