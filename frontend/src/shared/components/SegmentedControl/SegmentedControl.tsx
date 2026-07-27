@@ -1,3 +1,4 @@
+import type { StyleProp, TextStyle } from 'react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '../../constants/colors';
@@ -15,21 +16,24 @@ type SegmentedControlProps<T extends string> = {
   options: SegmentedControlOption<T>[];
   value: T;
   onChange: (value: T) => void;
+  labelStyle?: StyleProp<TextStyle>;
 };
 
 export function SegmentedControl<T extends string>({
   options,
   value,
   onChange,
+  labelStyle,
 }: SegmentedControlProps<T>) {
   return (
     <View style={styles.container}>
-      {options.map((option) => (
+      {options.map(option => (
         <Segment
           key={option.value}
           label={option.label}
           isActive={option.value === value}
           onPress={() => onChange(option.value)}
+          labelStyle={labelStyle}
         />
       ))}
     </View>
@@ -40,10 +44,12 @@ function Segment({
   label,
   isActive,
   onPress,
+  labelStyle,
 }: {
   label: string;
   isActive: boolean;
   onPress: () => void;
+  labelStyle?: StyleProp<TextStyle>;
 }) {
   return (
     <View style={styles.wrapper}>
@@ -52,7 +58,9 @@ function Segment({
         onPress={onPress}
         style={[styles.segment, isActive && styles.segmentActive]}
       >
-        <Text style={[styles.label, isActive && styles.labelActive]}>
+        <Text
+          style={[styles.label, isActive && styles.labelActive, labelStyle]}
+        >
           {label}
         </Text>
       </Pressable>

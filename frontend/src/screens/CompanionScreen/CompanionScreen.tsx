@@ -1,12 +1,171 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 
+import { Fab } from '../../shared/components/Fab/Fab';
 import { Screen } from '../../shared/components/Screen/Screen';
+import { SegmentedControl } from '../../shared/components/SegmentedControl/SegmentedControl';
+import { colors } from '../../shared/constants/colors';
+import { spacing } from '../../shared/constants/spacing';
+import { FriendCard } from './components/FriendCard';
+import { WalkRoomCard } from './components/WalkRoomCard';
+import type { Friend, MyWalkRoom } from './types';
+
+type CompanionTab = 'walkRooms' | 'friends';
+
+// TODO: 실제 참여 중인 산책방/친구 API 연동 전까지의 임시 목업 데이터.
+const MOCK_WALK_ROOMS: MyWalkRoom[] = [
+  {
+    id: 'weekly-solo',
+    name: '나의 주간 산책방',
+    mode: 'solo',
+    bingoCompleted: 4,
+    bingoTotal: 9,
+  },
+  {
+    id: 'with-minseo',
+    name: '민서와 걷기',
+    mode: 'group',
+    bingoCompleted: 3,
+    bingoTotal: 9,
+    memberCount: 2,
+    scheduleLabel: '오늘 오후 8:00 예정',
+  },
+  {
+    id: 'ssafy-team',
+    name: 'SSAFY 팀 산책',
+    mode: 'group',
+    bingoCompleted: 2,
+    bingoTotal: 9,
+    memberCount: 4,
+    scheduleLabel: '다음 산책 미정',
+  },
+  {
+    id: 'morning-jog',
+    name: '아침 조깅 클럽',
+    mode: 'group',
+    bingoCompleted: 6,
+    bingoTotal: 9,
+    memberCount: 3,
+    scheduleLabel: '내일 오전 7:00 예정',
+  },
+  {
+    id: 'evening-walk',
+    name: '저녁 산책 모임',
+    mode: 'group',
+    bingoCompleted: 1,
+    bingoTotal: 9,
+    memberCount: 5,
+    scheduleLabel: '다음 산책 미정',
+  },
+  {
+    id: 'solo-time',
+    name: '혼자 걷는 시간',
+    mode: 'solo',
+    bingoCompleted: 7,
+    bingoTotal: 9,
+  },
+  {
+    id: 'neighborhood-loop',
+    name: '동네 한바퀴',
+    mode: 'group',
+    bingoCompleted: 5,
+    bingoTotal: 9,
+    memberCount: 2,
+    scheduleLabel: '오늘 오후 6:30 예정',
+  },
+  {
+    id: 'dog-walk',
+    name: '강아지랑 산책',
+    mode: 'solo',
+    bingoCompleted: 9,
+    bingoTotal: 9,
+  },
+  {
+    id: 'weekend-hiking',
+    name: '주말 등산팀',
+    mode: 'group',
+    bingoCompleted: 0,
+    bingoTotal: 9,
+    memberCount: 6,
+    scheduleLabel: '다음 산책 미정',
+  },
+  {
+    id: 'lunch-walk',
+    name: '점심 산책',
+    mode: 'group',
+    bingoCompleted: 4,
+    bingoTotal: 9,
+    memberCount: 2,
+    scheduleLabel: '오늘 오후 1:00 예정',
+  },
+];
+
+const MOCK_FRIENDS: Friend[] = [
+  { id: 'friend-1', name: '이영주', recentSteps: 3200, isActive: false },
+  { id: 'friend-2', name: '김민서', recentSteps: 5100, isActive: true },
+  { id: 'friend-3', name: '박지훈', recentSteps: 1800, isActive: true },
+  { id: 'friend-4', name: '최수아', recentSteps: 4200, isActive: false },
+  { id: 'friend-5', name: '정다은', recentSteps: 2600, isActive: false },
+  { id: 'friend-6', name: '이준호', recentSteps: 6300, isActive: true },
+  { id: 'friend-7', name: '한소영', recentSteps: 900, isActive: false },
+  { id: 'friend-8', name: '강태윤', recentSteps: 3700, isActive: true },
+  { id: 'friend-9', name: '윤서연', recentSteps: 5400, isActive: false },
+  { id: 'friend-10', name: '조현우', recentSteps: 2100, isActive: false },
+];
 
 export function CompanionScreen() {
+  const [tab, setTab] = useState<CompanionTab>('walkRooms');
+
   return (
     <Screen>
       <View style={styles.content}>
-        <Text style={styles.title}>동행</Text>
+        <Text style={styles.pageTitle}>동행</Text>
+        <SegmentedControl
+          options={[
+            { label: '내 산책방', value: 'walkRooms' },
+            { label: '내 친구', value: 'friends' },
+          ]}
+          value={tab}
+          onChange={setTab}
+          labelStyle={styles.dohyeonText}
+        />
+
+        {tab === 'walkRooms' ? (
+          <FlatList
+            data={MOCK_WALK_ROOMS}
+            keyExtractor={room => room.id}
+            ListHeaderComponent={
+              <Text style={styles.countLabel}>
+                참여 중인 산책방 {MOCK_WALK_ROOMS.length}
+              </Text>
+            }
+            renderItem={({ item }) => (
+              <WalkRoomCard room={item} onPress={() => {}} />
+            )}
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+          />
+        ) : (
+          <FlatList
+            data={MOCK_FRIENDS}
+            keyExtractor={friend => friend.id}
+            ListHeaderComponent={
+              <Text style={styles.countLabel}>
+                내 친구 {MOCK_FRIENDS.length}
+              </Text>
+            }
+            renderItem={({ item }) => <FriendCard friend={item} />}
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
+      </View>
+
+      <View style={styles.fabWrapper}>
+        {/* TODO: 산책방 생성/친구 추가 플로우 연결. 화면이 아직 없어 탭에 따라 동작만 분기 예정. */}
+        <Fab icon="add" onPress={() => {}} />
       </View>
     </Screen>
   );
@@ -15,13 +174,37 @@ export function CompanionScreen() {
 const styles = StyleSheet.create({
   content: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
+    // 하단은 의도적으로 비움: FlatList 뷰포트가 탭 바로 위까지 닿게 하고,
+    // 스크롤 콘텐츠 쪽(listContent)에서 아래 여백을 준다.
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    gap: spacing.lg,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#111827',
+  pageTitle: {
+    fontFamily: 'BMDOHYEON',
+    fontSize: 28,
+    color: colors.ink,
+  },
+  countLabel: {
+    fontFamily: 'BMDOHYEON',
+    fontSize: 14,
+    color: colors.ink,
+    marginBottom: spacing.sm,
+  },
+  dohyeonText: {
+    fontFamily: 'BMDOHYEON',
+  },
+  list: {
+    flex: 1,
+  },
+  listContent: {
+    gap: spacing.md,
+    // FAB/화면 하단에 가려지지 않도록 스크롤 콘텐츠 끝에 여유를 둔다.
+    paddingBottom: spacing.lg * 3,
+  },
+  fabWrapper: {
+    position: 'absolute',
+    right: spacing.lg,
+    bottom: spacing.lg,
   },
 });
