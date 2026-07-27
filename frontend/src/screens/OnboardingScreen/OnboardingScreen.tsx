@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   skipText: {
     fontFamily: 'NotoSansKR-Regular',
     fontSize: 15,
-    color: '#374151',
+    color: '#505050',
   },
   footer: {
     position: 'absolute',
