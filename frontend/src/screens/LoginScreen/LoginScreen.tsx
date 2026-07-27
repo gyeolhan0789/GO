@@ -69,15 +69,9 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
       return;
     }
 
-    mutation.mutate(
-      { email: email.trim(), password },
-      // 권한 화면에서 reset으로 진입하면 스택에 Main이 없다. 홈에서 들어온
-      // 경우까지 한 가지로 처리하려고 popTo 대신 reset을 쓴다.
-      {
-        onSuccess: () =>
-          navigation.reset({ index: 0, routes: [{ name: 'Main' }] }),
-      },
-    );
+    // 성공 후 화면 전환은 RootNavigator가 맡는다. 토큰이 저장되면 인증 화면들이
+    // 스택에서 빠지고 Main만 남으므로 여기서 직접 이동할 필요가 없다.
+    mutation.mutate({ email: email.trim(), password });
   }
 
   return (
