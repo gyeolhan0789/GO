@@ -22,7 +22,7 @@ const styles = StyleSheet.create({
   track: {
     height: 8,
     borderRadius: radius.pill,
-    backgroundColor: colors.successBg,
+    backgroundColor: colors.progress,
     overflow: 'hidden',
   },
   fill: {
