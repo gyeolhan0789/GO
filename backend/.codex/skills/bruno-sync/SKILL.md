@@ -4,6 +4,10 @@ description: backend/ai 디렉터리의 컨트롤러·라우터를 스캔해 api
 argument-hint: "[backend|ai]"
 ---
 
+## Bruno docs language
+
+Bruno `.bru` 파일의 `docs {}` 블록은 가능한 한 한국어로 작성한다. API 필드명, enum 값, URL, 코드 예시처럼 계약상 영문 표기가 필요한 경우만 원문을 유지한다.
+
 # Bruno API 명세 동기화
 
 `backend/`와 `ai/`의 실제 엔드포인트를 스캔해 `api-document/`의 기존 Bruno 문서와 비교하고, 문서가 없는 엔드포인트만 새로 만든다. **이미 존재하는 `.bru` 파일은 절대 덮어쓰지 않는다** — 내용이 코드와 달라 보이면 드리프트로 리포트만 한다.

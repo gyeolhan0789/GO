@@ -28,7 +28,7 @@ public class OAuthController {
             @Valid @RequestBody OAuthTokenRequest request,
             HttpServletResponse response
     ) {
-        AuthTokens tokens = oAuthService.oauthLogin(AuthProvider.GOOGLE, request.idToken());
+        AuthTokens tokens = oAuthService.oauthLogin(AuthProvider.GOOGLE, request.idToken(), request.gender());
         refreshTokenCookieManager.setCookie(response, tokens.refreshToken());
         return ResponseEntity.ok(new AccessTokenResponse(tokens.accessToken()));
     }
@@ -38,7 +38,7 @@ public class OAuthController {
             @Valid @RequestBody OAuthTokenRequest request,
             HttpServletResponse response
     ) {
-        AuthTokens tokens = oAuthService.oauthLogin(AuthProvider.KAKAO, request.idToken());
+        AuthTokens tokens = oAuthService.oauthLogin(AuthProvider.KAKAO, request.idToken(), request.gender());
         refreshTokenCookieManager.setCookie(response, tokens.refreshToken());
         return ResponseEntity.ok(new AccessTokenResponse(tokens.accessToken()));
     }

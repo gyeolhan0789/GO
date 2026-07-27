@@ -15,11 +15,14 @@ body:json {
     "email": "test@example.com",
     "password": "Password123!",
     "nickname": "testuser",
-    "region": "SEOUL"
+    "region": "SEOUL",
+    "gender": "MALE"
   }
 }
 
 docs {
+  성별은 필수이며 `MALE` 또는 `FEMALE`만 입력할 수 있다.
+
   ## 회원가입
 
   이메일/비밀번호 기반 신규 회원을 생성한다. 각 필드의 제약조건은 아래 Request 필드 표를 참고한다.
