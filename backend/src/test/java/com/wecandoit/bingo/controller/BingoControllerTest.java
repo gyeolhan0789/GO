@@ -15,7 +15,8 @@ import com.wecandoit.bingo.controller.response.BingoBoardResponse;
 import com.wecandoit.bingo.controller.response.BingoCellResponse;
 import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
-import com.wecandoit.bingo.service.BingoService;
+import com.wecandoit.bingo.service.BingoCommandService;
+import com.wecandoit.bingo.service.BingoReadService;
 import com.wecandoit.bingo.service.MissionVerificationFacade;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.CustomExceptionHandler;
@@ -49,7 +50,10 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 class BingoControllerTest {
 
     @Mock
-    private BingoService bingoService;
+    private BingoCommandService bingoCommandService;
+
+    @Mock
+    private BingoReadService bingoReadService;
 
     @Mock
     private MissionVerificationFacade missionVerificationFacade;
@@ -60,7 +64,8 @@ class BingoControllerTest {
                 UsernamePasswordAuthenticationToken.authenticated(1L, null, List.of())
         );
 
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new BingoController(bingoService, missionVerificationFacade))
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(
+                        new BingoController(bingoCommandService, bingoReadService, missionVerificationFacade))
                 .setControllerAdvice(new CustomExceptionHandler())
                 .setCustomArgumentResolvers(new LoginMemberIdArgumentResolver())
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(
@@ -102,7 +107,7 @@ class BingoControllerTest {
                 true,
                 true
         );
-        BDDMockito.given(bingoService.getActiveBoard(1L, 10L)).willReturn(response);
+        BDDMockito.given(bingoReadService.getActiveBoard(1L, 10L)).willReturn(response);
 
         // when & then
         given()
@@ -146,7 +151,7 @@ class BingoControllerTest {
     void getActiveBoardRejectsMissingBoard() {
         // given
         willThrow(new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND))
-                .given(bingoService)
+                .given(bingoReadService)
                 .getActiveBoard(1L, 10L);
 
         // when & then
@@ -298,7 +303,7 @@ class BingoControllerTest {
                 false,
                 false
         );
-        BDDMockito.given(bingoService.renewBoard(1L, 10L)).willReturn(response);
+        BDDMockito.given(bingoCommandService.renewBoard(1L, 10L)).willReturn(response);
 
         // when & then
         given()
@@ -339,7 +344,7 @@ class BingoControllerTest {
     void renewBoardRejectsIncompleteBoard() {
         // given
         willThrow(new CustomException(ErrorCode.BINGO_BOARD_NOT_COMPLETED))
-                .given(bingoService)
+                .given(bingoCommandService)
                 .renewBoard(1L, 10L);
 
         // when & then
@@ -355,7 +360,7 @@ class BingoControllerTest {
     void renewBoardRejectsNonHost() {
         // given
         willThrow(new CustomException(ErrorCode.BINGO_BOARD_RENEWAL_FORBIDDEN))
-                .given(bingoService)
+                .given(bingoCommandService)
                 .renewBoard(1L, 10L);
 
         // when & then

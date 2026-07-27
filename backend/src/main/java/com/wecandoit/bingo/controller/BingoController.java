@@ -3,7 +3,8 @@ package com.wecandoit.bingo.controller;
 import com.wecandoit.bingo.controller.request.SubmitBingoCellRequest;
 import com.wecandoit.bingo.controller.response.BingoBoardResponse;
 import com.wecandoit.bingo.controller.response.BingoCellResponse;
-import com.wecandoit.bingo.service.BingoService;
+import com.wecandoit.bingo.service.BingoCommandService;
+import com.wecandoit.bingo.service.BingoReadService;
 import com.wecandoit.bingo.service.MissionVerificationFacade;
 import com.wecandoit.common.security.LoginMemberId;
 import jakarta.validation.Valid;
@@ -22,7 +23,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class BingoController {
 
-    private final BingoService bingoService;
+    private final BingoCommandService bingoCommandService;
+    private final BingoReadService bingoReadService;
     private final MissionVerificationFacade missionVerificationFacade;
 
     @GetMapping("/{roomId}/bingo-boards/active")
@@ -30,7 +32,7 @@ public class BingoController {
             @LoginMemberId Long memberId,
             @PathVariable Long roomId
     ) {
-        BingoBoardResponse response = bingoService.getActiveBoard(memberId, roomId);
+        BingoBoardResponse response = bingoReadService.getActiveBoard(memberId, roomId);
         return ResponseEntity.ok(response);
     }
 
@@ -51,7 +53,7 @@ public class BingoController {
             @LoginMemberId Long memberId,
             @PathVariable Long roomId
     ) {
-        BingoBoardResponse response = bingoService.renewBoard(memberId, roomId);
+        BingoBoardResponse response = bingoCommandService.renewBoard(memberId, roomId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

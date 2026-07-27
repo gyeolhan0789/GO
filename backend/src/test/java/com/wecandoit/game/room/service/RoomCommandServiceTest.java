@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
-import com.wecandoit.bingo.service.BingoService;
+import com.wecandoit.bingo.service.BingoCommandService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.room.controller.request.CreateRoomRequest;
@@ -38,7 +38,7 @@ class RoomCommandServiceTest {
     @Mock
     private RoomMemberRepository roomMemberRepository;
     @Mock
-    private BingoService bingoService;
+    private BingoCommandService bingoCommandService;
     private RoomCommandService roomCommandService;
 
     @BeforeEach
@@ -46,7 +46,7 @@ class RoomCommandServiceTest {
         roomCommandService = new RoomCommandService(
                 roomRepository,
                 roomMemberRepository,
-                bingoService
+                bingoCommandService
         );
     }
 
@@ -284,7 +284,7 @@ class RoomCommandServiceTest {
         // then
         assertThat(room.getStatus()).isEqualTo(GameRoomStatus.IN_PROGRESS);
         assertThat(room.getStartedAt()).isNotNull();
-        then(bingoService).should().generateInitialBoard(room);
+        then(bingoCommandService).should().generateInitialBoard(room);
     }
 
     @Test
@@ -298,7 +298,7 @@ class RoomCommandServiceTest {
                 () -> roomCommandService.startGame(1L, 10L),
                 ErrorCode.ROOM_NOT_FOUND
         );
-        then(bingoService).shouldHaveNoInteractions();
+        then(bingoCommandService).shouldHaveNoInteractions();
     }
 
     @Test
@@ -315,7 +315,7 @@ class RoomCommandServiceTest {
                 () -> roomCommandService.startGame(2L, 10L),
                 ErrorCode.ROOM_START_FORBIDDEN
         );
-        then(bingoService).shouldHaveNoInteractions();
+        then(bingoCommandService).shouldHaveNoInteractions();
     }
 
     @Test
@@ -331,7 +331,7 @@ class RoomCommandServiceTest {
                 () -> roomCommandService.startGame(1L, 10L),
                 ErrorCode.ROOM_NOT_READY
         );
-        then(bingoService).shouldHaveNoInteractions();
+        then(bingoCommandService).shouldHaveNoInteractions();
     }
 
     private void assertErrorCode(Runnable action, ErrorCode errorCode) {

@@ -5,7 +5,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
 import com.wecandoit.bingo.domain.BingoCell;
-import com.wecandoit.bingo.service.BingoService;
+import com.wecandoit.bingo.service.BingoReadService;
 import com.wecandoit.cash.repository.CashHistoryRepository;
 import com.wecandoit.game.result.domain.GameResult;
 import com.wecandoit.game.result.repository.GameResultRepository;
@@ -40,7 +40,7 @@ class GameCompletionServiceTest {
     @Mock
     private GameResultRepository gameResultRepository;
     @Mock
-    private BingoService bingoService;
+    private BingoReadService bingoReadService;
     @Mock
     private MemberRepository memberRepository;
     @Mock
@@ -53,7 +53,7 @@ class GameCompletionServiceTest {
                 roomRepository,
                 roomMemberRepository,
                 gameResultRepository,
-                bingoService,
+                bingoReadService,
                 memberRepository,
                 cashHistoryRepository
         );
@@ -72,7 +72,7 @@ class GameCompletionServiceTest {
                 incompleteCell(100L, 1, 0),
                 incompleteCell(100L, 1, 1)
         );
-        given(bingoService.getActiveBoardCells(10L)).willReturn(cells);
+        given(bingoReadService.getActiveBoardCells(10L)).willReturn(cells);
 
         // when
         gameCompletionService.evaluateAndCompleteIfNeeded(10L);
@@ -96,7 +96,7 @@ class GameCompletionServiceTest {
                 completedCell(100L, 1, 0, 1L),
                 incompleteCell(100L, 1, 1)
         );
-        given(bingoService.getActiveBoardCells(10L)).willReturn(cells);
+        given(bingoReadService.getActiveBoardCells(10L)).willReturn(cells);
         RoomMember member = roomMember(1L, 10L, 1L);
         given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of(member));
         Member rewardMember = member(1L, 0L);
@@ -136,7 +136,7 @@ class GameCompletionServiceTest {
                 completedCell(100L, 1, 0, 1L),
                 incompleteCell(100L, 1, 1)
         );
-        given(bingoService.getActiveBoardCells(10L)).willReturn(cells);
+        given(bingoReadService.getActiveBoardCells(10L)).willReturn(cells);
         RoomMember member = roomMember(1L, 10L, 1L);
         given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of(member));
         given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(member(1L, 0L)));
@@ -164,7 +164,7 @@ class GameCompletionServiceTest {
                 completedCell(100L, 1, 0, 20L),
                 incompleteCell(100L, 1, 1)
         );
-        given(bingoService.getActiveBoardCells(10L)).willReturn(cells);
+        given(bingoReadService.getActiveBoardCells(10L)).willReturn(cells);
         RoomMember memberA = roomMember(1L, 10L, 10L);
         RoomMember memberB = roomMember(2L, 10L, 20L);
         given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of(memberA, memberB));
