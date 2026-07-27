@@ -1,11 +1,11 @@
 package com.wecandoit.friend.controller;
 
-import com.wecandoit.friend.service.FriendRequestCommandService;
-import com.wecandoit.friend.service.FriendRequestReadService;
-
 import com.wecandoit.common.security.LoginMemberId;
 import com.wecandoit.friend.dto.ReceivedFriendRequestResponse;
 import com.wecandoit.friend.dto.SendFriendRequest;
+import com.wecandoit.friend.dto.SentFriendRequestResponse;
+import com.wecandoit.friend.service.FriendRequestCommandService;
+import com.wecandoit.friend.service.FriendRequestReadService;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +41,13 @@ public class FriendRequestController {
             @LoginMemberId Long memberId
     ) {
         return ResponseEntity.ok(friendRequestReadService.getReceivedRequests(memberId));
+    }
+
+    @GetMapping("/sent")
+    public ResponseEntity<List<SentFriendRequestResponse>> getSentRequests(
+            @LoginMemberId Long memberId
+    ) {
+        return ResponseEntity.ok(friendRequestReadService.getSentRequests(memberId));
     }
 
     @PatchMapping("/{requestId}/accept")

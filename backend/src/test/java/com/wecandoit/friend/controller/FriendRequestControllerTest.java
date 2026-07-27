@@ -16,6 +16,7 @@ import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.friend.dto.ReceivedFriendRequestResponse;
 import com.wecandoit.friend.dto.SendFriendRequest;
+import com.wecandoit.friend.dto.SentFriendRequestResponse;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -93,6 +94,52 @@ class FriendRequestControllerTest {
                 .andExpect(jsonPath("$[0].inviterId").value(2L))
                 .andExpect(jsonPath("$[0].inviterNickname").value("요청자"))
                 .andExpect(jsonPath("$[0].createdAt").value("2026-07-19T12:00:00"));
+    }
+
+    @Test
+    @DisplayName("보낸 친구 요청을 조회하면 요청 대상 정보와 생성 시각을 반환한다")
+    void getSentRequestsReturnsPendingRequests() throws Exception {
+        // given
+        LocalDateTime createdAt = LocalDateTime.of(2026, 7, 27, 10, 0);
+        given(friendRequestReadService.getSentRequests(1L)).willReturn(List.of(
+                new SentFriendRequestResponse(10L, 2L, "받는사람", createdAt)
+        ));
+
+        // when & then
+        mockMvc.perform(get("/friend-requests/sent"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].requestId").value(10L))
+                .andExpect(jsonPath("$[0].inviteeId").value(2L))
+                .andExpect(jsonPath("$[0].inviteeNickname").value("받는사람"))
+                .andExpect(jsonPath("$[0].createdAt").value("2026-07-27T10:00:00"))
+                .andExpect(jsonPath("$[0].email").doesNotExist())
+                .andExpect(jsonPath("$[0].password").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("보낸 친구 요청이 없으면 빈 배열을 반환한다")
+    void getSentRequestsReturnsEmptyArray() throws Exception {
+        // given
+        given(friendRequestReadService.getSentRequests(1L)).willReturn(List.of());
+
+        // when & then
+        mockMvc.perform(get("/friend-requests/sent"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    @DisplayName("인증되지 않은 보낸 친구 요청 조회는 401 응답을 반환한다")
+    void getSentRequestsRejectsUnauthenticatedRequest() throws Exception {
+        // given
+        SecurityContextHolder.clearContext();
+
+        // when & then
+        mockMvc.perform(get("/friend-requests/sent"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
     }
 
     @Test
