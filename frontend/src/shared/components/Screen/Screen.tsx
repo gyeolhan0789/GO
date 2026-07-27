@@ -3,6 +3,8 @@ import { StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { SafeAreaViewProps } from 'react-native-safe-area-context';
 
+import { colors } from '../../constants/colors';
+
 type ScreenProps = PropsWithChildren<{
   edges?: SafeAreaViewProps['edges'];
 }>;
@@ -23,5 +25,7 @@ export function Screen({ children, edges = DEFAULT_EDGES }: ScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    // Android의 기본 windowBackground(#FAFAFA)가 비쳐 보이지 않도록 명시적으로 흰색 지정.
+    backgroundColor: colors.surface,
   },
 });
