@@ -5,9 +5,14 @@ meta {
 }
 
 get {
-  url: {{backendBaseUrl}}/rankings
+  url: {{backendBaseUrl}}/rankings?page=0&size=20
   body: none
   auth: inherit
+}
+
+params:query {
+  page: 0
+  size: 20
 }
 
 headers {
@@ -17,59 +22,63 @@ headers {
 docs {
   ## 지역 랭킹 조회
 
-  로그인 회원이 저장한 지역을 기준으로 같은 지역 회원들의 이번 주 랭킹을 조회한다. query parameter는 사용하지 않는다.
+  로그인 회원이 저장한 지역을 기준으로 이번 주 전체 랭킹을 페이지 단위로 조회한다.
 
   ### 성공 응답 (200 OK)
   ```json
   {
     "region": "SEOUL",
-    "myRank": 3,
+    "myRank": 42,
     "myWeeklySteps": 12500,
-    "rankings": [
-      {
-        "rank": 1,
-        "memberId": 2,
-        "nickname": "walker1",
-        "weeklySteps": 20000
-      },
-      {
-        "rank": 1,
-        "memberId": 3,
-        "nickname": "walker2",
-        "weeklySteps": 20000
-      },
-      {
-        "rank": 3,
-        "memberId": 1,
-        "nickname": "me",
-        "weeklySteps": 12500
-      }
-    ]
+    "rankings": {
+      "content": [
+        {
+          "rank": 1,
+          "memberId": 10,
+          "nickname": "walker1",
+          "weeklySteps": 20000
+        }
+      ],
+      "totalElements": 100,
+      "totalPages": 5,
+      "currentPage": 0,
+      "size": 20,
+      "hasNext": true
+    }
   }
   ```
 
   ### 비즈니스 규칙
-  - 로그인 회원의 `Member.region`과 같은 지역 회원만 포함한다.
-  - 이번 주 월요일부터 현재 날짜까지의 걸음 수를 합산한다.
-  - 걸음 기록이 없는 회원도 0걸음으로 포함한다.
-  - 걸음 수 내림차순, 동점이면 회원 ID 오름차순으로 표시한다.
-  - 동점 순위는 `RANK` 방식이다. 예를 들어 1위가 2명이면 다음 회원은 3위다.
+  - 지역은 로그인 회원의 `Member.region`을 사용하며 별도 지역 query parameter를 받지 않는다.
+  - 주간 범위는 Asia/Seoul 기준 월요일부터 오늘까지다.
+  - 걸음 기록이 없는 같은 지역 회원도 0걸음으로 포함한다.
+  - 전체 순위는 걸음 수 내림차순의 `RANK` 방식이며 동점자는 같은 순위를 가진다.
+  - 동점자의 표시 순서는 회원 ID 오름차순이다.
+  - `myRank`와 `myWeeklySteps`는 요청 페이지에 로그인 회원이 없어도 전체 대상을 기준으로 반환한다.
+
+  ### 페이지 필드
+  - `content`: 현재 페이지의 랭킹 항목
+  - `totalElements`: 같은 지역의 전체 랭킹 대상 수
+  - `totalPages`: 전체 페이지 수
+  - `currentPage`: 현재 페이지 번호
+  - `size`: 요청한 페이지 크기
+  - `hasNext`: 다음 페이지 존재 여부
 
   ### 에러 케이스
+
+  **지역을 설정하지 않은 회원**
+  ```json
+  {
+    "status": 400,
+    "message": "지역을 설정해야 랭킹을 확인할 수 있습니다."
+  }
+  ```
 
   **Authorization 헤더 없음**
   ```json
   {
     "status": 401,
     "message": "인증이 필요합니다."
-  }
-  ```
-
-  **존재하지 않는 회원**
-  ```json
-  {
-    "status": 404,
-    "message": "회원을 찾을 수 없습니다."
   }
   ```
 }
