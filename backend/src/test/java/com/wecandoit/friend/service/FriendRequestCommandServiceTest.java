@@ -191,6 +191,82 @@ class FriendRequestCommandServiceTest {
         then(friendRepository).should(never()).save(Mockito.any());
     }
 
+    @Test
+    @DisplayName("발신자가 대기 중인 친구 요청을 취소하면 요청을 삭제한다")
+    void cancelRequestDeletesPendingRequest() {
+        // given
+        FriendRequest friendRequest = friendRequest(10L, inviter, invitee);
+        given(friendRequestRepository.findByIdForUpdate(10L)).willReturn(Optional.of(friendRequest));
+
+        // when
+        friendRequestCommandService.cancelRequest(1L, 10L);
+
+        // then
+        then(friendRequestRepository).should().findByIdForUpdate(10L);
+        then(friendRequestRepository).should().delete(friendRequest);
+        then(friendRepository).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("요청 발신자가 아니면 친구 요청을 취소할 수 없다")
+    void cancelRequestRejectsNonInviter() {
+        // given
+        FriendRequest friendRequest = friendRequest(10L, inviter, invitee);
+        given(friendRequestRepository.findByIdForUpdate(10L)).willReturn(Optional.of(friendRequest));
+
+        // when & then
+        assertErrorCode(
+                () -> friendRequestCommandService.cancelRequest(2L, 10L),
+                ErrorCode.FRIEND_REQUEST_FORBIDDEN
+        );
+        then(friendRequestRepository).should(never()).delete(Mockito.any());
+    }
+
+    @Test
+    @DisplayName("존재하지 않거나 이미 삭제된 친구 요청은 취소할 수 없다")
+    void cancelRequestRejectsMissingRequest() {
+        // given
+        given(friendRequestRepository.findByIdForUpdate(10L)).willReturn(Optional.empty());
+
+        // when & then
+        assertErrorCode(
+                () -> friendRequestCommandService.cancelRequest(1L, 10L),
+                ErrorCode.FRIEND_REQUEST_NOT_FOUND
+        );
+    }
+
+    @Test
+    @DisplayName("이미 수락된 친구 요청은 취소할 수 없다")
+    void cancelRequestRejectsAcceptedRequest() {
+        // given
+        FriendRequest friendRequest = friendRequest(10L, inviter, invitee);
+        friendRequest.accept();
+        given(friendRequestRepository.findByIdForUpdate(10L)).willReturn(Optional.of(friendRequest));
+
+        // when & then
+        assertErrorCode(
+                () -> friendRequestCommandService.cancelRequest(1L, 10L),
+                ErrorCode.FRIEND_REQUEST_ALREADY_PROCESSED
+        );
+        then(friendRequestRepository).should(never()).delete(Mockito.any());
+    }
+
+    @Test
+    @DisplayName("이미 거절된 친구 요청은 취소할 수 없다")
+    void cancelRequestRejectsRejectedRequest() {
+        // given
+        FriendRequest friendRequest = friendRequest(10L, inviter, invitee);
+        friendRequest.reject();
+        given(friendRequestRepository.findByIdForUpdate(10L)).willReturn(Optional.of(friendRequest));
+
+        // when & then
+        assertErrorCode(
+                () -> friendRequestCommandService.cancelRequest(1L, 10L),
+                ErrorCode.FRIEND_REQUEST_ALREADY_PROCESSED
+        );
+        then(friendRequestRepository).should(never()).delete(Mockito.any());
+    }
+
     private Member member(Long id, String nickname) {
         Member member = Member.create(nickname + "@example.com", "password", nickname);
         ReflectionTestUtils.setField(member, "id", id);

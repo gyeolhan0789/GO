@@ -44,6 +44,7 @@ Java Spring Boot 테스트(Controller, Service, Persistence) 작성 시 적용�
 - 저장·로드한 데이터를 명시적으로 검증한다.
 - DB 읽기 검증 시 영속성 컨텍스트를 비운다.
 - Repository를 Mock으로 처리하지 않는다.
+- 커스텀 Repository 메서드는 프로덕션 유스케이스가 있을 때만 추가하며, 테스트 전용 메서드와 테스트는 함께 제거한다.
 
 ## REST Docs
 

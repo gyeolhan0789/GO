@@ -1,5 +1,6 @@
 package com.wecandoit.member.controller;
 
+import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.common.security.LoginMemberId;
 import com.wecandoit.member.dto.MemberProfileUpdateRequest;
 import com.wecandoit.member.dto.MemberSearchResponse;
@@ -7,8 +8,8 @@ import com.wecandoit.member.dto.PasswordChangeRequest;
 import com.wecandoit.member.service.MemberReadService;
 import com.wecandoit.member.service.MemberService;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -26,11 +27,12 @@ public class MemberController {
     private final MemberService memberService;
 
     @GetMapping("/search")
-    public ResponseEntity<List<MemberSearchResponse>> searchMembers(
+    public ResponseEntity<SliceResponse<MemberSearchResponse>> searchMembers(
             @LoginMemberId Long memberId,
-            @RequestParam(defaultValue = "") String keyword
+            @RequestParam(defaultValue = "") String keyword,
+            Pageable pageable
     ) {
-        return ResponseEntity.ok(memberReadService.searchMembers(memberId, keyword));
+        return ResponseEntity.ok(memberReadService.searchMembers(memberId, keyword, pageable));
     }
 
     @PatchMapping("/me")

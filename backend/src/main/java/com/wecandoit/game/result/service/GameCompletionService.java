@@ -2,7 +2,7 @@ package com.wecandoit.game.result.service;
 
 import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.domain.BingoLineCounter;
-import com.wecandoit.bingo.service.BingoService;
+import com.wecandoit.bingo.service.BingoReadService;
 import com.wecandoit.cash.domain.CashHistory;
 import com.wecandoit.cash.repository.CashHistoryRepository;
 import com.wecandoit.common.exception.CustomException;
@@ -10,6 +10,7 @@ import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.result.domain.GameResult;
 import com.wecandoit.game.result.repository.GameResultRepository;
 import com.wecandoit.game.room.domain.GameRoomStatus;
+import com.wecandoit.game.room.domain.GameMode;
 import com.wecandoit.game.room.domain.Room;
 import com.wecandoit.game.room.domain.RoomMember;
 import com.wecandoit.game.room.repository.RoomMemberRepository;
@@ -33,7 +34,7 @@ public class GameCompletionService {
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
     private final GameResultRepository gameResultRepository;
-    private final BingoService bingoService;
+    private final BingoReadService bingoReadService;
     private final MemberRepository memberRepository;
     private final CashHistoryRepository cashHistoryRepository;
 
@@ -45,9 +46,13 @@ public class GameCompletionService {
             return;
         }
 
-        List<BingoCell> cells = bingoService.getActiveBoardCells(roomId);
+        List<BingoCell> cells = bingoReadService.getActiveBoardCells(roomId);
+        if (room.getMode() == GameMode.SINGLE && cells.stream().anyMatch(cell -> cell.getCompletedAt() == null)) {
+            return;
+        }
+
         int lineCount = BingoLineCounter.countCompletedLines(room.getBoardSize(), cells);
-        if (lineCount < room.getTargetBingoCount()) {
+        if (room.getMode() == GameMode.COOPERATE && lineCount < room.getTargetBingoCount()) {
             return;
         }
 

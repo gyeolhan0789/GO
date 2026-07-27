@@ -72,6 +72,26 @@ public class Room extends BaseEntity {
         return status == GameRoomStatus.READY;
     }
 
+    public boolean isCompleted() {
+        return status == GameRoomStatus.COMPLETED;
+    }
+
+    public void updateParticipantStatus(long participantCount) {
+        if (mode == GameMode.SINGLE
+                || status == GameRoomStatus.IN_PROGRESS
+                || status == GameRoomStatus.COMPLETED
+                || status == GameRoomStatus.CLOSED) {
+            return;
+        }
+
+        if (participantCount >= mode.getMinimumParticipants()) {
+            this.status = GameRoomStatus.READY;
+            return;
+        }
+
+        this.status = GameRoomStatus.WAITING;
+    }
+
     public void start() {
         this.status = GameRoomStatus.IN_PROGRESS;
         this.startedAt = LocalDateTime.now();

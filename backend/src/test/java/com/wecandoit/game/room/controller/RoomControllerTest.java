@@ -12,6 +12,7 @@ import static org.springframework.restdocs.request.RequestDocumentation.paramete
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
+import static org.springframework.restdocs.payload.PayloadDocumentation.relaxedResponseFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -95,7 +96,17 @@ class RoomControllerTest {
         // given
         CreateRoomRequest request = new CreateRoomRequest(GameMode.COOPERATE, 3, 3, 10000);
         given(roomCommandService.createRoom(1L, request))
-                .willReturn(new CreateRoomResponse(10L, GameRoomStatus.CREATED, 10000));
+                .willReturn(new CreateRoomResponse(10L, GameRoomStatus.WAITING, 10000));
+        given(roomReadService.getRoomDetail(1L, 10L)).willReturn(new RoomDetailResponse(
+                10L,
+                GameMode.COOPERATE,
+                GameRoomStatus.WAITING,
+                3,
+                10000,
+                1L,
+                null,
+                List.of()
+        ));
 
         // when & then
         given()
@@ -111,9 +122,9 @@ class RoomControllerTest {
                 .when()
                 .post("/rooms")
                 .then()
-                .statusCode(HttpStatus.CREATED.value())
+                .statusCode(HttpStatus.OK.value())
                 .body("roomId", equalTo(10))
-                .body("status", equalTo("CREATED"))
+                .body("status", equalTo("WAITING"))
                 .body("targetStepCount", equalTo(10000))
                 .apply(document("room-create",
                         requestFields(
@@ -122,13 +133,14 @@ class RoomControllerTest {
                                 fieldWithPath("boardSize").description("빙고판 크기 (3~5)"),
                                 fieldWithPath("targetStepCount").description("목표 걸음 수 (협동 모드 필수, 개인 모드 null)")
                         ),
-                        responseFields(
+                        relaxedResponseFields(
                                 fieldWithPath("roomId").description("생성된 게임방 ID"),
                                 fieldWithPath("status").description("게임방 상태"),
                                 fieldWithPath("targetStepCount").description("목표 걸음 수 (협동 모드 전용)")
                         )
                 ));
         then(roomCommandService).should().createRoom(1L, request);
+        then(roomReadService).should().getRoomDetail(1L, 10L);
     }
 
     @Test
@@ -604,6 +616,18 @@ class RoomControllerTest {
 
         // when & then
         assertStartGameErrorResponse(HttpStatus.CONFLICT, "room-start-not-ready");
+    }
+
+    @Test
+    @DisplayName("최소 인원이 충족되지 않은 게임방에서 게임을 시작하면 409 상태를 반환한다")
+    void startGameRejectsInsufficientParticipants() {
+        // given
+        willThrow(new CustomException(ErrorCode.ROOM_MINIMUM_PARTICIPANTS_REQUIRED))
+                .given(roomCommandService)
+                .startGame(1L, 10L);
+
+        // when & then
+        assertStartGameErrorResponse(HttpStatus.CONFLICT, "room-start-insufficient-participants");
     }
 
     @Test

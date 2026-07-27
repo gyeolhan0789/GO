@@ -24,14 +24,14 @@ public class MissionVerificationFacade {
     private static final double CONFIDENCE_THRESHOLD = 0.7;
     private static final String LOW_CONFIDENCE_REASON = "AI 검증 신뢰도가 기준(0.7)에 미달했습니다.";
 
-    private final BingoService bingoService;
+    private final BingoCommandService bingoCommandService;
     private final AiVerificationClient aiVerificationClient;
     private final BingoCellVerificationResultService verificationResultService;
     private final MissionRepository missionRepository;
     private final BingoCellRepository bingoCellRepository;
 
     public BingoCellResponse submitAndVerify(Long memberId, Long roomId, Long cellId, String submitUrl) {
-        BingoCell submittedCell = bingoService.submitCell(memberId, roomId, cellId, submitUrl);
+        BingoCell submittedCell = bingoCommandService.submitCell(memberId, roomId, cellId, submitUrl);
         Mission mission = missionRepository.findById(submittedCell.getMissionId())
                 .orElseThrow(() -> new CustomException(ErrorCode.MISSION_NOT_FOUND));
 

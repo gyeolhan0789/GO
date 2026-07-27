@@ -1,10 +1,10 @@
 package com.wecandoit.ranking.controller.response;
 
-import java.util.List;
+import com.wecandoit.common.response.PageResponse;
 
 public record FriendRankingResponse(
         int myRank,
         long myWeeklySteps,
-        List<RankingItemResponse> rankings
+        PageResponse<RankingItemResponse> rankings
 ) {
 }

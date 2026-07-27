@@ -1,4 +1,5 @@
 import { apiClient } from '../../../shared/api/client';
+import type { Gender } from '../constants/genders';
 import type { Region } from '../constants/regions';
 
 export type LoginRequest = {
@@ -13,6 +14,7 @@ export type LoginResponse = {
 export type SignupRequest = LoginRequest & {
   nickname: string;
   region: Region;
+  gender: Gender;
 };
 
 export type SignupResponse = {

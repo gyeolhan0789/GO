@@ -111,6 +111,13 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
+    // Samsung Health Data SDK (로컬 aar) + 런타임 transitive 의존성
+    // (로컬 aar은 transitive 의존성을 안 가져오므로 직접 명시)
+    implementation(files("libs/samsung-health-data-api-1.1.0.aar"))
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    // SDK의 @Parcelize Parcelable 역직렬화에 필요 (kotlinx.parcelize.Parceler)
+    implementation("org.jetbrains.kotlin:kotlin-parcelize-runtime:2.1.20")
+
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {

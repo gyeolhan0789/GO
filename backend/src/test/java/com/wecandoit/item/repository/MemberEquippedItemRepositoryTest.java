@@ -62,6 +62,31 @@ class MemberEquippedItemRepositoryTest {
     }
 
     @Test
+    @DisplayName("여러 회원의 장착 아이템을 한 번에 조회한다")
+    void findAllByMemberIdInReturnsMemberEquippedItems() {
+        // given
+        saveEquippedItem(1L, 10L, ItemCategory.HAT);
+        saveEquippedItem(2L, 20L, ItemCategory.TOP);
+        saveEquippedItem(3L, 30L, ItemCategory.BOTTOM);
+        clearPersistenceContext();
+
+        // when
+        List<MemberEquippedItem> equippedItems =
+                memberEquippedItemRepository.findAllByMemberIdIn(List.of(1L, 2L));
+
+        // then
+        assertThat(equippedItems)
+                .extracting(
+                        MemberEquippedItem::getMemberId,
+                        MemberEquippedItem::getMemberItemId
+                )
+                .containsExactlyInAnyOrder(
+                        org.assertj.core.groups.Tuple.tuple(1L, 10L),
+                        org.assertj.core.groups.Tuple.tuple(2L, 20L)
+                );
+    }
+
+    @Test
     @DisplayName("회원과 카테고리로 장착 아이템을 조회한다")
     void findByMemberIdAndCategoryReturnsEquippedItem() {
         // given
@@ -128,71 +153,6 @@ class MemberEquippedItemRepositoryTest {
         // when & then
         assertThatThrownBy(() -> saveEquippedItem(2L, 10L, ItemCategory.TOP))
                 .isInstanceOf(DataIntegrityViolationException.class);
-    }
-
-    @Test
-    @DisplayName("회원과 카테고리로 장착 아이템을 삭제한다")
-    void deleteByMemberIdAndCategoryDeletesEquippedItem() {
-        // given
-        saveEquippedItem(1L, 10L, ItemCategory.HAT);
-        saveEquippedItem(1L, 20L, ItemCategory.TOP);
-
-        // when
-        memberEquippedItemRepository.deleteByMemberIdAndCategory(1L, ItemCategory.HAT);
-        clearPersistenceContext();
-
-        // then
-        assertThat(memberEquippedItemRepository.findByMemberIdAndCategory(1L, ItemCategory.HAT))
-                .isEmpty();
-        assertThat(memberEquippedItemRepository.findByMemberIdAndCategory(1L, ItemCategory.TOP))
-                .isPresent();
-    }
-
-    @Test
-    @DisplayName("회원과 보유 아이템 ID로 장착 아이템을 삭제한다")
-    void deleteByMemberIdAndMemberItemIdDeletesEquippedItem() {
-        // given
-        saveEquippedItem(1L, 10L, ItemCategory.HAT);
-
-        // when
-        memberEquippedItemRepository.deleteByMemberIdAndMemberItemId(1L, 10L);
-        clearPersistenceContext();
-
-        // then
-        assertThat(memberEquippedItemRepository.findByMemberIdAndMemberItemId(1L, 10L))
-                .isEmpty();
-    }
-
-    @Test
-    @DisplayName("회원과 카테고리로 삭제할 때 다른 회원의 장착 아이템은 유지한다")
-    void deleteByMemberIdAndCategoryKeepsOtherMemberEquippedItem() {
-        // given
-        saveEquippedItem(1L, 10L, ItemCategory.HAT);
-        saveEquippedItem(2L, 20L, ItemCategory.HAT);
-
-        // when
-        memberEquippedItemRepository.deleteByMemberIdAndCategory(1L, ItemCategory.HAT);
-        clearPersistenceContext();
-
-        // then
-        assertThat(memberEquippedItemRepository.findByMemberIdAndCategory(2L, ItemCategory.HAT))
-                .isPresent();
-    }
-
-    @Test
-    @DisplayName("회원과 보유 아이템 ID로 삭제할 때 다른 회원의 장착 아이템은 유지한다")
-    void deleteByMemberIdAndMemberItemIdKeepsOtherMemberEquippedItem() {
-        // given
-        saveEquippedItem(1L, 10L, ItemCategory.HAT);
-        saveEquippedItem(2L, 20L, ItemCategory.TOP);
-
-        // when
-        memberEquippedItemRepository.deleteByMemberIdAndMemberItemId(1L, 20L);
-        clearPersistenceContext();
-
-        // then
-        assertThat(memberEquippedItemRepository.findByMemberIdAndMemberItemId(2L, 20L))
-                .isPresent();
     }
 
     @Test
