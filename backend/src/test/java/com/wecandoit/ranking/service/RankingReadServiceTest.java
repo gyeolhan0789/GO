@@ -2,18 +2,17 @@ package com.wecandoit.ranking.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.history.repository.MemberHistoryRepository;
-import com.wecandoit.history.repository.WeeklyRankingSummary;
+import com.wecandoit.history.repository.RankedWeeklyRankingSummary;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.domain.Region;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.ranking.controller.response.RankingResponse;
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +21,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @DisplayName("랭킹 조회 서비스")
@@ -36,112 +37,112 @@ class RankingReadServiceTest {
     private RankingReadService rankingReadService;
 
     @Test
-    @DisplayName("로그인 회원의 지역 집계 결과에 RANK 방식 순위를 부여한다")
-    void getRankingsAssignsCompetitionRanks() {
+    @DisplayName("페이지와 무관한 전체 순위와 PageResponse 정보를 반환한다")
+    void getRankingsReturnsGlobalRankAndPageResponse() {
         // given
         Member loginMember = member(4L, "로그인회원", Region.SEOUL);
-        CurrentWeekRange weekRange = CurrentWeekRange.from(LocalDate.now(ZoneId.of("Asia/Seoul")));
+        PageRequest pageable = PageRequest.of(1, 2);
         given(memberRepository.findById(4L)).willReturn(Optional.of(loginMember));
-        given(memberHistoryRepository.findWeeklyRankingsByRegion(
-                Region.SEOUL,
-                weekRange.startDate(),
-                weekRange.endDate()
-        )).willReturn(List.of(
-                summary(1L, "회원1", 20_000),
-                summary(2L, "회원2", 20_000),
-                summary(3L, "회원3", 20_000),
-                summary(4L, "로그인회원", 12_500),
-                summary(5L, "회원5", 0)
+        given(memberHistoryRepository.findPagedWeeklyRankingsByRegion(
+                org.mockito.ArgumentMatchers.eq("SEOUL"),
+                any(),
+                any(),
+                org.mockito.ArgumentMatchers.eq(pageable)
+        )).willReturn(new PageImpl<>(
+                List.of(
+                        summary(3, 3L, "회원3", 15_000),
+                        summary(4, 4L, "로그인회원", 12_500)
+                ),
+                pageable,
+                5
         ));
+        given(memberHistoryRepository.findWeeklyRankingByRegionAndMemberId(
+                org.mockito.ArgumentMatchers.eq("SEOUL"),
+                org.mockito.ArgumentMatchers.eq(4L),
+                any(),
+                any()
+        )).willReturn(Optional.of(summary(4, 4L, "로그인회원", 12_500)));
 
         // when
-        RankingResponse response = rankingReadService.getRankings(4L);
+        RankingResponse response = rankingReadService.getRankings(4L, pageable);
 
         // then
         assertThat(response.region()).isEqualTo(Region.SEOUL);
         assertThat(response.myRank()).isEqualTo(4);
         assertThat(response.myWeeklySteps()).isEqualTo(12_500);
-        assertThat(response.rankings())
-                .extracting("rank")
-                .containsExactly(1, 1, 1, 4, 5);
-        assertThat(response.rankings())
-                .extracting("memberId")
-                .containsExactly(1L, 2L, 3L, 4L, 5L);
+        assertThat(response.rankings().content())
+                .extracting("rank", "memberId")
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(3, 3L),
+                        org.assertj.core.groups.Tuple.tuple(4, 4L)
+                );
+        assertThat(response.rankings().totalElements()).isEqualTo(5);
+        assertThat(response.rankings().totalPages()).isEqualTo(3);
+        assertThat(response.rankings().currentPage()).isEqualTo(1);
+        assertThat(response.rankings().size()).isEqualTo(2);
+        assertThat(response.rankings().hasNext()).isTrue();
     }
 
     @Test
-    @DisplayName("모든 회원이 0걸음이면 모두 1위로 반환한다")
-    void getRankingsReturnsAllMembersFirstWhenStepsAreZero() {
+    @DisplayName("로그인 회원이 현재 페이지에 없어도 전체 기준 내 순위를 반환한다")
+    void getRankingsReturnsMyRankOutsideCurrentPage() {
         // given
-        Member loginMember = member(2L, "로그인회원", Region.BUSAN);
-        CurrentWeekRange weekRange = CurrentWeekRange.from(LocalDate.now(ZoneId.of("Asia/Seoul")));
-        given(memberRepository.findById(2L)).willReturn(Optional.of(loginMember));
-        given(memberHistoryRepository.findWeeklyRankingsByRegion(
-                Region.BUSAN,
-                weekRange.startDate(),
-                weekRange.endDate()
-        )).willReturn(List.of(
-                summary(1L, "회원1", 0),
-                summary(2L, "로그인회원", 0),
-                summary(3L, "회원3", 0)
+        Member loginMember = member(5L, "로그인회원", Region.BUSAN);
+        PageRequest pageable = PageRequest.of(0, 2);
+        given(memberRepository.findById(5L)).willReturn(Optional.of(loginMember));
+        given(memberHistoryRepository.findPagedWeeklyRankingsByRegion(
+                org.mockito.ArgumentMatchers.eq("BUSAN"),
+                any(),
+                any(),
+                org.mockito.ArgumentMatchers.eq(pageable)
+        )).willReturn(new PageImpl<>(
+                List.of(
+                        summary(1, 1L, "회원1", 20_000),
+                        summary(1, 2L, "회원2", 20_000)
+                ),
+                pageable,
+                5
         ));
+        given(memberHistoryRepository.findWeeklyRankingByRegionAndMemberId(
+                org.mockito.ArgumentMatchers.eq("BUSAN"),
+                org.mockito.ArgumentMatchers.eq(5L),
+                any(),
+                any()
+        )).willReturn(Optional.of(summary(5, 5L, "로그인회원", 0)));
 
         // when
-        RankingResponse response = rankingReadService.getRankings(2L);
+        RankingResponse response = rankingReadService.getRankings(5L, pageable);
 
         // then
-        assertThat(response.myRank()).isEqualTo(1);
+        assertThat(response.myRank()).isEqualTo(5);
         assertThat(response.myWeeklySteps()).isZero();
-        assertThat(response.rankings())
+        assertThat(response.rankings().content())
                 .extracting("rank")
-                .containsExactly(1, 1, 1);
+                .containsExactly(1, 1);
     }
 
     @Test
-    @DisplayName("같은 지역 회원이 본인뿐이면 1위로 반환한다")
-    void getRankingsReturnsLoginMemberFirstWhenAlone() {
-        // given
-        Member loginMember = member(1L, "로그인회원", Region.JEJU);
-        CurrentWeekRange weekRange = CurrentWeekRange.from(LocalDate.now(ZoneId.of("Asia/Seoul")));
-        given(memberRepository.findById(1L)).willReturn(Optional.of(loginMember));
-        given(memberHistoryRepository.findWeeklyRankingsByRegion(
-                Region.JEJU,
-                weekRange.startDate(),
-                weekRange.endDate()
-        )).willReturn(List.of(summary(1L, "로그인회원", 0)));
-
-        // when
-        RankingResponse response = rankingReadService.getRankings(1L);
-
-        // then
-        assertThat(response.myRank()).isEqualTo(1);
-        assertThat(response.rankings()).hasSize(1);
-        assertThat(response.rankings().getFirst().memberId()).isEqualTo(1L);
-    }
-
-    @Test
-    @DisplayName("로그인 회원의 지역이 없으면 지역 설정 필요 예외가 발생한다")
+    @DisplayName("지역을 설정하지 않은 회원은 지역 설정 필요 예외가 발생한다")
     void getRankingsRejectsMemberWithoutRegion() {
         // given
-        Member loginMember = member(1L, "로그인회원", null);
-        given(memberRepository.findById(1L)).willReturn(Optional.of(loginMember));
+        given(memberRepository.findById(1L))
+                .willReturn(Optional.of(member(1L, "로그인회원", null)));
 
         // when & then
-        assertThatThrownBy(() -> rankingReadService.getRankings(1L))
-                .isInstanceOfSatisfying(CustomException.class, exception -> {
-                    assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.MEMBER_REGION_NOT_SET);
-                    assertThat(exception.getMessage()).isEqualTo("지역을 설정해야 랭킹을 확인할 수 있습니다.");
-                });
+        assertThatThrownBy(() -> rankingReadService.getRankings(1L, PageRequest.of(0, 20)))
+                .isInstanceOfSatisfying(CustomException.class, exception ->
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.MEMBER_REGION_NOT_SET));
     }
 
     @Test
-    @DisplayName("로그인 회원이 존재하지 않으면 회원 없음 예외가 발생한다")
+    @DisplayName("존재하지 않는 회원은 회원 없음 예외가 발생한다")
     void getRankingsRejectsMissingMember() {
         // given
         given(memberRepository.findById(1L)).willReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> rankingReadService.getRankings(1L))
+        assertThatThrownBy(() -> rankingReadService.getRankings(1L, PageRequest.of(0, 20)))
                 .isInstanceOfSatisfying(CustomException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.MEMBER_NOT_FOUND));
     }
@@ -152,8 +153,18 @@ class RankingReadServiceTest {
         return member;
     }
 
-    private WeeklyRankingSummary summary(Long memberId, String nickname, long weeklySteps) {
-        return new WeeklyRankingSummary() {
+    private RankedWeeklyRankingSummary summary(
+            int ranking,
+            Long memberId,
+            String nickname,
+            long weeklySteps
+    ) {
+        return new RankedWeeklyRankingSummary() {
+            @Override
+            public int getRanking() {
+                return ranking;
+            }
+
             @Override
             public Long getMemberId() {
                 return memberId;
