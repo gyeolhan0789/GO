@@ -5,14 +5,9 @@ meta {
 }
 
 get {
-  url: {{backendBaseUrl}}/friend-requests?page=0&size=20
+  url: {{backendBaseUrl}}/friend-requests
   body: none
   auth: inherit
-}
-
-params:query {
-  page: 0
-  size: 20
 }
 
 headers {
@@ -26,27 +21,20 @@ docs {
 
   ### 성공 응답 (200 OK)
   ```json
-  {
-    "content": [
-      {
-        "requestId": 5,
-        "inviterId": 2,
-        "inviterNickname": "friend_nick",
-        "createdAt": "2026-07-24T10:00:00"
-      }
-    ],
-    "totalElements": 1,
-    "totalPages": 1,
-    "currentPage": 0,
-    "size": 20,
-    "hasNext": false
-  }
+  [
+    {
+      "requestId": 5,
+      "inviterId": 2,
+      "inviterNickname": "friend_nick",
+      "createdAt": "2026-07-24T10:00:00"
+    }
+  ]
   ```
 
   ### 비즈니스 규칙
 
   - 응답에는 상태(`FriendRequestStatus`: `PENDING`, `ACCEPTED`, `REJECTED`)가 `PENDING`인 요청만 포함된다. 이미 수락/거절 처리된 요청은 목록에 나타나지 않는다.
-  - 목록은 `createdAt` 내림차순, 생성 시각이 같으면 요청 ID 내림차순으로 정렬한다.
+  - 목록은 `createdAt` 기준 내림차순으로 정렬되어, 최근에 받은 요청이 먼저 온다.
 
   ### 에러 케이스
 

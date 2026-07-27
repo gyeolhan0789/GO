@@ -5,14 +5,9 @@ meta {
 }
 
 get {
-  url: {{backendBaseUrl}}/friends?page=0&size=20
+  url: {{backendBaseUrl}}/friends
   body: none
   auth: inherit
-}
-
-params:query {
-  page: 0
-  size: 20
 }
 
 headers {
@@ -26,22 +21,13 @@ docs {
 
   ### 성공 응답 (200 OK)
   ```json
-  {
-    "content": [
-      {
-        "memberId": 2,
-        "nickname": "friend_nick"
-      }
-    ],
-    "totalElements": 1,
-    "totalPages": 1,
-    "currentPage": 0,
-    "size": 20,
-    "hasNext": false
-  }
+  [
+    {
+      "memberId": 2,
+      "nickname": "friend_nick"
+    }
+  ]
   ```
-
-  친구 닉네임 오름차순, 닉네임이 같으면 회원 ID 오름차순으로 정렬한다.
 
   ### 에러 케이스
 
