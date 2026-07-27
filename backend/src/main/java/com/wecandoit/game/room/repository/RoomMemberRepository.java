@@ -11,6 +11,8 @@ public interface RoomMemberRepository extends JpaRepository<RoomMember, Long> {
 
     Optional<RoomMember> findByRoomIdAndMemberId(Long roomId, Long memberId);
 
+    long countByRoomId(Long roomId);
+
     List<RoomMember> findAllByRoomIdOrderByJoinedAtAsc(Long roomId);
 
     List<RoomMember> findAllByMemberIdOrderByJoinedAtDesc(Long memberId);

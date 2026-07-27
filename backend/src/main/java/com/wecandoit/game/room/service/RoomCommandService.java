@@ -67,6 +67,7 @@ public class RoomCommandService {
                 request.targetStepCount()
         ));
         roomMemberRepository.save(RoomMember.create(room.getId(), memberId));
+        room.updateParticipantStatus(1);
         return room;
     }
 
@@ -108,8 +109,18 @@ public class RoomCommandService {
 
     public void startGame(Long memberId, Long roomId) {
         Room room = findRoom(roomId);
+        validateRoomOpen(room);
+        validateRoomMember(memberId, roomId);
         if (!room.isHost(memberId)) {
             throw new CustomException(ErrorCode.ROOM_START_FORBIDDEN);
+        }
+
+        long participantCount = roomMemberRepository.countByRoomId(roomId);
+        if (participantCount < room.getMode().getMinimumParticipants()) {
+            throw new CustomException(ErrorCode.ROOM_MINIMUM_PARTICIPANTS_REQUIRED);
+        }
+        if (participantCount > room.getMode().getMaximumParticipants()) {
+            throw new CustomException(ErrorCode.ROOM_MAXIMUM_PARTICIPANTS_REACHED);
         }
         if (!room.isReady()) {
             throw new CustomException(ErrorCode.ROOM_NOT_READY);
@@ -130,7 +141,9 @@ public class RoomCommandService {
             return;
         }
 
+        long participantCount = roomMemberRepository.countByRoomId(roomId);
         roomMemberRepository.delete(roomMember);
+        room.updateParticipantStatus(participantCount - 1);
     }
 
     private Room findRoom(Long roomId) {
@@ -141,6 +154,12 @@ public class RoomCommandService {
     private void validateRoomOpen(Room room) {
         if (room.isClosed()) {
             throw new CustomException(ErrorCode.ROOM_CLOSED);
+        }
+    }
+
+    private void validateRoomMember(Long memberId, Long roomId) {
+        if (!roomMemberRepository.existsByRoomIdAndMemberId(roomId, memberId)) {
+            throw new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN);
         }
     }
 
