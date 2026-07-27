@@ -45,6 +45,9 @@ dependencies {
 	// Database
 	runtimeOnly 'com.mysql:mysql-connector-j'
 
+	// Push notification (FCM)
+	implementation 'com.google.firebase:firebase-admin:9.5.0'
+
 	// Test
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'com.h2database:h2'

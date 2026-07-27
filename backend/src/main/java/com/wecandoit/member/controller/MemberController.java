@@ -2,6 +2,7 @@ package com.wecandoit.member.controller;
 
 import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.common.security.LoginMemberId;
+import com.wecandoit.member.dto.FcmTokenUpdateRequest;
 import com.wecandoit.member.dto.MemberProfileUpdateRequest;
 import com.wecandoit.member.dto.MemberSearchResponse;
 import com.wecandoit.member.dto.PasswordChangeRequest;
@@ -50,6 +51,15 @@ public class MemberController {
             @Valid @RequestBody PasswordChangeRequest request
     ) {
         memberService.changePassword(memberId, request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/me/fcm-token")
+    public ResponseEntity<Void> updateFcmToken(
+            @LoginMemberId Long memberId,
+            @Valid @RequestBody FcmTokenUpdateRequest request
+    ) {
+        memberService.updateFcmToken(memberId, request);
         return ResponseEntity.noContent().build();
     }
 }

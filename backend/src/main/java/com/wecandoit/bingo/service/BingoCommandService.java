@@ -15,10 +15,12 @@ import com.wecandoit.game.room.repository.RoomMemberRepository;
 import com.wecandoit.game.room.repository.RoomRepository;
 import com.wecandoit.mission.domain.Mission;
 import com.wecandoit.mission.repository.MissionRepository;
+import com.wecandoit.notification.event.NotificationMessageFactory;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,8 @@ public class BingoCommandService {
     private final BingoBoardRepository bingoBoardRepository;
     private final BingoCellRepository bingoCellRepository;
     private final MissionRepository missionRepository;
+    private final ApplicationEventPublisher eventPublisher;
+    private final NotificationMessageFactory notificationMessageFactory;
 
     public BingoBoardResponse generateInitialBoard(Room room) {
         validateBoardNotExists(room.getId());
@@ -86,7 +90,14 @@ public class BingoCommandService {
                     board.expire();
                     bingoBoardRepository.save(board);
                     generateNewBoard(room);
+                    notifyRoomMembers(roomId);
                 });
+    }
+
+    private void notifyRoomMembers(Long roomId) {
+        roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId)
+                .forEach(roomMember -> eventPublisher.publishEvent(
+                        notificationMessageFactory.weeklyBingoRenewal(roomMember.getMemberId())));
     }
 
     private BingoBoardResponse generateNewBoard(Room room) {

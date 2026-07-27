@@ -57,6 +57,9 @@ public class Member extends BaseEntity {
     @Column(name = "auth_provider")
     private AuthProvider provider;
 
+    @Column(name = "fcm_token")
+    private String fcmToken;
+
     @Builder
     private Member(String email, String password, String nickname, Region region, Gender gender, long cash,
             boolean onboardingCompleted, Role role, AuthProvider provider) {
@@ -130,6 +133,14 @@ public class Member extends BaseEntity {
 
     public void addCash(long amount) {
         cash += amount;
+    }
+
+    public void updateFcmToken(String fcmToken) {
+        this.fcmToken = fcmToken;
+    }
+
+    public void clearFcmToken() {
+        this.fcmToken = null;
     }
 
 }
