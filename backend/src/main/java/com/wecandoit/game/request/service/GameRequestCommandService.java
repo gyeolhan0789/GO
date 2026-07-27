@@ -13,7 +13,9 @@ import com.wecandoit.game.room.domain.Room;
 import com.wecandoit.game.room.domain.RoomMember;
 import com.wecandoit.game.room.repository.RoomMemberRepository;
 import com.wecandoit.game.room.repository.RoomRepository;
+import com.wecandoit.notification.event.NotificationMessageFactory;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +28,8 @@ public class GameRequestCommandService {
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
     private final FriendRepository friendRepository;
+    private final ApplicationEventPublisher eventPublisher;
+    private final NotificationMessageFactory notificationMessageFactory;
 
     public GameRequestCreateResponse createGameRequest(
             Long memberId,
@@ -123,7 +127,8 @@ public class GameRequestCommandService {
         GameRequest gameRequest = gameRequestRepository.save(
                 GameRequest.create(roomId, inviterId, inviteeId)
         );
-        // TODO: 초대 만료와 알림(WebSocket 포함) 정책이 확정되면 연동한다.
+        eventPublisher.publishEvent(notificationMessageFactory.friendInvite(inviteeId));
+        // TODO: 초대 만료 정책이 확정되면 연동한다.
         return GameRequestCreateResponse.from(gameRequest, true);
     }
 

@@ -17,6 +17,9 @@ import com.wecandoit.friend.repository.FriendRepository;
 import com.wecandoit.friend.dto.SendFriendRequest;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
+import com.wecandoit.notification.domain.NotificationType;
+import com.wecandoit.notification.event.NotificationMessageFactory;
+import com.wecandoit.notification.event.NotificationRequestedEvent;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,6 +31,7 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,6 +45,8 @@ class FriendRequestCommandServiceTest {
     private FriendRepository friendRepository;
     @Mock
     private MemberRepository memberRepository;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
     private FriendRequestCommandService friendRequestCommandService;
 
     private Member inviter;
@@ -51,7 +57,9 @@ class FriendRequestCommandServiceTest {
         friendRequestCommandService = new FriendRequestCommandService(
                 friendRequestRepository,
                 friendRepository,
-                memberRepository
+                memberRepository,
+                eventPublisher,
+                new NotificationMessageFactory()
         );
         inviter = member(1L, "보낸사람");
         invitee = member(2L, "받는사람");
@@ -75,6 +83,24 @@ class FriendRequestCommandServiceTest {
         assertThat(captor.getValue().getInviter()).isEqualTo(inviter);
         assertThat(captor.getValue().getInvitee()).isEqualTo(invitee);
         assertThat(captor.getValue().getStatus()).isEqualTo(FriendRequestStatus.PENDING);
+    }
+
+    @Test
+    @DisplayName("친구 요청을 생성하면 수신자에게 FRIEND_REQUEST 알림 이벤트가 발행된다")
+    void sendRequestPublishesNotificationEvent() {
+        // given
+        given(friendRepository.existsBetween(1L, 2L)).willReturn(false);
+        given(friendRequestRepository.findPendingBetween(1L, 2L)).willReturn(Optional.empty());
+
+        // when
+        friendRequestCommandService.sendRequest(1L, new SendFriendRequest(2L));
+
+        // then
+        ArgumentCaptor<NotificationRequestedEvent> captor =
+                ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        then(eventPublisher).should().publishEvent(captor.capture());
+        assertThat(captor.getValue().recipientMemberId()).isEqualTo(2L);
+        assertThat(captor.getValue().type()).isEqualTo(NotificationType.FRIEND_REQUEST);
     }
 
     @Test

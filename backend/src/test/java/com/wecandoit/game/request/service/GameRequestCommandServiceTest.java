@@ -20,6 +20,9 @@ import com.wecandoit.game.room.domain.Room;
 import com.wecandoit.game.room.domain.RoomMember;
 import com.wecandoit.game.room.repository.RoomMemberRepository;
 import com.wecandoit.game.room.repository.RoomRepository;
+import com.wecandoit.notification.domain.NotificationType;
+import com.wecandoit.notification.event.NotificationMessageFactory;
+import com.wecandoit.notification.event.NotificationRequestedEvent;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,6 +34,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,6 +49,8 @@ class GameRequestCommandServiceTest {
     private RoomMemberRepository roomMemberRepository;
     @Mock
     private FriendRepository friendRepository;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
     private GameRequestCommandService gameRequestCommandService;
 
     @BeforeEach
@@ -53,7 +59,9 @@ class GameRequestCommandServiceTest {
                 gameRequestRepository,
                 roomRepository,
                 roomMemberRepository,
-                friendRepository
+                friendRepository,
+                eventPublisher,
+                new NotificationMessageFactory()
         );
     }
 
@@ -96,6 +104,34 @@ class GameRequestCommandServiceTest {
         assertThat(response.requestId()).isEqualTo(20L);
         assertThat(response.status()).isEqualTo(RequestStatus.PENDING);
         assertThat(response.created()).isTrue();
+    }
+
+    @Test
+    @DisplayName("친구를 초대하면 초대받은 사람에게 FRIEND_INVITE 알림 이벤트가 발행된다")
+    void createGameRequestPublishesNotificationEvent() {
+        // given
+        givenInvitableRoom(GameRoomStatus.CREATED);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
+        given(friendRepository.existsBetween(1L, 2L)).willReturn(true);
+        given(gameRequestRepository
+                .findFirstByRoomIdAndInviteeIdAndStatusOrderByCreatedAtDesc(10L, 2L, RequestStatus.PENDING))
+                .willReturn(Optional.empty());
+        given(gameRequestRepository.save(Mockito.any(GameRequest.class))).willAnswer(invocation -> {
+            GameRequest gameRequest = invocation.getArgument(0);
+            ReflectionTestUtils.setField(gameRequest, "id", 20L);
+            return gameRequest;
+        });
+
+        // when
+        gameRequestCommandService.createGameRequest(1L, 10L, new GameRequestCreateRequest(2L));
+
+        // then
+        ArgumentCaptor<NotificationRequestedEvent> captor =
+                ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        then(eventPublisher).should().publishEvent(captor.capture());
+        assertThat(captor.getValue().recipientMemberId()).isEqualTo(2L);
+        assertThat(captor.getValue().type()).isEqualTo(NotificationType.FRIEND_INVITE);
     }
 
     @Test

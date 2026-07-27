@@ -4,6 +4,7 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.member.domain.AuthProvider;
 import com.wecandoit.member.domain.Member;
+import com.wecandoit.member.dto.FcmTokenUpdateRequest;
 import com.wecandoit.member.dto.MemberProfileUpdateRequest;
 import com.wecandoit.member.dto.PasswordChangeRequest;
 import com.wecandoit.member.dto.SignupRequest;
@@ -72,5 +73,13 @@ public class MemberService {
         }
 
         member.changePassword(passwordEncoder.encode(request.newPassword()));
+    }
+
+    @Transactional
+    public void updateFcmToken(Long memberId, FcmTokenUpdateRequest request) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+
+        member.updateFcmToken(request.fcmToken());
     }
 }

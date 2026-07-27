@@ -17,10 +17,14 @@ import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.room.domain.GameMode;
 import com.wecandoit.game.room.domain.GameRoomStatus;
 import com.wecandoit.game.room.domain.Room;
+import com.wecandoit.game.room.domain.RoomMember;
 import com.wecandoit.game.room.repository.RoomMemberRepository;
 import com.wecandoit.game.room.repository.RoomRepository;
 import com.wecandoit.mission.domain.Mission;
 import com.wecandoit.mission.repository.MissionRepository;
+import com.wecandoit.notification.domain.NotificationType;
+import com.wecandoit.notification.event.NotificationMessageFactory;
+import com.wecandoit.notification.event.NotificationRequestedEvent;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +38,7 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @DisplayName("빙고판 커맨드 서비스")
@@ -54,6 +59,10 @@ class BingoCommandServiceTest {
     private BingoCellRepository bingoCellRepository;
     @Mock
     private MissionRepository missionRepository;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+    @Mock
+    private NotificationMessageFactory notificationMessageFactory;
     @InjectMocks
     private BingoCommandService bingoCommandService;
 
@@ -455,6 +464,44 @@ class BingoCommandServiceTest {
         assertThat(activeBoard.getStatus()).isEqualTo(BingoBoardStatus.IN_PROGRESS);
         then(bingoBoardRepository).should(Mockito.never()).save(Mockito.any(BingoBoard.class));
         then(missionRepository).should(Mockito.never()).findRandomMissions(Mockito.anyInt());
+        then(eventPublisher).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("보드가 실제로 자동 갱신되면 해당 방 멤버 전원에게 WEEKLY_BINGO_RENEWAL 알림 이벤트가 발행된다")
+    void autoRenewBoardPublishesNotificationEventOnActualRenewal() {
+        // given
+        Room room = inProgressRoom(1L, 10L, 2);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        BingoBoard activeBoard = activeBoard(100L, 10L, 2);
+        ReflectionTestUtils.setField(activeBoard, "createdAt", LocalDateTime.now().minusDays(8));
+        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.of(activeBoard));
+        given(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).willReturn(true);
+        given(missionRepository.findRandomMissions(4)).willReturn(createMissions(4));
+        given(bingoBoardRepository.save(Mockito.any(BingoBoard.class))).willAnswer(invocation -> {
+            BingoBoard board = invocation.getArgument(0);
+            if (board.getId() == null) {
+                ReflectionTestUtils.setField(board, "id", 200L);
+            }
+            return board;
+        });
+        given(bingoCellRepository.save(Mockito.any(BingoCell.class))).willAnswer(invocation -> invocation.getArgument(0));
+        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of(
+                RoomMember.create(10L, 1L),
+                RoomMember.create(10L, 2L)
+        ));
+        given(notificationMessageFactory.weeklyBingoRenewal(Mockito.anyLong())).willAnswer(invocation ->
+                new NotificationRequestedEvent(
+                        invocation.getArgument(0), NotificationType.WEEKLY_BINGO_RENEWAL, "제목", "본문"));
+
+        // when
+        bingoCommandService.autoRenewBoard(10L);
+
+        // then
+        then(notificationMessageFactory).should().weeklyBingoRenewal(1L);
+        then(notificationMessageFactory).should().weeklyBingoRenewal(2L);
+        then(eventPublisher).should(Mockito.times(2)).publishEvent(Mockito.any(NotificationRequestedEvent.class));
     }
 
     private BingoBoard activeBoard(Long boardId, Long roomId, int boardSize) {

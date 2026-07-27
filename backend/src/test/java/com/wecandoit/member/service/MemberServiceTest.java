@@ -10,6 +10,7 @@ import com.wecandoit.member.domain.AuthProvider;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.domain.Region;
 import com.wecandoit.member.domain.Gender;
+import com.wecandoit.member.dto.FcmTokenUpdateRequest;
 import com.wecandoit.member.dto.MemberProfileUpdateRequest;
 import com.wecandoit.member.dto.PasswordChangeRequest;
 import com.wecandoit.member.dto.SignupRequest;
@@ -211,6 +212,33 @@ class MemberServiceTest {
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_PROVIDER);
+    }
+
+    @Test
+    @DisplayName("FCM 토큰을 등록하면 회원의 fcmToken이 갱신된다")
+    void updateFcmTokenSucceeds() {
+        // given
+        Member member = localMember(1L, "닉네임", Region.SEOUL);
+        given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+
+        // when
+        memberService.updateFcmToken(1L, new FcmTokenUpdateRequest("new-fcm-token"));
+
+        // then
+        assertThat(member.getFcmToken()).isEqualTo("new-fcm-token");
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 회원의 FCM 토큰을 등록하면 실패한다")
+    void updateFcmTokenRejectsMissingMember() {
+        // given
+        given(memberRepository.findById(1L)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> memberService.updateFcmToken(1L, new FcmTokenUpdateRequest("token")))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
     }
 
     private Member localMember(Long id, String nickname, Region region) {

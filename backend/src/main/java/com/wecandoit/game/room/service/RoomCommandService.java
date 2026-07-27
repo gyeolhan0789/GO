@@ -12,8 +12,10 @@ import com.wecandoit.game.room.domain.RoomMember;
 import com.wecandoit.game.room.repository.RoomMemberRepository;
 import com.wecandoit.game.room.repository.RoomRepository;
 import com.wecandoit.member.repository.MemberRepository;
+import com.wecandoit.notification.event.NotificationMessageFactory;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +28,8 @@ public class RoomCommandService {
     private final RoomMemberRepository roomMemberRepository;
     private final BingoCommandService bingoCommandService;
     private final MemberRepository memberRepository;
+    private final ApplicationEventPublisher eventPublisher;
+    private final NotificationMessageFactory notificationMessageFactory;
 
     public CreateRoomResponse createRoom(Long memberId, CreateRoomRequest request) {
         validateTargetStepCount(request.mode(), request.targetStepCount());
@@ -128,6 +132,12 @@ public class RoomCommandService {
 
         room.start();
         bingoCommandService.generateInitialBoard(room);
+
+        roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId).stream()
+                .map(RoomMember::getMemberId)
+                .filter(participantId -> !participantId.equals(memberId))
+                .forEach(participantId ->
+                        eventPublisher.publishEvent(notificationMessageFactory.walkStart(participantId)));
     }
 
     public void leaveRoom(Long memberId, Long roomId) {

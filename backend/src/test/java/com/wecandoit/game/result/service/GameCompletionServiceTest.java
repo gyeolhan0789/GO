@@ -17,6 +17,9 @@ import com.wecandoit.game.room.repository.RoomMemberRepository;
 import com.wecandoit.game.room.repository.RoomRepository;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
+import com.wecandoit.notification.domain.NotificationType;
+import com.wecandoit.notification.event.NotificationMessageFactory;
+import com.wecandoit.notification.event.NotificationRequestedEvent;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -24,9 +27,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,6 +50,8 @@ class GameCompletionServiceTest {
     private MemberRepository memberRepository;
     @Mock
     private CashHistoryRepository cashHistoryRepository;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
     private GameCompletionService gameCompletionService;
 
     @BeforeEach
@@ -55,7 +62,9 @@ class GameCompletionServiceTest {
                 gameResultRepository,
                 bingoReadService,
                 memberRepository,
-                cashHistoryRepository
+                cashHistoryRepository,
+                eventPublisher,
+                new NotificationMessageFactory()
         );
     }
 
@@ -122,6 +131,38 @@ class GameCompletionServiceTest {
                         && result.getCompletedMissionCount() == 3
                         && result.getRewardCash() == 500L
         ));
+    }
+
+    @Test
+    @DisplayName("게임이 완료되면 방 멤버 전원에게 BATTLE_RESULT, 보상을 받은 멤버에게 REWARD_EARNED 알림 이벤트가 발행된다")
+    void publishesBattleResultAndRewardEarnedEvents() {
+        // given
+        Room room = inProgressRoom(1L, 10L, 2, 2);
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
+        List<BingoCell> cells = List.of(
+                completedCell(100L, 0, 0, 1L),
+                completedCell(100L, 0, 1, 1L),
+                completedCell(100L, 1, 0, 1L),
+                incompleteCell(100L, 1, 1)
+        );
+        given(bingoReadService.getActiveBoardCells(10L)).willReturn(cells);
+        RoomMember member = roomMember(1L, 10L, 1L);
+        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of(member));
+        given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(member(1L, 0L)));
+
+        // when
+        gameCompletionService.evaluateAndCompleteIfNeeded(10L);
+
+        // then
+        ArgumentCaptor<NotificationRequestedEvent> captor =
+                ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        then(eventPublisher).should(Mockito.times(2)).publishEvent(captor.capture());
+        List<NotificationType> types = captor.getAllValues().stream()
+                .map(NotificationRequestedEvent::type)
+                .toList();
+        assertThat(types).containsExactlyInAnyOrder(NotificationType.BATTLE_RESULT, NotificationType.REWARD_EARNED);
+        assertThat(captor.getAllValues())
+                .allMatch(event -> event.recipientMemberId().equals(1L));
     }
 
     @Test
