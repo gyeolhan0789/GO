@@ -5,9 +5,11 @@ import com.wecandoit.friend.service.FriendRequestReadService;
 
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -137,6 +139,29 @@ class FriendRequestControllerTest {
 
         // when & then
         mockMvc.perform(get("/friend-requests/sent"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
+    }
+
+    @Test
+    @DisplayName("보낸 친구 요청을 취소하면 204 상태와 빈 본문을 반환한다")
+    void cancelRequestReturnsNoContent() throws Exception {
+        // when & then
+        mockMvc.perform(delete("/friend-requests/{requestId}", 10L))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
+        then(friendRequestCommandService).should().cancelRequest(1L, 10L);
+    }
+
+    @Test
+    @DisplayName("인증되지 않은 친구 요청 취소는 401 응답을 반환한다")
+    void cancelRequestRejectsUnauthenticatedRequest() throws Exception {
+        // given
+        SecurityContextHolder.clearContext();
+
+        // when & then
+        mockMvc.perform(delete("/friend-requests/{requestId}", 10L))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.status").value(401))
                 .andExpect(jsonPath("$.message").value("인증이 필요합니다."));
