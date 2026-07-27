@@ -1,0 +1,65 @@
+meta {
+  name: 보낸 친구 요청 취소
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{backendBaseUrl}}/friend-requests/1
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+docs {
+  ## 보낸 친구 요청 취소
+
+  로그인 회원이 자신이 보낸 대기 중인 친구 요청을 취소한다.
+
+  ### 성공 응답 (204 No Content)
+  본문 없음
+
+  ### 비즈니스 규칙
+
+  - 요청을 보낸 회원(`inviter`)만 취소할 수 있다.
+  - `PENDING` 상태의 요청만 취소할 수 있다.
+  - 취소된 요청은 친구 요청 행을 삭제하므로 받은 요청과 보낸 요청 목록에서 모두 제외된다.
+  - 취소는 이미 생성된 실제 친구 관계에 영향을 주지 않는다.
+
+  ### 에러 케이스
+
+  **존재하지 않거나 이미 취소된 요청**
+  ```json
+  {
+    "status": 404,
+    "message": "친구 요청을 찾을 수 없습니다."
+  }
+  ```
+
+  **요청 발신자가 아닌 회원**
+  ```json
+  {
+    "status": 403,
+    "message": "친구 요청을 처리할 권한이 없습니다."
+  }
+  ```
+
+  **이미 수락 또는 거절된 요청**
+  ```json
+  {
+    "status": 409,
+    "message": "이미 처리된 친구 요청입니다."
+  }
+  ```
+
+  **Authorization 헤더 없음**
+  ```json
+  {
+    "status": 401,
+    "message": "인증이 필요합니다."
+  }
+  ```
+}

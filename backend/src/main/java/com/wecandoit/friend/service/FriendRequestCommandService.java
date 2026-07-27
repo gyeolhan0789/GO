@@ -63,6 +63,17 @@ public class FriendRequestCommandService {
         friendRequest.reject();
     }
 
+    public void cancelRequest(Long inviterId, Long requestId) {
+        FriendRequest friendRequest = findRequestForUpdate(requestId);
+        if (!friendRequest.isInviter(inviterId)) {
+            throw new CustomException(ErrorCode.FRIEND_REQUEST_FORBIDDEN);
+        }
+        if (!friendRequest.isPending()) {
+            throw new CustomException(ErrorCode.FRIEND_REQUEST_ALREADY_PROCESSED);
+        }
+        friendRequestRepository.delete(friendRequest);
+    }
+
     private Members findMembersForUpdate(Long inviterId, Long inviteeId) {
         Long smallerId = Math.min(inviterId, inviteeId);
         Long largerId = Math.max(inviterId, inviteeId);

@@ -167,6 +167,32 @@ class FriendRequestRepositoryTest {
                 .containsExactly(latestRequest.getId(), secondRequest.getId(), firstRequest.getId());
     }
 
+    @Test
+    @DisplayName("친구 요청을 삭제하면 받은 목록과 보낸 목록에서 제외되고 친구 관계는 유지된다")
+    void deleteFriendRequestExcludesBothRequestListsAndKeepsFriend() {
+        // given
+        Member inviter = saveMember("inviter@example.com", "발신자");
+        Member invitee = saveMember("invitee@example.com", "수신자");
+        FriendRequest friendRequest = friendRequestRepository.saveAndFlush(
+                FriendRequest.create(inviter, invitee)
+        );
+        Friend friend = friendRepository.saveAndFlush(Friend.create(inviter, invitee));
+
+        // when
+        friendRequestRepository.delete(friendRequest);
+        friendRequestRepository.flush();
+        entityManager.clear();
+
+        // then
+        assertThat(friendRequestRepository.findById(friendRequest.getId())).isEmpty();
+        assertThat(friendRequestRepository.findPendingSentRequests(inviter.getId())).isEmpty();
+        assertThat(friendRequestRepository.findAllByInviteeIdAndStatusOrderByCreatedAtDesc(
+                invitee.getId(),
+                FriendRequestStatus.PENDING
+        )).isEmpty();
+        assertThat(friendRepository.findById(friend.getId())).isPresent();
+    }
+
     private Member saveMember(String email, String nickname) {
         return memberRepository.save(Member.create(email, "password", nickname));
     }
