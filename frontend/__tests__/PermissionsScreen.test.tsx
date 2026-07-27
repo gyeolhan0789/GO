@@ -18,12 +18,13 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 jest.mock('../src/shared/lib/permissions', () => ({
-  PERMISSION_KEYS: ['camera', 'activityRecognition', 'notifications'],
+  PERMISSION_KEYS: ['camera', 'activityRecognition', 'location', 'notifications'],
   checkPermission: jest.fn(() => Promise.resolve(false)),
   requestAllPermissions: jest.fn(() =>
     Promise.resolve({
       camera: 'granted',
       activityRecognition: 'granted',
+      location: 'granted',
       notifications: 'granted',
     }),
   ),

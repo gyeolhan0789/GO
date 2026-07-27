@@ -1,7 +1,11 @@
 import { Linking, PermissionsAndroid, Platform } from 'react-native';
 import type { Permission } from 'react-native';
 
-export type PermissionKey = 'camera' | 'activityRecognition' | 'notifications';
+export type PermissionKey =
+  | 'camera'
+  | 'activityRecognition'
+  | 'location'
+  | 'notifications';
 
 export type PermissionResult = 'granted' | 'denied' | 'blocked';
 
@@ -18,6 +22,10 @@ const PERMISSION_SPECS: readonly PermissionSpec[] = [
     key: 'activityRecognition',
     androidPermission: PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION,
     minApiLevel: 29,
+  },
+  {
+    key: 'location',
+    androidPermission: PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
   },
   {
     key: 'notifications',

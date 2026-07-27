@@ -38,6 +38,6 @@ const styles = StyleSheet.create({
   },
   dotInactive: {
     width: 8,
-    backgroundColor: '#d1d5db',
+    backgroundColor: '#ffffff',
   },
 });

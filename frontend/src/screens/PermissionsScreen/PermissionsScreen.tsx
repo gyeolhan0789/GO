@@ -21,6 +21,11 @@ import {
   type PermissionKey,
   type PermissionResult,
 } from '../../shared/lib/permissions';
+import {
+  hasSamsungHealthPermissions,
+  isSamsungHealthAvailable,
+  requestSamsungHealthPermissions,
+} from '../../shared/lib/samsungHealth';
 // 개발 단계: 권한 완료 저장 비활성화로 잠시 미사용.
 // TODO(권한 게이트 복구): 아래 import/complete 주석 해제.
 // import { usePermissionsStatus } from '../../shared/hooks/usePermissionsStatus';
@@ -52,6 +57,12 @@ const PERMISSION_CARDS: PermissionCardData[] = [
     description: '산책 중 걸음 수를 측정해요.',
   },
   {
+    key: 'location',
+    icon: 'location-outline',
+    title: '위치',
+    description: '산책 경로를 지도에 표시할 때 사용해요.',
+  },
+  {
     key: 'notifications',
     icon: 'notifications-outline',
     title: '알림',
@@ -67,7 +78,12 @@ export function PermissionsScreen() {
     Partial<Record<PermissionKey, PermissionResult>>
   >({});
   const [requested, setRequested] = useState(false);
+  // 삼성헬스(건강 데이터)는 자체 권한 모델이라 상태를 따로 추적한다.
+  const [healthAvailable] = useState(isSamsungHealthAvailable());
+  const [healthGranted, setHealthGranted] = useState(false);
 
+  // 진입 게이트는 표준 런타임 권한 기준. 삼성헬스는 갤럭시/개발자모드 의존이라
+  // 게이트에 포함하지 않고(막히지 않게) 요청·표시만 한다.
   const allGranted = PERMISSION_KEYS.every(key => results[key] === 'granted');
   const anyBlocked = PERMISSION_KEYS.some(key => results[key] === 'blocked');
 
@@ -89,6 +105,10 @@ export function PermissionsScreen() {
       }
       return next;
     });
+
+    if (isSamsungHealthAvailable()) {
+      setHealthGranted(await hasSamsungHealthPermissions());
+    }
   }, []);
 
   useEffect(() => {
@@ -112,6 +132,12 @@ export function PermissionsScreen() {
   const handleRequest = useCallback(async () => {
     const next = await requestAllPermissions();
     setResults(next);
+
+    // 삼성헬스 권한은 자체 UI(삼성헬스 팝업)로 요청한다(사용 가능할 때만).
+    if (isSamsungHealthAvailable()) {
+      setHealthGranted(await requestSamsungHealthPermissions());
+    }
+
     setRequested(true);
   }, []);
 
@@ -135,6 +161,18 @@ export function PermissionsScreen() {
               status={results[card.key]}
             />
           ))}
+          <PermissionCard
+            icon="fitness-outline"
+            title="건강 데이터"
+            description={
+              healthAvailable
+                ? '걸음·거리·칼로리를 삼성헬스에서 가져와 표시할 때 사용해요.'
+                : '삼성헬스(갤럭시)에서만 사용할 수 있어요.'
+            }
+            status={
+              healthGranted ? 'granted' : requested ? 'denied' : undefined
+            }
+          />
         </View>
 
         {requested && !allGranted ? (
