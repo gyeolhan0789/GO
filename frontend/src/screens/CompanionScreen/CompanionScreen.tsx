@@ -6,6 +6,7 @@ import { Screen } from '../../shared/components/Screen/Screen';
 import { SegmentedControl } from '../../shared/components/SegmentedControl/SegmentedControl';
 import { colors } from '../../shared/constants/colors';
 import { spacing } from '../../shared/constants/spacing';
+import { AddFriendSheet } from './components/AddFriendSheet';
 import { FriendCard } from './components/FriendCard';
 import { WalkRoomCard } from './components/WalkRoomCard';
 import type { Friend, MyWalkRoom } from './types';
@@ -115,6 +116,7 @@ const MOCK_FRIENDS: Friend[] = [
 
 export function CompanionScreen() {
   const [tab, setTab] = useState<CompanionTab>('walkRooms');
+  const [isAddFriendVisible, setAddFriendVisible] = useState(false);
 
   return (
     <Screen>
@@ -164,9 +166,22 @@ export function CompanionScreen() {
       </View>
 
       <View style={styles.fabWrapper}>
-        {/* TODO: 산책방 생성/친구 추가 플로우 연결. 화면이 아직 없어 탭에 따라 동작만 분기 예정. */}
-        <Fab icon="add" onPress={() => {}} />
+        <Fab
+          icon="add"
+          onPress={() => {
+            if (tab === 'friends') {
+              setAddFriendVisible(true);
+              return;
+            }
+            // TODO: 산책방 생성 플로우 연결. 화면이 아직 없음.
+          }}
+        />
       </View>
+
+      <AddFriendSheet
+        visible={isAddFriendVisible}
+        onClose={() => setAddFriendVisible(false)}
+      />
     </Screen>
   );
 }
@@ -189,13 +204,13 @@ const styles = StyleSheet.create({
     fontFamily: 'BMDOHYEON',
     fontSize: 14,
     color: colors.ink,
-    marginBottom: spacing.sm,
   },
   dohyeonText: {
     fontFamily: 'BMDOHYEON',
   },
   list: {
     flex: 1,
+    marginTop: spacing.sm,
   },
   listContent: {
     gap: spacing.md,
