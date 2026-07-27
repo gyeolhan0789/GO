@@ -1,26 +1,27 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import type { FriendResponse } from '../../../features/friend/api/friendApi';
 import { Card } from '../../../shared/components/Card/Card';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { shadow } from '../../../shared/constants/shadow';
 import { spacing } from '../../../shared/constants/spacing';
-import type { Friend } from '../types';
 
 type FriendCardProps = {
-  friend: Friend;
+  friend: FriendResponse;
 };
 
 export function FriendCard({ friend }: FriendCardProps) {
   return (
     <Card style={styles.card} wrapperStyle={styles.wrapper}>
-      <View style={[styles.avatar, friend.isActive && styles.avatarActive]} />
+      {/* TODO: equippedItems로 캐릭터 아바타 구성. 지금은 빈 원으로 대체. */}
+      <View style={styles.avatar} />
       <View style={styles.textGroup}>
         <Text style={styles.name} numberOfLines={1}>
-          {friend.name}
+          {friend.nickname}
         </Text>
         <Text style={styles.subtitle} numberOfLines={1}>
-          최근 기록 : {friend.recentSteps}보
+          이번 주 {friend.weeklySteps}보
         </Text>
       </View>
     </Card>
@@ -44,9 +45,6 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: radius.pill,
     backgroundColor: colors.neutralBg,
-  },
-  avatarActive: {
-    backgroundColor: colors.primary,
   },
   textGroup: {
     flex: 1,

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,50 +9,56 @@ import {
   View,
 } from 'react-native';
 
+import type { MemberRelationshipStatus } from '../../../features/friend/api/friendApi';
+import { useMemberSearchQuery } from '../../../features/friend/hooks/useMemberSearchQuery';
+import { useSendFriendRequestMutation } from '../../../features/friend/hooks/useSendFriendRequestMutation';
 import { BottomSheet } from '../../../shared/components/BottomSheet/BottomSheet';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
-import type { MemberRelationshipStatus, SearchableFriend } from '../types';
-
-// TODO: 실제 닉네임 검색 API 연동 전까지의 임시 목업 데이터.
-const MOCK_DIRECTORY: SearchableFriend[] = [
-  { id: 'user-youngju', nickname: 'YOUNGJU', relationshipStatus: 'NONE' },
-  { id: 'user-minseo', nickname: 'MINSEO_K', relationshipStatus: 'NONE' },
-  { id: 'user-jihoon', nickname: 'JIHOONP', relationshipStatus: 'FRIEND' },
-  {
-    id: 'user-suah',
-    nickname: 'SUAH_C',
-    relationshipStatus: 'REQUEST_SENT',
-  },
-];
 
 const STATUS_LABEL: Record<MemberRelationshipStatus, string> = {
-  NONE: '초대',
+  NONE: '추가',
   FRIEND: '친구',
   REQUEST_SENT: '요청됨',
   REQUEST_RECEIVED: '수락 대기',
 };
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 type AddFriendSheetProps = {
   visible: boolean;
   onClose: () => void;
 };
 
-function matchesQuery(friend: SearchableFriend, query: string): boolean {
-  return friend.nickname.toLowerCase().includes(query.trim().toLowerCase());
-}
-
 export function AddFriendSheet({ visible, onClose }: AddFriendSheetProps) {
   const [query, setQuery] = useState('');
-  const [sentRequestIds, setSentRequestIds] = useState<Set<string>>(new Set());
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [pendingMemberId, setPendingMemberId] = useState<number | null>(null);
 
-  const results = query.trim()
-    ? MOCK_DIRECTORY.filter(friend => matchesQuery(friend, query))
-    : [];
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setDebouncedQuery(query),
+      SEARCH_DEBOUNCE_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [query]);
 
-  const handleInvite = (id: string) => {
-    setSentRequestIds(prev => new Set(prev).add(id));
+  const searchQuery = useMemberSearchQuery(debouncedQuery);
+  const results = searchQuery.data?.content ?? [];
+  const sendRequestMutation = useSendFriendRequestMutation();
+
+  const handleInvite = (memberId: number) => {
+    setPendingMemberId(memberId);
+    sendRequestMutation.mutate(memberId, {
+      onError: error => {
+        Alert.alert(
+          '친구 요청 실패',
+          error instanceof Error ? error.message : '잠시 후 다시 시도해주세요.',
+        );
+      },
+      onSettled: () => setPendingMemberId(null),
+    });
   };
 
   return (
@@ -70,38 +77,45 @@ export function AddFriendSheet({ visible, onClose }: AddFriendSheetProps) {
         autoCorrect={false}
       />
 
-      {query.trim() ? (
+      {debouncedQuery.trim() ? (
         <ScrollView style={styles.results} showsVerticalScrollIndicator={false}>
-          {results.length === 0 ? (
+          {searchQuery.isLoading ? (
+            <Text style={styles.emptyText}>검색 중...</Text>
+          ) : searchQuery.isError ? (
+            <Text style={styles.emptyText}>검색에 실패했어요.</Text>
+          ) : results.length === 0 ? (
             <Text style={styles.emptyText}>검색 결과가 없어요.</Text>
           ) : (
-            results.map(friend => {
-              const status = sentRequestIds.has(friend.id)
-                ? 'REQUEST_SENT'
-                : friend.relationshipStatus;
-              const isActionable = status === 'NONE';
+            results.map(member => {
+              const isPending =
+                pendingMemberId === member.memberId &&
+                sendRequestMutation.isPending;
+              const isActionable = member.relationshipStatus === 'NONE';
 
               return (
-                <View key={friend.id} style={styles.resultRow}>
+                <View key={member.memberId} style={styles.resultRow}>
                   <View style={styles.avatar} />
                   <Text style={styles.resultNickname} numberOfLines={1}>
-                    @{friend.nickname}
+                    @{member.nickname}
                   </Text>
                   <Pressable
-                    onPress={() => handleInvite(friend.id)}
-                    disabled={!isActionable}
+                    onPress={() => handleInvite(member.memberId)}
+                    disabled={!isActionable || isPending}
                     style={[
                       styles.inviteButton,
-                      !isActionable && styles.inviteButtonDone,
+                      (!isActionable || isPending) && styles.inviteButtonDone,
                     ]}
                   >
                     <Text
                       style={[
                         styles.inviteButtonText,
-                        !isActionable && styles.inviteButtonTextDone,
+                        (!isActionable || isPending) &&
+                          styles.inviteButtonTextDone,
                       ]}
                     >
-                      {STATUS_LABEL[status]}
+                      {isPending
+                        ? '요청 중...'
+                        : STATUS_LABEL[member.relationshipStatus]}
                     </Text>
                   </Pressable>
                 </View>

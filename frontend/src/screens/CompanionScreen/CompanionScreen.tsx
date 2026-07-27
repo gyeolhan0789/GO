@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 
+import { useFriendsQuery } from '../../features/friend/hooks/useFriendsQuery';
 import { Fab } from '../../shared/components/Fab/Fab';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { SegmentedControl } from '../../shared/components/SegmentedControl/SegmentedControl';
@@ -9,7 +10,7 @@ import { spacing } from '../../shared/constants/spacing';
 import { AddFriendSheet } from './components/AddFriendSheet';
 import { FriendCard } from './components/FriendCard';
 import { WalkRoomCard } from './components/WalkRoomCard';
-import type { Friend, MyWalkRoom } from './types';
+import type { MyWalkRoom } from './types';
 
 type CompanionTab = 'walkRooms' | 'friends';
 
@@ -101,22 +102,11 @@ const MOCK_WALK_ROOMS: MyWalkRoom[] = [
   },
 ];
 
-const MOCK_FRIENDS: Friend[] = [
-  { id: 'friend-1', name: '이영주', recentSteps: 3200, isActive: false },
-  { id: 'friend-2', name: '김민서', recentSteps: 5100, isActive: true },
-  { id: 'friend-3', name: '박지훈', recentSteps: 1800, isActive: true },
-  { id: 'friend-4', name: '최수아', recentSteps: 4200, isActive: false },
-  { id: 'friend-5', name: '정다은', recentSteps: 2600, isActive: false },
-  { id: 'friend-6', name: '이준호', recentSteps: 6300, isActive: true },
-  { id: 'friend-7', name: '한소영', recentSteps: 900, isActive: false },
-  { id: 'friend-8', name: '강태윤', recentSteps: 3700, isActive: true },
-  { id: 'friend-9', name: '윤서연', recentSteps: 5400, isActive: false },
-  { id: 'friend-10', name: '조현우', recentSteps: 2100, isActive: false },
-];
-
 export function CompanionScreen() {
   const [tab, setTab] = useState<CompanionTab>('walkRooms');
   const [isAddFriendVisible, setAddFriendVisible] = useState(false);
+  const friendsQuery = useFriendsQuery();
+  const friends = friendsQuery.data?.content ?? [];
 
   return (
     <Screen>
@@ -148,19 +138,23 @@ export function CompanionScreen() {
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
           />
+        ) : friendsQuery.isLoading ? (
+          <Text style={styles.statusText}>불러오는 중...</Text>
+        ) : friendsQuery.isError ? (
+          <Text style={styles.statusText}>친구 목록을 불러오지 못했어요.</Text>
         ) : (
           <FlatList
-            data={MOCK_FRIENDS}
-            keyExtractor={friend => friend.id}
+            data={friends}
+            keyExtractor={friend => String(friend.memberId)}
             ListHeaderComponent={
-              <Text style={styles.countLabel}>
-                내 친구 {MOCK_FRIENDS.length}
-              </Text>
+              <Text style={styles.countLabel}>내 친구 {friends.length}</Text>
             }
             renderItem={({ item }) => <FriendCard friend={item} />}
             style={styles.list}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            refreshing={friendsQuery.isRefetching}
+            onRefresh={() => friendsQuery.refetch()}
           />
         )}
       </View>
@@ -204,6 +198,14 @@ const styles = StyleSheet.create({
     fontFamily: 'BMDOHYEON',
     fontSize: 14,
     color: colors.ink,
+  },
+  statusText: {
+    fontFamily: 'BMDOHYEON',
+    fontSize: 14,
+    color: colors.ink,
+    opacity: 0.6,
+    textAlign: 'center',
+    marginTop: spacing.xl,
   },
   dohyeonText: {
     fontFamily: 'BMDOHYEON',
