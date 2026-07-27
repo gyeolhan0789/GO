@@ -1,11 +1,13 @@
 import { useRef, useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  View,
 } from 'react-native';
 import type { TextInput } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -13,15 +15,31 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 import { AuthSubmitButton } from '../../features/auth/components/AuthSubmitButton';
 import { AuthTextField } from '../../features/auth/components/AuthTextField';
+import { SocialAuthButtons } from '../../features/auth/components/SocialAuthButtons';
 import { useLoginMutation } from '../../features/auth/hooks/useLoginMutation';
 import { validateLogin } from '../../features/auth/model/validation';
 import type { LoginErrors } from '../../features/auth/model/validation';
+import { resolveApiErrorMessage } from '../../shared/api/resolveApiErrorMessage';
 import { Screen } from '../../shared/components/Screen/Screen';
+import { fontFamily } from '../../shared/constants/typography';
+import { useHasLoggedInBefore } from '../../shared/hooks/useHasLoggedInBefore';
+// 상단 픽셀아트 배너는 회원가입 화면의 히어로를 그대로 재활용한다.
+import { SignupHero } from '../SignupScreen/components/SignupHero';
 
 type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
+const TITLE_COLOR = '#111827';
+const SUBTITLE_COLOR = '#4B5563';
 const ERROR_COLOR = '#DC2626';
-const LINK_COLOR = '#2C6A47';
+const HINT_COLOR = '#6B7280';
+const PRIMARY_COLOR = '#27A34A';
+const DIVIDER_COLOR = '#E5E7EB';
+const TIP_BG_COLOR = '#EAF4EC';
+const TIP_TITLE_COLOR = '#374151';
+
+// 본문 view가 사진을 덮는 오버랩 높이와 상단 라운드 반경. 회원가입과 동일 규격.
+const BODY_OVERLAP = 24;
+const BODY_CORNER_RADIUS = 24;
 
 const SCREEN_EDGES = ['bottom'] as const;
 
@@ -32,10 +50,15 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
 
   const passwordRef = useRef<TextInput>(null);
   const mutation = useLoginMutation();
+  const { hasLoggedInBefore } = useHasLoggedInBefore();
 
   function clearError(field: keyof LoginErrors) {
     setErrors(previous => ({ ...previous, [field]: undefined }));
     mutation.reset();
+  }
+
+  function notReady() {
+    Alert.alert('준비 중', '아직 준비 중인 기능이에요.');
   }
 
   function submit() {
@@ -61,61 +84,113 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
     <Screen edges={SCREEN_EDGES}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled">
-          <AuthTextField
-            label="이메일"
-            value={email}
-            onChangeText={text => {
-              setEmail(text);
-              clearError('email');
-            }}
-            error={errors.email}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            textContentType="emailAddress"
-            returnKeyType="next"
-            submitBehavior="submit"
-            onSubmitEditing={() => passwordRef.current?.focus()}
-          />
-          <AuthTextField
-            ref={passwordRef}
-            label="비밀번호"
-            value={password}
-            onChangeText={text => {
-              setPassword(text);
-              clearError('password');
-            }}
-            error={errors.password}
-            secureTextEntry
-            autoCapitalize="none"
-            autoComplete="password"
-            textContentType="password"
-            returnKeyType="done"
-            onSubmitEditing={submit}
-          />
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+        >
+          <SignupHero />
 
-          {mutation.error ? (
-            <Text style={styles.serverError} accessibilityLiveRegion="polite">
-              {mutation.error.message}
+          <View style={styles.body}>
+            <Text style={styles.title}>
+              {hasLoggedInBefore ? '다시 만나서 반가워요!' : '만나서 반가워요!'}
             </Text>
-          ) : null}
+            <Text style={styles.subtitle}>
+              계정으로 로그인하고 산책을 기록해보세요.
+            </Text>
 
-          <AuthSubmitButton
-            label="로그인"
-            onPress={submit}
-            pending={mutation.isPending}
-          />
+            <AuthTextField
+              label="이메일 주소"
+              hideLabel
+              leftIcon="person-outline"
+              value={email}
+              placeholder="이메일 주소"
+              onChangeText={text => {
+                setEmail(text);
+                clearError('email');
+              }}
+              error={errors.email}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              textContentType="emailAddress"
+              returnKeyType="next"
+              submitBehavior="submit"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+            />
+            <AuthTextField
+              ref={passwordRef}
+              label="비밀번호"
+              hideLabel
+              leftIcon="lock-closed-outline"
+              secureToggle
+              value={password}
+              placeholder="비밀번호"
+              onChangeText={text => {
+                setPassword(text);
+                clearError('password');
+              }}
+              error={errors.password}
+              autoCapitalize="none"
+              autoComplete="password"
+              textContentType="password"
+              returnKeyType="done"
+              onSubmitEditing={submit}
+            />
 
-          <Pressable
-            style={styles.link}
-            onPress={() => navigation.navigate('Signup')}
-            accessibilityRole="button">
-            <Text style={styles.linkText}>계정이 없으신가요? 회원가입</Text>
-          </Pressable>
+            <Pressable
+              style={styles.forgot}
+              onPress={notReady}
+              accessibilityRole="button"
+            >
+              <Text style={styles.forgotText}>비밀번호 찾기</Text>
+            </Pressable>
+
+            {mutation.error ? (
+              <Text style={styles.serverError} accessibilityLiveRegion="polite">
+                {resolveApiErrorMessage(mutation.error)}
+              </Text>
+            ) : null}
+
+            <AuthSubmitButton
+              label="로그인"
+              onPress={submit}
+              pending={mutation.isPending}
+            />
+
+            <Pressable
+              style={styles.signupLink}
+              onPress={() => navigation.navigate('Signup')}
+              accessibilityRole="button"
+            >
+              <Text style={styles.signupText}>
+                계정이 없으신가요?{' '}
+                <Text style={styles.signupAccent}>회원가입</Text>
+              </Text>
+            </Pressable>
+
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>또는</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <SocialAuthButtons
+              action="로그인"
+              onKakaoPress={notReady}
+              onGooglePress={notReady}
+            />
+
+            <View style={styles.tip}>
+              <Text style={styles.tipTitle}>
+                작은 습관이 변화를 만들어 낼 수 있습니다!
+              </Text>
+              <Text style={styles.tipBody}>
+                오늘도 함께 걸으며 건강한 습관을 만들어봐요!
+              </Text>
+            </View>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
@@ -126,22 +201,90 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  content: {
+  scroll: {
     flexGrow: 1,
-    justifyContent: 'center',
-    padding: 24,
+    paddingBottom: 32,
+    backgroundColor: '#FFFFFF',
+  },
+  body: {
+    marginTop: -BODY_OVERLAP + 8,
+    borderTopLeftRadius: BODY_CORNER_RADIUS,
+    borderTopRightRadius: BODY_CORNER_RADIUS,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 24,
+    paddingTop: BODY_OVERLAP + 20,
+  },
+  title: {
+    fontFamily: fontFamily.bold,
+    fontSize: 26,
+    lineHeight: 34,
+    color: TITLE_COLOR,
+  },
+  subtitle: {
+    marginTop: 8,
+    marginBottom: 24,
+    fontSize: 15,
+    color: SUBTITLE_COLOR,
+  },
+  forgot: {
+    alignSelf: 'flex-end',
+    marginTop: 4,
+    marginBottom: 20,
+  },
+  forgotText: {
+    fontSize: 13,
+    color: HINT_COLOR,
   },
   serverError: {
     marginBottom: 12,
     fontSize: 14,
     color: ERROR_COLOR,
   },
-  link: {
+  signupLink: {
     marginTop: 20,
     alignItems: 'center',
   },
-  linkText: {
+  signupText: {
     fontSize: 14,
-    color: LINK_COLOR,
+    color: SUBTITLE_COLOR,
+  },
+  signupAccent: {
+    fontWeight: '700',
+    color: PRIMARY_COLOR,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: DIVIDER_COLOR,
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    fontSize: 13,
+    color: HINT_COLOR,
+  },
+  tip: {
+    marginTop: 24,
+    borderRadius: 16,
+    backgroundColor: TIP_BG_COLOR,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  tipTitle: {
+    fontFamily: fontFamily.bold,
+    fontSize: 12,
+    color: TIP_TITLE_COLOR,
+    textAlign: 'center',
+  },
+  tipBody: {
+    marginTop: 6,
+    fontSize: 12,
+    color: HINT_COLOR,
+    textAlign: 'center',
   },
 });

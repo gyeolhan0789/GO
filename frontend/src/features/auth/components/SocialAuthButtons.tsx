@@ -6,6 +6,8 @@ import { GoogleLogo } from './GoogleLogo';
 type SocialAuthButtonsProps = {
   onKakaoPress: () => void;
   onGooglePress: () => void;
+  /** 버튼 문구 접미사. 기본 '시작하기'. 로그인 화면은 '로그인'을 전달한다. */
+  action?: string;
 };
 
 const KAKAO_BG = '#FEE500';
@@ -20,7 +22,11 @@ const PRESSED_OPACITY = 0.85;
 export function SocialAuthButtons({
   onKakaoPress,
   onGooglePress,
+  action = '시작하기',
 }: SocialAuthButtonsProps) {
+  const kakaoLabel = `카카오로 ${action}`;
+  const googleLabel = `Google로 ${action}`;
+
   return (
     <View style={styles.container}>
       <Pressable
@@ -31,10 +37,10 @@ export function SocialAuthButtons({
         ]}
         onPress={onKakaoPress}
         accessibilityRole="button"
-        accessibilityLabel="카카오로 시작하기"
+        accessibilityLabel={kakaoLabel}
       >
         <Ionicons name="chatbubble-sharp" size={18} color={KAKAO_LABEL} />
-        <Text style={[styles.label, styles.kakaoLabel]}>카카오로 시작하기</Text>
+        <Text style={[styles.label, styles.kakaoLabel]}>{kakaoLabel}</Text>
       </Pressable>
 
       <Pressable
@@ -45,10 +51,10 @@ export function SocialAuthButtons({
         ]}
         onPress={onGooglePress}
         accessibilityRole="button"
-        accessibilityLabel="Google로 시작하기"
+        accessibilityLabel={googleLabel}
       >
         <GoogleLogo size={20} />
-        <Text style={[styles.label, styles.googleLabel]}>Google로 시작하기</Text>
+        <Text style={[styles.label, styles.googleLabel]}>{googleLabel}</Text>
       </Pressable>
     </View>
   );
