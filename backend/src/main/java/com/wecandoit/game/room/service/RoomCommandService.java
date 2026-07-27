@@ -6,10 +6,13 @@ import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.room.controller.request.CreateRoomRequest;
 import com.wecandoit.game.room.controller.response.CreateRoomResponse;
 import com.wecandoit.game.room.domain.GameMode;
+import com.wecandoit.game.room.domain.GameRoomStatus;
 import com.wecandoit.game.room.domain.Room;
 import com.wecandoit.game.room.domain.RoomMember;
 import com.wecandoit.game.room.repository.RoomMemberRepository;
 import com.wecandoit.game.room.repository.RoomRepository;
+import com.wecandoit.member.repository.MemberRepository;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,9 +25,40 @@ public class RoomCommandService {
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
     private final BingoCommandService bingoCommandService;
+    private final MemberRepository memberRepository;
 
     public CreateRoomResponse createRoom(Long memberId, CreateRoomRequest request) {
         validateTargetStepCount(request.mode(), request.targetStepCount());
+        if (request.mode() == GameMode.SINGLE) {
+            return startSingleRoom(memberId, request);
+        }
+
+        Room room = createNewRoom(memberId, request);
+        // TODO: Connect game requests after policy is confirmed.
+        return CreateRoomResponse.from(room);
+    }
+
+    private CreateRoomResponse startSingleRoom(Long memberId, CreateRoomRequest request) {
+        memberRepository.findByIdForUpdate(memberId)
+                .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+
+        return roomRepository.findFirstByMemberIdAndModeAndStatus(
+                        memberId,
+                        GameMode.SINGLE,
+                        GameRoomStatus.IN_PROGRESS
+                )
+                .map(CreateRoomResponse::from)
+                .orElseGet(() -> createAndStartSingleRoom(memberId, request));
+    }
+
+    private CreateRoomResponse createAndStartSingleRoom(Long memberId, CreateRoomRequest request) {
+        Room room = createNewRoom(memberId, request);
+        room.start();
+        bingoCommandService.generateInitialBoard(room);
+        return CreateRoomResponse.from(room);
+    }
+
+    private Room createNewRoom(Long memberId, CreateRoomRequest request) {
         Room room = roomRepository.save(Room.create(
                 memberId,
                 request.mode(),
@@ -33,8 +67,7 @@ public class RoomCommandService {
                 request.targetStepCount()
         ));
         roomMemberRepository.save(RoomMember.create(room.getId(), memberId));
-        // TODO: Connect game requests after policy is confirmed.
-        return CreateRoomResponse.from(room);
+        return room;
     }
 
     private void validateTargetStepCount(GameMode mode, Integer targetStepCount) {
@@ -52,8 +85,25 @@ public class RoomCommandService {
             throw new CustomException(ErrorCode.ROOM_DELETE_FORBIDDEN);
         }
 
+        if (room.getMode() == GameMode.SINGLE) {
+            room.close();
+            return;
+        }
+
         closeRoom(roomId, room);
         // TODO: Connect game requests, bingo boards, and mission policies after deletion is confirmed.
+    }
+
+    public void expireSingleRoom(Long roomId, LocalDateTime expirationTime) {
+        Room room = findRoom(roomId);
+        if (room.getMode() != GameMode.SINGLE
+                || room.getStatus() != GameRoomStatus.IN_PROGRESS
+                || room.getStartedAt() == null
+                || room.getStartedAt().isAfter(expirationTime)) {
+            return;
+        }
+
+        room.close();
     }
 
     public void startGame(Long memberId, Long roomId) {
