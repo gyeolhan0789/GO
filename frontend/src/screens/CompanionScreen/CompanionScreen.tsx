@@ -1,14 +1,24 @@
 import { useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
 
+import type {
+  FriendResponse,
+  ReceivedFriendRequest,
+} from '../../features/friend/api/friendApi';
+import { useAcceptFriendRequestMutation } from '../../features/friend/hooks/useAcceptFriendRequestMutation';
+import { useDeleteFriendMutation } from '../../features/friend/hooks/useDeleteFriendMutation';
 import { useFriendsQuery } from '../../features/friend/hooks/useFriendsQuery';
+import { useReceivedRequestsQuery } from '../../features/friend/hooks/useReceivedRequestsQuery';
+import { useRejectFriendRequestMutation } from '../../features/friend/hooks/useRejectFriendRequestMutation';
 import { Fab } from '../../shared/components/Fab/Fab';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { SegmentedControl } from '../../shared/components/SegmentedControl/SegmentedControl';
+import { Toast } from '../../shared/components/Toast/Toast';
 import { colors } from '../../shared/constants/colors';
 import { spacing } from '../../shared/constants/spacing';
 import { AddFriendSheet } from './components/AddFriendSheet';
 import { FriendCard } from './components/FriendCard';
+import { ReceivedRequestRow } from './components/ReceivedRequestRow';
 import { WalkRoomCard } from './components/WalkRoomCard';
 import type { MyWalkRoom } from './types';
 
@@ -105,8 +115,89 @@ const MOCK_WALK_ROOMS: MyWalkRoom[] = [
 export function CompanionScreen() {
   const [tab, setTab] = useState<CompanionTab>('walkRooms');
   const [isAddFriendVisible, setAddFriendVisible] = useState(false);
+  const [pendingRequestId, setPendingRequestId] = useState<number | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const friendsQuery = useFriendsQuery();
   const friends = friendsQuery.data?.content ?? [];
+  const receivedRequestsQuery = useReceivedRequestsQuery();
+  const receivedRequests = receivedRequestsQuery.data?.content ?? [];
+  const acceptRequestMutation = useAcceptFriendRequestMutation();
+  const rejectRequestMutation = useRejectFriendRequestMutation();
+  const deleteFriendMutation = useDeleteFriendMutation();
+
+  const handleDeleteFriend = (friend: FriendResponse) => {
+    Alert.alert(
+      '친구 삭제',
+      `${friend.nickname}님을 친구 목록에서 삭제하시겠습니까?`,
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: () => {
+            deleteFriendMutation.mutate(friend.memberId, {
+              onSuccess: () => setToastMessage('친구를 삭제했어요.'),
+              onError: error => {
+                Alert.alert(
+                  '친구 삭제 실패',
+                  error instanceof Error
+                    ? error.message
+                    : '잠시 후 다시 시도해주세요.',
+                );
+              },
+            });
+          },
+        },
+      ],
+    );
+  };
+
+  const handleAccept = (request: ReceivedFriendRequest) => {
+    setPendingRequestId(request.requestId);
+    acceptRequestMutation.mutate(request.requestId, {
+      onSuccess: () => setToastMessage('친구 요청을 수락했어요.'),
+      onError: error => {
+        Alert.alert(
+          '친구 요청 수락 실패',
+          error instanceof Error ? error.message : '잠시 후 다시 시도해주세요.',
+        );
+        // 이미 처리된 요청 등으로 실패했을 수 있으니 목록을 최신 상태로 맞춘다.
+        receivedRequestsQuery.refetch();
+      },
+      onSettled: () => setPendingRequestId(null),
+    });
+  };
+
+  const handleReject = (request: ReceivedFriendRequest) => {
+    Alert.alert(
+      '친구 요청 거절',
+      `${request.inviterNickname}님의 친구 요청을 거절할까요?`,
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '거절',
+          style: 'destructive',
+          onPress: () => {
+            setPendingRequestId(request.requestId);
+            rejectRequestMutation.mutate(request.requestId, {
+              onSuccess: () => setToastMessage('친구 요청을 거절했어요.'),
+              onError: error => {
+                Alert.alert(
+                  '친구 요청 거절 실패',
+                  error instanceof Error
+                    ? error.message
+                    : '잠시 후 다시 시도해주세요.',
+                );
+                // 이미 처리된 요청 등으로 실패했을 수 있으니 목록을 최신 상태로 맞춘다.
+                receivedRequestsQuery.refetch();
+              },
+              onSettled: () => setPendingRequestId(null),
+            });
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <Screen>
@@ -147,9 +238,32 @@ export function CompanionScreen() {
             data={friends}
             keyExtractor={friend => String(friend.memberId)}
             ListHeaderComponent={
-              <Text style={styles.countLabel}>내 친구 {friends.length}</Text>
+              <>
+                {receivedRequests.length > 0 ? (
+                  <View style={styles.receivedRequests}>
+                    <Text style={styles.countLabel}>
+                      받은 친구 요청 {receivedRequests.length}
+                    </Text>
+                    {receivedRequests.map(request => (
+                      <ReceivedRequestRow
+                        key={request.requestId}
+                        request={request}
+                        onAccept={() => handleAccept(request)}
+                        onReject={() => handleReject(request)}
+                        disabled={pendingRequestId === request.requestId}
+                      />
+                    ))}
+                  </View>
+                ) : null}
+                <Text style={styles.countLabel}>내 친구 {friends.length}</Text>
+              </>
             }
-            renderItem={({ item }) => <FriendCard friend={item} />}
+            renderItem={({ item }) => (
+              <FriendCard
+                friend={item}
+                onLongPress={() => handleDeleteFriend(item)}
+              />
+            )}
             style={styles.list}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
@@ -176,6 +290,8 @@ export function CompanionScreen() {
         visible={isAddFriendVisible}
         onClose={() => setAddFriendVisible(false)}
       />
+
+      <Toast message={toastMessage} onHide={() => setToastMessage(null)} />
     </Screen>
   );
 }
@@ -198,6 +314,10 @@ const styles = StyleSheet.create({
     fontFamily: 'BMDOHYEON',
     fontSize: 14,
     color: colors.ink,
+  },
+  receivedRequests: {
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
   statusText: {
     fontFamily: 'BMDOHYEON',

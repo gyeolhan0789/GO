@@ -40,6 +40,11 @@ export function getFriends({ page = 0, size = 20 }: GetFriendsParams = {}) {
   );
 }
 
+/** friendId는 친구 관계 row의 ID가 아니라 삭제하려는 상대의 memberId다. */
+export function deleteFriend(friendId: number) {
+  return apiClient.delete<void>(`/friends/${friendId}`);
+}
+
 /** 백엔드 MemberRelationshipStatus와 동일. */
 export type MemberRelationshipStatus =
   | 'NONE'
@@ -73,4 +78,28 @@ export function searchMembers({
 
 export function sendFriendRequest(inviteeId: number) {
   return apiClient.post<void>('/friend-requests', { inviteeId });
+}
+
+export type ReceivedFriendRequest = {
+  requestId: number;
+  inviterId: number;
+  inviterNickname: string;
+  createdAt: string;
+};
+
+export function getReceivedRequests({
+  page = 0,
+  size = 20,
+}: GetFriendsParams = {}) {
+  return apiClient.get<SliceResponse<ReceivedFriendRequest>>(
+    `/friend-requests?page=${page}&size=${size}`,
+  );
+}
+
+export function acceptFriendRequest(requestId: number) {
+  return apiClient.patch<void>(`/friend-requests/${requestId}/accept`);
+}
+
+export function rejectFriendRequest(requestId: number) {
+  return apiClient.patch<void>(`/friend-requests/${requestId}/reject`);
 }
