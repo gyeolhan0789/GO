@@ -5,6 +5,8 @@ import com.wecandoit.friend.domain.Friend;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -32,9 +34,27 @@ public interface FriendRepository extends JpaRepository<Friend, Long> {
             @Param("secondMemberId") Long secondMemberId
     );
 
-    @EntityGraph(attributePaths = {"member1", "member2"})
-    @Query("select f from Friend f where f.member1.id = :memberId or f.member2.id = :memberId")
-    List<Friend> findAllByMemberId(@Param("memberId") Long memberId);
+    @Query(
+            value = """
+                    select f from Friend f
+                    join fetch f.member1
+                    join fetch f.member2
+                    where f.member1.id = :memberId or f.member2.id = :memberId
+                    order by
+                        case when f.member1.id = :memberId
+                            then f.member2.nickname else f.member1.nickname end asc,
+                        case when f.member1.id = :memberId
+                            then f.member2.id else f.member1.id end asc
+                    """,
+            countQuery = """
+                    select count(f) from Friend f
+                    where f.member1.id = :memberId or f.member2.id = :memberId
+                    """
+    )
+    Page<Friend> findAllByMemberId(
+            @Param("memberId") Long memberId,
+            Pageable pageable
+    );
 
     @Query("""
             select case when f.member1.id = :memberId then f.member2.id else f.member1.id end

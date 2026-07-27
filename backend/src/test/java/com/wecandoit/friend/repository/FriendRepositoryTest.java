@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
 
 @DataJpaTest
@@ -56,12 +58,24 @@ class FriendRepositoryTest {
         ));
 
         // when
-        List<Friend> friends = friendRepository.findAllByMemberId(loginMember.getId());
+        Page<Friend> firstPage = friendRepository.findAllByMemberId(
+                loginMember.getId(),
+                PageRequest.of(0, 1)
+        );
+        Page<Friend> secondPage = friendRepository.findAllByMemberId(
+                loginMember.getId(),
+                PageRequest.of(1, 1)
+        );
 
         // then
-        assertThat(friends)
+        assertThat(firstPage.getContent())
                 .map(friend -> friend.getFriendOf(loginMember.getId()).getNickname())
-                .containsExactlyInAnyOrder("친구1", "친구2");
+                .containsExactly("친구1");
+        assertThat(secondPage.getContent())
+                .map(friend -> friend.getFriendOf(loginMember.getId()).getNickname())
+                .containsExactly("친구2");
+        assertThat(firstPage.getTotalElements()).isEqualTo(2);
+        assertThat(firstPage.hasNext()).isTrue();
     }
 
     @Test

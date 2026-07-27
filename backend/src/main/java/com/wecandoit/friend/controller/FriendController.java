@@ -1,12 +1,12 @@
 package com.wecandoit.friend.controller;
 
-import com.wecandoit.friend.service.FriendCommandService;
-import com.wecandoit.friend.service.FriendReadService;
-
+import com.wecandoit.common.response.PageResponse;
 import com.wecandoit.common.security.LoginMemberId;
 import com.wecandoit.friend.dto.FriendResponse;
-import java.util.List;
+import com.wecandoit.friend.service.FriendCommandService;
+import com.wecandoit.friend.service.FriendReadService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,8 +23,11 @@ public class FriendController {
     private final FriendCommandService friendCommandService;
 
     @GetMapping
-    public ResponseEntity<List<FriendResponse>> getFriends(@LoginMemberId Long memberId) {
-        return ResponseEntity.ok(friendReadService.getFriends(memberId));
+    public ResponseEntity<PageResponse<FriendResponse>> getFriends(
+            @LoginMemberId Long memberId,
+            Pageable pageable
+    ) {
+        return ResponseEntity.ok(friendReadService.getFriends(memberId, pageable));
     }
 
     @DeleteMapping("/{friendId}")

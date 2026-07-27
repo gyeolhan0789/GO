@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.exception.ErrorCode;
+import com.wecandoit.common.response.PageResponse;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.member.domain.Region;
 import com.wecandoit.member.dto.MemberProfileUpdateRequest;
@@ -33,6 +34,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -51,7 +53,10 @@ class MemberControllerTest {
     void setUp() {
         mockMvc = MockMvcBuilders.standaloneSetup(new MemberController(memberReadService, memberService))
                 .setControllerAdvice(new CustomExceptionHandler())
-                .setCustomArgumentResolvers(new LoginMemberIdArgumentResolver())
+                .setCustomArgumentResolvers(
+                        new LoginMemberIdArgumentResolver(),
+                        new PageableHandlerMethodArgumentResolver()
+                )
                 .build();
         SecurityContextHolder.getContext().setAuthentication(
                 UsernamePasswordAuthenticationToken.authenticated(1L, null, List.of())
@@ -67,16 +72,28 @@ class MemberControllerTest {
     @DisplayName("닉네임 검색 결과에 회원 ID, 닉네임, 관계 상태를 반환한다")
     void searchMembersReturnsRelationshipStatus() throws Exception {
         // given
-        given(memberReadService.searchMembers(1L, "산책")).willReturn(List.of(
-                new MemberSearchResponse(2L, "산책친구", MemberRelationshipStatus.FRIEND)
-        ));
+        given(memberReadService.searchMembers(eq(1L), eq("산책"), any())).willReturn(
+                new PageResponse<>(
+                        List.of(new MemberSearchResponse(
+                                2L,
+                                "산책친구",
+                                MemberRelationshipStatus.FRIEND
+                        )),
+                        1, 1, 0, 20, false
+                )
+        );
 
         // when & then
-        mockMvc.perform(get("/members/search").param("keyword", "산책"))
+        mockMvc.perform(get("/members/search")
+                        .param("keyword", "산책")
+                        .param("page", "0")
+                        .param("size", "20"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].memberId").value(2L))
-                .andExpect(jsonPath("$[0].nickname").value("산책친구"))
-                .andExpect(jsonPath("$[0].relationshipStatus").value("FRIEND"));
+                .andExpect(jsonPath("$.content[0].memberId").value(2L))
+                .andExpect(jsonPath("$.content[0].nickname").value("산책친구"))
+                .andExpect(jsonPath("$.content[0].relationshipStatus").value("FRIEND"))
+                .andExpect(jsonPath("$.currentPage").value(0))
+                .andExpect(jsonPath("$.size").value(20));
     }
 
     @Test
