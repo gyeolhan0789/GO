@@ -10,6 +10,8 @@ import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -131,6 +133,128 @@ class WeeklyRankingRepositoryTest {
         assertThat(rankings)
                 .extracting(WeeklyRankingSummary::getMemberId)
                 .containsExactly(secondMember.getId(), thirdMember.getId(), firstMember.getId());
+    }
+
+    @Test
+    @DisplayName("페이지 경계를 넘은 동점자의 전체 순위와 페이지 정보를 유지한다")
+    void findPagedWeeklyRankingsByRegionMaintainsGlobalRanksAcrossPages() {
+        // given
+        Member firstMember = saveMember("회원1", Region.SEOUL);
+        Member secondMember = saveMember("회원2", Region.SEOUL);
+        Member thirdMember = saveMember("회원3", Region.SEOUL);
+        Member fourthMember = saveMember("회원4", Region.SEOUL);
+        Member fifthMember = saveMember("회원5", Region.SEOUL);
+        Member zeroStepMember = saveMember("영걸음회원", Region.SEOUL);
+        saveHistory(firstMember, START_DATE, 3_000);
+        saveHistory(secondMember, START_DATE, 3_000);
+        saveHistory(thirdMember, START_DATE, 3_000);
+        saveHistory(fourthMember, START_DATE, 2_000);
+        saveHistory(fifthMember, START_DATE, 1_000);
+
+        // when
+        Page<RankedWeeklyRankingSummary> firstPage =
+                memberHistoryRepository.findPagedWeeklyRankingsByRegion(
+                        Region.SEOUL.name(),
+                        START_DATE,
+                        END_DATE,
+                        PageRequest.of(0, 2)
+                );
+        Page<RankedWeeklyRankingSummary> secondPage =
+                memberHistoryRepository.findPagedWeeklyRankingsByRegion(
+                        Region.SEOUL.name(),
+                        START_DATE,
+                        END_DATE,
+                        PageRequest.of(1, 2)
+                );
+        Page<RankedWeeklyRankingSummary> thirdPage =
+                memberHistoryRepository.findPagedWeeklyRankingsByRegion(
+                        Region.SEOUL.name(),
+                        START_DATE,
+                        END_DATE,
+                        PageRequest.of(2, 2)
+                );
+
+        // then
+        assertThat(firstPage.getContent())
+                .extracting(
+                        RankedWeeklyRankingSummary::getRanking,
+                        RankedWeeklyRankingSummary::getMemberId
+                )
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(1, firstMember.getId()),
+                        org.assertj.core.groups.Tuple.tuple(1, secondMember.getId())
+                );
+        assertThat(secondPage.getContent())
+                .extracting(
+                        RankedWeeklyRankingSummary::getRanking,
+                        RankedWeeklyRankingSummary::getMemberId
+                )
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(1, thirdMember.getId()),
+                        org.assertj.core.groups.Tuple.tuple(4, fourthMember.getId())
+                );
+        assertThat(thirdPage.getContent())
+                .extracting(
+                        RankedWeeklyRankingSummary::getRanking,
+                        RankedWeeklyRankingSummary::getMemberId
+                )
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(5, fifthMember.getId()),
+                        org.assertj.core.groups.Tuple.tuple(6, zeroStepMember.getId())
+                );
+        assertThat(firstPage.getTotalElements()).isEqualTo(6);
+        assertThat(firstPage.getTotalPages()).isEqualTo(3);
+        assertThat(firstPage.hasNext()).isTrue();
+        assertThat(thirdPage.hasNext()).isFalse();
+    }
+
+    @Test
+    @DisplayName("전체 페이지 범위를 벗어나면 전체 수를 유지한 빈 페이지를 반환한다")
+    void findPagedWeeklyRankingsByRegionReturnsEmptyPageBeyondRange() {
+        // given
+        saveMember("회원1", Region.JEJU);
+        saveMember("회원2", Region.JEJU);
+
+        // when
+        Page<RankedWeeklyRankingSummary> rankings =
+                memberHistoryRepository.findPagedWeeklyRankingsByRegion(
+                        Region.JEJU.name(),
+                        START_DATE,
+                        END_DATE,
+                        PageRequest.of(2, 2)
+                );
+
+        // then
+        assertThat(rankings.getContent()).isEmpty();
+        assertThat(rankings.getTotalElements()).isEqualTo(2);
+        assertThat(rankings.getTotalPages()).isEqualTo(1);
+        assertThat(rankings.hasNext()).isFalse();
+    }
+
+    @Test
+    @DisplayName("로그인 회원의 순위를 요청 페이지와 무관하게 전체 기준으로 조회한다")
+    void findWeeklyRankingByRegionAndMemberIdReturnsGlobalRank() {
+        // given
+        Member firstMember = saveMember("회원1", Region.BUSAN);
+        Member secondMember = saveMember("회원2", Region.BUSAN);
+        Member loginMember = saveMember("로그인회원", Region.BUSAN);
+        saveHistory(firstMember, START_DATE, 2_000);
+        saveHistory(secondMember, START_DATE, 2_000);
+        saveHistory(loginMember, START_DATE, 1_000);
+
+        // when
+        RankedWeeklyRankingSummary ranking =
+                memberHistoryRepository.findWeeklyRankingByRegionAndMemberId(
+                                Region.BUSAN.name(),
+                                loginMember.getId(),
+                                START_DATE,
+                                END_DATE
+                        )
+                        .orElseThrow();
+
+        // then
+        assertThat(ranking.getRanking()).isEqualTo(3);
+        assertThat(ranking.getWeeklySteps()).isEqualTo(1_000);
     }
 
     private Member saveMember(String nickname, Region region) {

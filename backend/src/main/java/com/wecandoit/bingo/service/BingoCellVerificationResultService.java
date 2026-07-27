@@ -7,6 +7,9 @@ import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.result.service.GameCompletionService;
+import com.wecandoit.game.room.domain.GameRoomStatus;
+import com.wecandoit.game.room.domain.Room;
+import com.wecandoit.game.room.repository.RoomRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,11 +21,20 @@ public class BingoCellVerificationResultService {
 
     private final BingoCellRepository bingoCellRepository;
     private final BingoBoardRepository bingoBoardRepository;
+    private final RoomRepository roomRepository;
     private final GameCompletionService gameCompletionService;
 
     public void applyResult(Long cellId, boolean approved, String rejectionReason) {
         BingoCell cell = bingoCellRepository.findById(cellId)
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND));
+
+        BingoBoard board = bingoBoardRepository.findById(cell.getBoardId())
+                .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
+        Room room = roomRepository.findByIdForUpdate(board.getRoomId())
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+        if (room.getStatus() != GameRoomStatus.IN_PROGRESS) {
+            return;
+        }
 
         if (!approved) {
             cell.reject(rejectionReason);
@@ -30,8 +42,6 @@ public class BingoCellVerificationResultService {
             return;
         }
 
-        BingoBoard board = bingoBoardRepository.findById(cell.getBoardId())
-                .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
         cell.approve();
         bingoCellRepository.save(cell);
         gameCompletionService.evaluateAndCompleteIfNeeded(board.getRoomId());

@@ -1,0 +1,71 @@
+meta {
+  name: 게임 결과 단건 조회
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{backendBaseUrl}}/game-results/1
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+docs {
+  ## 게임 결과 단건 조회
+
+  완료(`COMPLETED`)된 게임방의 결과를 조회한다. 해당 게임방의 참여자만 조회할 수 있다.
+
+  ### 성공 응답 (200 OK)
+  ```json
+  {
+    "roomId": 1,
+    "result": true,
+    "bingoCount": 3,
+    "completedMissionCount": 9,
+    "rewardCash": 500
+  }
+  ```
+
+  ### 비즈니스 규칙
+  - `result`는 현재 항상 `true`다(패배·타임아웃 종료 경로가 아직 없어 완료된 게임은 모두 승리로 기록된다).
+  - `bingoCount`는 게임 종료 시점에 달성한 빙고 줄 수, `completedMissionCount`는 참여자 전원의 완료 미션 수 합계다.
+  - `rewardCash`는 게임 완료 시 지급된 보상 캐시 총액이다.
+
+  ### 에러 케이스
+
+  **존재하지 않는 게임방**
+  ```json
+  {
+    "status": 404,
+    "message": "게임방을 찾을 수 없습니다."
+  }
+  ```
+
+  **게임방 참여자가 아님**
+  ```json
+  {
+    "status": 403,
+    "message": "게임방 참여자만 접근할 수 있습니다."
+  }
+  ```
+
+  **아직 완료되지 않은 게임방**
+  ```json
+  {
+    "status": 409,
+    "message": "완료되지 않은 게임입니다."
+  }
+  ```
+
+  **Authorization 헤더 없음**
+  ```json
+  {
+    "status": 401,
+    "message": "인증이 필요합니다."
+  }
+  ```
+}

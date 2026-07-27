@@ -2,8 +2,9 @@ package com.wecandoit.ranking.service;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
+import com.wecandoit.common.response.PageResponse;
 import com.wecandoit.history.repository.MemberHistoryRepository;
-import com.wecandoit.history.repository.WeeklyRankingSummary;
+import com.wecandoit.history.repository.RankedWeeklyRankingSummary;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.domain.Region;
 import com.wecandoit.member.repository.MemberRepository;
@@ -11,9 +12,10 @@ import com.wecandoit.ranking.controller.response.RankingItemResponse;
 import com.wecandoit.ranking.controller.response.RankingResponse;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +29,7 @@ public class RankingReadService {
     private final MemberRepository memberRepository;
     private final MemberHistoryRepository memberHistoryRepository;
 
-    public RankingResponse getRankings(Long memberId) {
+    public RankingResponse getRankings(Long memberId, Pageable pageable) {
         Member loginMember = memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
         Region region = loginMember.getRegion();
@@ -36,47 +38,39 @@ public class RankingReadService {
         }
 
         CurrentWeekRange weekRange = CurrentWeekRange.from(LocalDate.now(SERVICE_ZONE_ID));
-        List<WeeklyRankingSummary> summaries = memberHistoryRepository.findWeeklyRankingsByRegion(
-                region,
-                weekRange.startDate(),
-                weekRange.endDate()
-        );
+        Pageable fixedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+        Page<RankedWeeklyRankingSummary> summaries =
+                memberHistoryRepository.findPagedWeeklyRankingsByRegion(
+                        region.name(),
+                        weekRange.startDate(),
+                        weekRange.endDate(),
+                        fixedPageable
+                );
+        RankedWeeklyRankingSummary myRanking =
+                memberHistoryRepository.findWeeklyRankingByRegionAndMemberId(
+                                region.name(),
+                                memberId,
+                                weekRange.startDate(),
+                                weekRange.endDate()
+                        )
+                        .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
-        return createResponse(region, memberId, summaries);
+        return new RankingResponse(
+                region,
+                myRanking.getRanking(),
+                myRanking.getWeeklySteps(),
+                PageResponse.from(summaries.map(RankingReadService::toRankingItemResponse))
+        );
     }
 
-    private RankingResponse createResponse(
-            Region region,
-            Long loginMemberId,
-            List<WeeklyRankingSummary> summaries
+    private static RankingItemResponse toRankingItemResponse(
+            RankedWeeklyRankingSummary summary
     ) {
-        List<RankingItemResponse> rankings = new ArrayList<>(summaries.size());
-        int previousRank = 0;
-        long previousWeeklySteps = -1;
-        RankingItemResponse myRanking = null;
-
-        for (int index = 0; index < summaries.size(); index++) {
-            WeeklyRankingSummary summary = summaries.get(index);
-            if (summary.getWeeklySteps() != previousWeeklySteps) {
-                previousRank = index + 1;
-                previousWeeklySteps = summary.getWeeklySteps();
-            }
-
-            RankingItemResponse ranking = new RankingItemResponse(
-                    previousRank,
-                    summary.getMemberId(),
-                    summary.getNickname(),
-                    summary.getWeeklySteps()
-            );
-            rankings.add(ranking);
-            if (summary.getMemberId().equals(loginMemberId)) {
-                myRanking = ranking;
-            }
-        }
-
-        if (myRanking == null) {
-            throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
-        }
-        return new RankingResponse(region, myRanking.rank(), myRanking.weeklySteps(), rankings);
+        return new RankingItemResponse(
+                summary.getRanking(),
+                summary.getMemberId(),
+                summary.getNickname(),
+                summary.getWeeklySteps()
+        );
     }
 }

@@ -5,9 +5,14 @@ meta {
 }
 
 get {
-  url: {{backendBaseUrl}}/friend-requests/sent
+  url: {{backendBaseUrl}}/friend-requests/sent?page=0&size=20
   body: none
   auth: inherit
+}
+
+params:query {
+  page: 0
+  size: 20
 }
 
 headers {
@@ -21,19 +26,25 @@ docs {
 
   ### 성공 응답 (200 OK)
   ```json
-  [
-    {
-      "requestId": 10,
-      "inviteeId": 2,
-      "inviteeNickname": "walker",
-      "createdAt": "2026-07-27T10:00:00"
-    }
-  ]
+  {
+    "content": [
+      {
+        "requestId": 10,
+        "inviteeId": 2,
+        "inviteeNickname": "walker",
+        "createdAt": "2026-07-27T10:00:00"
+      }
+    ],
+    "hasNext": false
+  }
   ```
 
-  보낸 대기 요청이 없으면 빈 배열을 반환한다.
+  보낸 대기 요청이 없으면 빈 `content`를 반환한다.
   ```json
-  []
+  {
+    "content": [],
+    "hasNext": false
+  }
   ```
 
   ### 비즈니스 규칙

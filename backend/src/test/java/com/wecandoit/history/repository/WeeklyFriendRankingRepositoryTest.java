@@ -14,6 +14,8 @@ import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -144,6 +146,126 @@ class WeeklyFriendRankingRepositoryTest {
                 .extracting(WeeklyRankingSummary::getMemberId)
                 .containsExactly(firstFriend.getId(), secondFriend.getId(), loginMember.getId())
                 .doesNotHaveDuplicates();
+    }
+
+    @Test
+    @DisplayName("친구 랭킹을 페이지 조회해도 전체 기준 동점 순위와 양방향 관계를 유지한다")
+    void findPagedWeeklyFriendRankingsMaintainsGlobalRanksAcrossPages() {
+        // given
+        Member smallerIdFriend = saveMember("친구1", Region.BUSAN);
+        Member loginMember = saveMember("로그인회원", Region.SEOUL);
+        Member largerIdFriend = saveMember("친구2", Region.JEJU);
+        Member thirdFriend = saveMember("친구3", Region.SEOUL);
+        Member nonFriend = saveMember("비친구", Region.SEOUL);
+        friendRepository.saveAllAndFlush(List.of(
+                Friend.create(loginMember, smallerIdFriend),
+                Friend.create(loginMember, largerIdFriend),
+                Friend.create(loginMember, thirdFriend)
+        ));
+        saveHistory(smallerIdFriend, START_DATE, 3_000);
+        saveHistory(largerIdFriend, START_DATE, 3_000);
+        saveHistory(thirdFriend, START_DATE, 3_000);
+        saveHistory(loginMember, START_DATE, 1_000);
+        saveHistory(nonFriend, START_DATE, 10_000);
+
+        // when
+        Page<RankedWeeklyRankingSummary> firstPage =
+                memberHistoryRepository.findPagedWeeklyFriendRankings(
+                        loginMember.getId(),
+                        START_DATE,
+                        END_DATE,
+                        PageRequest.of(0, 2)
+                );
+        Page<RankedWeeklyRankingSummary> secondPage =
+                memberHistoryRepository.findPagedWeeklyFriendRankings(
+                        loginMember.getId(),
+                        START_DATE,
+                        END_DATE,
+                        PageRequest.of(1, 2)
+                );
+
+        // then
+        assertThat(firstPage.getContent())
+                .extracting(
+                        RankedWeeklyRankingSummary::getRanking,
+                        RankedWeeklyRankingSummary::getMemberId
+                )
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(1, smallerIdFriend.getId()),
+                        org.assertj.core.groups.Tuple.tuple(1, largerIdFriend.getId())
+                );
+        assertThat(secondPage.getContent())
+                .extracting(
+                        RankedWeeklyRankingSummary::getRanking,
+                        RankedWeeklyRankingSummary::getMemberId
+                )
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(1, thirdFriend.getId()),
+                        org.assertj.core.groups.Tuple.tuple(4, loginMember.getId())
+                );
+        assertThat(firstPage.getTotalElements()).isEqualTo(4);
+        assertThat(firstPage.getTotalPages()).isEqualTo(2);
+        assertThat(firstPage.getContent())
+                .extracting(RankedWeeklyRankingSummary::getMemberId)
+                .doesNotContain(nonFriend.getId());
+    }
+
+    @Test
+    @DisplayName("친구가 없으면 본인만 1위인 단일 페이지를 반환한다")
+    void findPagedWeeklyFriendRankingsReturnsOnlyLoginMemberWithoutFriends() {
+        // given
+        Member loginMember = saveMember("로그인회원", Region.SEOUL);
+
+        // when
+        Page<RankedWeeklyRankingSummary> rankings =
+                memberHistoryRepository.findPagedWeeklyFriendRankings(
+                        loginMember.getId(),
+                        START_DATE,
+                        END_DATE,
+                        PageRequest.of(0, 20)
+                );
+
+        // then
+        assertThat(rankings.getTotalElements()).isEqualTo(1);
+        assertThat(rankings.getContent()).singleElement()
+                .satisfies(ranking -> {
+                    assertThat(ranking.getMemberId()).isEqualTo(loginMember.getId());
+                    assertThat(ranking.getRanking()).isEqualTo(1);
+                    assertThat(ranking.getWeeklySteps()).isZero();
+                });
+    }
+
+    @Test
+    @DisplayName("회원 ID 목록의 기간 내 걸음 수를 한 번에 집계하고 기록이 없으면 0으로 반환한다")
+    void findWeeklyStepsByMemberIdsAggregatesInRangeAndIncludesZeroSteps() {
+        // given
+        Member walkingMember = saveMember("걷는회원", Region.SEOUL);
+        Member zeroStepMember = saveMember("영걸음회원", Region.BUSAN);
+        Member excludedMember = saveMember("제외회원", Region.JEJU);
+        saveHistory(walkingMember, START_DATE.minusDays(1), 10_000);
+        saveHistory(walkingMember, START_DATE, 1_000);
+        saveHistory(walkingMember, END_DATE, 2_000);
+        saveHistory(walkingMember, END_DATE.plusDays(1), 20_000);
+        saveHistory(excludedMember, START_DATE, 30_000);
+
+        // when
+        List<WeeklyRankingSummary> summaries =
+                memberHistoryRepository.findWeeklyStepsByMemberIds(
+                        List.of(walkingMember.getId(), zeroStepMember.getId()),
+                        START_DATE,
+                        END_DATE
+                );
+
+        // then
+        assertThat(summaries)
+                .extracting(
+                        WeeklyRankingSummary::getMemberId,
+                        WeeklyRankingSummary::getWeeklySteps
+                )
+                .containsExactlyInAnyOrder(
+                        org.assertj.core.groups.Tuple.tuple(walkingMember.getId(), 3_000L),
+                        org.assertj.core.groups.Tuple.tuple(zeroStepMember.getId(), 0L)
+                );
     }
 
     private List<WeeklyRankingSummary> findRankings(Member loginMember) {

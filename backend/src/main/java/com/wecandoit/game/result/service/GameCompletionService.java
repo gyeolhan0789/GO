@@ -10,6 +10,7 @@ import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.result.domain.GameResult;
 import com.wecandoit.game.result.repository.GameResultRepository;
 import com.wecandoit.game.room.domain.GameRoomStatus;
+import com.wecandoit.game.room.domain.GameMode;
 import com.wecandoit.game.room.domain.Room;
 import com.wecandoit.game.room.domain.RoomMember;
 import com.wecandoit.game.room.repository.RoomMemberRepository;
@@ -46,8 +47,12 @@ public class GameCompletionService {
         }
 
         List<BingoCell> cells = bingoReadService.getActiveBoardCells(roomId);
+        if (room.getMode() == GameMode.SINGLE && cells.stream().anyMatch(cell -> cell.getCompletedAt() == null)) {
+            return;
+        }
+
         int lineCount = BingoLineCounter.countCompletedLines(room.getBoardSize(), cells);
-        if (lineCount < room.getTargetBingoCount()) {
+        if (room.getMode() == GameMode.COOPERATE && lineCount < room.getTargetBingoCount()) {
             return;
         }
 
