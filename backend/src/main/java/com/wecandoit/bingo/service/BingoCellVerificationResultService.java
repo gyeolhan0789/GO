@@ -2,6 +2,7 @@ package com.wecandoit.bingo.service;
 
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.domain.BingoCell;
+import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
@@ -25,7 +26,7 @@ public class BingoCellVerificationResultService {
     private final GameCompletionService gameCompletionService;
 
     public void applyResult(Long cellId, boolean approved, String rejectionReason) {
-        BingoCell cell = bingoCellRepository.findById(cellId)
+        BingoCell cell = bingoCellRepository.findByIdForUpdate(cellId)
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND));
 
         BingoBoard board = bingoBoardRepository.findById(cell.getBoardId())
@@ -33,6 +34,9 @@ public class BingoCellVerificationResultService {
         Room room = roomRepository.findByIdForUpdate(board.getRoomId())
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
         if (room.getStatus() != GameRoomStatus.IN_PROGRESS) {
+            return;
+        }
+        if (cell.getVerificationStatus() != BingoCellVerificationStatus.PENDING) {
             return;
         }
 

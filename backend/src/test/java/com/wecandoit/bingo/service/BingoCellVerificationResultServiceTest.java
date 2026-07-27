@@ -45,7 +45,7 @@ class BingoCellVerificationResultServiceTest {
         // given
         BingoCell cell = cell(1000L, 100L);
         BingoBoard board = board(100L, 10L);
-        given(bingoCellRepository.findById(1000L)).willReturn(Optional.of(cell));
+        given(bingoCellRepository.findByIdForUpdate(1000L)).willReturn(Optional.of(cell));
         given(bingoBoardRepository.findById(100L)).willReturn(Optional.of(board));
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(inProgressRoom(10L)));
         given(bingoCellRepository.save(cell)).willReturn(cell);
@@ -66,7 +66,7 @@ class BingoCellVerificationResultServiceTest {
         // given
         BingoCell cell = cell(1000L, 100L);
         BingoBoard board = board(100L, 10L);
-        given(bingoCellRepository.findById(1000L)).willReturn(Optional.of(cell));
+        given(bingoCellRepository.findByIdForUpdate(1000L)).willReturn(Optional.of(cell));
         given(bingoBoardRepository.findById(100L)).willReturn(Optional.of(board));
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(inProgressRoom(10L)));
         given(bingoCellRepository.save(cell)).willReturn(cell);
@@ -89,7 +89,7 @@ class BingoCellVerificationResultServiceTest {
         BingoBoard board = board(100L, 10L);
         Room closedRoom = inProgressRoom(10L);
         closedRoom.close();
-        given(bingoCellRepository.findById(1000L)).willReturn(Optional.of(cell));
+        given(bingoCellRepository.findByIdForUpdate(1000L)).willReturn(Optional.of(cell));
         given(bingoBoardRepository.findById(100L)).willReturn(Optional.of(board));
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(closedRoom));
 
@@ -98,6 +98,26 @@ class BingoCellVerificationResultServiceTest {
 
         // then
         assertThat(cell.getVerificationStatus()).isEqualTo(BingoCellVerificationStatus.PENDING);
+        then(bingoCellRepository).should(Mockito.never()).save(cell);
+        then(gameCompletionService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("검증 대기 상태가 아닌 칸에 도착한 결과는 반영하지 않는다")
+    void applyResultIgnoresCellNotPending() {
+        // given
+        BingoCell cell = cell(1000L, 100L);
+        cell.reject("이전 검증에서 거절되었습니다.");
+        BingoBoard board = board(100L, 10L);
+        given(bingoCellRepository.findByIdForUpdate(1000L)).willReturn(Optional.of(cell));
+        given(bingoBoardRepository.findById(100L)).willReturn(Optional.of(board));
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(inProgressRoom(10L)));
+
+        // when
+        verificationResultService.applyResult(1000L, true, null);
+
+        // then
+        assertThat(cell.getVerificationStatus()).isEqualTo(BingoCellVerificationStatus.REJECTED);
         then(bingoCellRepository).should(Mockito.never()).save(cell);
         then(gameCompletionService).shouldHaveNoInteractions();
     }

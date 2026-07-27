@@ -17,10 +17,12 @@ import com.wecandoit.game.room.repository.RoomMemberRepository;
 import com.wecandoit.game.room.repository.RoomRepository;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
+import com.wecandoit.notification.event.NotificationMessageFactory;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +39,8 @@ public class GameCompletionService {
     private final BingoReadService bingoReadService;
     private final MemberRepository memberRepository;
     private final CashHistoryRepository cashHistoryRepository;
+    private final ApplicationEventPublisher eventPublisher;
+    private final NotificationMessageFactory notificationMessageFactory;
 
     public void evaluateAndCompleteIfNeeded(Long roomId) {
         Room room = roomRepository.findByIdForUpdate(roomId)
@@ -82,6 +86,9 @@ public class GameCompletionService {
                 completedMissionCount,
                 BINGO_REWARD_CASH
         ));
+
+        members.forEach(member -> eventPublisher.publishEvent(
+                notificationMessageFactory.battleResult(member.getMemberId())));
     }
 
     private void updateMemberResultAndGrantReward(RoomMember member, long completedCount, Long roomId) {
@@ -94,5 +101,6 @@ public class GameCompletionService {
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
         member.addCash(BINGO_REWARD_CASH);
         cashHistoryRepository.save(CashHistory.bingoReward(memberId, roomId, BINGO_REWARD_CASH));
+        eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, BINGO_REWARD_CASH));
     }
 }

@@ -5,6 +5,7 @@ import com.wecandoit.bingo.controller.response.BingoCellResponse;
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.domain.BingoCell;
+import com.wecandoit.bingo.domain.BingoLineCounter;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
@@ -45,9 +46,21 @@ public class BingoReadService {
         List<BingoCell> cells = bingoCellRepository.findAllByBoardId(board.getId());
         List<BingoCellResponse> cellResponses = toCellResponses(cells);
 
-        boolean completed = isCompleted(board.getId());
+        int approvedCellCount = (int) cells.stream()
+                .filter(cell -> cell.getCompletedAt() != null)
+                .count();
+        int completedBingoCount = BingoLineCounter.countCompletedLines(room.getBoardSize(), cells);
+        boolean completed = !cells.isEmpty() && approvedCellCount == cells.size();
         boolean canRenew = completed && room.isHost(memberId);
-        return BingoBoardResponse.of(board, cellResponses, completed, canRenew);
+        return BingoBoardResponse.of(
+                board,
+                cellResponses,
+                room.getTargetBingoCount(),
+                completedBingoCount,
+                approvedCellCount,
+                completed,
+                canRenew
+        );
     }
 
     /**
@@ -68,10 +81,6 @@ public class BingoReadService {
     private BingoBoard findActiveBoard(Long roomId) {
         return bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(roomId, INACTIVE_BOARD_STATUSES)
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
-    }
-
-    private boolean isCompleted(Long boardId) {
-        return !bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(boardId);
     }
 
     private List<BingoCellResponse> toCellResponses(List<BingoCell> cells) {

@@ -18,7 +18,11 @@ import com.wecandoit.game.room.repository.RoomMemberRepository;
 import com.wecandoit.game.room.repository.RoomRepository;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
+import com.wecandoit.notification.domain.NotificationType;
+import com.wecandoit.notification.event.NotificationMessageFactory;
+import com.wecandoit.notification.event.NotificationRequestedEvent;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,6 +32,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -44,6 +49,8 @@ class RoomCommandServiceTest {
     private BingoCommandService bingoCommandService;
     @Mock
     private MemberRepository memberRepository;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
     private RoomCommandService roomCommandService;
 
     @BeforeEach
@@ -52,7 +59,9 @@ class RoomCommandServiceTest {
                 roomRepository,
                 roomMemberRepository,
                 bingoCommandService,
-                memberRepository
+                memberRepository,
+                eventPublisher,
+                new NotificationMessageFactory()
         );
     }
 
@@ -389,6 +398,35 @@ class RoomCommandServiceTest {
         assertThat(room.getStatus()).isEqualTo(GameRoomStatus.IN_PROGRESS);
         assertThat(room.getStartedAt()).isNotNull();
         then(bingoCommandService).should().generateInitialBoard(room);
+    }
+
+    @Test
+    @DisplayName("게임을 시작하면 host를 제외한 방 멤버 전원에게 WALK_START 알림 이벤트가 발행된다")
+    void startGamePublishesNotificationEventToNonHostMembers() {
+        // given
+        Room room = Room.create(1L, GameMode.COOPERATE, 3, DEFAULT_BOARD_SIZE, 10000);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        ReflectionTestUtils.setField(room, "status", GameRoomStatus.READY);
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of(
+                RoomMember.create(10L, 1L),
+                RoomMember.create(10L, 2L),
+                RoomMember.create(10L, 3L)
+        ));
+
+        // when
+        roomCommandService.startGame(1L, 10L);
+
+        // then
+        ArgumentCaptor<NotificationRequestedEvent> captor =
+                ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        then(eventPublisher).should(Mockito.times(2)).publishEvent(captor.capture());
+        List<Long> recipients = captor.getAllValues().stream()
+                .map(NotificationRequestedEvent::recipientMemberId)
+                .toList();
+        assertThat(recipients).containsExactlyInAnyOrder(2L, 3L);
+        assertThat(captor.getAllValues())
+                .allMatch(event -> event.type() == NotificationType.WALK_START);
     }
 
     @Test

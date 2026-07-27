@@ -36,17 +36,19 @@ export function RootNavigator() {
     >
       <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       <Stack.Screen name="Permissions" component={PermissionsScreen} />
-      {/* 헤더를 노출해 플랫폼 기본 뒤로가기 버튼을 사용한다. 권한 화면에서
-          reset으로 진입하면 스택이 비어 있어 뒤로가기가 표시되지 않는다. */}
+      {/* 상단 픽셀아트 배너를 상태바까지 꽉 채우려고 헤더를 숨긴다. 로그인은
+          주로 reset으로 진입해(스택이 비어 있어) 뒤로가기가 필요 없다. */}
       <Stack.Screen
         name="Login"
         component={LoginScreen}
-        options={{ headerShown: true, title: '로그인' }}
+        options={{ headerShown: false }}
       />
+      {/* 상단 픽셀아트 배너를 상태바까지 꽉 채우려고 헤더를 숨긴다. 뒤로가기는
+          플랫폼 스와이프/하드웨어 back과 화면 하단의 '로그인' 링크로 대체한다. */}
       <Stack.Screen
         name="Signup"
         component={SignupScreen}
-        options={{ headerShown: true, title: '회원가입' }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen name="Main" component={MainTabNavigator} />
     </Stack.Navigator>
