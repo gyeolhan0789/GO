@@ -14,7 +14,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 import { AuthSubmitButton } from '../../features/auth/components/AuthSubmitButton';
 import { AuthTextField } from '../../features/auth/components/AuthTextField';
+import { GenderSelector } from '../../features/auth/components/GenderSelector';
 import { RegionChipList } from '../../features/auth/components/RegionChipList';
+import type { Gender } from '../../features/auth/constants/genders';
 import type { Region } from '../../features/auth/constants/regions';
 import { useSignupMutation } from '../../features/auth/hooks/useSignupMutation';
 import {
@@ -36,6 +38,7 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
   const [region, setRegion] = useState<Region | null>(null);
+  const [gender, setGender] = useState<Gender | null>(null);
   const [errors, setErrors] = useState<SignupErrors>({});
 
   const passwordRef = useRef<TextInput>(null);
@@ -48,10 +51,20 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
   }
 
   function submit() {
-    const nextErrors = validateSignup({ email, password, nickname, region });
+    const nextErrors = validateSignup({
+      email,
+      password,
+      nickname,
+      region,
+      gender,
+    });
     setErrors(nextErrors);
 
-    if (Object.keys(nextErrors).length > 0 || region === null) {
+    if (
+      Object.keys(nextErrors).length > 0 ||
+      region === null ||
+      gender === null
+    ) {
       return;
     }
 
@@ -61,6 +74,7 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
         password,
         nickname: nickname.trim(),
         region,
+        gender,
       },
       {
         onSuccess: () =>
@@ -127,8 +141,24 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
             onSubmitEditing={submit}
           />
 
-          <View style={styles.regionSection}>
-            <Text style={styles.regionLabel}>지역</Text>
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>성별</Text>
+            <GenderSelector
+              selected={gender}
+              onSelect={value => {
+                setGender(value);
+                clearError('gender');
+              }}
+            />
+            {errors.gender ? (
+              <Text style={styles.error} accessibilityLiveRegion="polite">
+                {errors.gender}
+              </Text>
+            ) : null}
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>지역</Text>
             <RegionChipList
               selected={region}
               onSelect={value => {
@@ -169,10 +199,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
-  regionSection: {
+  section: {
     marginBottom: 24,
   },
-  regionLabel: {
+  sectionLabel: {
     marginBottom: 8,
     fontSize: 14,
     fontWeight: '600',
