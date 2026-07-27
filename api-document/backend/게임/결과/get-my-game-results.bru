@@ -31,6 +31,7 @@ docs {
       {
         "roomId": 1,
         "result": true,
+        "boardSize": 3,
         "bingoCount": 3,
         "completedMissionCount": 9,
         "rewardCash": 500
@@ -45,6 +46,8 @@ docs {
   - 목록은 게임 완료 시각(`createdAt`) 내림차순(최신순)으로 정렬된다.
   - 전체 개수 대신 다음 페이지 존재 여부(`hasNext`)만 제공하는 슬라이스 방식이다.
   - `result`는 현재 항상 `true`다(패배·타임아웃 종료 경로가 아직 없어 완료된 게임은 모두 승리로 기록된다).
+  - 각 결과의 `boardSize`는 N x N 빙고판에서 한 변의 길이 N이다.
+  - 싱글·협동 모드에서는 `completedMissionCount`가 성공한 칸 수이고, 경쟁 모드에서는 `bingoCount`가 성공한 빙고 줄 수이다.
 
   ### 에러 케이스
 

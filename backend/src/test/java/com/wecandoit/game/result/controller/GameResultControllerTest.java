@@ -83,7 +83,7 @@ class GameResultControllerTest {
     void getGameResultReturnsResult() {
         // given
         given(gameResultReadService.getGameResult(1L, 10L))
-                .willReturn(new GameResultResponse(10L, true, 3, 9, 500L));
+                .willReturn(new GameResultResponse(10L, true, 3, 3, 9, 500L));
 
         // when & then
         given()
@@ -93,6 +93,7 @@ class GameResultControllerTest {
                 .statusCode(HttpStatus.OK.value())
                 .body("roomId", equalTo(10))
                 .body("result", equalTo(true))
+                .body("boardSize", equalTo(3))
                 .body("bingoCount", equalTo(3))
                 .body("completedMissionCount", equalTo(9))
                 .body("rewardCash", equalTo(500))
@@ -103,6 +104,7 @@ class GameResultControllerTest {
                         responseFields(
                                 fieldWithPath("roomId").description("게임방 ID"),
                                 fieldWithPath("result").description("승리 여부"),
+                                fieldWithPath("boardSize").description("빙고판 한 변의 길이(N x N에서 N)"),
                                 fieldWithPath("bingoCount").description("달성한 빙고 줄 수"),
                                 fieldWithPath("completedMissionCount").description("완료한 미션 수 합계"),
                                 fieldWithPath("rewardCash").description("지급된 보상 캐시")
@@ -152,7 +154,7 @@ class GameResultControllerTest {
     void getMyGameResultsReturnsResults() {
         // given
         SliceResponse<GameResultResponse> response = new SliceResponse<>(
-                List.of(new GameResultResponse(10L, true, 3, 9, 500L)),
+                List.of(new GameResultResponse(10L, true, 3, 3, 9, 500L)),
                 false
         );
         given(gameResultReadService.getMyGameResults(eq(1L), any()))
@@ -166,6 +168,7 @@ class GameResultControllerTest {
                 .statusCode(HttpStatus.OK.value())
                 .body("content[0].roomId", equalTo(10))
                 .body("content[0].result", equalTo(true))
+                .body("content[0].boardSize", equalTo(3))
                 .body("content[0].bingoCount", equalTo(3))
                 .body("content[0].completedMissionCount", equalTo(9))
                 .body("content[0].rewardCash", equalTo(500))
@@ -174,6 +177,7 @@ class GameResultControllerTest {
                         responseFields(
                                 fieldWithPath("content[].roomId").description("게임방 ID"),
                                 fieldWithPath("content[].result").description("승리 여부"),
+                                fieldWithPath("content[].boardSize").description("빙고판 한 변의 길이(N x N에서 N)"),
                                 fieldWithPath("content[].bingoCount").description("달성한 빙고 줄 수"),
                                 fieldWithPath("content[].completedMissionCount").description("완료한 미션 수 합계"),
                                 fieldWithPath("content[].rewardCash").description("지급된 보상 캐시"),

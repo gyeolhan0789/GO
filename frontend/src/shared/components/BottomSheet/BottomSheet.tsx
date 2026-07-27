@@ -1,5 +1,6 @@
 import type { PropsWithChildren } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { colors } from '../../constants/colors';
@@ -13,7 +14,14 @@ type BottomSheetProps = PropsWithChildren<{
   title?: string;
 }>;
 
-export function BottomSheet({ visible, onClose, title, children }: BottomSheetProps) {
+export function BottomSheet({
+  visible,
+  onClose,
+  title,
+  children,
+}: BottomSheetProps) {
+  const insets = useSafeAreaInsets();
+
   return (
     <Modal
       visible={visible}
@@ -27,7 +35,9 @@ export function BottomSheet({ visible, onClose, title, children }: BottomSheetPr
           onPress={onClose}
           accessibilityLabel="바텀시트 닫기"
         />
-        <View style={styles.sheet}>
+        <View
+          style={[styles.sheet, { paddingBottom: spacing.lg + insets.bottom }]}
+        >
           <View style={styles.handle} />
           {title ? (
             <View style={styles.header}>
@@ -55,7 +65,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.md,
     borderTopRightRadius: radius.md,
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.lg,
     paddingTop: spacing.sm,
   },
   handle: {
