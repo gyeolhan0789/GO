@@ -5,13 +5,15 @@ meta {
 }
 
 get {
-  url: {{backendBaseUrl}}/members/search?keyword=nick
+  url: {{backendBaseUrl}}/members/search?keyword=nick&page=0&size=20
   body: none
   auth: inherit
 }
 
 params:query {
   keyword: nick
+  page: 0
+  size: 20
 }
 
 headers {
@@ -25,13 +27,20 @@ docs {
 
   ### 성공 응답 (200 OK)
   ```json
-  [
-    {
-      "memberId": 2,
-      "nickname": "nickname_user",
-      "relationshipStatus": "NONE"
-    }
-  ]
+  {
+    "content": [
+      {
+        "memberId": 2,
+        "nickname": "nickname_user",
+        "relationshipStatus": "NONE"
+      }
+    ],
+    "totalElements": 1,
+    "totalPages": 1,
+    "currentPage": 0,
+    "size": 20,
+    "hasNext": false
+  }
   ```
   `relationshipStatus`: `NONE` | `FRIEND` | `REQUEST_SENT` | `REQUEST_RECEIVED`
 
@@ -42,6 +51,7 @@ docs {
   - `REQUEST_SENT`: 내가 상대에게 친구 요청을 보냄 (상대 응답 대기 중)
   - `REQUEST_RECEIVED`: 상대가 나에게 친구 요청을 보냄 (내 응답 대기 중)
   - `FRIEND`: 이미 친구 상태
+  - 검색 결과는 닉네임 오름차순, 닉네임이 같으면 회원 ID 오름차순으로 정렬한다.
 
   ### 에러 케이스
 
