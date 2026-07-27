@@ -1,11 +1,11 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { REGIONS } from '../constants/regions';
-import type { Region } from '../constants/regions';
+import { GENDERS } from '../constants/genders';
+import type { Gender } from '../constants/genders';
 
-type RegionChipListProps = {
-  selected: Region | null;
-  onSelect: (region: Region) => void;
+type GenderSelectorProps = {
+  selected: Gender | null;
+  onSelect: (gender: Gender) => void;
 };
 
 const BORDER_COLOR = '#D1D5DB';
@@ -15,18 +15,18 @@ const LABEL_COLOR = '#374151';
 const SELECTED_LABEL_COLOR = '#2C6A47';
 
 const MIN_TOUCH_SIZE = 44;
-const CHIP_GAP = 8;
+const OPTION_GAP = 8;
 
-export function RegionChipList({ selected, onSelect }: RegionChipListProps) {
+export function GenderSelector({ selected, onSelect }: GenderSelectorProps) {
   return (
     <View style={styles.container}>
-      {REGIONS.map(({ value, label }) => {
+      {GENDERS.map(({ value, label }) => {
         const isSelected = value === selected;
 
         return (
           <Pressable
             key={value}
-            style={[styles.chip, isSelected ? styles.chipSelected : null]}
+            style={[styles.option, isSelected ? styles.optionSelected : null]}
             onPress={() => onSelect(value)}
             accessibilityRole="button"
             accessibilityLabel={label}
@@ -45,11 +45,10 @@ export function RegionChipList({ selected, onSelect }: RegionChipListProps) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: CHIP_GAP,
+    gap: OPTION_GAP,
   },
-  chip: {
-    minWidth: MIN_TOUCH_SIZE,
+  option: {
+    flex: 1,
     minHeight: MIN_TOUCH_SIZE,
     paddingHorizontal: 14,
     borderWidth: 1,
@@ -58,7 +57,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  chipSelected: {
+  optionSelected: {
     borderColor: SELECTED_BORDER_COLOR,
     backgroundColor: SELECTED_BACKGROUND_COLOR,
   },

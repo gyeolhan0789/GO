@@ -1,3 +1,4 @@
+import type { Gender } from '../constants/genders';
 import type { Region } from '../constants/regions';
 
 // 백엔드 Bean Validation 규칙의 사본이다. 여기서 통과해도 서버가 거절할 수 있고,
@@ -10,7 +11,7 @@ const NICKNAME_MIN_LENGTH = 2;
 export const NICKNAME_MAX_LENGTH = 10;
 
 type LoginField = 'email' | 'password';
-type SignupField = LoginField | 'nickname' | 'region';
+type SignupField = LoginField | 'nickname' | 'region' | 'gender';
 
 export type LoginErrors = Partial<Record<LoginField, string>>;
 export type SignupErrors = Partial<Record<SignupField, string>>;
@@ -23,6 +24,7 @@ type LoginValues = {
 type SignupValues = LoginValues & {
   nickname: string;
   region: Region | null;
+  gender: Gender | null;
 };
 
 function validateEmail(email: string) {
@@ -57,6 +59,7 @@ export function validateSignup({
   password,
   nickname,
   region,
+  gender,
 }: SignupValues): SignupErrors {
   const errors: SignupErrors = {};
 
@@ -84,6 +87,10 @@ export function validateSignup({
 
   if (region === null) {
     errors.region = '지역은 필수입니다.';
+  }
+
+  if (gender === null) {
+    errors.gender = '성별은 필수입니다.';
   }
 
   return errors;
