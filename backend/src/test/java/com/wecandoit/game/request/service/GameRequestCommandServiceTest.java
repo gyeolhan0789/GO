@@ -217,12 +217,30 @@ class GameRequestCommandServiceTest {
     }
 
     @Test
+    @DisplayName("최대 인원에 도달한 게임방에는 초대를 보낼 수 없다")
+    void createGameRequestRejectsFullRoom() {
+        // given
+        givenInvitableRoom(GameRoomStatus.READY);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomMemberRepository.countByRoomId(10L)).willReturn(4L);
+
+        // when & then
+        assertErrorCode(
+                () -> createGameRequest(1L, 2L),
+                ErrorCode.ROOM_MAXIMUM_PARTICIPANTS_REACHED
+        );
+        then(gameRequestRepository).shouldHaveNoInteractions();
+    }
+
+    @Test
     @DisplayName("게임방 초대 요청을 수락하면 요청 상태를 변경하고 방 참여자를 저장한다")
     void acceptGameRequestSavesRoomMember() {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
+        Room room = givenAcceptableRoom(GameRoomStatus.WAITING);
         given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
+        given(roomMemberRepository.countByRoomId(10L)).willReturn(1L);
 
         // when
         gameRequestCommandService.acceptGameRequest(2L, 10L, 20L);
@@ -234,6 +252,7 @@ class GameRequestCommandServiceTest {
         assertThat(gameRequest.getStatus()).isEqualTo(RequestStatus.ACCEPTED);
         assertThat(roomMember.getRoomId()).isEqualTo(10L);
         assertThat(roomMember.getMemberId()).isEqualTo(2L);
+        assertThat(room.getStatus()).isEqualTo(GameRoomStatus.READY);
     }
 
     @Test
@@ -404,6 +423,7 @@ class GameRequestCommandServiceTest {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
         given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
+        givenAcceptableRoom(GameRoomStatus.READY);
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(true);
 
         // when & then
@@ -415,11 +435,55 @@ class GameRequestCommandServiceTest {
         then(roomMemberRepository).should(never()).save(Mockito.any(RoomMember.class));
     }
 
+    @Test
+    @DisplayName("게임이 시작된 방의 초대 요청은 수락할 수 없다")
+    void acceptGameRequestRejectsInProgressRoom() {
+        // given
+        GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
+        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
+        givenAcceptableRoom(GameRoomStatus.IN_PROGRESS);
+
+        // when & then
+        assertErrorCode(
+                () -> gameRequestCommandService.acceptGameRequest(2L, 10L, 20L),
+                ErrorCode.GAME_REQUEST_NOT_AVAILABLE
+        );
+        assertThat(gameRequest.getStatus()).isEqualTo(RequestStatus.PENDING);
+        then(roomMemberRepository).should(never()).save(Mockito.any(RoomMember.class));
+    }
+
+    @Test
+    @DisplayName("수락 시점에 최대 인원에 도달한 게임방에는 참여할 수 없다")
+    void acceptGameRequestRejectsFullRoom() {
+        // given
+        GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
+        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
+        givenAcceptableRoom(GameRoomStatus.READY);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
+        given(roomMemberRepository.countByRoomId(10L)).willReturn(4L);
+
+        // when & then
+        assertErrorCode(
+                () -> gameRequestCommandService.acceptGameRequest(2L, 10L, 20L),
+                ErrorCode.ROOM_MAXIMUM_PARTICIPANTS_REACHED
+        );
+        assertThat(gameRequest.getStatus()).isEqualTo(RequestStatus.PENDING);
+        then(roomMemberRepository).should(never()).save(Mockito.any(RoomMember.class));
+    }
+
     private void givenInvitableRoom(GameRoomStatus status) {
         Room room = Room.create(1L, GameMode.COOPERATE, 3, 3, 10000);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", status);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+    }
+
+    private Room givenAcceptableRoom(GameRoomStatus status) {
+        Room room = Room.create(1L, GameMode.COOPERATE, 3, 3, 10000);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        ReflectionTestUtils.setField(room, "status", status);
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
+        return room;
     }
 
     private GameRequest gameRequest(Long id, Long roomId, Long inviterId, Long inviteeId) {
