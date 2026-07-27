@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
   },
   body: {
     // 본문 view의 상단 모서리를 깎고 사진 위로 끌어올려(-OVERLAP) 사진을 덮는다.
-    marginTop: -BODY_OVERLAP,
+    marginTop: -BODY_OVERLAP + 8,
     borderTopLeftRadius: BODY_CORNER_RADIUS,
     borderTopRightRadius: BODY_CORNER_RADIUS,
     backgroundColor: '#FFFFFF',
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 24,
+    marginVertical: 16,
   },
   dividerLine: {
     flex: 1,

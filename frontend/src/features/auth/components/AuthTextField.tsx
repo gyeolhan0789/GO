@@ -23,6 +23,8 @@ type AuthTextFieldProps = TextInputProps & {
   secureToggle?: boolean;
   /** true면 우측에 `길이/maxLength` 카운터를 표시한다. maxLength가 필요하다. */
   showCount?: boolean;
+  /** true면 상단 라벨 텍스트를 숨긴다. 접근성 라벨은 그대로 유지된다. */
+  hideLabel?: boolean;
 };
 
 const LABEL_COLOR = '#374151';
@@ -45,6 +47,7 @@ function AuthTextFieldBase(
     leftIcon,
     secureToggle = false,
     showCount = false,
+    hideLabel = false,
     style,
     value,
     maxLength,
@@ -74,7 +77,7 @@ function AuthTextFieldBase(
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+      {hideLabel ? null : <Text style={styles.label}>{label}</Text>}
       <View
         style={[
           styles.field,
