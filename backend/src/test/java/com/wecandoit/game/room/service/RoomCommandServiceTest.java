@@ -16,6 +16,9 @@ import com.wecandoit.game.room.domain.Room;
 import com.wecandoit.game.room.domain.RoomMember;
 import com.wecandoit.game.room.repository.RoomMemberRepository;
 import com.wecandoit.game.room.repository.RoomRepository;
+import com.wecandoit.member.domain.Member;
+import com.wecandoit.member.repository.MemberRepository;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,6 +42,8 @@ class RoomCommandServiceTest {
     private RoomMemberRepository roomMemberRepository;
     @Mock
     private BingoCommandService bingoCommandService;
+    @Mock
+    private MemberRepository memberRepository;
     private RoomCommandService roomCommandService;
 
     @BeforeEach
@@ -46,7 +51,8 @@ class RoomCommandServiceTest {
         roomCommandService = new RoomCommandService(
                 roomRepository,
                 roomMemberRepository,
-                bingoCommandService
+                bingoCommandService,
+                memberRepository
         );
     }
 
@@ -95,6 +101,12 @@ class RoomCommandServiceTest {
     @DisplayName("개인 모드에서 목표 걸음 수 없이 게임방을 생성하면 값이 null로 저장된다")
     void createSingleRoomWithoutTargetStepCount() {
         // given
+        lockMember();
+        given(roomRepository.findFirstByMemberIdAndModeAndStatus(
+                1L,
+                GameMode.SINGLE,
+                GameRoomStatus.IN_PROGRESS
+        )).willReturn(Optional.empty());
         given(roomRepository.save(Mockito.any(Room.class))).willAnswer(invocation -> {
             Room room = invocation.getArgument(0);
             ReflectionTestUtils.setField(room, "id", 10L);
@@ -111,7 +123,41 @@ class RoomCommandServiceTest {
         ArgumentCaptor<Room> roomCaptor = ArgumentCaptor.forClass(Room.class);
         then(roomRepository).should().save(roomCaptor.capture());
         assertThat(roomCaptor.getValue().getTargetStepCount()).isNull();
+        assertThat(roomCaptor.getValue().getStatus()).isEqualTo(GameRoomStatus.IN_PROGRESS);
         assertThat(response.targetStepCount()).isNull();
+        then(bingoCommandService).should().generateInitialBoard(roomCaptor.getValue());
+    }
+
+    @Test
+    @DisplayName("진행 중인 개인 방이 있으면 새 방을 만들지 않고 기존 방을 반환한다")
+    void createSingleRoomReturnsExistingInProgressRoom() {
+        // given
+        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE, null);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
+        lockMember();
+        given(roomRepository.findFirstByMemberIdAndModeAndStatus(
+                1L,
+                GameMode.SINGLE,
+                GameRoomStatus.IN_PROGRESS
+        )).willReturn(Optional.of(room));
+
+        // when
+        CreateRoomResponse response = roomCommandService.createRoom(
+                1L,
+                new CreateRoomRequest(GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE, null)
+        );
+
+        // then
+        assertThat(response.roomId()).isEqualTo(10L);
+        assertThat(response.status()).isEqualTo(GameRoomStatus.IN_PROGRESS);
+        then(roomRepository).should(Mockito.never()).save(Mockito.any(Room.class));
+        then(roomMemberRepository).shouldHaveNoInteractions();
+        then(bingoCommandService).shouldHaveNoInteractions();
+    }
+
+    private void lockMember() {
+        given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(Mockito.mock(Member.class)));
     }
 
     @Test
@@ -147,6 +193,22 @@ class RoomCommandServiceTest {
     void deleteRoomClosesRoom() {
         // given
         Room room = Room.create(1L, GameMode.SINGLE, 3, 3, null);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
+
+        // when
+        roomCommandService.deleteRoom(1L, 10L);
+
+        // then
+        assertThat(room.getStatus()).isEqualTo(GameRoomStatus.CLOSED);
+        then(roomMemberRepository).should(Mockito.never()).deleteAllByRoomId(10L);
+    }
+
+    @Test
+    @DisplayName("협동 방을 삭제하면 참여자 정보를 모두 제거한다")
+    void deleteCooperateRoomDeletesMembers() {
+        // given
+        Room room = Room.create(1L, GameMode.COOPERATE, 3, 3, 10000);
         ReflectionTestUtils.setField(room, "id", 10L);
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
 
@@ -285,6 +347,41 @@ class RoomCommandServiceTest {
         assertThat(room.getStatus()).isEqualTo(GameRoomStatus.IN_PROGRESS);
         assertThat(room.getStartedAt()).isNotNull();
         then(bingoCommandService).should().generateInitialBoard(room);
+    }
+
+    @Test
+    @DisplayName("7일 이상 진행한 싱글 방은 만료되어 종료된다")
+    void expireSingleRoomClosesExpiredSingleRoom() {
+        // given
+        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE, null);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
+        ReflectionTestUtils.setField(room, "startedAt", LocalDateTime.of(2026, 7, 20, 12, 0));
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
+
+        // when
+        roomCommandService.expireSingleRoom(10L, LocalDateTime.of(2026, 7, 20, 12, 0));
+
+        // then
+        assertThat(room.getStatus()).isEqualTo(GameRoomStatus.CLOSED);
+        then(roomMemberRepository).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("만료 기준보다 최근인 싱글 방은 유지한다")
+    void expireSingleRoomKeepsRecentSingleRoom() {
+        // given
+        Room room = Room.create(1L, GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE, null);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
+        ReflectionTestUtils.setField(room, "startedAt", LocalDateTime.of(2026, 7, 20, 12, 1));
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
+
+        // when
+        roomCommandService.expireSingleRoom(10L, LocalDateTime.of(2026, 7, 20, 12, 0));
+
+        // then
+        assertThat(room.getStatus()).isEqualTo(GameRoomStatus.IN_PROGRESS);
     }
 
     @Test
