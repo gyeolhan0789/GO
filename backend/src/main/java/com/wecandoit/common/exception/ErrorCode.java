@@ -66,6 +66,8 @@ public enum ErrorCode {
     BINGO_BOARD_RENEWAL_FORBIDDEN(HttpStatus.FORBIDDEN, "빙고판 갱신 권한이 없습니다."),
     BINGO_BOARD_NOT_COMPLETED(HttpStatus.CONFLICT, "빙고판이 아직 100% 완료되지 않았습니다."),
     BINGO_CELL_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 칸을 찾을 수 없습니다."),
+    BINGO_CELL_VERIFICATION_IN_PROGRESS(HttpStatus.CONFLICT, "이미 검증 중인 빙고 칸입니다."),
+    BINGO_CELL_ALREADY_APPROVED(HttpStatus.CONFLICT, "이미 승인된 빙고 칸입니다."),
 
     // Game Request
     GAME_REQUEST_FORBIDDEN(HttpStatus.FORBIDDEN, "게임방 초대 권한이 없습니다."),

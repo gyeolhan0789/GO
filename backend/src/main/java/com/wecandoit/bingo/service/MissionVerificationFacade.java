@@ -35,7 +35,13 @@ public class MissionVerificationFacade {
         Mission mission = missionRepository.findById(submittedCell.getMissionId())
                 .orElseThrow(() -> new CustomException(ErrorCode.MISSION_NOT_FOUND));
 
-        AiVerificationResult result = requestVerification(submittedCell.getSubmitUrl(), mission);
+        AiVerificationResult result;
+        try {
+            result = requestVerification(submittedCell.getSubmitUrl(), mission);
+        } catch (CustomException e) {
+            verificationResultService.applyResult(cellId, false, ErrorCode.AI_VERIFICATION_FAILED.getMessage());
+            throw e;
+        }
 
         boolean approved = result.success() && result.confidence() >= CONFIDENCE_THRESHOLD;
         verificationResultService.applyResult(cellId, approved, resolveRejectionReason(result, approved));

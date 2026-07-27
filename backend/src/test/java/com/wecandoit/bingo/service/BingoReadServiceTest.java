@@ -8,6 +8,7 @@ import com.wecandoit.bingo.controller.response.BingoBoardResponse;
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.domain.BingoCell;
+import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
@@ -19,7 +20,6 @@ import com.wecandoit.game.room.repository.RoomMemberRepository;
 import com.wecandoit.game.room.repository.RoomRepository;
 import com.wecandoit.mission.domain.Mission;
 import com.wecandoit.mission.repository.MissionRepository;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -57,15 +57,14 @@ class BingoReadServiceTest {
     @DisplayName("보드가 100% 완료되면 조회 응답에서 completed와 host의 canRenew가 true다")
     void getActiveBoardReturnsCompletedAndCanRenewForHost() {
         // given
-        Room room = inProgressRoom(1L, 10L, 2);
+        Room room = inProgressCooperateRoom(1L, 10L, 2);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
         BingoBoard board = activeBoard(100L, 10L, 2);
         given(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(board));
-        List<BingoCell> cells = completedCells(board.getId(), 4);
+        List<BingoCell> cells = cellsWithApprovedCount(board.getId(), 4, 4);
         given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
-        given(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).willReturn(false);
         // 미션 목록을 셀과 다른 순서로 반환해 id 기반 매핑을 검증한다
         List<Mission> shuffledMissions = new ArrayList<>(missionsForCells(cells));
         Collections.reverse(shuffledMissions);
@@ -77,9 +76,18 @@ class BingoReadServiceTest {
         // then
         assertThat(response.completed()).isTrue();
         assertThat(response.canRenew()).isTrue();
+        assertThat(response.targetBingoCount()).isEqualTo(3);
+        assertThat(response.completedBingoCount()).isEqualTo(6);
+        assertThat(response.totalCellCount()).isEqualTo(4);
+        assertThat(response.approvedCellCount()).isEqualTo(4);
         assertThat(response.cells()).hasSize(4);
         for (int i = 0; i < cells.size(); i++) {
+            assertThat(response.cells().get(i).cellId()).isEqualTo(cells.get(i).getId());
             assertThat(response.cells().get(i).mission().missionId()).isEqualTo(cells.get(i).getMissionId());
+            assertThat(response.cells().get(i).verificationStatus())
+                    .isEqualTo(BingoCellVerificationStatus.APPROVED);
+            assertThat(response.cells().get(i).submittedByMemberId())
+                    .isEqualTo(cells.get(i).getMemberId());
         }
     }
 
@@ -93,9 +101,8 @@ class BingoReadServiceTest {
         BingoBoard board = activeBoard(100L, 10L, 2);
         given(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(board));
-        List<BingoCell> cells = completedCells(board.getId(), 4);
+        List<BingoCell> cells = cellsWithApprovedCount(board.getId(), 4, 4);
         given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
-        given(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).willReturn(false);
         given(missionRepository.findAllById(Mockito.anyIterable())).willReturn(missionsForCells(cells));
 
         // when
@@ -116,9 +123,8 @@ class BingoReadServiceTest {
         BingoBoard board = activeBoard(100L, 10L, 2);
         given(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(board));
-        List<BingoCell> cells = completedCells(board.getId(), 4);
+        List<BingoCell> cells = cellsWithApprovedCount(board.getId(), 4, 3);
         given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
-        given(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).willReturn(true);
         given(missionRepository.findAllById(Mockito.anyIterable())).willReturn(missionsForCells(cells));
 
         // when
@@ -127,6 +133,8 @@ class BingoReadServiceTest {
         // then
         assertThat(response.completed()).isFalse();
         assertThat(response.canRenew()).isFalse();
+        assertThat(response.completedBingoCount()).isEqualTo(3);
+        assertThat(response.approvedCellCount()).isEqualTo(3);
     }
 
     @Test
@@ -139,6 +147,16 @@ class BingoReadServiceTest {
 
         // when & then
         assertErrorCode(() -> bingoReadService.getActiveBoard(3L, 10L), ErrorCode.ROOM_MEMBER_FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 방의 빙고판 조회에 실패한다")
+    void getActiveBoardRejectsMissingRoom() {
+        // given
+        given(roomRepository.findById(10L)).willReturn(Optional.empty());
+
+        // when & then
+        assertErrorCode(() -> bingoReadService.getActiveBoard(1L, 10L), ErrorCode.ROOM_NOT_FOUND);
     }
 
     @Test
@@ -161,12 +179,15 @@ class BingoReadServiceTest {
         return board;
     }
 
-    private List<BingoCell> completedCells(Long boardId, int count) {
+    private List<BingoCell> cellsWithApprovedCount(Long boardId, int totalCount, int approvedCount) {
         List<BingoCell> cells = new ArrayList<>();
-        for (int i = 0; i < count; i++) {
+        for (int i = 0; i < totalCount; i++) {
             BingoCell cell = BingoCell.create(boardId, (long) (i + 1), i / 2, i % 2);
             ReflectionTestUtils.setField(cell, "id", (long) (i + 1));
-            ReflectionTestUtils.setField(cell, "completedAt", LocalDateTime.now());
+            if (i < approvedCount) {
+                cell.submit((long) (i % 2 + 1), "https://example.com/proof-" + i + ".png");
+                cell.approve();
+            }
             cells.add(cell);
         }
         return cells;
@@ -184,6 +205,13 @@ class BingoReadServiceTest {
 
     private Room inProgressRoom(Long hostId, Long roomId, int boardSize) {
         Room room = Room.create(hostId, GameMode.SINGLE, 3, boardSize, null);
+        ReflectionTestUtils.setField(room, "id", roomId);
+        ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
+        return room;
+    }
+
+    private Room inProgressCooperateRoom(Long hostId, Long roomId, int boardSize) {
+        Room room = Room.create(hostId, GameMode.COOPERATE, 3, boardSize, 10000);
         ReflectionTestUtils.setField(room, "id", roomId);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         return room;
