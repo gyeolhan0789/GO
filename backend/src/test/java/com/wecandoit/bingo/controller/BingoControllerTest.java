@@ -15,7 +15,8 @@ import com.wecandoit.bingo.controller.response.BingoBoardResponse;
 import com.wecandoit.bingo.controller.response.BingoCellResponse;
 import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
-import com.wecandoit.bingo.service.BingoService;
+import com.wecandoit.bingo.service.BingoCommandService;
+import com.wecandoit.bingo.service.BingoReadService;
 import com.wecandoit.bingo.service.MissionVerificationFacade;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.CustomExceptionHandler;
@@ -49,7 +50,10 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 class BingoControllerTest {
 
     @Mock
-    private BingoService bingoService;
+    private BingoCommandService bingoCommandService;
+
+    @Mock
+    private BingoReadService bingoReadService;
 
     @Mock
     private MissionVerificationFacade missionVerificationFacade;
@@ -60,7 +64,8 @@ class BingoControllerTest {
                 UsernamePasswordAuthenticationToken.authenticated(1L, null, List.of())
         );
 
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new BingoController(bingoService, missionVerificationFacade))
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(
+                        new BingoController(bingoCommandService, bingoReadService, missionVerificationFacade))
                 .setControllerAdvice(new CustomExceptionHandler())
                 .setCustomArgumentResolvers(new LoginMemberIdArgumentResolver())
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(
@@ -78,101 +83,6 @@ class BingoControllerTest {
     void tearDown() {
         SecurityContextHolder.clearContext();
         RestAssuredMockMvc.reset();
-    }
-
-    @Test
-    @DisplayName("빙고판을 생성하면 칸별 미션 정보를 포함한 빙고판을 반환한다")
-    void generateBoardReturnsCreatedBoard() {
-        // given
-        MissionResponse mission = new MissionResponse(
-                1L,
-                "https://example.com/mission.png",
-                "OBJECT",
-                "미션 제목",
-                "미션 설명",
-                null,
-                LocalDateTime.of(2026, 7, 22, 10, 0)
-        );
-        BingoBoardResponse response = new BingoBoardResponse(
-                100L,
-                10L,
-                3,
-                BingoBoardStatus.IN_PROGRESS,
-                List.of(new BingoCellResponse(0, 0, mission, null, null)),
-                false,
-                false
-        );
-        BDDMockito.given(bingoService.generateBoard(1L, 10L)).willReturn(response);
-
-        // when & then
-        given()
-                .when()
-                .post("/rooms/{roomId}/bingo-boards", 10L)
-                .then()
-                .statusCode(HttpStatus.CREATED.value())
-                .body("bingoBoardId", equalTo(100))
-                .body("roomId", equalTo(10))
-                .body("boardSize", equalTo(3))
-                .body("status", equalTo("IN_PROGRESS"))
-                .body("cells[0].row", equalTo(0))
-                .body("cells[0].col", equalTo(0))
-                .body("cells[0].mission.missionId", equalTo(1))
-                .apply(document("bingo-boards-create",
-                        pathParameters(
-                                parameterWithName("roomId").description("빙고판을 생성할 게임방 ID")
-                        ),
-                        responseFields(
-                                fieldWithPath("bingoBoardId").description("생성된 빙고판 ID"),
-                                fieldWithPath("roomId").description("게임방 ID"),
-                                fieldWithPath("boardSize").description("빙고판 크기"),
-                                fieldWithPath("status").description("빙고판 상태"),
-                                fieldWithPath("cells[].row").description("칸의 행 위치"),
-                                fieldWithPath("cells[].col").description("칸의 열 위치"),
-                                fieldWithPath("cells[].mission.missionId").description("배정된 미션 ID"),
-                                fieldWithPath("cells[].mission.missionImageUrl").description("미션 이미지 URL"),
-                                fieldWithPath("cells[].mission.type").description("미션 타입"),
-                                fieldWithPath("cells[].mission.title").description("미션 제목"),
-                                fieldWithPath("cells[].mission.detail").description("미션 설명"),
-                                fieldWithPath("cells[].mission.decisionCondition").description("미션 판정 조건"),
-                                fieldWithPath("cells[].mission.createdAt").description("미션 생성 시각"),
-                                fieldWithPath("cells[].verificationStatus").description("미션 인증 상태"),
-                                fieldWithPath("cells[].rejectionReason").description("미션 거절 사유"),
-                                fieldWithPath("completed").description("빙고판 100% 완료 여부"),
-                                fieldWithPath("canRenew").description("조기 갱신 가능 여부(방장이고 완료된 경우에만 true)")
-                        )
-                ));
-    }
-
-    @Test
-    @DisplayName("존재하지 않는 게임방이면 빙고판 생성에 실패한다")
-    void generateBoardRejectsMissingRoom() {
-        // given
-        willThrow(new CustomException(ErrorCode.ROOM_NOT_FOUND))
-                .given(bingoService)
-                .generateBoard(1L, 10L);
-
-        // when & then
-        given()
-                .when()
-                .post("/rooms/{roomId}/bingo-boards", 10L)
-                .then()
-                .statusCode(HttpStatus.NOT_FOUND.value());
-    }
-
-    @Test
-    @DisplayName("방장이 아니면 빙고판 생성에 실패한다")
-    void generateBoardRejectsNonHost() {
-        // given
-        willThrow(new CustomException(ErrorCode.BINGO_BOARD_GENERATE_FORBIDDEN))
-                .given(bingoService)
-                .generateBoard(1L, 10L);
-
-        // when & then
-        given()
-                .when()
-                .post("/rooms/{roomId}/bingo-boards", 10L)
-                .then()
-                .statusCode(HttpStatus.FORBIDDEN.value());
     }
 
     @Test
@@ -197,7 +107,7 @@ class BingoControllerTest {
                 true,
                 true
         );
-        BDDMockito.given(bingoService.getActiveBoard(1L, 10L)).willReturn(response);
+        BDDMockito.given(bingoReadService.getActiveBoard(1L, 10L)).willReturn(response);
 
         // when & then
         given()
@@ -241,7 +151,7 @@ class BingoControllerTest {
     void getActiveBoardRejectsMissingBoard() {
         // given
         willThrow(new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND))
-                .given(bingoService)
+                .given(bingoReadService)
                 .getActiveBoard(1L, 10L);
 
         // when & then
@@ -393,7 +303,7 @@ class BingoControllerTest {
                 false,
                 false
         );
-        BDDMockito.given(bingoService.renewBoard(1L, 10L)).willReturn(response);
+        BDDMockito.given(bingoCommandService.renewBoard(1L, 10L)).willReturn(response);
 
         // when & then
         given()
@@ -434,7 +344,7 @@ class BingoControllerTest {
     void renewBoardRejectsIncompleteBoard() {
         // given
         willThrow(new CustomException(ErrorCode.BINGO_BOARD_NOT_COMPLETED))
-                .given(bingoService)
+                .given(bingoCommandService)
                 .renewBoard(1L, 10L);
 
         // when & then
@@ -450,7 +360,7 @@ class BingoControllerTest {
     void renewBoardRejectsNonHost() {
         // given
         willThrow(new CustomException(ErrorCode.BINGO_BOARD_RENEWAL_FORBIDDEN))
-                .given(bingoService)
+                .given(bingoCommandService)
                 .renewBoard(1L, 10L);
 
         // when & then

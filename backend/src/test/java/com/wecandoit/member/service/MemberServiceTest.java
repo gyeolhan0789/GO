@@ -9,6 +9,7 @@ import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.member.domain.AuthProvider;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.domain.Region;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.dto.MemberProfileUpdateRequest;
 import com.wecandoit.member.dto.PasswordChangeRequest;
 import com.wecandoit.member.dto.SignupRequest;
@@ -44,7 +45,7 @@ class MemberServiceTest {
     @DisplayName("이메일, 닉네임이 중복되지 않으면 회원가입에 성공한다")
     void signupSucceeds() {
         // given
-        SignupRequest request = new SignupRequest("user@example.com", "Password123!", "닉네임", Region.SEOUL);
+        SignupRequest request = new SignupRequest("user@example.com", "Password123!", "닉네임", Region.SEOUL, Gender.FEMALE);
         given(memberRepository.existsByEmail(request.email())).willReturn(false);
         given(memberRepository.existsByNickname(request.nickname())).willReturn(false);
         given(passwordEncoder.encode(request.password())).willReturn("encoded-password");
@@ -57,6 +58,7 @@ class MemberServiceTest {
         // then
         assertThat(response.email()).isEqualTo("user@example.com");
         assertThat(response.nickname()).isEqualTo("닉네임");
+        assertThat(response.gender()).isEqualTo(Gender.FEMALE);
     }
 
     @Test

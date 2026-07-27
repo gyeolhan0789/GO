@@ -39,6 +39,10 @@ public class Member extends BaseEntity {
     @Column(length = 100)
     private Region region;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Gender gender;
+
     @Column(nullable = false)
     private long cash;
 
@@ -54,12 +58,13 @@ public class Member extends BaseEntity {
     private AuthProvider provider;
 
     @Builder
-    private Member(String email, String password, String nickname, Region region, long cash,
+    private Member(String email, String password, String nickname, Region region, Gender gender, long cash,
             boolean onboardingCompleted, Role role, AuthProvider provider) {
         this.email = email;
         this.password = password;
         this.nickname = nickname;
         this.region = region;
+        this.gender = gender;
         this.cash = cash;
         this.onboardingCompleted = onboardingCompleted;
         this.role = role;
@@ -67,24 +72,34 @@ public class Member extends BaseEntity {
     }
 
     public static Member create(String email, String encodedPassword, String nickname) {
-        return create(email, encodedPassword, nickname, null);
+        return create(email, encodedPassword, nickname, null, Gender.MALE);
     }
 
     public static Member create(String email, String encodedPassword, String nickname, Region region) {
+        return create(email, encodedPassword, nickname, region, Gender.MALE);
+    }
+
+    public static Member create(String email, String encodedPassword, String nickname, Region region, Gender gender) {
         return Member.builder()
                 .email(email)
                 .password(encodedPassword)
                 .nickname(nickname)
                 .region(region)
+                .gender(gender)
                 .role(Role.USER)
                 .provider(AuthProvider.LOCAL)
                 .build();
     }
 
     public static Member createSocial(String email, String nickname, AuthProvider provider) {
+        return createSocial(email, nickname, provider, Gender.MALE);
+    }
+
+    public static Member createSocial(String email, String nickname, AuthProvider provider, Gender gender) {
         return Member.builder()
                 .email(email)
                 .nickname(nickname)
+                .gender(gender)
                 .role(Role.USER)
                 .provider(provider)
                 .build();
@@ -96,6 +111,10 @@ public class Member extends BaseEntity {
 
     public void changeRegion(Region region) {
         this.region = region;
+    }
+
+    public void changeGender(Gender gender) {
+        this.gender = gender;
     }
 
     public void changePassword(String encodedPassword) {

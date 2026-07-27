@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
+import com.wecandoit.bingo.service.BingoCommandService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.room.controller.request.CreateRoomRequest;
@@ -36,13 +37,16 @@ class RoomCommandServiceTest {
     private RoomRepository roomRepository;
     @Mock
     private RoomMemberRepository roomMemberRepository;
+    @Mock
+    private BingoCommandService bingoCommandService;
     private RoomCommandService roomCommandService;
 
     @BeforeEach
     void setUp() {
         roomCommandService = new RoomCommandService(
                 roomRepository,
-                roomMemberRepository
+                roomMemberRepository,
+                bingoCommandService
         );
     }
 
@@ -280,6 +284,7 @@ class RoomCommandServiceTest {
         // then
         assertThat(room.getStatus()).isEqualTo(GameRoomStatus.IN_PROGRESS);
         assertThat(room.getStartedAt()).isNotNull();
+        then(bingoCommandService).should().generateInitialBoard(room);
     }
 
     @Test
@@ -293,6 +298,7 @@ class RoomCommandServiceTest {
                 () -> roomCommandService.startGame(1L, 10L),
                 ErrorCode.ROOM_NOT_FOUND
         );
+        then(bingoCommandService).shouldHaveNoInteractions();
     }
 
     @Test
@@ -309,6 +315,7 @@ class RoomCommandServiceTest {
                 () -> roomCommandService.startGame(2L, 10L),
                 ErrorCode.ROOM_START_FORBIDDEN
         );
+        then(bingoCommandService).shouldHaveNoInteractions();
     }
 
     @Test
@@ -324,6 +331,7 @@ class RoomCommandServiceTest {
                 () -> roomCommandService.startGame(1L, 10L),
                 ErrorCode.ROOM_NOT_READY
         );
+        then(bingoCommandService).shouldHaveNoInteractions();
     }
 
     private void assertErrorCode(Runnable action, ErrorCode errorCode) {

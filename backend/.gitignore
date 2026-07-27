@@ -3,6 +3,8 @@
 .idea/
 .mysql-data/
 .redis-data/
+.worktrees/
+.worktree
 
 HELP.md
 .gradle

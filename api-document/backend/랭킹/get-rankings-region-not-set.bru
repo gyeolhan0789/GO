@@ -1,0 +1,36 @@
+meta {
+  name: 지역 미설정 회원의 지역 랭킹 조회
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{backendBaseUrl}}/rankings
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+docs {
+  ## 지역 미설정 회원의 지역 랭킹 조회
+
+  지역을 설정하지 않은 회원의 토큰으로 지역 랭킹을 요청해 지역 설정 안내용 에러 응답을 확인한다.
+
+  실행 전 현재 환경의 `accessToken`에 `Member.region`이 `null`인 회원의 Access Token을 입력해야 한다.
+
+  ### 에러 응답 (400 Bad Request)
+  ```json
+  {
+    "status": 400,
+    "message": "지역을 설정해야 랭킹을 확인할 수 있습니다."
+  }
+  ```
+
+  ### 에러 정책
+  - 서버의 전용 에러 코드는 `MEMBER_REGION_NOT_SET`이다.
+  - 기존 공통 에러 응답 구조에 따라 HTTP 상태 코드와 안내 메시지를 반환한다.
+  - 프런트엔드는 `status`와 `message`를 사용해 지역 설정 안내를 표시할 수 있다.
+}

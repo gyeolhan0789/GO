@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SvgXml } from 'react-native-svg';
+import { fontFamily } from '../../../shared/constants/typography';
 
 import type { OnboardingSlideData } from '../slides';
 
@@ -90,14 +91,16 @@ const styles = StyleSheet.create({
     color: '#111827',
     textAlign: 'center',
     lineHeight: 36,
+    marginTop: 12,
   },
   titleHighlight: {
     color: HIGHLIGHT_COLOR,
   },
   description: {
-    fontFamily: 'NotoSansKR',
-    marginTop: 16,
-    fontSize: 16,
+    fontFamily: fontFamily.regular,
+    // fontFamily: 'NotoSansKR-Regular',
+    marginTop: 11,
+    fontSize: 12,
     lineHeight: 22,
     color: '#4B5563',
     textAlign: 'center',

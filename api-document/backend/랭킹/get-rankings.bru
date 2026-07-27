@@ -1,0 +1,75 @@
+meta {
+  name: 지역 랭킹 조회
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{backendBaseUrl}}/rankings
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+docs {
+  ## 지역 랭킹 조회
+
+  로그인 회원이 저장한 지역을 기준으로 같은 지역 회원들의 이번 주 랭킹을 조회한다. query parameter는 사용하지 않는다.
+
+  ### 성공 응답 (200 OK)
+  ```json
+  {
+    "region": "SEOUL",
+    "myRank": 3,
+    "myWeeklySteps": 12500,
+    "rankings": [
+      {
+        "rank": 1,
+        "memberId": 2,
+        "nickname": "walker1",
+        "weeklySteps": 20000
+      },
+      {
+        "rank": 1,
+        "memberId": 3,
+        "nickname": "walker2",
+        "weeklySteps": 20000
+      },
+      {
+        "rank": 3,
+        "memberId": 1,
+        "nickname": "me",
+        "weeklySteps": 12500
+      }
+    ]
+  }
+  ```
+
+  ### 비즈니스 규칙
+  - 로그인 회원의 `Member.region`과 같은 지역 회원만 포함한다.
+  - 이번 주 월요일부터 현재 날짜까지의 걸음 수를 합산한다.
+  - 걸음 기록이 없는 회원도 0걸음으로 포함한다.
+  - 걸음 수 내림차순, 동점이면 회원 ID 오름차순으로 표시한다.
+  - 동점 순위는 `RANK` 방식이다. 예를 들어 1위가 2명이면 다음 회원은 3위다.
+
+  ### 에러 케이스
+
+  **Authorization 헤더 없음**
+  ```json
+  {
+    "status": 401,
+    "message": "인증이 필요합니다."
+  }
+  ```
+
+  **존재하지 않는 회원**
+  ```json
+  {
+    "status": 404,
+    "message": "회원을 찾을 수 없습니다."
+  }
+  ```
+}

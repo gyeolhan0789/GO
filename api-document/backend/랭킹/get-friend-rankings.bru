@@ -1,0 +1,87 @@
+meta {
+  name: 친구 랭킹 조회
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{backendBaseUrl}}/rankings/friends
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+docs {
+  ## 친구 랭킹 조회
+
+  로그인 회원 본인과 실제 친구 관계인 회원들의 이번 주 랭킹을 조회한다.
+
+  ### 성공 응답 (200 OK)
+  ```json
+  {
+    "myRank": 2,
+    "myWeeklySteps": 12500,
+    "rankings": [
+      {
+        "rank": 1,
+        "memberId": 2,
+        "nickname": "friend",
+        "weeklySteps": 20000
+      },
+      {
+        "rank": 2,
+        "memberId": 1,
+        "nickname": "me",
+        "weeklySteps": 12500
+      }
+    ]
+  }
+  ```
+
+  ### 친구가 없는 경우
+  ```json
+  {
+    "myRank": 1,
+    "myWeeklySteps": 0,
+    "rankings": [
+      {
+        "rank": 1,
+        "memberId": 1,
+        "nickname": "me",
+        "weeklySteps": 0
+      }
+    ]
+  }
+  ```
+
+  ### 비즈니스 규칙
+  - 로그인 회원 본인을 항상 한 번 포함한다.
+  - 친구가 없어도 로그인 회원만 포함된 랭킹을 반환한다.
+  - 걸음 기록이 없는 회원도 0걸음으로 포함한다.
+  - `friends` 테이블에 실제 친구 관계가 있는 회원만 포함한다.
+  - 대기 중인 친구 요청 상대는 포함하지 않는다.
+  - 친구의 지역은 랭킹 대상 여부에 영향을 주지 않는다.
+  - 걸음 수 내림차순, 동점이면 회원 ID 오름차순으로 표시한다.
+  - 동점 순위는 `RANK` 방식이다.
+
+  ### 에러 케이스
+
+  **Authorization 헤더 없음**
+  ```json
+  {
+    "status": 401,
+    "message": "인증이 필요합니다."
+  }
+  ```
+
+  **존재하지 않는 회원**
+  ```json
+  {
+    "status": 404,
+    "message": "회원을 찾을 수 없습니다."
+  }
+  ```
+}

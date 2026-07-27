@@ -1,5 +1,6 @@
 package com.wecandoit.game.room.service;
 
+import com.wecandoit.bingo.service.BingoCommandService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.room.controller.request.CreateRoomRequest;
@@ -20,6 +21,7 @@ public class RoomCommandService {
 
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
+    private final BingoCommandService bingoCommandService;
 
     public CreateRoomResponse createRoom(Long memberId, CreateRoomRequest request) {
         validateTargetStepCount(request.mode(), request.targetStepCount());
@@ -31,7 +33,7 @@ public class RoomCommandService {
                 request.targetStepCount()
         ));
         roomMemberRepository.save(RoomMember.create(room.getId(), memberId));
-        // TODO: Connect game requests, bingo board creation, and mission assignment after policy is confirmed.
+        // TODO: Connect game requests after policy is confirmed.
         return CreateRoomResponse.from(room);
     }
 
@@ -64,6 +66,7 @@ public class RoomCommandService {
         }
 
         room.start();
+        bingoCommandService.generateInitialBoard(room);
     }
 
     public void leaveRoom(Long memberId, Long roomId) {

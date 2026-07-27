@@ -2,7 +2,6 @@ package com.wecandoit.friend.repository;
 
 import com.wecandoit.friend.domain.FriendRequest;
 import com.wecandoit.friend.domain.FriendRequestStatus;
-
 import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.List;
@@ -36,6 +35,20 @@ public interface FriendRequestRepository extends JpaRepository<FriendRequest, Lo
             Long inviteeId,
             FriendRequestStatus status
     );
+
+    @Query("""
+            select fr from FriendRequest fr
+            join fetch fr.invitee
+            where fr.inviter.id = :inviterId
+              and fr.status = com.wecandoit.friend.domain.FriendRequestStatus.PENDING
+              and not exists (
+                    select f.id from Friend f
+                    where (f.member1.id = fr.inviter.id and f.member2.id = fr.invitee.id)
+                       or (f.member2.id = fr.inviter.id and f.member1.id = fr.invitee.id)
+              )
+            order by fr.createdAt desc, fr.id desc
+            """)
+    List<FriendRequest> findPendingSentRequests(@Param("inviterId") Long inviterId);
 
     @EntityGraph(attributePaths = {"inviter", "invitee"})
     @Query("""
