@@ -43,10 +43,12 @@ export function RootNavigator() {
         component={LoginScreen}
         options={{ headerShown: true, title: '로그인' }}
       />
+      {/* 상단 픽셀아트 배너를 상태바까지 꽉 채우려고 헤더를 숨긴다. 뒤로가기는
+          플랫폼 스와이프/하드웨어 back과 화면 하단의 '로그인' 링크로 대체한다. */}
       <Stack.Screen
         name="Signup"
         component={SignupScreen}
-        options={{ headerShown: true, title: '회원가입' }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen name="Main" component={MainTabNavigator} />
     </Stack.Navigator>
