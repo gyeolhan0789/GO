@@ -1,6 +1,7 @@
 package com.wecandoit.member.dto;
 
 import com.wecandoit.member.domain.Region;
+import com.wecandoit.member.domain.Gender;
 import jakarta.validation.constraints.Size;
 
 public record MemberProfileUpdateRequest(
@@ -12,6 +13,11 @@ public record MemberProfileUpdateRequest(
         )
         String nickname,
 
-        Region region
+        Region region,
+
+        Gender gender
 ) {
+    public MemberProfileUpdateRequest(String nickname, Region region) {
+        this(nickname, region, null);
+    }
 }

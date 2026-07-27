@@ -3,6 +3,7 @@ package com.wecandoit.member.dto;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.wecandoit.member.domain.Region;
+import com.wecandoit.member.domain.Gender;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -89,5 +90,17 @@ class SignupRequestTest {
                 .extracting(ConstraintViolation::getPropertyPath)
                 .extracting(Object::toString)
                 .contains("region");
+    }
+
+    @Test
+    void missingGenderFails() {
+        SignupRequest request = new SignupRequest("user@example.com", "Password123!", "닉네임", Region.SEOUL, null);
+
+        Set<ConstraintViolation<SignupRequest>> violations = validator.validate(request);
+
+        assertThat(violations)
+                .extracting(ConstraintViolation::getPropertyPath)
+                .extracting(Object::toString)
+                .contains("gender");
     }
 }

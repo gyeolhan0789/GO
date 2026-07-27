@@ -1,11 +1,11 @@
-INSERT INTO member (id, email, password, nickname, region, cash, onboarding_completed, role, auth_provider)
+INSERT INTO member (id, email, password, nickname, region, gender, cash, onboarding_completed, role, auth_provider)
 VALUES
-    (1, 'admin@wecandoit.local', '$2a$10$XmfxK2TUdBocD4Pq9Bms7OIDfJmE1d4tc9ScXVVGSJWNQ0L5LXTty', 'local-admin', 'SEOUL', 0, false, 'ADMIN', 'LOCAL'),
-    (101, 'test111@111.com', '$2b$10$8sHkEmlxplvBFONCDSvmVOyTHGtKcmS5SGEhEMKAaILv9eQ5tcDFy', 'test-user', 'SEOUL', 1500, true, 'USER', 'LOCAL'),
-    (102, 'roomhost@wecandoit.local', '$2b$10$8sHkEmlxplvBFONCDSvmVOyTHGtKcmS5SGEhEMKAaILv9eQ5tcDFy', 'room-host', 'BUSAN', 1000, true, 'USER', 'LOCAL'),
-    (103, 'friend@wecandoit.local', '$2b$10$8sHkEmlxplvBFONCDSvmVOyTHGtKcmS5SGEhEMKAaILv9eQ5tcDFy', 'friend-user', 'DAEGU', 800, true, 'USER', 'LOCAL'),
-    (104, 'requester@wecandoit.local', '$2b$10$8sHkEmlxplvBFONCDSvmVOyTHGtKcmS5SGEhEMKAaILv9eQ5tcDFy', 'request-user', 'INCHEON', 600, true, 'USER', 'LOCAL'),
-    (105, 'declined@wecandoit.local', '$2b$10$8sHkEmlxplvBFONCDSvmVOyTHGtKcmS5SGEhEMKAaILv9eQ5tcDFy', 'declined-user', 'GWANGJU', 400, true, 'USER', 'LOCAL');
+    (1, 'admin@wecandoit.local', '$2a$10$XmfxK2TUdBocD4Pq9Bms7OIDfJmE1d4tc9ScXVVGSJWNQ0L5LXTty', 'local-admin', 'SEOUL', 'MALE', 0, false, 'ADMIN', 'LOCAL'),
+    (101, 'test111@111.com', '$2b$10$8sHkEmlxplvBFONCDSvmVOyTHGtKcmS5SGEhEMKAaILv9eQ5tcDFy', 'test-user', 'SEOUL', 'MALE', 1500, true, 'USER', 'LOCAL'),
+    (102, 'roomhost@wecandoit.local', '$2b$10$8sHkEmlxplvBFONCDSvmVOyTHGtKcmS5SGEhEMKAaILv9eQ5tcDFy', 'room-host', 'BUSAN', 'FEMALE', 1000, true, 'USER', 'LOCAL'),
+    (103, 'friend@wecandoit.local', '$2b$10$8sHkEmlxplvBFONCDSvmVOyTHGtKcmS5SGEhEMKAaILv9eQ5tcDFy', 'friend-user', 'DAEGU', 'MALE', 800, true, 'USER', 'LOCAL'),
+    (104, 'requester@wecandoit.local', '$2b$10$8sHkEmlxplvBFONCDSvmVOyTHGtKcmS5SGEhEMKAaILv9eQ5tcDFy', 'request-user', 'INCHEON', 'FEMALE', 600, true, 'USER', 'LOCAL'),
+    (105, 'declined@wecandoit.local', '$2b$10$8sHkEmlxplvBFONCDSvmVOyTHGtKcmS5SGEhEMKAaILv9eQ5tcDFy', 'declined-user', 'GWANGJU', 'FEMALE', 400, true, 'USER', 'LOCAL');
 
 INSERT INTO items (id, name, category, price, image_url)
 VALUES

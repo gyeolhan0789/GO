@@ -32,7 +32,7 @@ public class MemberService {
 
         String encodedPassword = passwordEncoder.encode(request.password());
         Member member = memberRepository.save(
-                Member.create(request.email(), encodedPassword, request.nickname(), request.region())
+                Member.create(request.email(), encodedPassword, request.nickname(), request.region(), request.gender())
         );
 
         return SignupResponse.from(member);
@@ -52,6 +52,10 @@ public class MemberService {
 
         if (request.region() != null) {
             member.changeRegion(request.region());
+        }
+
+        if (request.gender() != null) {
+            member.changeGender(request.gender());
         }
     }
 
