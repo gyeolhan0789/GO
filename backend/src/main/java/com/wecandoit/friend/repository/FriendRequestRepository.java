@@ -6,6 +6,8 @@ import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -31,9 +33,10 @@ public interface FriendRequestRepository extends JpaRepository<FriendRequest, Lo
     Optional<FriendRequest> findByIdForUpdate(@Param("requestId") Long requestId);
 
     @EntityGraph(attributePaths = "inviter")
-    List<FriendRequest> findAllByInviteeIdAndStatusOrderByCreatedAtDesc(
+    Slice<FriendRequest> findAllByInviteeIdAndStatusOrderByCreatedAtDescIdDesc(
             Long inviteeId,
-            FriendRequestStatus status
+            FriendRequestStatus status,
+            Pageable pageable
     );
 
     @Query("""
@@ -48,7 +51,10 @@ public interface FriendRequestRepository extends JpaRepository<FriendRequest, Lo
               )
             order by fr.createdAt desc, fr.id desc
             """)
-    List<FriendRequest> findPendingSentRequests(@Param("inviterId") Long inviterId);
+    Slice<FriendRequest> findPendingSentRequests(
+            @Param("inviterId") Long inviterId,
+            Pageable pageable
+    );
 
     @EntityGraph(attributePaths = {"inviter", "invitee"})
     @Query("""

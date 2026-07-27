@@ -146,6 +146,39 @@ class WeeklyFriendRankingRepositoryTest {
                 .doesNotHaveDuplicates();
     }
 
+    @Test
+    @DisplayName("회원 ID 목록의 기간 내 걸음 수를 한 번에 집계하고 기록이 없으면 0으로 반환한다")
+    void findWeeklyStepsByMemberIdsAggregatesInRangeAndIncludesZeroSteps() {
+        // given
+        Member walkingMember = saveMember("걷는회원", Region.SEOUL);
+        Member zeroStepMember = saveMember("영걸음회원", Region.BUSAN);
+        Member excludedMember = saveMember("제외회원", Region.JEJU);
+        saveHistory(walkingMember, START_DATE.minusDays(1), 10_000);
+        saveHistory(walkingMember, START_DATE, 1_000);
+        saveHistory(walkingMember, END_DATE, 2_000);
+        saveHistory(walkingMember, END_DATE.plusDays(1), 20_000);
+        saveHistory(excludedMember, START_DATE, 30_000);
+
+        // when
+        List<WeeklyRankingSummary> summaries =
+                memberHistoryRepository.findWeeklyStepsByMemberIds(
+                        List.of(walkingMember.getId(), zeroStepMember.getId()),
+                        START_DATE,
+                        END_DATE
+                );
+
+        // then
+        assertThat(summaries)
+                .extracting(
+                        WeeklyRankingSummary::getMemberId,
+                        WeeklyRankingSummary::getWeeklySteps
+                )
+                .containsExactlyInAnyOrder(
+                        org.assertj.core.groups.Tuple.tuple(walkingMember.getId(), 3_000L),
+                        org.assertj.core.groups.Tuple.tuple(zeroStepMember.getId(), 0L)
+                );
+    }
+
     private List<WeeklyRankingSummary> findRankings(Member loginMember) {
         return memberHistoryRepository.findWeeklyFriendRankings(
                 loginMember.getId(),
