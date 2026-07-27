@@ -1,12 +1,10 @@
 package com.wecandoit.friend.service;
 
-import com.wecandoit.common.response.PageResponse;
-import com.wecandoit.friend.dto.FriendResponse;
 import com.wecandoit.friend.repository.FriendRepository;
+
+import com.wecandoit.friend.dto.FriendResponse;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,11 +15,10 @@ public class FriendReadService {
 
     private final FriendRepository friendRepository;
 
-    public PageResponse<FriendResponse> getFriends(Long memberId, Pageable pageable) {
-        Pageable fixedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
-        Page<FriendResponse> friends = friendRepository.findAllByMemberId(memberId, fixedPageable)
+    public List<FriendResponse> getFriends(Long memberId) {
+        return friendRepository.findAllByMemberId(memberId).stream()
                 .map(friend -> friend.getFriendOf(memberId))
-                .map(FriendResponse::from);
-        return PageResponse.from(friends);
+                .map(FriendResponse::from)
+                .toList();
     }
 }

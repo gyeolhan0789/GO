@@ -11,7 +11,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
-import com.wecandoit.common.response.PageResponse;
 import com.wecandoit.friend.dto.FriendResponse;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -21,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
@@ -42,10 +40,7 @@ class FriendControllerTest {
         mockMvc = MockMvcBuilders.standaloneSetup(
                         new FriendController(friendReadService, friendCommandService)
                 )
-                .setCustomArgumentResolvers(
-                        new LoginMemberIdArgumentResolver(),
-                        new PageableHandlerMethodArgumentResolver()
-                )
+                .setCustomArgumentResolvers(new LoginMemberIdArgumentResolver())
                 .build();
         SecurityContextHolder.getContext().setAuthentication(
                 UsernamePasswordAuthenticationToken.authenticated(1L, null, List.of())
@@ -61,23 +56,13 @@ class FriendControllerTest {
     @DisplayName("친구 목록을 조회하면 친구 회원 ID와 닉네임을 반환한다")
     void getFriendsReturnsFriendResponses() throws Exception {
         // given
-        given(friendReadService.getFriends(
-                org.mockito.ArgumentMatchers.eq(1L),
-                org.mockito.ArgumentMatchers.any()
-        )).willReturn(new PageResponse<>(
-                List.of(new FriendResponse(2L, "친구")),
-                1, 1, 0, 20, false
-        ));
+        given(friendReadService.getFriends(1L)).willReturn(List.of(new FriendResponse(2L, "친구")));
 
         // when & then
-        mockMvc.perform(get("/friends").param("page", "0").param("size", "20"))
+        mockMvc.perform(get("/friends"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].memberId").value(2L))
-                .andExpect(jsonPath("$.content[0].nickname").value("친구"))
-                .andExpect(jsonPath("$.totalElements").value(1))
-                .andExpect(jsonPath("$.currentPage").value(0))
-                .andExpect(jsonPath("$.size").value(20))
-                .andExpect(jsonPath("$.hasNext").value(false));
+                .andExpect(jsonPath("$[0].memberId").value(2L))
+                .andExpect(jsonPath("$[0].nickname").value("친구"));
     }
 
     @Test

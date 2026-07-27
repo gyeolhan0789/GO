@@ -2,7 +2,6 @@ package com.wecandoit.member.service;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
-import com.wecandoit.common.response.PageResponse;
 import com.wecandoit.friend.repository.FriendRepository;
 import com.wecandoit.friend.domain.FriendRequest;
 import com.wecandoit.friend.repository.FriendRequestRepository;
@@ -18,9 +17,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,30 +29,18 @@ public class MemberReadService {
     private final FriendRepository friendRepository;
     private final FriendRequestRepository friendRequestRepository;
 
-    public PageResponse<MemberSearchResponse> searchMembers(
-            Long memberId,
-            String keyword,
-            Pageable pageable
-    ) {
+    public List<MemberSearchResponse> searchMembers(Long memberId, String keyword) {
         if (keyword == null || keyword.isBlank()) {
             throw new CustomException(ErrorCode.INVALID_INPUT, "검색어는 필수입니다.");
         }
 
-        Pageable fixedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
-        Page<Member> members = memberRepository
-                .findByNicknameContainingIgnoreCaseAndIdNotOrderByNicknameAscIdAsc(
-                        keyword.trim(),
-                        memberId,
-                        fixedPageable
-                );
+        List<Member> members = memberRepository
+                .findByNicknameContainingIgnoreCaseAndIdNot(keyword.trim(), memberId);
         if (members.isEmpty()) {
-            return PageResponse.from(members.map(member -> MemberSearchResponse.of(
-                    member,
-                    MemberRelationshipStatus.NONE
-            )));
+            return List.of();
         }
 
-        Set<Long> candidateIds = members.getContent().stream()
+        Set<Long> candidateIds = members.stream()
                 .map(Member::getId)
                 .collect(Collectors.toSet());
         Set<Long> friendIds = new HashSet<>(
@@ -64,12 +48,12 @@ public class MemberReadService {
         );
         Map<Long, MemberRelationshipStatus> requestStatuses = getRequestStatuses(memberId, candidateIds);
 
-        Page<MemberSearchResponse> responses = members
+        return members.stream()
                 .map(member -> MemberSearchResponse.of(
                         member,
                         getRelationshipStatus(member.getId(), friendIds, requestStatuses)
-                ));
-        return PageResponse.from(responses);
+                ))
+                .toList();
     }
 
     public Map<Long, String> getNicknamesByIds(Collection<Long> memberIds) {

@@ -6,7 +6,6 @@ import static org.mockito.BDDMockito.given;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
-import com.wecandoit.common.response.PageResponse;
 import com.wecandoit.friend.repository.FriendRepository;
 import com.wecandoit.friend.domain.FriendRequest;
 import com.wecandoit.friend.repository.FriendRequestRepository;
@@ -23,8 +22,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @DisplayName("회원 조회 서비스")
@@ -53,12 +50,8 @@ class MemberReadServiceTest {
         Member sent = member(3L, "산책메이트");
         Member received = member(4L, "산책동료");
         Member none = member(5L, "산책초보");
-        PageRequest pageable = PageRequest.of(0, 4);
-        given(memberRepository.findByNicknameContainingIgnoreCaseAndIdNotOrderByNicknameAscIdAsc(
-                "산책",
-                1L,
-                pageable
-        )).willReturn(new PageImpl<>(List.of(friend, sent, received, none), pageable, 4));
+        given(memberRepository.findByNicknameContainingIgnoreCaseAndIdNot("산책", 1L))
+                .willReturn(List.of(friend, sent, received, none));
         given(friendRepository.findFriendMemberIds(ArgumentMatchers.eq(1L), ArgumentMatchers.anySet()))
                 .willReturn(List.of(2L));
         given(friendRequestRepository.findPendingRelatedTo(ArgumentMatchers.eq(1L), ArgumentMatchers.anySet()))
@@ -68,11 +61,10 @@ class MemberReadServiceTest {
                 ));
 
         // when
-        PageResponse<MemberSearchResponse> responses =
-                memberReadService.searchMembers(1L, " 산책 ", pageable);
+        List<MemberSearchResponse> responses = memberReadService.searchMembers(1L, " 산책 ");
 
         // then
-        assertThat(responses.content())
+        assertThat(responses)
                 .extracting(MemberSearchResponse::memberId, MemberSearchResponse::relationshipStatus)
                 .containsExactly(
                         org.assertj.core.groups.Tuple.tuple(2L, MemberRelationshipStatus.FRIEND),
@@ -80,7 +72,6 @@ class MemberReadServiceTest {
                         org.assertj.core.groups.Tuple.tuple(4L, MemberRelationshipStatus.REQUEST_RECEIVED),
                         org.assertj.core.groups.Tuple.tuple(5L, MemberRelationshipStatus.NONE)
                 );
-        assertThat(responses.totalElements()).isEqualTo(4);
     }
 
     @Test

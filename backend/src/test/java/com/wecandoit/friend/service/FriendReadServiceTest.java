@@ -6,7 +6,6 @@ import com.wecandoit.friend.repository.FriendRepository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
-import com.wecandoit.common.response.PageResponse;
 import com.wecandoit.friend.dto.FriendResponse;
 import com.wecandoit.member.domain.Member;
 import java.util.List;
@@ -16,8 +15,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,24 +37,21 @@ class FriendReadServiceTest {
         Member loginMember = member(2L, "로그인회원");
         Member smallerIdFriend = member(1L, "첫번째친구");
         Member largerIdFriend = member(3L, "두번째친구");
-        PageRequest pageable = PageRequest.of(0, 2);
-        given(friendRepository.findAllByMemberId(2L, pageable)).willReturn(new PageImpl<>(List.of(
+        given(friendRepository.findAllByMemberId(2L)).willReturn(List.of(
                 Friend.create(loginMember, smallerIdFriend),
                 Friend.create(loginMember, largerIdFriend)
-        ), pageable, 2));
+        ));
 
         // when
-        PageResponse<FriendResponse> responses = friendReadService.getFriends(2L, pageable);
+        List<FriendResponse> responses = friendReadService.getFriends(2L);
 
         // then
-        assertThat(responses.content())
+        assertThat(responses)
                 .extracting(FriendResponse::memberId, FriendResponse::nickname)
-                .containsExactly(
+                .containsExactlyInAnyOrder(
                         org.assertj.core.groups.Tuple.tuple(1L, "첫번째친구"),
                         org.assertj.core.groups.Tuple.tuple(3L, "두번째친구")
                 );
-        assertThat(responses.totalElements()).isEqualTo(2);
-        assertThat(responses.currentPage()).isZero();
     }
 
     private Member member(Long id, String nickname) {

@@ -15,7 +15,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.wecandoit.common.exception.CustomExceptionHandler;
-import com.wecandoit.common.response.PageResponse;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.friend.dto.ReceivedFriendRequestResponse;
 import com.wecandoit.friend.dto.SendFriendRequest;
@@ -34,7 +33,6 @@ import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -54,10 +52,7 @@ class FriendRequestControllerTest {
                         new FriendRequestController(friendRequestReadService, friendRequestCommandService)
                 )
                 .setControllerAdvice(new CustomExceptionHandler())
-                .setCustomArgumentResolvers(
-                        new LoginMemberIdArgumentResolver(),
-                        new PageableHandlerMethodArgumentResolver()
-                )
+                .setCustomArgumentResolvers(new LoginMemberIdArgumentResolver())
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(
                         Jackson2ObjectMapperBuilder.json()
                                 .featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
@@ -90,22 +85,17 @@ class FriendRequestControllerTest {
     void getReceivedRequestsReturnsPendingRequests() throws Exception {
         // given
         LocalDateTime createdAt = LocalDateTime.of(2026, 7, 19, 12, 0);
-        given(friendRequestReadService.getReceivedRequests(
-                org.mockito.ArgumentMatchers.eq(1L),
-                org.mockito.ArgumentMatchers.any()
-        )).willReturn(new PageResponse<>(
-                List.of(new ReceivedFriendRequestResponse(10L, 2L, "요청자", createdAt)),
-                1, 1, 0, 20, false
+        given(friendRequestReadService.getReceivedRequests(1L)).willReturn(List.of(
+                new ReceivedFriendRequestResponse(10L, 2L, "요청자", createdAt)
         ));
 
         // when & then
-        mockMvc.perform(get("/friend-requests").param("page", "0").param("size", "20"))
+        mockMvc.perform(get("/friend-requests"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].requestId").value(10L))
-                .andExpect(jsonPath("$.content[0].inviterId").value(2L))
-                .andExpect(jsonPath("$.content[0].inviterNickname").value("요청자"))
-                .andExpect(jsonPath("$.content[0].createdAt").value("2026-07-19T12:00:00"))
-                .andExpect(jsonPath("$.totalElements").value(1));
+                .andExpect(jsonPath("$[0].requestId").value(10L))
+                .andExpect(jsonPath("$[0].inviterId").value(2L))
+                .andExpect(jsonPath("$[0].inviterNickname").value("요청자"))
+                .andExpect(jsonPath("$[0].createdAt").value("2026-07-19T12:00:00"));
     }
 
     @Test
@@ -113,42 +103,32 @@ class FriendRequestControllerTest {
     void getSentRequestsReturnsPendingRequests() throws Exception {
         // given
         LocalDateTime createdAt = LocalDateTime.of(2026, 7, 27, 10, 0);
-        given(friendRequestReadService.getSentRequests(
-                org.mockito.ArgumentMatchers.eq(1L),
-                org.mockito.ArgumentMatchers.any()
-        )).willReturn(new PageResponse<>(
-                List.of(new SentFriendRequestResponse(10L, 2L, "받는사람", createdAt)),
-                1, 1, 0, 20, false
+        given(friendRequestReadService.getSentRequests(1L)).willReturn(List.of(
+                new SentFriendRequestResponse(10L, 2L, "받는사람", createdAt)
         ));
 
         // when & then
-        mockMvc.perform(get("/friend-requests/sent").param("page", "0").param("size", "20"))
+        mockMvc.perform(get("/friend-requests/sent"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].requestId").value(10L))
-                .andExpect(jsonPath("$.content[0].inviteeId").value(2L))
-                .andExpect(jsonPath("$.content[0].inviteeNickname").value("받는사람"))
-                .andExpect(jsonPath("$.content[0].createdAt").value("2026-07-27T10:00:00"))
-                .andExpect(jsonPath("$.content[0].email").doesNotExist())
-                .andExpect(jsonPath("$.content[0].password").doesNotExist())
-                .andExpect(jsonPath("$.totalPages").value(1))
-                .andExpect(jsonPath("$.hasNext").value(false));
+                .andExpect(jsonPath("$[0].requestId").value(10L))
+                .andExpect(jsonPath("$[0].inviteeId").value(2L))
+                .andExpect(jsonPath("$[0].inviteeNickname").value("받는사람"))
+                .andExpect(jsonPath("$[0].createdAt").value("2026-07-27T10:00:00"))
+                .andExpect(jsonPath("$[0].email").doesNotExist())
+                .andExpect(jsonPath("$[0].password").doesNotExist());
     }
 
     @Test
     @DisplayName("보낸 친구 요청이 없으면 빈 배열을 반환한다")
     void getSentRequestsReturnsEmptyArray() throws Exception {
         // given
-        given(friendRequestReadService.getSentRequests(
-                org.mockito.ArgumentMatchers.eq(1L),
-                org.mockito.ArgumentMatchers.any()
-        )).willReturn(new PageResponse<>(List.of(), 0, 0, 0, 20, false));
+        given(friendRequestReadService.getSentRequests(1L)).willReturn(List.of());
 
         // when & then
         mockMvc.perform(get("/friend-requests/sent"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content").isArray())
-                .andExpect(jsonPath("$.content").isEmpty())
-                .andExpect(jsonPath("$.totalElements").value(0));
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
     }
 
     @Test

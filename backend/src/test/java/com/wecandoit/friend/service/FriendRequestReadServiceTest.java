@@ -10,7 +10,6 @@ import static org.mockito.BDDMockito.given;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
-import com.wecandoit.common.response.PageResponse;
 import com.wecandoit.friend.dto.ReceivedFriendRequestResponse;
 import com.wecandoit.friend.dto.SentFriendRequestResponse;
 import com.wecandoit.member.domain.Member;
@@ -23,9 +22,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -56,22 +52,18 @@ class FriendRequestReadServiceTest {
         LocalDateTime createdAt = LocalDateTime.of(2026, 7, 19, 12, 0);
         ReflectionTestUtils.setField(friendRequest, "id", 10L);
         ReflectionTestUtils.setField(friendRequest, "createdAt", createdAt);
-        PageRequest pageable = PageRequest.of(0, 20);
-        given(friendRequestRepository.findAllByInviteeIdAndStatusOrderByCreatedAtDescIdDesc(
+        given(friendRequestRepository.findAllByInviteeIdAndStatusOrderByCreatedAtDesc(
                 2L,
-                FriendRequestStatus.PENDING,
-                pageable
-        )).willReturn(new PageImpl<>(List.of(friendRequest), pageable, 1));
+                FriendRequestStatus.PENDING
+        )).willReturn(List.of(friendRequest));
 
         // when
-        PageResponse<ReceivedFriendRequestResponse> responses =
-                friendRequestReadService.getReceivedRequests(2L, pageable);
+        List<ReceivedFriendRequestResponse> responses = friendRequestReadService.getReceivedRequests(2L);
 
         // then
-        assertThat(responses.content()).containsExactly(
+        assertThat(responses).containsExactly(
                 new ReceivedFriendRequestResponse(10L, 1L, "보낸사람", createdAt)
         );
-        assertThat(responses.totalElements()).isEqualTo(1);
     }
 
     @Test
@@ -84,17 +76,15 @@ class FriendRequestReadServiceTest {
         LocalDateTime createdAt = LocalDateTime.of(2026, 7, 27, 10, 0);
         ReflectionTestUtils.setField(friendRequest, "id", 10L);
         ReflectionTestUtils.setField(friendRequest, "createdAt", createdAt);
-        PageRequest pageable = PageRequest.of(0, 20);
         given(memberRepository.existsById(1L)).willReturn(true);
-        given(friendRequestRepository.findPendingSentRequests(1L, pageable))
-                .willReturn(new PageImpl<>(List.of(friendRequest), pageable, 1));
+        given(friendRequestRepository.findPendingSentRequests(1L))
+                .willReturn(List.of(friendRequest));
 
         // when
-        PageResponse<SentFriendRequestResponse> responses =
-                friendRequestReadService.getSentRequests(1L, pageable);
+        List<SentFriendRequestResponse> responses = friendRequestReadService.getSentRequests(1L);
 
         // then
-        assertThat(responses.content()).containsExactly(
+        assertThat(responses).containsExactly(
                 new SentFriendRequestResponse(10L, 2L, "받는사람", createdAt)
         );
     }
@@ -103,18 +93,14 @@ class FriendRequestReadServiceTest {
     @DisplayName("보낸 대기 친구 요청이 없으면 빈 목록을 반환한다")
     void getSentRequestsReturnsEmptyList() {
         // given
-        PageRequest pageable = PageRequest.of(0, 20);
         given(memberRepository.existsById(1L)).willReturn(true);
-        given(friendRequestRepository.findPendingSentRequests(1L, pageable))
-                .willReturn(Page.empty(pageable));
+        given(friendRequestRepository.findPendingSentRequests(1L)).willReturn(List.of());
 
         // when
-        PageResponse<SentFriendRequestResponse> responses =
-                friendRequestReadService.getSentRequests(1L, pageable);
+        List<SentFriendRequestResponse> responses = friendRequestReadService.getSentRequests(1L);
 
         // then
-        assertThat(responses.content()).isEmpty();
-        assertThat(responses.totalElements()).isZero();
+        assertThat(responses).isEmpty();
     }
 
     @Test
@@ -124,10 +110,7 @@ class FriendRequestReadServiceTest {
         given(memberRepository.existsById(1L)).willReturn(false);
 
         // when & then
-        assertThatThrownBy(() -> friendRequestReadService.getSentRequests(
-                1L,
-                PageRequest.of(0, 20)
-        ))
+        assertThatThrownBy(() -> friendRequestReadService.getSentRequests(1L))
                 .isInstanceOfSatisfying(CustomException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.MEMBER_NOT_FOUND));
     }

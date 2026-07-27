@@ -15,8 +15,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
 
 @DataJpaTest
@@ -68,17 +66,14 @@ class FriendRequestRepositoryTest {
         friendRequestRepository.save(acceptedRequest);
 
         // when
-        Page<FriendRequest> requests = friendRequestRepository
-                .findAllByInviteeIdAndStatusOrderByCreatedAtDescIdDesc(
+        List<FriendRequest> requests = friendRequestRepository
+                .findAllByInviteeIdAndStatusOrderByCreatedAtDesc(
                         invitee.getId(),
-                        FriendRequestStatus.PENDING,
-                        PageRequest.of(0, 20)
+                        FriendRequestStatus.PENDING
                 );
 
         // then
-        assertThat(requests.getContent())
-                .extracting(FriendRequest::getId)
-                .containsExactly(pendingRequest.getId());
+        assertThat(requests).extracting(FriendRequest::getId).containsExactly(pendingRequest.getId());
     }
 
     @Test
@@ -103,13 +98,10 @@ class FriendRequestRepositoryTest {
         friendRequestRepository.save(FriendRequest.create(otherMember, pendingInvitee));
 
         // when
-        Page<FriendRequest> requests = friendRequestRepository.findPendingSentRequests(
-                loginMember.getId(),
-                PageRequest.of(0, 20)
-        );
+        List<FriendRequest> requests = friendRequestRepository.findPendingSentRequests(loginMember.getId());
 
         // then
-        assertThat(requests.getContent())
+        assertThat(requests)
                 .extracting(FriendRequest::getId)
                 .containsExactly(pendingRequest.getId());
     }
@@ -124,13 +116,10 @@ class FriendRequestRepositoryTest {
         friendRepository.save(Friend.create(loginMember, friendMember));
 
         // when
-        Page<FriendRequest> requests = friendRequestRepository.findPendingSentRequests(
-                loginMember.getId(),
-                PageRequest.of(0, 20)
-        );
+        List<FriendRequest> requests = friendRequestRepository.findPendingSentRequests(loginMember.getId());
 
         // then
-        assertThat(requests.getContent()).isEmpty();
+        assertThat(requests).isEmpty();
     }
 
     @Test
@@ -170,24 +159,12 @@ class FriendRequestRepositoryTest {
         entityManager.clear();
 
         // when
-        Page<FriendRequest> firstPage = friendRequestRepository.findPendingSentRequests(
-                loginMember.getId(),
-                PageRequest.of(0, 2)
-        );
-        Page<FriendRequest> secondPage = friendRequestRepository.findPendingSentRequests(
-                loginMember.getId(),
-                PageRequest.of(1, 2)
-        );
+        List<FriendRequest> requests = friendRequestRepository.findPendingSentRequests(loginMember.getId());
 
         // then
-        assertThat(firstPage.getContent())
+        assertThat(requests)
                 .extracting(FriendRequest::getId)
-                .containsExactly(latestRequest.getId(), secondRequest.getId());
-        assertThat(secondPage.getContent())
-                .extracting(FriendRequest::getId)
-                .containsExactly(firstRequest.getId());
-        assertThat(firstPage.getTotalElements()).isEqualTo(3);
-        assertThat(firstPage.hasNext()).isTrue();
+                .containsExactly(latestRequest.getId(), secondRequest.getId(), firstRequest.getId());
     }
 
     @Test
@@ -208,14 +185,10 @@ class FriendRequestRepositoryTest {
 
         // then
         assertThat(friendRequestRepository.findById(friendRequest.getId())).isEmpty();
-        assertThat(friendRequestRepository.findPendingSentRequests(
-                inviter.getId(),
-                PageRequest.of(0, 20)
-        )).isEmpty();
-        assertThat(friendRequestRepository.findAllByInviteeIdAndStatusOrderByCreatedAtDescIdDesc(
+        assertThat(friendRequestRepository.findPendingSentRequests(inviter.getId())).isEmpty();
+        assertThat(friendRequestRepository.findAllByInviteeIdAndStatusOrderByCreatedAtDesc(
                 invitee.getId(),
-                FriendRequestStatus.PENDING,
-                PageRequest.of(0, 20)
+                FriendRequestStatus.PENDING
         )).isEmpty();
         assertThat(friendRepository.findById(friend.getId())).isPresent();
     }

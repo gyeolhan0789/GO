@@ -1,6 +1,5 @@
 package com.wecandoit.friend.controller;
 
-import com.wecandoit.common.response.PageResponse;
 import com.wecandoit.common.security.LoginMemberId;
 import com.wecandoit.friend.dto.ReceivedFriendRequestResponse;
 import com.wecandoit.friend.dto.SendFriendRequest;
@@ -8,8 +7,8 @@ import com.wecandoit.friend.dto.SentFriendRequestResponse;
 import com.wecandoit.friend.service.FriendRequestCommandService;
 import com.wecandoit.friend.service.FriendRequestReadService;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -39,19 +38,17 @@ public class FriendRequestController {
     }
 
     @GetMapping
-    public ResponseEntity<PageResponse<ReceivedFriendRequestResponse>> getReceivedRequests(
-            @LoginMemberId Long memberId,
-            Pageable pageable
+    public ResponseEntity<List<ReceivedFriendRequestResponse>> getReceivedRequests(
+            @LoginMemberId Long memberId
     ) {
-        return ResponseEntity.ok(friendRequestReadService.getReceivedRequests(memberId, pageable));
+        return ResponseEntity.ok(friendRequestReadService.getReceivedRequests(memberId));
     }
 
     @GetMapping("/sent")
-    public ResponseEntity<PageResponse<SentFriendRequestResponse>> getSentRequests(
-            @LoginMemberId Long memberId,
-            Pageable pageable
+    public ResponseEntity<List<SentFriendRequestResponse>> getSentRequests(
+            @LoginMemberId Long memberId
     ) {
-        return ResponseEntity.ok(friendRequestReadService.getSentRequests(memberId, pageable));
+        return ResponseEntity.ok(friendRequestReadService.getSentRequests(memberId));
     }
 
     @DeleteMapping("/{requestId}")
