@@ -72,6 +72,10 @@ public class Room extends BaseEntity {
         return status == GameRoomStatus.READY;
     }
 
+    public boolean isCompleted() {
+        return status == GameRoomStatus.COMPLETED;
+    }
+
     public void start() {
         this.status = GameRoomStatus.IN_PROGRESS;
         this.startedAt = LocalDateTime.now();
