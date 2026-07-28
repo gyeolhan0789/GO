@@ -86,7 +86,8 @@ class BingoCellVerificationResultServiceTest {
         assertThat(cell.getVerificationStatus()).isEqualTo(BingoCellVerificationStatus.REJECTED);
         assertThat(cell.getRejectionReason()).isEqualTo("인증 이미지가 조건과 다릅니다.");
         assertThat(cell.getCompletedAt()).isNull();
-        then(gameCompletionService).should(Mockito.never()).evaluateAndCompleteIfNeeded(Mockito.anyLong());
+        then(gameCompletionService).should(Mockito.never())
+                .evaluateAndCompleteIfNeeded(Mockito.anyLong(), Mockito.anyLong());
     }
 
     @Test

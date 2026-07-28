@@ -1,26 +1,25 @@
 package com.wecandoit.game.service;
 
 import com.wecandoit.bingo.domain.BingoBoard;
-import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.domain.BingoLineCounter;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
-import com.wecandoit.bingo.service.BingoReadService;
+import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.cash.domain.CashHistory;
 import com.wecandoit.cash.repository.CashHistoryRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
-import com.wecandoit.game.domain.GameStatus;
-import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.domain.GameResult;
 import com.wecandoit.game.domain.GameResultParticipant;
-import com.wecandoit.game.repository.GameResultParticipantRepository;
-import com.wecandoit.game.repository.GameResultRepository;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomMember;
+import com.wecandoit.game.repository.GameRepository;
+import com.wecandoit.game.repository.GameResultParticipantRepository;
+import com.wecandoit.game.repository.GameResultRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.member.domain.Member;
@@ -40,8 +39,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class GameCompletionService {
 
     private static final long BINGO_REWARD_CASH = 500L;
-    private static final List<BingoBoardStatus> INACTIVE_BOARD_STATUSES =
-            List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED);
 
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
@@ -49,15 +46,11 @@ public class GameCompletionService {
     private final GameResultRepository gameResultRepository;
     private final GameResultParticipantRepository gameResultParticipantRepository;
     private final BingoBoardRepository bingoBoardRepository;
-    private final BingoReadService bingoReadService;
+    private final BingoCellRepository bingoCellRepository;
     private final MemberRepository memberRepository;
     private final CashHistoryRepository cashHistoryRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final NotificationMessageFactory notificationMessageFactory;
-
-    public void evaluateAndCompleteIfNeeded(Long gameId) {
-        evaluateAndCompleteIfNeeded(gameId, null);
-    }
 
     public void evaluateAndCompleteIfNeeded(Long gameId, Long completedBoardId) {
         Game game = gameRepository.findByIdForUpdate(gameId)
@@ -74,9 +67,7 @@ public class GameCompletionService {
             return;
         }
 
-        List<BingoCell> cells = completedBoardId == null
-                ? bingoReadService.getActiveBoardCells(gameId)
-                : bingoReadService.getBoardCells(completedBoardId);
+        List<BingoCell> cells = bingoCellRepository.findAllByBoardId(completedBoardId);
         if (room.getMode() != GameMode.BATTLE
                 && cells.stream().anyMatch(cell -> cell.getCompletedAt() == null)) {
             return;
@@ -87,20 +78,34 @@ public class GameCompletionService {
             return;
         }
 
-        BingoBoard board = findBoardForCompletion(gameId, completedBoardId);
-
-        game.complete();
-        board.complete();
+        BingoBoard completedBoard = findBoardForCompletion(gameId, completedBoardId);
+        List<BingoBoard> boards = room.getMode() == GameMode.BATTLE
+                ? bingoBoardRepository.findAllByGameIdOrderByIdAsc(gameId)
+                : List.of(completedBoard);
+        if (room.getMode() == GameMode.BATTLE && boards.size() != GameMode.BATTLE.getMaximumParticipants()) {
+            throw new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND);
+        }
 
         int completedMissionCount = (int) cells.stream()
                 .filter(cell -> cell.getCompletedAt() != null)
                 .count();
 
-        Map<Long, Long> completedCountByMember = cells.stream()
-                .filter(cell -> cell.getCompletedAt() != null)
-                .collect(Collectors.groupingBy(BingoCell::getMemberId, Collectors.counting()));
+        Map<Long, Integer> completedCountByMember = room.getMode() == GameMode.BATTLE
+                ? countBattleCompletedMissions(boards)
+                : cells.stream()
+                        .filter(cell -> cell.getCompletedAt() != null)
+                        .collect(Collectors.groupingBy(
+                                BingoCell::getMemberId,
+                                Collectors.collectingAndThen(Collectors.counting(), Long::intValue)
+                        ));
 
         List<RoomMember> members = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId);
+        Long winnerMemberId = room.getMode() == GameMode.BATTLE
+                ? getBoardOwnerMemberId(completedBoard)
+                : null;
+
+        game.complete();
+        boards.forEach(BingoBoard::complete);
         gameResultRepository.saveAndFlush(GameResult.create(
                 game.getId(),
                 roomId,
@@ -114,9 +119,11 @@ public class GameCompletionService {
                 .sorted(java.util.Comparator.comparing(RoomMember::getMemberId))
                 .map(member -> updateMemberResultAndGrantReward(
                         member,
-                        completedCountByMember.getOrDefault(member.getMemberId(), 0L),
+                        completedCountByMember.getOrDefault(member.getMemberId(), 0),
                         roomId,
-                        game.getId()
+                        game.getId(),
+                        room.getMode(),
+                        winnerMemberId
                 ))
                 .toList();
         gameResultParticipantRepository.saveAll(participants);
@@ -127,10 +134,6 @@ public class GameCompletionService {
     }
 
     private BingoBoard findBoardForCompletion(Long gameId, Long boardId) {
-        if (boardId == null) {
-            return bingoBoardRepository.findActiveBoardForUpdate(gameId, INACTIVE_BOARD_STATUSES)
-                    .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
-        }
         return bingoBoardRepository.findByIdForUpdate(boardId)
                 .filter(board -> board.getGameId().equals(gameId))
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
@@ -138,18 +141,47 @@ public class GameCompletionService {
 
     private GameResultParticipant updateMemberResultAndGrantReward(
             RoomMember member,
-            long completedCount,
+            int completedCount,
             Long roomId,
-            Long gameId
+            Long gameId,
+            GameMode mode,
+            Long winnerMemberId
     ) {
-        member.updateCompletedMissionCount((int) completedCount);
-        grantReward(member.getMemberId(), gameId, roomId);
+        member.updateCompletedMissionCount(completedCount);
+        boolean result = mode != GameMode.BATTLE || member.getMemberId().equals(winnerMemberId);
+        long rewardCash = result ? BINGO_REWARD_CASH : 0L;
+        if (rewardCash > 0) {
+            grantReward(member.getMemberId(), gameId, roomId);
+        }
         return GameResultParticipant.create(
                 gameId,
                 member.getMemberId(),
-                (int) completedCount,
-                BINGO_REWARD_CASH
+                completedCount,
+                rewardCash,
+                result
         );
+    }
+
+    private Map<Long, Integer> countBattleCompletedMissions(List<BingoBoard> boards) {
+        Map<Long, List<BingoCell>> cellsByBoardId = bingoCellRepository.findAllByBoardIdIn(
+                        boards.stream().map(BingoBoard::getId).toList()
+                )
+                .stream()
+                .collect(Collectors.groupingBy(BingoCell::getBoardId));
+        return boards.stream()
+                .collect(Collectors.toMap(
+                        this::getBoardOwnerMemberId,
+                        board -> (int) cellsByBoardId.getOrDefault(board.getId(), List.of()).stream()
+                                .filter(cell -> cell.getCompletedAt() != null)
+                                .count()
+                ));
+    }
+
+    private Long getBoardOwnerMemberId(BingoBoard board) {
+        if (board.getRoomMember() == null) {
+            throw new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND);
+        }
+        return board.getRoomMember().getMemberId();
     }
 
     private void grantReward(Long memberId, Long gameId, Long roomId) {

@@ -14,12 +14,11 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
-import com.wecandoit.game.domain.GameResult;
 import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomMember;
 import com.wecandoit.game.repository.GameRepository;
-import com.wecandoit.game.repository.GameResultRepository;
+import com.wecandoit.game.repository.GameResultParticipantRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.mission.domain.Mission;
@@ -43,7 +42,7 @@ public class BingoReadService {
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
     private final GameRepository gameRepository;
-    private final GameResultRepository gameResultRepository;
+    private final GameResultParticipantRepository gameResultParticipantRepository;
     private final BingoBoardRepository bingoBoardRepository;
     private final BingoCellRepository bingoCellRepository;
     private final MissionRepository missionRepository;
@@ -62,12 +61,10 @@ public class BingoReadService {
         List<BingoCell> cells = bingoCellRepository.findAllByBoardId(board.getId());
         List<BingoCellResponse> cellResponses = toCellResponses(cells);
 
-        int approvedCellCount = (int) cells.stream()
-                .filter(cell -> cell.getCompletedAt() != null)
-                .count();
+        int approvedCellCount = countApprovedCells(cells);
         int completedBingoCount = BingoLineCounter.countCompletedLines(room.getBoardSize(), cells);
         boolean completed = !cells.isEmpty() && approvedCellCount == cells.size();
-        boolean canRenew = completed && room.getMode() != GameMode.BATTLE && room.isHost(memberId);
+        boolean canRenew = completed && room.isHost(memberId);
         return BingoBoardResponse.of(
                 board,
                 roomId,
@@ -115,8 +112,8 @@ public class BingoReadService {
                 toBattleParticipantProgress(myRoomMember, myBoard, room, myCells);
         BattleParticipantProgressResponse opponentProgress =
                 toBattleParticipantProgress(opponentRoomMember, opponentBoard, room, opponentCells);
-        Boolean result = gameResultRepository.findByGameId(game.getId())
-                .map(GameResult::isResult)
+        Boolean result = gameResultParticipantRepository.findByGameIdAndMemberId(game.getId(), memberId)
+                .map(participant -> participant.getResult())
                 .orElse(null);
 
         return BingoBoardResponse.ofBattle(
@@ -135,19 +132,6 @@ public class BingoReadService {
                         result
                 )
         );
-    }
-
-    /**
-     * 활성 보드의 셀 목록을 반환한다. 멤버십 검증 없이 내부 서비스(예: GameCompletionService)가
-     * 게임 완료 판정을 위해 재사용하는 조회 전용 메서드다.
-     */
-    public List<BingoCell> getActiveBoardCells(Long gameId) {
-        BingoBoard board = findActiveBoard(gameId);
-        return bingoCellRepository.findAllByBoardId(board.getId());
-    }
-
-    public List<BingoCell> getBoardCells(Long boardId) {
-        return bingoCellRepository.findAllByBoardId(boardId);
     }
 
     private void validateMember(Long memberId, Long roomId) {

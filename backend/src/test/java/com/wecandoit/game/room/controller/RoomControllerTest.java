@@ -301,7 +301,8 @@ class RoomControllerTest {
                                 "방장",
                                 true,
                                 2,
-                                joinedAt
+                                joinedAt,
+                                null
                         ))
                 ));
 
@@ -403,7 +404,8 @@ class RoomControllerTest {
                         "방장",
                         true,
                         2,
-                        joinedAt
+                        joinedAt,
+                        null
                 )));
 
         // when & then

@@ -7,7 +7,8 @@ public record GameResultParticipantResponse(
         Long memberId,
         String nickname,
         int completedMissionCount,
-        long rewardCash
+        long rewardCash,
+        Boolean result
 ) {
 
     public static GameResultParticipantResponse of(GameResultParticipant participant, Member member) {
@@ -15,7 +16,8 @@ public record GameResultParticipantResponse(
                 member.getId(),
                 member.getNickname(),
                 participant.getCompletedMissionCount(),
-                participant.getRewardCash()
+                participant.getRewardCash(),
+                participant.getResult()
         );
     }
 }

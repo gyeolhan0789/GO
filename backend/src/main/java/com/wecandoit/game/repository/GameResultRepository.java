@@ -9,8 +9,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface GameResultRepository extends JpaRepository<GameResult, Long> {
 
-    Optional<GameResult> findByGameId(Long gameId);
-
     Optional<GameResult> findFirstByRoomIdOrderByCreatedAtDescIdDesc(Long roomId);
 
     Slice<GameResult> findByRoomIdInOrderByCreatedAtDesc(List<Long> roomIds, Pageable pageable);

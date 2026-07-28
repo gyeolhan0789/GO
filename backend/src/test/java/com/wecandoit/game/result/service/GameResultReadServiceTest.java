@@ -222,7 +222,7 @@ class GameResultReadServiceTest {
     }
 
     private GameResultParticipant participant(Long gameId, Long memberId, int completedMissionCount) {
-        return GameResultParticipant.create(gameId, memberId, completedMissionCount, 500L);
+        return GameResultParticipant.create(gameId, memberId, completedMissionCount, 500L, true);
     }
 
     private Member member(Long memberId, String nickname) {
