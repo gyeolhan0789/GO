@@ -55,7 +55,23 @@ public class AuthService {
         return tokenIssuer.issue(member.getId(), member.getRole().name());
     }
 
-    public void logout(Long memberId, String accessToken) {
+    public void logout(Long memberId, String accessToken, String refreshToken) {
+        TokenValidationResult validationResult = jwtProvider.validateRefreshToken(refreshToken);
+        if (validationResult instanceof TokenValidationResult.Invalid) {
+            throw new CustomException(ErrorCode.REFRESH_TOKEN_INVALID);
+        }
+
+        JwtClaims refreshTokenClaims = ((TokenValidationResult.Valid) validationResult).claims();
+        if (!memberId.equals(refreshTokenClaims.memberId())) {
+            throw new CustomException(ErrorCode.REFRESH_TOKEN_INVALID);
+        }
+
+        String storedRefreshToken = tokenRepository.findRefreshToken(memberId).orElse(null);
+        if (storedRefreshToken != null && !storedRefreshToken.equals(refreshToken)) {
+            tokenRepository.deleteRefreshToken(memberId);
+            throw new CustomException(ErrorCode.REFRESH_TOKEN_INVALID);
+        }
+
         tokenRepository.deleteRefreshToken(memberId);
         if (jwtProvider.validateAccessToken(accessToken) instanceof TokenValidationResult.Valid valid) {
             tokenRepository.blacklistAccessToken(valid.claims());

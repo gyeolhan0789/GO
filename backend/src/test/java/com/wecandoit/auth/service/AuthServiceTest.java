@@ -168,9 +168,11 @@ class AuthServiceTest {
     void logoutDeletesStoredRefreshTokenAndBlacklistsAccessToken() {
         // given
         String accessToken = jwtProvider.createAccessToken(1L, "USER");
+        String refreshToken = jwtProvider.createRefreshToken(1L, "USER");
+        given(tokenRepository.findRefreshToken(1L)).willReturn(Optional.of(refreshToken));
 
         // when
-        authService.logout(1L, accessToken);
+        authService.logout(1L, accessToken, refreshToken);
 
         // then
         then(tokenRepository).should().deleteRefreshToken(1L);
@@ -183,9 +185,28 @@ class AuthServiceTest {
     @DisplayName("로그아웃 시 Access Token이 유효하지 않으면 블랙리스트 등록을 건너뛴다")
     void logoutSkipsBlacklistingWhenAccessTokenIsInvalid() {
         // when
-        authService.logout(1L, "invalid-token");
+        String refreshToken = jwtProvider.createRefreshToken(1L, "USER");
+        given(tokenRepository.findRefreshToken(1L)).willReturn(Optional.of(refreshToken));
+
+        authService.logout(1L, "invalid-token", refreshToken);
 
         // then
+        then(tokenRepository).should().deleteRefreshToken(1L);
+        then(tokenRepository).should(never()).blacklistAccessToken(Mockito.any());
+    }
+
+    @Test
+    @DisplayName("로그아웃 요청의 리프레시 토큰이 저장된 값과 다르면 저장된 토큰을 삭제하고 거절한다")
+    void logoutDeletesStoredRefreshTokenAndRejectsOnRefreshTokenMismatch() {
+        // given
+        String refreshToken = jwtProvider.createRefreshToken(1L, "USER");
+        given(tokenRepository.findRefreshToken(1L)).willReturn(Optional.of("other-refresh-token"));
+
+        // when & then
+        assertThatThrownBy(() -> authService.logout(1L, "invalid-access-token", refreshToken))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.REFRESH_TOKEN_INVALID);
         then(tokenRepository).should().deleteRefreshToken(1L);
         then(tokenRepository).should(never()).blacklistAccessToken(Mockito.any());
     }
