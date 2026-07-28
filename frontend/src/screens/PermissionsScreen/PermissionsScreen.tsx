@@ -27,8 +27,7 @@ import {
   requestSamsungHealthPermissions,
 } from '../../shared/lib/samsungHealth';
 // 개발 단계: 권한 완료 저장 비활성화로 잠시 미사용.
-// TODO(권한 게이트 복구): 아래 import/complete 주석 해제.
-// import { usePermissionsStatus } from '../../shared/hooks/usePermissionsStatus';
+import { usePermissionsStatus } from '../../shared/hooks/usePermissionsStatus';
 import { PermissionCard } from './components/PermissionCard';
 
 type PermissionsNavigation = NativeStackNavigationProp<
@@ -72,7 +71,7 @@ const PERMISSION_CARDS: PermissionCardData[] = [
 
 export function PermissionsScreen() {
   const navigation = useNavigation<PermissionsNavigation>();
-  // const { complete } = usePermissionsStatus();
+  const { complete } = usePermissionsStatus();
 
   const [results, setResults] = useState<
     Partial<Record<PermissionKey, PermissionResult>>
@@ -123,11 +122,13 @@ export function PermissionsScreen() {
 
   // 권한 허용 이후 로그인으로 이동한다. reset이라 뒤로가기로 권한 화면에
   // 되돌아올 수 없고, 로그인 화면에도 뒤로가기가 남지 않는다.
-  const goToLogin = useCallback(() => {
-    // 개발 단계: 완료 저장 생략. TODO(권한 게이트 복구): await complete(); 복원.
-    // await complete();
+  const goToLogin = useCallback(async () => {
+    // 저장이 실패해도 진행은 막지 않는다. 다음 실행에서 이 화면을 한 번 더 보게
+    // 될 뿐이고(권한은 이미 허용돼 있어 바로 넘어간다), 여기서 세워두는 편이 더
+    // 나쁘다.
+    await complete().catch(() => {});
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-  }, [navigation]);
+  }, [complete, navigation]);
 
   const handleRequest = useCallback(async () => {
     const next = await requestAllPermissions();
