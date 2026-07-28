@@ -1,12 +1,9 @@
 import { ApiError } from './ApiError';
 import { getAccessToken } from './accessTokenStore';
+import { BASE_URL } from './baseUrl';
+import { refreshAccessToken } from './refreshAccessToken';
 
-// `.env`가 없을 때의 개발 기본값.
-// Android(에뮬레이터/실기기)는 Metro와 같은 방식으로 `adb reverse tcp:8080 tcp:8080`을
-// 걸어야 이 주소가 호스트로 터널된다. `npm run android:reverse` 참고.
-const DEFAULT_BASE_URL = 'http://localhost:8080';
-
-const BASE_URL = API_BASE_URL || DEFAULT_BASE_URL;
+const UNAUTHORIZED_STATUS = 401;
 
 type RequestOptions = Omit<RequestInit, 'body'> & { body?: unknown };
 

@@ -20,6 +20,9 @@ export function jsonResponse(status: number, body: MockResponseBody = null) {
       }
       return body;
     },
+    // client는 성공 응답 본문을 text()로 읽어 파싱한다(204/201 등 본문 없는 성공을
+    // 상태 코드가 아니라 본문 유무로 판단하기 위해). 본문이 없으면 빈 문자열.
+    text: async () => (body === null ? '' : JSON.stringify(body)),
   } as unknown as Response;
 }
 
