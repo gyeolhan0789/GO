@@ -20,6 +20,12 @@ import {
   setAccessToken,
 } from '../src/shared/api/accessTokenStore';
 import {
+  LOGIN_HISTORY_QUERY_KEY,
+  ONBOARDING_QUERY_KEY,
+  PERMISSIONS_GRANTED_QUERY_KEY,
+  PERMISSIONS_QUERY_KEY,
+} from '../src/shared/api/deviceQueries';
+import {
   readRefreshToken,
   saveRefreshToken,
 } from '../src/shared/api/refreshTokenStore';
@@ -150,11 +156,14 @@ function createQueryClient() {
   });
 }
 
-async function render(children: React.ReactNode) {
+async function render(
+  children: React.ReactNode,
+  client: QueryClient = createQueryClient(),
+) {
   await act(async () => {
     renderer = ReactTestRenderer.create(
       <SafeAreaProvider initialMetrics={INITIAL_METRICS}>
-        <QueryClientProvider client={createQueryClient()}>
+        <QueryClientProvider client={client}>
           <AuthProvider>{children}</AuthProvider>
         </QueryClientProvider>
       </SafeAreaProvider>,
@@ -169,7 +178,10 @@ async function render(children: React.ReactNode) {
 }
 
 /** 저장된 리프레시 토큰으로 세션이 복구된 상태에서 시작한다. */
-async function renderAuthenticated(children: React.ReactNode) {
+async function renderAuthenticated(
+  children: React.ReactNode,
+  client?: QueryClient,
+) {
   await saveRefreshToken('rotated-refresh');
   fetchMock.mockResolvedValueOnce(
     jsonResponse(200, {
@@ -178,7 +190,7 @@ async function renderAuthenticated(children: React.ReactNode) {
     }),
   );
 
-  const tree = await render(children);
+  const tree = await render(children, client);
   expect(getAccessToken()).toBe('access-token');
   return tree;
 }
@@ -267,6 +279,30 @@ describe('useLogoutMutation', () => {
     expect(statusOf(tree)).toBe('unauthenticated');
     expect(getAccessToken()).toBeNull();
     expect(onError).not.toHaveBeenCalled();
+  });
+});
+
+describe('로그아웃 시 쿼리 캐시', () => {
+  test('계정 데이터는 비우고 기기 단위 값은 남긴다', async () => {
+    const client = createQueryClient();
+    // 계정에 속한 캐시와 기기에 속한 캐시를 나란히 심어 둔다.
+    client.setQueryData(['friends'], [{ id: 1 }]);
+    client.setQueryData(ONBOARDING_QUERY_KEY, true);
+    client.setQueryData(PERMISSIONS_QUERY_KEY, true);
+    client.setQueryData(PERMISSIONS_GRANTED_QUERY_KEY, true);
+    client.setQueryData(LOGIN_HISTORY_QUERY_KEY, true);
+
+    const tree = await renderAuthenticated(<LogoutProbe />, client);
+    fetchMock.mockResolvedValueOnce(jsonResponse(204));
+
+    await pressLogout(tree);
+
+    expect(client.getQueryData(['friends'])).toBeUndefined();
+    // 진입 게이트를 지우면 RootNavigator가 미완료로 읽어 온보딩으로 되돌아간다.
+    expect(client.getQueryData(ONBOARDING_QUERY_KEY)).toBe(true);
+    expect(client.getQueryData(PERMISSIONS_QUERY_KEY)).toBe(true);
+    expect(client.getQueryData(PERMISSIONS_GRANTED_QUERY_KEY)).toBe(true);
+    expect(client.getQueryData(LOGIN_HISTORY_QUERY_KEY)).toBe(true);
   });
 });
 

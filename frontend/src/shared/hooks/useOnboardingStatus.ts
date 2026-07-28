@@ -1,11 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { ONBOARDING_QUERY_KEY } from '../api/deviceQueries';
 import {
   getOnboardingCompleted,
   setOnboardingCompleted,
 } from '../lib/onboardingStorage';
-
-const ONBOARDING_QUERY_KEY = ['onboarding', 'completed'] as const;
 
 type UseOnboardingStatusResult = {
   isLoading: boolean;
