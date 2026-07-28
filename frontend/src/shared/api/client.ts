@@ -1,11 +1,19 @@
-import { ApiError } from './ApiError';
+import { ApiError, UNAUTHORIZED_STATUS } from './ApiError';
 import { getAccessToken } from './accessTokenStore';
 import { BASE_URL } from './baseUrl';
 import { refreshAccessToken } from './refreshAccessToken';
 
-const UNAUTHORIZED_STATUS = 401;
-
 type RequestOptions = Omit<RequestInit, 'body'> & { body?: unknown };
+
+type SendOptions = {
+  /**
+   * 401일 때 재발급하고 같은 요청을 한 번 더 보낼지. 기본은 true.
+   *
+   * 재시도는 Authorization 헤더만 갈아끼우고 바디는 그대로 다시 보낸다. 재발급으로
+   * 회전되는 값을 바디에 싣는 요청은 이 스위치를 끄고 직접 재시도해야 한다.
+   */
+  retryOnUnauthorized?: boolean;
+};
 
 async function readErrorMessage(response: Response) {
   const body = (await response.json().catch(() => null)) as {
@@ -38,6 +46,7 @@ function send(
 async function request<T>(
   path: string,
   options: RequestOptions = {},
+  { retryOnUnauthorized = true }: SendOptions = {},
 ): Promise<T> {
   const accessToken = getAccessToken();
 
@@ -46,7 +55,11 @@ async function request<T>(
   // 토큰을 실어 보냈는데도 401이면 액세스 토큰이 만료된 것이므로, 쿠키에 남은
   // refreshToken으로 한 번만 재발급하고 같은 요청을 다시 보낸다. 애초에 토큰이
   // 없었다면(로그인 실패 등) 재발급할 이유가 없어 그대로 에러를 낸다.
-  if (accessToken !== null && response.status === UNAUTHORIZED_STATUS) {
+  if (
+    retryOnUnauthorized &&
+    accessToken !== null &&
+    response.status === UNAUTHORIZED_STATUS
+  ) {
     const refreshed = await refreshAccessToken();
 
     if (refreshed) {
@@ -70,8 +83,8 @@ async function request<T>(
 
 export const apiClient = {
   get: <T>(path: string) => request<T>(path, { method: 'GET' }),
-  post: <T>(path: string, body?: unknown) =>
-    request<T>(path, { method: 'POST', body }),
+  post: <T>(path: string, body?: unknown, sendOptions?: SendOptions) =>
+    request<T>(path, { method: 'POST', body }, sendOptions),
   put: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'PUT', body }),
   patch: <T>(path: string, body?: unknown) =>

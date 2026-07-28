@@ -1,13 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import {
+  PERMISSIONS_GRANTED_QUERY_KEY,
+  PERMISSIONS_QUERY_KEY,
+} from '../api/deviceQueries';
 import { areAllPermissionsGranted } from '../lib/permissions';
 import {
   getPermissionsCompleted,
   setPermissionsCompleted,
 } from '../lib/permissionsStorage';
-
-const PERMISSIONS_QUERY_KEY = ['permissions', 'completed'] as const;
-const PERMISSIONS_GRANTED_QUERY_KEY = ['permissions', 'granted'] as const;
 
 type UsePermissionsStatusResult = {
   isLoading: boolean;

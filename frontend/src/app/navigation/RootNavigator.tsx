@@ -43,9 +43,9 @@ export function RootNavigator() {
   //   온보딩 봤고 권한 미완료/회수     -> Permissions -> Login
   //   온보딩·권한 통과, 토큰 없음      -> Login
   //
-  // 세션이 중간에 끊긴 경우도 같은 규칙으로 Login에 도달한다(온보딩·권한은 이미
-  // 통과 상태라 건너뛴다). Navigator에 등록되지 않은 이름을 넘기면 에러가 나므로
-  // 분기마다 실제로 등록된 화면 중에서만 고른다.
+  // 로그아웃이나 세션 만료로 인증이 풀린 경우도 같은 규칙으로 Login에 도달한다
+  // (온보딩·권한은 이미 통과 상태라 건너뛴다). Navigator에 등록되지 않은 이름을
+  // 넘기면 에러가 나므로 분기마다 실제로 등록된 화면 중에서만 고른다.
   const initialRouteName: keyof RootStackParamList = isAuthenticated
     ? 'Main'
     : !onboarding.hasCompleted
@@ -56,6 +56,9 @@ export function RootNavigator() {
 
   return (
     <Stack.Navigator
+      // initialRouteName은 Navigator 최초 마운트에만 읽힌다. key로 분기를 갈라
+      // 새로 마운트하지 않으면, 인증이 풀릴 때 첫 등록 화면(Onboarding)으로 간다.
+      key={isAuthenticated ? 'authenticated' : 'unauthenticated'}
       initialRouteName={initialRouteName}
       screenOptions={{ headerShown: false }}
     >

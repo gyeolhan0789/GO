@@ -30,6 +30,7 @@ type AuthState = {
   status: AuthStatus;
   isAuthenticated: boolean;
   signIn: (accessToken: string, refreshToken: string) => Promise<void>;
+  signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -77,6 +78,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
     [],
   );
 
+  /** 이 기기의 세션을 끝낸다. 서버 로그아웃의 성공 여부와 무관하게 불린다. */
+  const signOut = useCallback(async () => {
+    // 액세스 토큰을 먼저 비우면 남아 있는 리프레시 토큰으로 세션이 되살아날 틈이
+    // 생긴다. 디스크를 먼저 정리한다.
+    await clearRefreshToken();
+    setAccessToken(null);
+  }, []);
+
   const value = useMemo<AuthState>(() => {
     const status: AuthStatus = isRestoring
       ? 'restoring'
@@ -88,8 +97,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
       status,
       isAuthenticated: status === 'authenticated',
       signIn,
+      signOut,
     };
-  }, [accessToken, isRestoring, signIn]);
+  }, [accessToken, isRestoring, signIn, signOut]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
