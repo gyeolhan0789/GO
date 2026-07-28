@@ -44,6 +44,7 @@ public enum ErrorCode {
     ROOM_NOT_READY(HttpStatus.CONFLICT, "READY 상태의 방에서만 게임을 시작할 수 있습니다."),
     ROOM_TARGET_STEP_COUNT_REQUIRED(HttpStatus.BAD_REQUEST, "협동 모드에서는 목표 걸음 수가 필수입니다."),
     ROOM_TARGET_STEP_COUNT_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "개인 모드에서는 목표 걸음 수를 설정할 수 없습니다."),
+    GAME_NOT_FOUND(HttpStatus.NOT_FOUND, "게임을 찾을 수 없습니다."),
     GAME_NOT_COMPLETED(HttpStatus.CONFLICT, "완료되지 않은 게임입니다."),
 
     // Mission

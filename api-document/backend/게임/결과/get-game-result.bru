@@ -23,20 +23,38 @@ docs {
   ```json
   {
     "roomId": 1,
+    "mode": "COOPERATE",
     "result": true,
     "boardSize": 3,
+    "targetBingoCount": 3,
     "bingoCount": 3,
-    "completedMissionCount": 9,
-    "rewardCash": 500
+    "completedMissionCount": 5,
+    "rewardCash": 500,
+    "participants": [
+      {
+        "memberId": 1,
+        "nickname": "host",
+        "completedMissionCount": 3,
+        "rewardCash": 500
+      },
+      {
+        "memberId": 2,
+        "nickname": "participant",
+        "completedMissionCount": 2,
+        "rewardCash": 500
+      }
+    ]
   }
   ```
 
   ### 비즈니스 규칙
   - `result`는 현재 항상 `true`다(패배·타임아웃 종료 경로가 아직 없어 완료된 게임은 모두 승리로 기록된다).
   - `boardSize`는 N x N 빙고판에서 한 변의 길이 N이다.
-  - 싱글·협동 모드에서는 `completedMissionCount`로 성공한 칸 수를 확인한다.
-  - 경쟁 모드에서는 `bingoCount`로 성공한 빙고 줄 수를 확인한다.
-  - `rewardCash`는 게임 완료 시 지급된 보상 캐시 총액이다.
+  - 협동 모드는 공동 보드의 `bingoCount`가 `targetBingoCount` 이상이 되면 완료된다.
+  - `completedMissionCount`는 공동 보드에서 승인된 전체 미션 수다.
+  - `participants[].completedMissionCount`는 해당 참여자가 승인받은 미션 수다.
+  - `rewardCash`와 `participants[].rewardCash`는 참여자 1인당 지급된 보상 캐시다.
+  - 목표 빙고 달성 전에는 결과가 생성되지 않으며 `409 GAME_NOT_COMPLETED`를 반환한다.
 
   ### 에러 케이스
 

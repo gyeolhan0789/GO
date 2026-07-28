@@ -24,8 +24,8 @@ public class BingoBoard extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "room_id", nullable = false)
-    private Long roomId;
+    @Column(name = "game_id", nullable = false)
+    private Long gameId;
 
     @Column(name = "board_size", nullable = false)
     private int boardSize;
@@ -37,14 +37,14 @@ public class BingoBoard extends BaseEntity {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
-    private BingoBoard(Long roomId, int boardSize) {
-        this.roomId = roomId;
+    private BingoBoard(Long gameId, int boardSize) {
+        this.gameId = gameId;
         this.boardSize = boardSize;
         this.status = BingoBoardStatus.IN_PROGRESS;
     }
 
-    public static BingoBoard create(Long roomId, int boardSize) {
-        return new BingoBoard(roomId, boardSize);
+    public static BingoBoard create(Long gameId, int boardSize) {
+        return new BingoBoard(gameId, boardSize);
     }
 
     public void expire() {

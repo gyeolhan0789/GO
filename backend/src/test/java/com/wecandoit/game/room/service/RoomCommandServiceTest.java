@@ -8,14 +8,17 @@ import static org.mockito.BDDMockito.then;
 import com.wecandoit.bingo.service.BingoCommandService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
-import com.wecandoit.game.room.controller.request.CreateRoomRequest;
-import com.wecandoit.game.room.controller.response.CreateRoomResponse;
-import com.wecandoit.game.room.domain.GameMode;
-import com.wecandoit.game.room.domain.GameRoomStatus;
-import com.wecandoit.game.room.domain.Room;
-import com.wecandoit.game.room.domain.RoomMember;
-import com.wecandoit.game.room.repository.RoomMemberRepository;
-import com.wecandoit.game.room.repository.RoomRepository;
+import com.wecandoit.game.domain.Game;
+import com.wecandoit.game.repository.GameRepository;
+import com.wecandoit.game.controller.request.CreateRoomRequest;
+import com.wecandoit.game.controller.response.CreateRoomResponse;
+import com.wecandoit.game.domain.GameMode;
+import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.domain.Room;
+import com.wecandoit.game.domain.RoomMember;
+import com.wecandoit.game.repository.RoomMemberRepository;
+import com.wecandoit.game.repository.RoomRepository;
+import com.wecandoit.game.service.RoomCommandService;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.notification.domain.NotificationType;
@@ -24,6 +27,7 @@ import com.wecandoit.notification.event.NotificationRequestedEvent;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -46,6 +50,8 @@ class RoomCommandServiceTest {
     @Mock
     private RoomMemberRepository roomMemberRepository;
     @Mock
+    private GameRepository gameRepository;
+    @Mock
     private BingoCommandService bingoCommandService;
     @Mock
     private MemberRepository memberRepository;
@@ -58,11 +64,18 @@ class RoomCommandServiceTest {
         roomCommandService = new RoomCommandService(
                 roomRepository,
                 roomMemberRepository,
+                gameRepository,
                 bingoCommandService,
                 memberRepository,
                 eventPublisher,
                 new NotificationMessageFactory()
         );
+        AtomicLong gameIdSequence = new AtomicLong(200L);
+        Mockito.lenient().when(gameRepository.save(Mockito.any(Game.class))).thenAnswer(invocation -> {
+            Game game = invocation.getArgument(0);
+            ReflectionTestUtils.setField(game, "id", gameIdSequence.getAndIncrement());
+            return game;
+        });
     }
 
     @Test
@@ -134,7 +147,7 @@ class RoomCommandServiceTest {
         assertThat(roomCaptor.getValue().getTargetStepCount()).isNull();
         assertThat(roomCaptor.getValue().getStatus()).isEqualTo(GameRoomStatus.IN_PROGRESS);
         assertThat(response.targetStepCount()).isNull();
-        then(bingoCommandService).should().generateInitialBoard(roomCaptor.getValue());
+        then(bingoCommandService).should().generateInitialBoard(roomCaptor.getValue(), 200L);
     }
 
     @Test
@@ -397,7 +410,32 @@ class RoomCommandServiceTest {
         // then
         assertThat(room.getStatus()).isEqualTo(GameRoomStatus.IN_PROGRESS);
         assertThat(room.getStartedAt()).isNotNull();
-        then(bingoCommandService).should().generateInitialBoard(room);
+        then(bingoCommandService).should().generateInitialBoard(room, 200L);
+    }
+
+    @Test
+    void startGameCreatesASeparateGameForEachRoundInTheSameRoom() {
+        Room room = Room.create(1L, GameMode.COOPERATE, 3, DEFAULT_BOARD_SIZE, 10000);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        ReflectionTestUtils.setField(room, "status", GameRoomStatus.READY);
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomMemberRepository.countByRoomId(10L)).willReturn(2L);
+
+        roomCommandService.startGame(1L, 10L);
+        room.finishGame(2L);
+        roomCommandService.startGame(1L, 10L);
+
+        ArgumentCaptor<Game> gameCaptor = ArgumentCaptor.forClass(Game.class);
+        then(gameRepository).should(Mockito.times(2)).save(gameCaptor.capture());
+        assertThat(gameCaptor.getAllValues())
+                .extracting(Game::getId)
+                .containsExactly(200L, 201L);
+        assertThat(gameCaptor.getAllValues())
+                .extracting(Game::getRoomId)
+                .containsOnly(10L);
+        then(bingoCommandService).should().generateInitialBoard(room, 200L);
+        then(bingoCommandService).should().generateInitialBoard(room, 201L);
     }
 
     @Test
@@ -607,7 +645,7 @@ class RoomCommandServiceTest {
                 () -> roomCommandService.startGame(1L, 10L),
                 ErrorCode.ROOM_NOT_READY
         );
-        then(bingoCommandService).should().generateInitialBoard(room);
+        then(bingoCommandService).should().generateInitialBoard(room, 200L);
     }
 
     private void assertErrorCode(Runnable action, ErrorCode errorCode) {

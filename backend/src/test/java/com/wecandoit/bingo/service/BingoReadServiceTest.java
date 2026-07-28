@@ -13,11 +13,14 @@ import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
-import com.wecandoit.game.room.domain.GameMode;
-import com.wecandoit.game.room.domain.GameRoomStatus;
-import com.wecandoit.game.room.domain.Room;
-import com.wecandoit.game.room.repository.RoomMemberRepository;
-import com.wecandoit.game.room.repository.RoomRepository;
+import com.wecandoit.game.domain.Game;
+import com.wecandoit.game.domain.GameStatus;
+import com.wecandoit.game.repository.GameRepository;
+import com.wecandoit.game.domain.GameMode;
+import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.domain.Room;
+import com.wecandoit.game.repository.RoomMemberRepository;
+import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.mission.domain.Mission;
 import com.wecandoit.mission.repository.MissionRepository;
 import java.util.ArrayList;
@@ -45,6 +48,8 @@ class BingoReadServiceTest {
     @Mock
     private RoomMemberRepository roomMemberRepository;
     @Mock
+    private GameRepository gameRepository;
+    @Mock
     private BingoBoardRepository bingoBoardRepository;
     @Mock
     private BingoCellRepository bingoCellRepository;
@@ -60,8 +65,10 @@ class BingoReadServiceTest {
         Room room = inProgressCooperateRoom(1L, 10L, 2);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        BingoBoard board = activeBoard(100L, 10L, 2);
-        given(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
+        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.IN_PROGRESS))
+                .willReturn(Optional.of(activeGame(200L, 10L)));
+        BingoBoard board = activeBoard(100L, 200L, 2);
+        given(bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(board));
         List<BingoCell> cells = cellsWithApprovedCount(board.getId(), 4, 4);
         given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
@@ -98,8 +105,10 @@ class BingoReadServiceTest {
         Room room = inProgressRoom(1L, 10L, 2);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(true);
-        BingoBoard board = activeBoard(100L, 10L, 2);
-        given(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
+        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.IN_PROGRESS))
+                .willReturn(Optional.of(activeGame(200L, 10L)));
+        BingoBoard board = activeBoard(100L, 200L, 2);
+        given(bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(board));
         List<BingoCell> cells = cellsWithApprovedCount(board.getId(), 4, 4);
         given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
@@ -120,8 +129,10 @@ class BingoReadServiceTest {
         Room room = inProgressRoom(1L, 10L, 2);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        BingoBoard board = activeBoard(100L, 10L, 2);
-        given(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
+        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.IN_PROGRESS))
+                .willReturn(Optional.of(activeGame(200L, 10L)));
+        BingoBoard board = activeBoard(100L, 200L, 2);
+        given(bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(board));
         List<BingoCell> cells = cellsWithApprovedCount(board.getId(), 4, 3);
         given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
@@ -166,17 +177,25 @@ class BingoReadServiceTest {
         Room room = inProgressRoom(1L, 10L, 2);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        given(bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(10L, INACTIVE_BOARD_STATUSES))
+        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.IN_PROGRESS))
+                .willReturn(Optional.of(activeGame(200L, 10L)));
+        given(bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.empty());
 
         // when & then
         assertErrorCode(() -> bingoReadService.getActiveBoard(1L, 10L), ErrorCode.BINGO_BOARD_NOT_FOUND);
     }
 
-    private BingoBoard activeBoard(Long boardId, Long roomId, int boardSize) {
-        BingoBoard board = BingoBoard.create(roomId, boardSize);
+    private BingoBoard activeBoard(Long boardId, Long gameId, int boardSize) {
+        BingoBoard board = BingoBoard.create(gameId, boardSize);
         ReflectionTestUtils.setField(board, "id", boardId);
         return board;
+    }
+
+    private Game activeGame(Long gameId, Long roomId) {
+        Game game = Game.start(roomId);
+        ReflectionTestUtils.setField(game, "id", gameId);
+        return game;
     }
 
     private List<BingoCell> cellsWithApprovedCount(Long boardId, int totalCount, int approvedCount) {

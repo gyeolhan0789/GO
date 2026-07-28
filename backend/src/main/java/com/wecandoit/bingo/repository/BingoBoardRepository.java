@@ -12,11 +12,24 @@ import org.springframework.data.repository.query.Param;
 
 public interface BingoBoardRepository extends JpaRepository<BingoBoard, Long> {
 
-    boolean existsByRoomId(Long roomId);
-
-    Optional<BingoBoard> findFirstByRoomIdAndStatusNotInOrderByIdDesc(Long roomId, List<BingoBoardStatus> excludedStatuses);
+    Optional<BingoBoard> findFirstByGameIdAndStatusNotInOrderByIdDesc(
+            Long gameId,
+            List<BingoBoardStatus> excludedStatuses
+    );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT b FROM BingoBoard b WHERE b.roomId = :roomId AND b.status NOT IN :excludedStatuses ORDER BY b.id DESC LIMIT 1")
-    Optional<BingoBoard> findActiveBoardForUpdate(@Param("roomId") Long roomId, @Param("excludedStatuses") List<BingoBoardStatus> excludedStatuses);
+    @Query("""
+            SELECT b
+            FROM BingoBoard b
+            WHERE b.gameId = :gameId
+              AND b.status NOT IN :excludedStatuses
+            ORDER BY b.id DESC
+            LIMIT 1
+            """)
+    Optional<BingoBoard> findActiveBoardForUpdate(
+            @Param("gameId") Long gameId,
+            @Param("excludedStatuses") List<BingoBoardStatus> excludedStatuses
+    );
+
+    List<BingoBoard> findAllByGameIdOrderByIdAsc(Long gameId);
 }

@@ -43,22 +43,33 @@ public class CashHistory extends BaseEntity {
     @Column(name = "reference_id", nullable = false)
     private Long referenceId;
 
+    @Column(name = "room_id")
+    private Long roomId;
+
     @Column(name = "item_name", length = 100)
     private String itemName;
 
-    private CashHistory(Long memberId, CashHistoryType type, long amount, Long referenceId, String itemName) {
+    private CashHistory(
+            Long memberId,
+            CashHistoryType type,
+            long amount,
+            Long referenceId,
+            Long roomId,
+            String itemName
+    ) {
         this.memberId = memberId;
         this.type = type;
         this.amount = amount;
         this.referenceId = referenceId;
+        this.roomId = roomId;
         this.itemName = itemName;
     }
 
-    public static CashHistory bingoReward(Long memberId, Long roomId, long amount) {
-        return new CashHistory(memberId, CashHistoryType.BINGO_REWARD, amount, roomId, null);
+    public static CashHistory bingoReward(Long memberId, Long gameId, Long roomId, long amount) {
+        return new CashHistory(memberId, CashHistoryType.BINGO_REWARD, amount, gameId, roomId, null);
     }
 
     public static CashHistory itemPurchase(Long memberId, Long itemId, String itemName, long amount) {
-        return new CashHistory(memberId, CashHistoryType.ITEM_PURCHASE, -amount, itemId, itemName);
+        return new CashHistory(memberId, CashHistoryType.ITEM_PURCHASE, -amount, itemId, null, itemName);
     }
 }

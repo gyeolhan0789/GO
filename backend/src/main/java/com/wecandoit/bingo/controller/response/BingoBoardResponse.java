@@ -6,6 +6,7 @@ import java.util.List;
 
 public record BingoBoardResponse(
         Long bingoBoardId,
+        Long gameId,
         Long roomId,
         int boardSize,
         int targetBingoCount,
@@ -20,6 +21,7 @@ public record BingoBoardResponse(
 
     public static BingoBoardResponse of(
             BingoBoard board,
+            Long roomId,
             List<BingoCellResponse> cells,
             int targetBingoCount,
             int completedBingoCount,
@@ -29,7 +31,8 @@ public record BingoBoardResponse(
     ) {
         return new BingoBoardResponse(
                 board.getId(),
-                board.getRoomId(),
+                board.getGameId(),
+                roomId,
                 board.getBoardSize(),
                 targetBingoCount,
                 completedBingoCount,
