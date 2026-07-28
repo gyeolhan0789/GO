@@ -5,6 +5,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 public class CustomExceptionHandler {
@@ -24,5 +25,12 @@ public class CustomExceptionHandler {
                 .orElse(ErrorCode.INVALID_INPUT.getMessage());
         ErrorResponse errorResponse = new ErrorResponse(ErrorCode.INVALID_INPUT.getHttpStatus().value(), message);
         return ResponseEntity.status(ErrorCode.INVALID_INPUT.getHttpStatus()).body(errorResponse);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException e) {
+        ErrorResponse errorResponse = new ErrorResponse(
+                ErrorCode.IMAGE_TOO_LARGE.getHttpStatus().value(), ErrorCode.IMAGE_TOO_LARGE.getMessage());
+        return ResponseEntity.status(ErrorCode.IMAGE_TOO_LARGE.getHttpStatus()).body(errorResponse);
     }
 }
