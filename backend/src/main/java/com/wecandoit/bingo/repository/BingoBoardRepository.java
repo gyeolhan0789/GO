@@ -5,6 +5,7 @@ import com.wecandoit.bingo.domain.BingoBoardStatus;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -57,5 +58,6 @@ public interface BingoBoardRepository extends JpaRepository<BingoBoard, Long> {
             @Param("excludedStatuses") List<BingoBoardStatus> excludedStatuses
     );
 
+    @EntityGraph(attributePaths = "roomMember")
     List<BingoBoard> findAllByGameIdOrderByIdAsc(Long gameId);
 }
