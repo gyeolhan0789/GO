@@ -6,7 +6,7 @@ meta {
 
 post {
   url: {{backendBaseUrl}}/auth/logout
-  body: none
+  body: json
   auth: none
 }
 
@@ -14,10 +14,16 @@ headers {
   Authorization: Bearer {{accessToken}}
 }
 
+body:json {
+  {
+    "refreshToken": "{{refreshToken}}"
+  }
+}
+
 docs {
   ## 로그아웃
 
-  현재 accessToken을 블랙리스트에 등록하고 저장된 refreshToken을 삭제한다. `Authorization: Bearer {{accessToken}}` 헤더가 필요하다. 성공 시 응답 바디는 없다.
+  현재 accessToken을 블랙리스트에 등록하고 저장된 refreshToken을 삭제한다. `Authorization: Bearer {{accessToken}}` 헤더와 요청 바디의 `refreshToken`이 필요하다. 성공 시 응답 바디는 없다.
 
   ### 성공 응답 (204 No Content)
   본문 없음
@@ -29,6 +35,22 @@ docs {
   {
     "status": 401,
     "message": "인증이 필요합니다."
+  }
+  ```
+
+  **refreshToken 누락 또는 공백**
+  ```json
+  {
+    "status": 400,
+    "message": "리프레시 토큰은 필수입니다."
+  }
+  ```
+
+  **refreshToken 서명 검증 실패/만료/회원 불일치 또는 저장된 토큰과 불일치**
+  ```json
+  {
+    "status": 401,
+    "message": "유효하지 않은 Refresh Token입니다."
   }
   ```
 
