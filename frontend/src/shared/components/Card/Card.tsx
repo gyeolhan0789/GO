@@ -8,11 +8,13 @@ import { spacing } from '../../constants/spacing';
 
 type CardProps = PropsWithChildren<{
   style?: StyleProp<ViewStyle>;
+  /** Sizing (flex, width, height) for the outer box — the shadow/border box that's the actual layout item in the parent. */
+  wrapperStyle?: StyleProp<ViewStyle>;
 }>;
 
-export function Card({ children, style }: CardProps) {
+export function Card({ children, style, wrapperStyle }: CardProps) {
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, wrapperStyle]}>
       <View style={styles.shadowBox} />
       <View style={[styles.card, style]}>{children}</View>
     </View>
