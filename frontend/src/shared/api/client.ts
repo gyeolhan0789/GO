@@ -26,10 +26,6 @@ function send(
 ) {
   return fetch(`${BASE_URL}${path}`, {
     ...options,
-    // 로그인 응답의 Set-Cookie(refreshToken)를 네이티브 쿠키 저장소가 받아두게
-    // 하는 스위치. RN 기본값이 이미 이것이지만, 세션 유지가 여기에 달려 있어
-    // 명시한다.
-    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : null),

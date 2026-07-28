@@ -7,8 +7,11 @@ export type LoginRequest = {
   password: string;
 };
 
+// 리프레시 토큰도 바디로 내려온다. 앱이 직접 Keychain에 보관하고 재발급·로그아웃
+// 때 실어 보낸다. `refreshTokenStore` 참고.
 export type LoginResponse = {
   accessToken: string;
+  refreshToken: string;
 };
 
 export type SignupRequest = LoginRequest & {

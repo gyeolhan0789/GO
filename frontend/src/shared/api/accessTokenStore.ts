@@ -1,6 +1,6 @@
 // 액세스 토큰은 메모리에만 보관하므로 앱을 재시작하면 사라진다. 재시작 후에는
-// 네이티브 쿠키 저장소(iOS NSHTTPCookieStorage / Android webkit CookieManager)에
-// 남아 있는 refreshToken으로 다시 발급받는다. `refreshAccessToken` 참고.
+// Keychain(iOS) / Keystore 암호화 저장소(Android)에 남아 있는 refreshToken으로
+// 다시 발급받는다. `refreshTokenStore`와 `refreshAccessToken` 참고.
 let accessToken: string | null = null;
 
 const listeners = new Set<() => void>();

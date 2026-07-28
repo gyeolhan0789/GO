@@ -15,17 +15,21 @@ import {
   subscribeAccessToken,
 } from '../../../shared/api/accessTokenStore';
 import { refreshAccessToken } from '../../../shared/api/refreshAccessToken';
+import {
+  clearRefreshToken,
+  saveRefreshToken,
+} from '../../../shared/api/refreshTokenStore';
 
 /**
- * `restoring`은 앱을 켠 직후 쿠키의 refreshToken으로 세션 복구를 시도하는 구간이다.
- * 이때는 로그인 여부를 아직 알 수 없으므로 화면을 고르면 안 된다.
+ * `restoring`은 앱을 켠 직후 저장된 refreshToken으로 세션 복구를 시도하는
+ * 구간이다. 이때는 로그인 여부를 아직 알 수 없으므로 화면을 고르면 안 된다.
  */
 type AuthStatus = 'restoring' | 'authenticated' | 'unauthenticated';
 
 type AuthState = {
   status: AuthStatus;
   isAuthenticated: boolean;
-  signIn: (accessToken: string) => void;
+  signIn: (accessToken: string, refreshToken: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -43,9 +47,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     let cancelled = false;
 
-    // 액세스 토큰은 메모리에만 있어 재시작하면 없다. 쿠키에 refreshToken이 남아
-    // 있으면 여기서 재발급되어 로그인 상태가 그대로 이어지고, 없으면 실패하며
-    // 로그인 화면으로 간다.
+    // 액세스 토큰은 메모리에만 있어 재시작하면 없다. Keychain에 refreshToken이
+    // 남아 있으면 여기서 재발급되어 로그인 상태가 그대로 이어지고, 없으면
+    // 실패하며 로그인 화면으로 간다.
     refreshAccessToken().finally(() => {
       if (!cancelled) {
         setIsRestoring(false);
@@ -57,9 +61,21 @@ export function AuthProvider({ children }: PropsWithChildren) {
     };
   }, []);
 
-  const signIn = useCallback((token: string) => {
-    setAccessToken(token);
-  }, []);
+  const signIn = useCallback(
+    async (token: string, refreshToken: string) => {
+      // 저장에 실패해도 로그인 자체는 성립시킨다. 액세스 토큰이 메모리에 있어
+      // 이번 세션은 정상 동작하고, 재시작하면 로그인 화면으로 갈 뿐이다(마이그
+      // 레이션 전과 같은 동작). 대신 반쪽짜리 값이 남지 않도록 저장소를 비운다.
+      try {
+        await saveRefreshToken(refreshToken);
+      } catch {
+        await clearRefreshToken();
+      }
+
+      setAccessToken(token);
+    },
+    [],
+  );
 
   const value = useMemo<AuthState>(() => {
     const status: AuthStatus = isRestoring
