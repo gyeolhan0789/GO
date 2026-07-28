@@ -38,18 +38,22 @@ pipeline {
 
         stage('Build Backend') {
             steps {
-                sh '''
-                chmod +x gradlew
-                ./gradlew clean bootJar -x test
-                '''
+                dir('backend') {
+                    sh '''
+                    chmod +x gradlew
+                    ./gradlew clean bootJar -x test
+                    '''
+                }
             }
         }
 
         stage('Deploy Backend') {
             steps {
-                sh '''
-                docker compose -f $COMPOSE_FILE up -d --build $SERVICE_NAME
-                '''
+                dir('backend') {
+                    sh '''
+                    docker compose -f $COMPOSE_FILE up -d --build $SERVICE_NAME
+                    '''
+                }
             }
         }
 
