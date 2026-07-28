@@ -10,9 +10,12 @@ import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
-import com.wecandoit.game.room.domain.Room;
-import com.wecandoit.game.room.repository.RoomMemberRepository;
-import com.wecandoit.game.room.repository.RoomRepository;
+import com.wecandoit.game.domain.Game;
+import com.wecandoit.game.domain.GameStatus;
+import com.wecandoit.game.repository.GameRepository;
+import com.wecandoit.game.domain.Room;
+import com.wecandoit.game.repository.RoomMemberRepository;
+import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.mission.domain.Mission;
 import com.wecandoit.mission.repository.MissionRepository;
 import java.util.List;
@@ -33,6 +36,7 @@ public class BingoReadService {
 
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
+    private final GameRepository gameRepository;
     private final BingoBoardRepository bingoBoardRepository;
     private final BingoCellRepository bingoCellRepository;
     private final MissionRepository missionRepository;
@@ -42,7 +46,8 @@ public class BingoReadService {
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
         validateMember(memberId, roomId);
 
-        BingoBoard board = findActiveBoard(roomId);
+        Game game = findActiveGame(roomId);
+        BingoBoard board = findActiveBoard(game.getId());
         List<BingoCell> cells = bingoCellRepository.findAllByBoardId(board.getId());
         List<BingoCellResponse> cellResponses = toCellResponses(cells);
 
@@ -54,6 +59,7 @@ public class BingoReadService {
         boolean canRenew = completed && room.isHost(memberId);
         return BingoBoardResponse.of(
                 board,
+                roomId,
                 cellResponses,
                 room.getTargetBingoCount(),
                 completedBingoCount,
@@ -67,8 +73,8 @@ public class BingoReadService {
      * 활성 보드의 셀 목록을 반환한다. 멤버십 검증 없이 내부 서비스(예: GameCompletionService)가
      * 게임 완료 판정을 위해 재사용하는 조회 전용 메서드다.
      */
-    public List<BingoCell> getActiveBoardCells(Long roomId) {
-        BingoBoard board = findActiveBoard(roomId);
+    public List<BingoCell> getActiveBoardCells(Long gameId) {
+        BingoBoard board = findActiveBoard(gameId);
         return bingoCellRepository.findAllByBoardId(board.getId());
     }
 
@@ -78,8 +84,13 @@ public class BingoReadService {
         }
     }
 
-    private BingoBoard findActiveBoard(Long roomId) {
-        return bingoBoardRepository.findFirstByRoomIdAndStatusNotInOrderByIdDesc(roomId, INACTIVE_BOARD_STATUSES)
+    private Game findActiveGame(Long roomId) {
+        return gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(roomId, GameStatus.IN_PROGRESS)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_IN_PROGRESS));
+    }
+
+    private BingoBoard findActiveBoard(Long gameId) {
+        return bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(gameId, INACTIVE_BOARD_STATUSES)
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
     }
 
