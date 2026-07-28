@@ -107,6 +107,19 @@ export async function checkPermission(key: PermissionKey): Promise<boolean> {
 }
 
 /**
+ * 정의된 모든 권한이 지금 허용돼 있는지 확인한다(요청 없이 조회만).
+ *
+ * 진입 게이트용이다. 저장된 "완료" 플래그와 달리 설정에서 나중에 권한을 회수한
+ * 경우까지 잡아낸다.
+ */
+export async function areAllPermissionsGranted(): Promise<boolean> {
+  const results = await Promise.all(
+    PERMISSION_KEYS.map(key => checkPermission(key)),
+  );
+  return results.every(Boolean);
+}
+
+/**
  * 앱 설정 화면을 연다(권한을 영구 거부한 경우 유도).
  */
 export function openAppSettings(): Promise<void> {

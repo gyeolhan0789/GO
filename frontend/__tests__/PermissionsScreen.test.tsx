@@ -7,6 +7,7 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Text } from 'react-native';
 import type { ReactTestInstance } from 'react-test-renderer';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { PermissionsScreen } from '../src/screens/PermissionsScreen/PermissionsScreen';
 import { requestAllPermissions } from '../src/shared/lib/permissions';
@@ -20,6 +21,8 @@ jest.mock('@react-navigation/native', () => ({
 jest.mock('../src/shared/lib/permissions', () => ({
   PERMISSION_KEYS: ['camera', 'activityRecognition', 'location', 'notifications'],
   checkPermission: jest.fn(() => Promise.resolve(false)),
+  // 완료 저장(usePermissionsStatus)이 진입 게이트용으로 함께 조회한다.
+  areAllPermissionsGranted: jest.fn(() => Promise.resolve(false)),
   requestAllPermissions: jest.fn(() =>
     Promise.resolve({
       camera: 'granted',
@@ -30,6 +33,10 @@ jest.mock('../src/shared/lib/permissions', () => ({
   ),
   openAppSettings: jest.fn(),
 }));
+
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest'),
+);
 
 const INITIAL_METRICS = {
   frame: { x: 0, y: 0, width: 400, height: 800 },
@@ -63,10 +70,16 @@ function collectTexts(root: ReactTestInstance): string[] {
 }
 
 async function renderScreen() {
+  // 화면이 완료 저장에 usePermissionsStatus(react-query)를 쓴다.
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   await act(async () => {
     renderer = ReactTestRenderer.create(
       <SafeAreaProvider initialMetrics={INITIAL_METRICS}>
-        <PermissionsScreen />
+        <QueryClientProvider client={client}>
+          <PermissionsScreen />
+        </QueryClientProvider>
       </SafeAreaProvider>,
     );
   });

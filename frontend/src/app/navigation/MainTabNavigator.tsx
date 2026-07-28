@@ -43,6 +43,9 @@ export function MainTabNavigator() {
 
   return (
     <Tab.Navigator
+      // 탭 바에서 Home은 가운데(3번째)에 두지만 진입은 항상 홈이어야 한다.
+      // 지정하지 않으면 첫 번째로 등록된 Record가 초기 화면이 된다.
+      initialRouteName="Home"
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
