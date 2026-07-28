@@ -36,6 +36,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -313,6 +314,7 @@ class BingoCommandServiceTest {
     @DisplayName("방 멤버가 아니면 칸 제출에 실패한다")
     void submitCellRejectsNonMember() {
         // given
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(inProgressRoom(1L, 10L, 2)));
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 3L)).willReturn(false);
 
         // when & then
@@ -320,6 +322,21 @@ class BingoCommandServiceTest {
                 () -> bingoCommandService.submitCell(3L, 10L, 1000L, "https://example.com/proof.png"),
                 ErrorCode.ROOM_MEMBER_FORBIDDEN
         );
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 방이면 칸 제출에 실패한다")
+    void submitCellRejectsMissingRoom() {
+        // given
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.empty());
+
+        // when & then
+        assertErrorCode(
+                () -> bingoCommandService.submitCell(1L, 10L, 1000L, "https://example.com/proof.png"),
+                ErrorCode.ROOM_NOT_FOUND
+        );
+        then(roomMemberRepository).shouldHaveNoInteractions();
+        then(gameRepository).shouldHaveNoInteractions();
     }
 
     @Test
@@ -360,44 +377,58 @@ class BingoCommandServiceTest {
         );
     }
 
-    @Test
-    @DisplayName("대결 참가자는 본인 RoomMember의 개인 빙고판 셀만 제출한다")
-    void submitCellUsesBattleBoardOwnedByRoomMember() {
+    @ParameterizedTest
+    @CsvSource({
+            "1, 101, 201, 1001",
+            "2, 102, 202, 1002"
+    })
+    @DisplayName("대결 참가자는 각자 본인 RoomMember의 개인 빙고판 셀만 제출한다")
+    void submitCellUsesBattleBoardOwnedByRoomMember(
+            long memberId,
+            long roomMemberId,
+            long boardId,
+            long cellId
+    ) {
         // given
         Room room = Room.create(1L, GameMode.BATTLE, 3, 2);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
-        RoomMember roomMember = RoomMember.create(10L, 2L);
-        ReflectionTestUtils.setField(roomMember, "id", 102L);
+        RoomMember roomMember = RoomMember.create(10L, memberId);
+        ReflectionTestUtils.setField(roomMember, "id", roomMemberId);
         BingoBoard board = BingoBoard.createForBattle(200L, roomMember, 2);
-        ReflectionTestUtils.setField(board, "id", 202L);
-        BingoCell cell = BingoCell.create(202L, 1L, 0, 0);
-        ReflectionTestUtils.setField(cell, "id", 1000L);
+        ReflectionTestUtils.setField(board, "id", boardId);
+        BingoCell cell = BingoCell.create(boardId, 1L, 0, 0);
+        ReflectionTestUtils.setField(cell, "id", cellId);
+        BingoCell opponentCell = BingoCell.create(boardId == 201L ? 202L : 201L, 2L, 0, 0);
         Game game = Game.start(10L);
         ReflectionTestUtils.setField(game, "id", 200L);
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(true);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, memberId)).willReturn(true);
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
         given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.IN_PROGRESS))
                 .willReturn(Optional.of(game));
-        given(roomMemberRepository.findByRoomIdAndMemberId(10L, 2L)).willReturn(Optional.of(roomMember));
-        given(bingoBoardRepository.findActiveBoardForUpdate(200L, 102L, INACTIVE_BOARD_STATUSES))
+        given(roomMemberRepository.findByRoomIdAndMemberId(10L, memberId)).willReturn(Optional.of(roomMember));
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, roomMemberId, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(board));
-        given(bingoCellRepository.findByIdForUpdate(1000L)).willReturn(Optional.of(cell));
+        given(bingoCellRepository.findByIdForUpdate(cellId)).willReturn(Optional.of(cell));
         given(bingoCellRepository.save(cell)).willReturn(cell);
 
         // when
         BingoCell result = bingoCommandService.submitCell(
-                2L,
+                memberId,
                 10L,
-                1000L,
+                cellId,
                 "https://example.com/proof.png"
         );
 
         // then
-        assertThat(result.getBoardId()).isEqualTo(202L);
-        assertThat(result.getMemberId()).isEqualTo(2L);
+        assertThat(result.getBoardId()).isEqualTo(boardId);
+        assertThat(result.getMemberId()).isEqualTo(memberId);
+        assertThat(opponentCell.getMemberId()).isNull();
+        assertThat(opponentCell.getSubmitUrl()).isNull();
+        assertThat(opponentCell.getVerificationStatus()).isNull();
         then(bingoBoardRepository).should(Mockito.never())
-                .findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES);
+                .findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES);
+        then(bingoCellRepository).should(Mockito.never()).save(opponentCell);
     }
 
     @Test
