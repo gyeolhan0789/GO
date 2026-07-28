@@ -1,0 +1,66 @@
+meta {
+  name: 로그인
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{backendBaseUrl}}/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "test@example.com",
+    "password": "Password123!"
+  }
+}
+
+script:post-response {
+  if (res.body && res.body.accessToken && res.body.refreshToken) {
+    bru.setEnvVar("accessToken", res.body.accessToken);
+    bru.setEnvVar("refreshToken", res.body.refreshToken);
+  }
+}
+
+docs {
+  ## 로그인
+
+  이메일/비밀번호로 로그인한다. accessToken과 refreshToken은 모두 응답 바디로 발급된다.
+
+  ### Request 필드
+  | 필드 | 필수 | 제약조건 |
+  |---|---|---|
+  | email | Y | 이메일 형식 (`@Email` 검증) |
+  | password | Y | 공백 불가 (`@NotBlank` 검증). 가입 시 설정한 비밀번호와 일치해야 함 |
+
+  ### 성공 응답 (200 OK)
+  ```json
+  {
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9....",
+    "refreshToken": "eyJhbGciOiJIUzI1NiJ9...."
+  }
+  ```
+
+  ### 비즈니스 규칙
+  - refreshToken은 응답 바디에서 받은 값을 클라이언트가 보관하고, 재발급 및 로그아웃 요청 바디에 포함한다.
+
+  ### 에러 케이스
+
+  **존재하지 않는 이메일 또는 비밀번호 불일치**
+  ```json
+  {
+    "status": 401,
+    "message": "이메일 또는 비밀번호가 올바르지 않습니다."
+  }
+  ```
+
+  **입력값 검증 실패 (이메일/비밀번호 누락 또는 형식 오류)**
+  ```json
+  {
+    "status": 400,
+    "message": "입력값이 올바르지 않습니다."
+  }
+  ```
+}

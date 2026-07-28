@@ -1,0 +1,77 @@
+meta {
+  name: 친구 랭킹 조회
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{backendBaseUrl}}/rankings/friends?page=0&size=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page: 0
+  size: 20
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+docs {
+  ## 친구 랭킹 조회
+
+  로그인 회원 본인과 실제 친구 관계인 회원의 이번 주 랭킹을 페이지 단위로 조회한다.
+
+  ### 성공 응답 (200 OK)
+  ```json
+  {
+    "myRank": 2,
+    "myWeeklySteps": 12500,
+    "rankings": {
+      "content": [
+        {
+          "rank": 1,
+          "memberId": 2,
+          "nickname": "friend",
+          "weeklySteps": 20000
+        }
+      ],
+      "totalElements": 5,
+      "totalPages": 1,
+      "currentPage": 0,
+      "size": 20,
+      "hasNext": false
+    }
+  }
+  ```
+
+  ### 비즈니스 규칙
+  - 로그인 회원 본인을 항상 포함한다.
+  - `friends` 테이블의 실제 친구만 포함하며 대기 중인 친구 요청은 제외한다.
+  - 친구가 없으면 본인만 포함하고 `totalElements`는 1이다.
+  - 걸음 기록이 없는 회원도 0걸음으로 포함한다.
+  - 주간 범위는 Asia/Seoul 기준 월요일부터 오늘까지다.
+  - 전체 순위는 걸음 수 내림차순의 `RANK` 방식이며 동점자는 같은 순위를 가진다.
+  - 동점자의 표시 순서는 회원 ID 오름차순이다.
+  - `myRank`와 `myWeeklySteps`는 요청 페이지에 로그인 회원이 없어도 전체 대상을 기준으로 반환한다.
+
+  ### 페이지 필드
+  - `content`: 현재 페이지의 랭킹 항목
+  - `totalElements`: 본인과 실제 친구를 합한 전체 랭킹 대상 수
+  - `totalPages`: 전체 페이지 수
+  - `currentPage`: 현재 페이지 번호
+  - `size`: 요청한 페이지 크기
+  - `hasNext`: 다음 페이지 존재 여부
+
+  ### 에러 케이스
+
+  **Authorization 헤더 없음**
+  ```json
+  {
+    "status": 401,
+    "message": "인증이 필요합니다."
+  }
+  ```
+}

@@ -1,3 +1,10 @@
 spring:
   application:
     name: backend
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
+storage:
+  root-path: ${STORAGE_ROOT_PATH:./uploads}

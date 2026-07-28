@@ -1,0 +1,77 @@
+meta {
+  name: 액세스 토큰 재발급
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{backendBaseUrl}}/auth/reissue
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "refreshToken": "{{refreshToken}}"
+  }
+}
+
+script:post-response {
+  if (res.body && res.body.accessToken && res.body.refreshToken) {
+    bru.setEnvVar("accessToken", res.body.accessToken);
+    bru.setEnvVar("refreshToken", res.body.refreshToken);
+  }
+}
+
+docs {
+  ## Access Token 재발급
+
+  요청 바디의 refreshToken으로 새 accessToken/refreshToken 쌍을 발급받는다.
+
+  ### 성공 응답 (200 OK)
+  ```json
+  {
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9....",
+    "refreshToken": "eyJhbGciOiJIUzI1NiJ9...."
+  }
+  ```
+
+  ### 비즈니스 규칙
+  - 요청 바디에 `refreshToken`을 포함한다.
+  - 검증에 성공하면 accessToken과 refreshToken이 모두 새로 발급되며, 응답의 새 refreshToken으로 교체한다(회전).
+  - 요청의 refreshToken이 서버에 저장된 값과 다르면 탈취로 간주하여 저장된 토큰을 즉시 삭제한다 (아래 에러 케이스 참고).
+
+  ### 에러 케이스
+
+  **refreshToken 누락 또는 공백**
+  ```json
+  {
+    "status": 400,
+    "message": "리프레시 토큰은 필수입니다."
+  }
+  ```
+
+  **refreshToken 서명 검증 실패/만료/잘못된 타입**
+  ```json
+  {
+    "status": 401,
+    "message": "유효하지 않은 Refresh Token입니다."
+  }
+  ```
+
+  **토큰의 회원이 존재하지 않음**
+  ```json
+  {
+    "status": 401,
+    "message": "유효하지 않은 Refresh Token입니다."
+  }
+  ```
+
+  **서버에 저장된 refreshToken과 불일치(탈취 의심, 즉시 폐기)**
+  ```json
+  {
+    "status": 401,
+    "message": "유효하지 않은 Refresh Token입니다."
+  }
+  ```
+}

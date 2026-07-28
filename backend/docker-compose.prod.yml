@@ -34,6 +34,30 @@ services:
       timeout: 5s
       retries: 10
 
+  backend:
+    build:
+      context: .
+    image: wecandoit-backend-prod
+    container_name: wecandoit-backend-prod
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/wecandoit?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+      SPRING_DATASOURCE_USERNAME: wecandoit
+      SPRING_DATASOURCE_PASSWORD: ***REMOVED***
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      STORAGE_ROOT_PATH: /app/uploads
+    volumes:
+      - ./uploads:/app/uploads
+    ports:
+      - "127.0.0.1:8080:8080"
+
 volumes:
   mysql-data:
   redis-data:

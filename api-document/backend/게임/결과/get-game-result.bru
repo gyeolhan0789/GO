@@ -1,0 +1,92 @@
+meta {
+  name: 게임 결과 단건 조회
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{backendBaseUrl}}/game-results/1
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+docs {
+  ## 게임 결과 단건 조회
+
+  완료(`COMPLETED`)된 게임방의 결과를 조회한다. 해당 게임방의 참여자만 조회할 수 있다.
+
+  ### 성공 응답 (200 OK)
+  ```json
+  {
+    "roomId": 1,
+    "mode": "COOPERATE",
+    "result": true,
+    "boardSize": 3,
+    "targetBingoCount": 3,
+    "bingoCount": 3,
+    "completedMissionCount": 5,
+    "rewardCash": 500,
+    "participants": [
+      {
+        "memberId": 1,
+        "nickname": "host",
+        "completedMissionCount": 3,
+        "rewardCash": 500
+      },
+      {
+        "memberId": 2,
+        "nickname": "participant",
+        "completedMissionCount": 2,
+        "rewardCash": 500
+      }
+    ]
+  }
+  ```
+
+  ### 비즈니스 규칙
+  - `result`는 현재 항상 `true`다(패배·타임아웃 종료 경로가 아직 없어 완료된 게임은 모두 승리로 기록된다).
+  - `boardSize`는 N x N 빙고판에서 한 변의 길이 N이다.
+  - 협동 모드는 공동 보드의 `bingoCount`가 `targetBingoCount` 이상이 되면 완료된다.
+  - `completedMissionCount`는 공동 보드에서 승인된 전체 미션 수다.
+  - `participants[].completedMissionCount`는 해당 참여자가 승인받은 미션 수다.
+  - `rewardCash`와 `participants[].rewardCash`는 참여자 1인당 지급된 보상 캐시다.
+  - 목표 빙고 달성 전에는 결과가 생성되지 않으며 `409 GAME_NOT_COMPLETED`를 반환한다.
+
+  ### 에러 케이스
+
+  **존재하지 않는 게임방**
+  ```json
+  {
+    "status": 404,
+    "message": "게임방을 찾을 수 없습니다."
+  }
+  ```
+
+  **게임방 참여자가 아님**
+  ```json
+  {
+    "status": 403,
+    "message": "게임방 참여자만 접근할 수 있습니다."
+  }
+  ```
+
+  **아직 완료되지 않은 게임방**
+  ```json
+  {
+    "status": 409,
+    "message": "완료되지 않은 게임입니다."
+  }
+  ```
+
+  **Authorization 헤더 없음**
+  ```json
+  {
+    "status": 401,
+    "message": "인증이 필요합니다."
+  }
+  ```
+}

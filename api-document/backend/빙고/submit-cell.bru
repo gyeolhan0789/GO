@@ -1,0 +1,137 @@
+meta {
+  name: 빙고 칸 미션 인증 제출
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{backendBaseUrl}}/rooms/1/bingo-boards/cells/1/submit
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+body:json {
+  {
+    "submitUrl": "https://cdn.example.com/submissions/proof-1.jpg"
+  }
+}
+
+docs {
+  ## 빙고 칸 미션 인증 제출
+
+  게임방 참여자가 특정 빙고 칸의 미션 수행 인증(이미지/URL)을 제출한다.
+
+  ### Request 필드
+
+  | 필드 | 타입 | 필수 | 설명 |
+  | --- | --- | --- | --- |
+  | submitUrl | string | Y | 미션 수행 인증 이미지/자료의 URL |
+
+  ### 성공 응답 (200 OK)
+  ```json
+  {
+    "cellId": 1,
+    "row": 0,
+    "col": 0,
+    "mission": {
+      "missionId": 10,
+      "missionImageUrl": "https://cdn.example.com/missions/10.png",
+      "type": "OBJECT",
+      "title": "빨간 우산 찾기",
+      "detail": "빨간색 우산을 찾아 사진을 찍으세요.",
+      "decisionCondition": "사진 속 우산 색상이 빨간색인지 확인",
+      "createdAt": "2026-07-24T10:00:00"
+    },
+    "verificationStatus": "APPROVED",
+    "submittedByMemberId": 2,
+    "rejectionReason": null
+  }
+  ```
+
+  ### 비즈니스 규칙
+
+  - 제출 트랜잭션에서 셀을 잠그고 `PENDING`으로 선점한 뒤 트랜잭션을 종료한다. 외부 AI 검증은 DB 트랜잭션 밖에서 수행한다.
+  - 대결 모드는 현재 `Game` 회차에서 요청자의 `RoomMember`가 소유한 개인 빙고판만 조회하고 갱신한다. 상대 참가자의 빙고판과 셀은 변경하지 않는다.
+  - `PENDING` 또는 `APPROVED` 상태의 셀은 다시 제출할 수 없고, `REJECTED` 상태만 재제출할 수 있다.
+  - AI 서버 호출 자체가 실패하면 진행 중인 게임의 셀은 `REJECTED`로 복구되어 다시 제출할 수 있다.
+  - `APPROVED`로 승인된 칸만 `completedAt`이 기록된다. 대결 모드는 빙고 줄(가로/세로/대각선)의 `targetBingoCount` 도달 여부, 싱글·협동 모드는 전체 셀 완료 여부로 게임 종료를 판정한다. 현재 각 칸의 진행 상황은 활성 빙고판 조회(`GET /rooms/{roomId}/bingo-boards/active`) 응답의 `verificationStatus`로 확인한다.
+  - 협동 게임이 완료된 뒤 도착한 검증 결과는 무시되며 결과나 보상이 추가 생성되지 않는다.
+
+  ### 에러 케이스
+
+  **존재하지 않는 게임방**
+  ```json
+  {
+    "status": 404,
+    "message": "게임방을 찾을 수 없습니다."
+  }
+  ```
+
+  **submitUrl 누락**
+  ```json
+  {
+    "status": 400,
+    "message": "제출 URL은 필수입니다."
+  }
+  ```
+
+  **게임방 참여자가 아님**
+  ```json
+  {
+    "status": 403,
+    "message": "게임방 참여자만 접근할 수 있습니다."
+  }
+  ```
+
+  **활성화된 빙고판이 없음**
+  ```json
+  {
+    "status": 404,
+    "message": "활성화된 빙고판이 없습니다."
+  }
+  ```
+
+  **존재하지 않는 칸(또는 활성 보드 소속 아님)**
+  ```json
+  {
+    "status": 404,
+    "message": "해당 칸을 찾을 수 없습니다."
+  }
+  ```
+
+  **이미 검증 중인 칸**
+  ```json
+  {
+    "status": 409,
+    "message": "이미 검증 중인 빙고 칸입니다."
+  }
+  ```
+
+  **이미 승인된 칸**
+  ```json
+  {
+    "status": 409,
+    "message": "이미 승인된 빙고 칸입니다."
+  }
+  ```
+
+  **시작 전 또는 완료·종료된 게임**
+  ```json
+  {
+    "status": 409,
+    "message": "게임이 시작된 방에서만 빙고판을 생성할 수 있습니다."
+  }
+  ```
+
+  **Authorization 헤더 없음**
+  ```json
+  {
+    "status": 401,
+    "message": "인증이 필요합니다."
+  }
+  ```
+}

@@ -1,0 +1,29 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "assets/fonts/BMDOHYEON.ttf",
+      "sha1": "0e172deca3570d1aadcc86d07bf850c44507557a"
+    },
+    {
+      "path": "assets/fonts/Galmuri11-Bold.ttf",
+      "sha1": "2ca6ea5d05c073fba455029c7b034b56393a246c"
+    },
+    {
+      "path": "assets/fonts/Galmuri11-Condensed.ttf",
+      "sha1": "3c12250de42d15f9d01ffdab8cc0bf09d8f02db5"
+    },
+    {
+      "path": "assets/fonts/Galmuri11.ttf",
+      "sha1": "4a22b17de45cc7511866521f01bfaf38bcfa9c8a"
+    },
+    {
+      "path": "assets/fonts/NotoSansKR-Bold.ttf",
+      "sha1": "7bc282b8b81f78ef77da9b7f33b1c162c80e5ebc"
+    },
+    {
+      "path": "assets/fonts/NotoSansKR-Regular.ttf",
+      "sha1": "1a4eefec848fa26d5fe1a88edb08aed3356fdb98"
+    }
+  ]
+}

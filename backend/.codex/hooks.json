@@ -1,0 +1,33 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .codex/hooks/block-secret-files.js"
+          },
+          {
+            "type": "command",
+            "command": "node .codex/hooks/guard-bash.js"
+          },
+          {
+            "type": "command",
+            "command": "node .codex/hooks/guard-worktree.js"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .codex/hooks/build-test-on-stop.js",
+            "timeout": 300
+          }
+        ]
+      }
+    ]
+  }
+}

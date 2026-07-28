@@ -1,0 +1,107 @@
+meta {
+  name: 친구 요청 보내기
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{backendBaseUrl}}/friend-requests
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+body:json {
+  {
+    "inviteeId": 2
+  }
+}
+
+docs {
+  ## 친구 요청 보내기
+
+  `inviteeId` 회원에게 친구 요청을 보낸다.
+
+  ### Request 필드
+
+  | 필드 | 타입 | 필수 | 설명 |
+  | --- | --- | --- | --- |
+  | inviteeId | Long | Y | 친구 요청을 받을 회원의 ID |
+
+  ### 성공 응답 (201 Created)
+  본문 없음
+
+  ### 비즈니스 규칙
+
+  친구 요청은 생성 시 `PENDING` 상태로 시작하며, 이후 수락/거절 처리에 따라 `ACCEPTED` 또는 `REJECTED`로 전이된다(`FriendRequestStatus`: `PENDING`, `ACCEPTED`, `REJECTED`).
+
+  요청 생성 시 아래 순서로 검증하며, 먼저 해당하는 조건의 에러가 발생한다.
+  1. `inviteeId`가 본인의 ID와 같으면 요청을 보낼 수 없다 → `SELF_FRIEND_REQUEST` (400)
+  2. 두 회원이 이미 친구 관계이면 요청을 보낼 수 없다 → `ALREADY_FRIENDS` (409)
+  3. 두 회원 사이에 `PENDING` 상태인 요청이 이미 존재하면 방향에 따라 다른 에러가 발생한다.
+     - 내가 이전에 보낸 요청이 아직 대기 중이면 → `DUPLICATE_FRIEND_REQUEST` (409)
+     - 상대방이 나에게 보낸 요청이 아직 대기 중이면 → `REVERSE_FRIEND_REQUEST_EXISTS` (409)
+
+  단, 이미 `ACCEPTED` 또는 `REJECTED`로 처리가 끝난 과거 요청은 위 3번 검증 대상에 포함되지 않으므로, 거절당했던 상대에게도 새 요청을 다시 보낼 수 있다.
+
+  ### 에러 케이스
+
+  **inviteeId 누락**
+  ```json
+  {
+    "status": 400,
+    "message": "입력값이 올바르지 않습니다."
+  }
+  ```
+
+  **자기 자신에게 요청**
+  ```json
+  {
+    "status": 400,
+    "message": "자기 자신에게 친구 요청을 보낼 수 없습니다."
+  }
+  ```
+
+  **존재하지 않는 회원(나 또는 상대)**
+  ```json
+  {
+    "status": 404,
+    "message": "회원을 찾을 수 없습니다."
+  }
+  ```
+
+  **이미 친구인 회원에게 요청**
+  ```json
+  {
+    "status": 409,
+    "message": "이미 친구인 회원입니다."
+  }
+  ```
+
+  **내가 이미 보낸 요청이 대기 중**
+  ```json
+  {
+    "status": 409,
+    "message": "이미 보낸 친구 요청이 존재합니다."
+  }
+  ```
+
+  **상대가 이미 나에게 보낸 요청이 대기 중**
+  ```json
+  {
+    "status": 409,
+    "message": "상대방이 보낸 친구 요청이 존재합니다."
+  }
+  ```
+
+  **Authorization 헤더 없음**
+  ```json
+  {
+    "status": 401,
+    "message": "인증이 필요합니다."
+  }
+  ```
+}

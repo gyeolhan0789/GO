@@ -1,0 +1,64 @@
+meta {
+  name: 친구 요청 거절
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{backendBaseUrl}}/friend-requests/1/reject
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+docs {
+  ## 친구 요청 거절
+
+  받은 친구 요청을 거절 처리한다.
+
+  ### 성공 응답 (204 No Content)
+  본문 없음
+
+  ### 비즈니스 규칙
+
+  - 요청 상태(`FriendRequestStatus`: `PENDING`, `ACCEPTED`, `REJECTED`)가 `PENDING`인 경우에만 거절할 수 있다. 이미 `ACCEPTED` 또는 `REJECTED`로 처리된 요청을 다시 수락/거절하려 하면 `FRIEND_REQUEST_ALREADY_PROCESSED` (409) 에러가 발생한다.
+  - 요청을 받은 사람(`invitee`)만 거절할 수 있다. 요청을 보낸 사람(`inviter`)이나 제3자가 호출하면 `FRIEND_REQUEST_FORBIDDEN` (403) 에러가 발생한다.
+  - 거절(`REJECTED`)된 요청은 삭제되지 않고 이력으로 남는다. 대기 중 요청 조회/중복 검사는 `PENDING` 상태만 대상으로 하므로, 거절 후에도 같은 상대에게 새로운 친구 요청을 다시 보낼 수 있다.
+
+  ### 에러 케이스
+
+  **존재하지 않는 요청**
+  ```json
+  {
+    "status": 404,
+    "message": "친구 요청을 찾을 수 없습니다."
+  }
+  ```
+
+  **내가 받은 요청이 아님(inviteeId 불일치)**
+  ```json
+  {
+    "status": 403,
+    "message": "친구 요청을 처리할 권한이 없습니다."
+  }
+  ```
+
+  **이미 수락/거절 처리된 요청**
+  ```json
+  {
+    "status": 409,
+    "message": "이미 처리된 친구 요청입니다."
+  }
+  ```
+
+  **Authorization 헤더 없음**
+  ```json
+  {
+    "status": 401,
+    "message": "인증이 필요합니다."
+  }
+  ```
+}

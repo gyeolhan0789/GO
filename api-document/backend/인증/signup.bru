@@ -1,0 +1,75 @@
+meta {
+  name: 회원가입
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{backendBaseUrl}}/auth/signup
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "test@example.com",
+    "password": "Password123!",
+    "nickname": "testuser",
+    "region": "SEOUL",
+    "gender": "MALE"
+  }
+}
+
+docs {
+  성별은 필수이며 `MALE` 또는 `FEMALE`만 입력할 수 있다.
+
+  ## 회원가입
+
+  이메일/비밀번호 기반 신규 회원을 생성한다. 각 필드의 제약조건은 아래 Request 필드 표를 참고한다.
+
+  ### Request 필드
+  | 필드 | 필수 | 제약조건 |
+  |---|---|---|
+  | email | Y | 이메일 형식 (`@Email` 검증) |
+  | password | Y | 8자 이상, 영문+숫자+특수문자 모두 포함: `^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9\s]).{8,}$` |
+  | nickname | Y | 2~10자 |
+  | region | Y | `Region` enum 값 중 하나: `SEOUL`, `BUSAN`, `DAEGU`, `INCHEON`, `GWANGJU`, `DAEJEON`, `ULSAN`, `SEJONG`, `GYEONGGI`, `GANGWON`, `CHUNGBUK`, `CHUNGNAM`, `JEONBUK`, `JEONNAM`, `GYEONGBUK`, `GYEONGNAM`, `JEJU` |
+
+  ### 성공 응답 (201 Created)
+  ```json
+  {
+    "id": 1,
+    "email": "test@example.com",
+    "nickname": "testuser"
+  }
+  ```
+
+  ### 비즈니스 규칙
+  - email, nickname은 전체 회원 중 유일해야 한다 (중복 시 아래 에러 케이스 참고).
+
+  ### 에러 케이스
+
+  **이미 가입된 이메일**
+  ```json
+  {
+    "status": 409,
+    "message": "이미 사용 중인 이메일입니다."
+  }
+  ```
+
+  **이미 사용 중인 닉네임**
+  ```json
+  {
+    "status": 409,
+    "message": "이미 사용 중인 닉네임입니다."
+  }
+  ```
+
+  **입력값 검증 실패 (이메일 형식/비밀번호 패턴/닉네임 길이/region 누락 등)**
+  ```json
+  {
+    "status": 400,
+    "message": "입력값이 올바르지 않습니다."
+  }
+  ```
+}
