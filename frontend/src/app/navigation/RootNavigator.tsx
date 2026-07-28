@@ -43,9 +43,9 @@ export function RootNavigator() {
   //   온보딩 봤고 권한 미완료/회수     -> Permissions -> Login
   //   온보딩·권한 통과, 토큰 없음      -> Login
   //
-  // 세션이 중간에 끊긴 경우도 같은 규칙으로 Login에 도달한다(온보딩·권한은 이미
-  // 통과 상태라 건너뛴다). Navigator에 등록되지 않은 이름을 넘기면 에러가 나므로
-  // 분기마다 실제로 등록된 화면 중에서만 고른다.
+  // 로그아웃이나 세션 만료로 인증이 풀린 경우도 같은 규칙으로 Login에 도달한다
+  // (온보딩·권한은 이미 통과 상태라 건너뛴다). Navigator에 등록되지 않은 이름을
+  // 넘기면 에러가 나므로 분기마다 실제로 등록된 화면 중에서만 고른다.
   const initialRouteName: keyof RootStackParamList = isAuthenticated
     ? 'Main'
     : !onboarding.hasCompleted
@@ -56,6 +56,14 @@ export function RootNavigator() {
 
   return (
     <Stack.Navigator
+      // `initialRouteName`은 Navigator를 처음 마운트할 때 한 번만 읽힌다
+      // (react-navigation이 router를 최초 1회만 만든다). 그래서 로그인 상태가
+      // 뒤집혀 등록 화면이 통째로 바뀌어도 갱신되지 않는다. 로그인 상태로 앱을
+      // 켰다면 router가 쥔 이름은 'Main'인데 로그아웃 시점에 그 화면은 이미
+      // 사라졌으므로, react-navigation은 첫 번째로 등록된 화면(Onboarding)으로
+      // 되돌린다. 분기마다 key를 갈라 Navigator를 새로 마운트해, 방금 계산한
+      // 진입 화면이 실제로 쓰이게 한다.
+      key={isAuthenticated ? 'authenticated' : 'unauthenticated'}
       initialRouteName={initialRouteName}
       screenOptions={{ headerShown: false }}
     >
