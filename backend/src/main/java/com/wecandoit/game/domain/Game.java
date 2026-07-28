@@ -1,0 +1,54 @@
+package com.wecandoit.game.domain;
+
+import com.wecandoit.common.entity.BaseEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.time.LocalDateTime;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Entity
+@Table(name = "games")
+public class Game extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "room_id", nullable = false)
+    private Long roomId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private GameStatus status;
+
+    @Column(name = "started_at", nullable = false)
+    private LocalDateTime startedAt;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
+    private Game(Long roomId) {
+        this.roomId = roomId;
+        this.status = GameStatus.IN_PROGRESS;
+        this.startedAt = LocalDateTime.now();
+    }
+
+    public static Game start(Long roomId) {
+        return new Game(roomId);
+    }
+
+    public void complete() {
+        this.status = GameStatus.COMPLETED;
+        this.completedAt = LocalDateTime.now();
+    }
+}

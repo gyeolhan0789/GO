@@ -9,11 +9,13 @@ import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
-import com.wecandoit.game.result.service.GameCompletionService;
-import com.wecandoit.game.room.domain.GameMode;
-import com.wecandoit.game.room.domain.GameRoomStatus;
-import com.wecandoit.game.room.domain.Room;
-import com.wecandoit.game.room.repository.RoomRepository;
+import com.wecandoit.game.domain.Game;
+import com.wecandoit.game.repository.GameRepository;
+import com.wecandoit.game.service.GameCompletionService;
+import com.wecandoit.game.domain.GameMode;
+import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.domain.Room;
+import com.wecandoit.game.repository.RoomRepository;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,6 +35,8 @@ class BingoCellVerificationResultServiceTest {
     @Mock
     private BingoBoardRepository bingoBoardRepository;
     @Mock
+    private GameRepository gameRepository;
+    @Mock
     private RoomRepository roomRepository;
     @Mock
     private GameCompletionService gameCompletionService;
@@ -44,9 +48,11 @@ class BingoCellVerificationResultServiceTest {
     void applyApprovedResultCompletesCellAndEvaluatesGameCompletion() {
         // given
         BingoCell cell = cell(1000L, 100L);
-        BingoBoard board = board(100L, 10L);
+        BingoBoard board = board(100L, 200L);
+        Game game = game(200L, 10L);
         given(bingoCellRepository.findByIdForUpdate(1000L)).willReturn(Optional.of(cell));
         given(bingoBoardRepository.findById(100L)).willReturn(Optional.of(board));
+        given(gameRepository.findByIdForUpdate(200L)).willReturn(Optional.of(game));
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(inProgressRoom(10L)));
         given(bingoCellRepository.save(cell)).willReturn(cell);
 
@@ -57,7 +63,7 @@ class BingoCellVerificationResultServiceTest {
         assertThat(cell.getVerificationStatus()).isEqualTo(BingoCellVerificationStatus.APPROVED);
         assertThat(cell.getRejectionReason()).isNull();
         assertThat(cell.getCompletedAt()).isNotNull();
-        then(gameCompletionService).should().evaluateAndCompleteIfNeeded(10L);
+        then(gameCompletionService).should().evaluateAndCompleteIfNeeded(200L);
     }
 
     @Test
@@ -65,9 +71,11 @@ class BingoCellVerificationResultServiceTest {
     void applyRejectedResultStoresReasonWithoutCompletingCell() {
         // given
         BingoCell cell = cell(1000L, 100L);
-        BingoBoard board = board(100L, 10L);
+        BingoBoard board = board(100L, 200L);
+        Game game = game(200L, 10L);
         given(bingoCellRepository.findByIdForUpdate(1000L)).willReturn(Optional.of(cell));
         given(bingoBoardRepository.findById(100L)).willReturn(Optional.of(board));
+        given(gameRepository.findByIdForUpdate(200L)).willReturn(Optional.of(game));
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(inProgressRoom(10L)));
         given(bingoCellRepository.save(cell)).willReturn(cell);
 
@@ -86,11 +94,13 @@ class BingoCellVerificationResultServiceTest {
     void applyResultIgnoresClosedRoom() {
         // given
         BingoCell cell = cell(1000L, 100L);
-        BingoBoard board = board(100L, 10L);
+        BingoBoard board = board(100L, 200L);
+        Game game = game(200L, 10L);
         Room closedRoom = inProgressRoom(10L);
         closedRoom.close();
         given(bingoCellRepository.findByIdForUpdate(1000L)).willReturn(Optional.of(cell));
         given(bingoBoardRepository.findById(100L)).willReturn(Optional.of(board));
+        given(gameRepository.findByIdForUpdate(200L)).willReturn(Optional.of(game));
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(closedRoom));
 
         // when
@@ -103,14 +113,34 @@ class BingoCellVerificationResultServiceTest {
     }
 
     @Test
+    void applyResultIgnoresACompletedGameEvenWhenTheRoomIsReused() {
+        BingoCell cell = cell(1000L, 100L);
+        BingoBoard board = board(100L, 200L);
+        Game completedGame = game(200L, 10L);
+        completedGame.complete();
+        given(bingoCellRepository.findByIdForUpdate(1000L)).willReturn(Optional.of(cell));
+        given(bingoBoardRepository.findById(100L)).willReturn(Optional.of(board));
+        given(gameRepository.findByIdForUpdate(200L)).willReturn(Optional.of(completedGame));
+
+        verificationResultService.applyResult(1000L, true, null);
+
+        assertThat(cell.getVerificationStatus()).isEqualTo(BingoCellVerificationStatus.PENDING);
+        then(roomRepository).shouldHaveNoInteractions();
+        then(bingoCellRepository).should(Mockito.never()).save(cell);
+        then(gameCompletionService).shouldHaveNoInteractions();
+    }
+
+    @Test
     @DisplayName("검증 대기 상태가 아닌 칸에 도착한 결과는 반영하지 않는다")
     void applyResultIgnoresCellNotPending() {
         // given
         BingoCell cell = cell(1000L, 100L);
         cell.reject("이전 검증에서 거절되었습니다.");
-        BingoBoard board = board(100L, 10L);
+        BingoBoard board = board(100L, 200L);
+        Game game = game(200L, 10L);
         given(bingoCellRepository.findByIdForUpdate(1000L)).willReturn(Optional.of(cell));
         given(bingoBoardRepository.findById(100L)).willReturn(Optional.of(board));
+        given(gameRepository.findByIdForUpdate(200L)).willReturn(Optional.of(game));
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(inProgressRoom(10L)));
 
         // when
@@ -129,10 +159,16 @@ class BingoCellVerificationResultServiceTest {
         return cell;
     }
 
-    private BingoBoard board(Long id, Long roomId) {
-        BingoBoard board = BingoBoard.create(roomId, 2);
+    private BingoBoard board(Long id, Long gameId) {
+        BingoBoard board = BingoBoard.create(gameId, 2);
         ReflectionTestUtils.setField(board, "id", id);
         return board;
+    }
+
+    private Game game(Long gameId, Long roomId) {
+        Game game = Game.start(roomId);
+        ReflectionTestUtils.setField(game, "id", gameId);
+        return game;
     }
 
     private Room inProgressRoom(Long roomId) {

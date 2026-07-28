@@ -28,7 +28,7 @@ class CashHistoryReadServiceTest {
 
     @Test
     void returnsOnlyTheRequestedMembersHistoriesInRepositoryOrder() {
-        CashHistory reward = CashHistory.bingoReward(1L, 10L, 500L);
+        CashHistory reward = CashHistory.bingoReward(1L, 100L, 10L, 500L);
         CashHistory purchase = CashHistory.itemPurchase(1L, 20L, "Red Hat", 1_000L);
         setIdAndCreatedAt(reward, 2L, LocalDateTime.of(2026, 7, 24, 12, 0));
         setIdAndCreatedAt(purchase, 1L, LocalDateTime.of(2026, 7, 24, 11, 0));
@@ -39,9 +39,9 @@ class CashHistoryReadServiceTest {
 
         assertThat(responses).containsExactly(
                 new CashHistoryResponse(2L, CashHistoryType.BINGO_REWARD, 500L,
-                        reward.getCreatedAt(), 10L, null, null),
+                        reward.getCreatedAt(), 10L, 100L, null, null),
                 new CashHistoryResponse(1L, CashHistoryType.ITEM_PURCHASE, -1_000L,
-                        purchase.getCreatedAt(), null, 20L, "Red Hat")
+                        purchase.getCreatedAt(), null, null, 20L, "Red Hat")
         );
         then(cashHistoryRepository).should().findAllByMemberIdOrderByCreatedAtDescIdDesc(1L);
     }

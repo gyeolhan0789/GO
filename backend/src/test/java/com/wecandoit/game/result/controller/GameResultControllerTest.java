@@ -20,8 +20,11 @@ import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
-import com.wecandoit.game.result.controller.response.GameResultResponse;
-import com.wecandoit.game.result.service.GameResultReadService;
+import com.wecandoit.game.controller.GameResultController;
+import com.wecandoit.game.controller.response.GameResultParticipantResponse;
+import com.wecandoit.game.controller.response.GameResultResponse;
+import com.wecandoit.game.service.GameResultReadService;
+import com.wecandoit.game.domain.GameMode;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -83,7 +86,7 @@ class GameResultControllerTest {
     void getGameResultReturnsResult() {
         // given
         given(gameResultReadService.getGameResult(1L, 10L))
-                .willReturn(new GameResultResponse(10L, true, 3, 3, 9, 500L));
+                .willReturn(cooperateResultResponse());
 
         // when & then
         given()
@@ -91,23 +94,39 @@ class GameResultControllerTest {
                 .get("/game-results/{roomId}", 10L)
                 .then()
                 .statusCode(HttpStatus.OK.value())
+                .body("gameId", equalTo(100))
                 .body("roomId", equalTo(10))
+                .body("mode", equalTo("COOPERATE"))
                 .body("result", equalTo(true))
                 .body("boardSize", equalTo(3))
+                .body("targetBingoCount", equalTo(3))
                 .body("bingoCount", equalTo(3))
-                .body("completedMissionCount", equalTo(9))
+                .body("completedMissionCount", equalTo(5))
                 .body("rewardCash", equalTo(500))
+                .body("participants[0].memberId", equalTo(1))
+                .body("participants[0].nickname", equalTo("host"))
+                .body("participants[0].completedMissionCount", equalTo(3))
+                .body("participants[0].rewardCash", equalTo(500))
                 .apply(document("game-result-detail",
                         pathParameters(
                                 parameterWithName("roomId").description("결과를 조회할 게임방 ID")
                         ),
                         responseFields(
+                                fieldWithPath("gameId").description("게임 회차 ID"),
                                 fieldWithPath("roomId").description("게임방 ID"),
-                                fieldWithPath("result").description("승리 여부"),
+                                fieldWithPath("mode").description("게임 모드"),
+                                fieldWithPath("result").description("완료 결과"),
                                 fieldWithPath("boardSize").description("빙고판 한 변의 길이(N x N에서 N)"),
+                                fieldWithPath("targetBingoCount").description("목표 빙고 수"),
                                 fieldWithPath("bingoCount").description("달성한 빙고 줄 수"),
                                 fieldWithPath("completedMissionCount").description("완료한 미션 수 합계"),
-                                fieldWithPath("rewardCash").description("지급된 보상 캐시")
+                                fieldWithPath("rewardCash").description("참여자 1인당 지급된 보상 캐시"),
+                                fieldWithPath("participants[].memberId").description("참여자 ID"),
+                                fieldWithPath("participants[].nickname").description("참여자 닉네임"),
+                                fieldWithPath("participants[].completedMissionCount")
+                                        .description("참여자가 완료한 미션 수"),
+                                fieldWithPath("participants[].rewardCash")
+                                        .description("참여자에게 지급된 보상 캐시")
                         )
                 ));
         then(gameResultReadService).should().getGameResult(1L, 10L);
@@ -154,7 +173,7 @@ class GameResultControllerTest {
     void getMyGameResultsReturnsResults() {
         // given
         SliceResponse<GameResultResponse> response = new SliceResponse<>(
-                List.of(new GameResultResponse(10L, true, 3, 3, 9, 500L)),
+                List.of(cooperateResultResponse()),
                 false
         );
         given(gameResultReadService.getMyGameResults(eq(1L), any()))
@@ -166,21 +185,34 @@ class GameResultControllerTest {
                 .get("/game-results")
                 .then()
                 .statusCode(HttpStatus.OK.value())
+                .body("content[0].gameId", equalTo(100))
                 .body("content[0].roomId", equalTo(10))
+                .body("content[0].mode", equalTo("COOPERATE"))
                 .body("content[0].result", equalTo(true))
                 .body("content[0].boardSize", equalTo(3))
+                .body("content[0].targetBingoCount", equalTo(3))
                 .body("content[0].bingoCount", equalTo(3))
-                .body("content[0].completedMissionCount", equalTo(9))
+                .body("content[0].completedMissionCount", equalTo(5))
                 .body("content[0].rewardCash", equalTo(500))
                 .body("hasNext", equalTo(false))
                 .apply(document("game-result-list",
                         responseFields(
+                                fieldWithPath("content[].gameId").description("게임 회차 ID"),
                                 fieldWithPath("content[].roomId").description("게임방 ID"),
-                                fieldWithPath("content[].result").description("승리 여부"),
+                                fieldWithPath("content[].mode").description("게임 모드"),
+                                fieldWithPath("content[].result").description("완료 결과"),
                                 fieldWithPath("content[].boardSize").description("빙고판 한 변의 길이(N x N에서 N)"),
+                                fieldWithPath("content[].targetBingoCount").description("목표 빙고 수"),
                                 fieldWithPath("content[].bingoCount").description("달성한 빙고 줄 수"),
                                 fieldWithPath("content[].completedMissionCount").description("완료한 미션 수 합계"),
-                                fieldWithPath("content[].rewardCash").description("지급된 보상 캐시"),
+                                fieldWithPath("content[].rewardCash")
+                                        .description("참여자 1인당 지급된 보상 캐시"),
+                                fieldWithPath("content[].participants[].memberId").description("참여자 ID"),
+                                fieldWithPath("content[].participants[].nickname").description("참여자 닉네임"),
+                                fieldWithPath("content[].participants[].completedMissionCount")
+                                        .description("참여자가 완료한 미션 수"),
+                                fieldWithPath("content[].participants[].rewardCash")
+                                        .description("참여자에게 지급된 보상 캐시"),
                                 fieldWithPath("hasNext").description("다음 페이지 존재 여부")
                         )
                 ));
@@ -201,5 +233,23 @@ class GameResultControllerTest {
                                 fieldWithPath("message").description("오류 메시지")
                         )
                 ));
+    }
+
+    private GameResultResponse cooperateResultResponse() {
+        return new GameResultResponse(
+                100L,
+                10L,
+                GameMode.COOPERATE,
+                true,
+                3,
+                3,
+                3,
+                5,
+                500L,
+                List.of(
+                        new GameResultParticipantResponse(1L, "host", 3, 500L),
+                        new GameResultParticipantResponse(2L, "participant", 2, 500L)
+                )
+        );
     }
 }

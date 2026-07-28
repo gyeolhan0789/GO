@@ -9,11 +9,13 @@ import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
-import com.wecandoit.game.room.domain.GameMode;
-import com.wecandoit.game.room.domain.Room;
-import com.wecandoit.game.room.domain.RoomMember;
-import com.wecandoit.game.room.repository.RoomMemberRepository;
-import com.wecandoit.game.room.repository.RoomRepository;
+import com.wecandoit.game.domain.Game;
+import com.wecandoit.game.repository.GameRepository;
+import com.wecandoit.game.domain.GameMode;
+import com.wecandoit.game.domain.Room;
+import com.wecandoit.game.domain.RoomMember;
+import com.wecandoit.game.repository.RoomMemberRepository;
+import com.wecandoit.game.repository.RoomRepository;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -40,6 +42,8 @@ class BingoCommandServiceConcurrencyTest {
     @Autowired
     private RoomMemberRepository roomMemberRepository;
     @Autowired
+    private GameRepository gameRepository;
+    @Autowired
     private BingoBoardRepository bingoBoardRepository;
     @Autowired
     private BingoCellRepository bingoCellRepository;
@@ -51,6 +55,7 @@ class BingoCommandServiceConcurrencyTest {
     void setUp() {
         bingoCellRepository.deleteAll();
         bingoBoardRepository.deleteAll();
+        gameRepository.deleteAll();
         roomMemberRepository.deleteAll();
         roomRepository.deleteAll();
 
@@ -60,7 +65,8 @@ class BingoCommandServiceConcurrencyTest {
         roomMemberRepository.save(RoomMember.create(roomId, 1L));
         roomMemberRepository.save(RoomMember.create(roomId, 2L));
 
-        BingoBoard board = bingoBoardRepository.save(BingoBoard.create(roomId, 3));
+        Game game = gameRepository.save(Game.start(roomId));
+        BingoBoard board = bingoBoardRepository.save(BingoBoard.create(game.getId(), 3));
         cellId = bingoCellRepository.save(BingoCell.create(board.getId(), 1L, 0, 0)).getId();
     }
 

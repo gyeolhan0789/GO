@@ -52,6 +52,9 @@ services:
       SPRING_DATASOURCE_PASSWORD: ***REMOVED***
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      STORAGE_ROOT_PATH: /app/uploads
+    volumes:
+      - ./uploads:/app/uploads
     ports:
       - "127.0.0.1:8080:8080"
 

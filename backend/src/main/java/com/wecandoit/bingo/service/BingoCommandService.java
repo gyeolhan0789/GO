@@ -10,10 +10,13 @@ import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
-import com.wecandoit.game.room.domain.GameRoomStatus;
-import com.wecandoit.game.room.domain.Room;
-import com.wecandoit.game.room.repository.RoomMemberRepository;
-import com.wecandoit.game.room.repository.RoomRepository;
+import com.wecandoit.game.domain.Game;
+import com.wecandoit.game.domain.GameStatus;
+import com.wecandoit.game.repository.GameRepository;
+import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.domain.Room;
+import com.wecandoit.game.repository.RoomMemberRepository;
+import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.mission.domain.Mission;
 import com.wecandoit.mission.repository.MissionRepository;
 import com.wecandoit.notification.event.NotificationMessageFactory;
@@ -35,21 +38,23 @@ public class BingoCommandService {
 
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
+    private final GameRepository gameRepository;
     private final BingoBoardRepository bingoBoardRepository;
     private final BingoCellRepository bingoCellRepository;
     private final MissionRepository missionRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final NotificationMessageFactory notificationMessageFactory;
 
-    public BingoBoardResponse generateInitialBoard(Room room) {
-        validateBoardNotExists(room.getId());
-        return generateNewBoard(room);
+    public BingoBoardResponse generateInitialBoard(Room room, Long gameId) {
+        validateBoardNotExists(gameId);
+        return generateNewBoard(room, gameId);
     }
 
     public BingoCell submitCell(Long memberId, Long roomId, Long cellId, String submitUrl) {
         validateMember(memberId, roomId);
 
-        BingoBoard activeBoard = bingoBoardRepository.findActiveBoardForUpdate(roomId, INACTIVE_BOARD_STATUSES)
+        Game game = findActiveGame(roomId);
+        BingoBoard activeBoard = bingoBoardRepository.findActiveBoardForUpdate(game.getId(), INACTIVE_BOARD_STATUSES)
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
         BingoCell cell = bingoCellRepository.findByIdForUpdate(cellId)
                 .filter(c -> c.getBoardId().equals(activeBoard.getId()))
@@ -70,12 +75,13 @@ public class BingoCommandService {
         // Room.status == COMPLETED인 경우도 IN_PROGRESS가 아니므로 여기서 이미 거부된다 (별도 가드 불필요).
         validateRoomInProgress(room);
 
-        BingoBoard activeBoard = bingoBoardRepository.findActiveBoardForUpdate(roomId, INACTIVE_BOARD_STATUSES)
+        Game game = findActiveGame(roomId);
+        BingoBoard activeBoard = bingoBoardRepository.findActiveBoardForUpdate(game.getId(), INACTIVE_BOARD_STATUSES)
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
         validateRenewalHost(memberId, room);
         validateBoardCompleted(activeBoard.getId());
 
-        BingoBoardResponse newBoardResponse = generateNewBoard(room);
+        BingoBoardResponse newBoardResponse = generateNewBoard(room, game.getId());
         activeBoard.complete();
         bingoBoardRepository.save(activeBoard);
         return newBoardResponse;
@@ -88,15 +94,16 @@ public class BingoCommandService {
     public void autoRenewBoard(Long roomId) {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+        Game game = findActiveGame(roomId);
 
-        bingoBoardRepository.findActiveBoardForUpdate(roomId, INACTIVE_BOARD_STATUSES)
+        bingoBoardRepository.findActiveBoardForUpdate(game.getId(), INACTIVE_BOARD_STATUSES)
                 .ifPresent(board -> {
                     if (board.getCreatedAt().plusDays(7).isAfter(LocalDateTime.now())) {
                         return;
                     }
                     board.expire();
                     bingoBoardRepository.save(board);
-                    generateNewBoard(room);
+                    generateNewBoard(room, game.getId());
                     notifyRoomMembers(roomId);
                 });
     }
@@ -107,7 +114,7 @@ public class BingoCommandService {
                         notificationMessageFactory.weeklyBingoRenewal(roomMember.getMemberId())));
     }
 
-    private BingoBoardResponse generateNewBoard(Room room) {
+    private BingoBoardResponse generateNewBoard(Room room, Long gameId) {
         int boardSize = room.getBoardSize();
         int cellCount = boardSize * boardSize;
         List<Mission> missions = missionRepository.findRandomMissions(cellCount);
@@ -115,10 +122,11 @@ public class BingoCommandService {
             throw new CustomException(ErrorCode.MISSION_POOL_INSUFFICIENT);
         }
 
-        BingoBoard board = bingoBoardRepository.save(BingoBoard.create(room.getId(), boardSize));
+        BingoBoard board = bingoBoardRepository.save(BingoBoard.create(gameId, boardSize));
         List<BingoCellResponse> cellResponses = createCells(board, boardSize, missions);
         return BingoBoardResponse.of(
                 board,
+                room.getId(),
                 cellResponses,
                 room.getTargetBingoCount(),
                 0,
@@ -155,8 +163,9 @@ public class BingoCommandService {
         }
     }
 
-    private void validateBoardNotExists(Long roomId) {
-        if (bingoBoardRepository.existsByRoomId(roomId)) {
+    private void validateBoardNotExists(Long gameId) {
+        if (bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(gameId, INACTIVE_BOARD_STATUSES)
+                .isPresent()) {
             throw new CustomException(ErrorCode.BINGO_BOARD_ALREADY_EXISTS);
         }
     }
@@ -169,6 +178,11 @@ public class BingoCommandService {
 
     private boolean isCompleted(Long boardId) {
         return !bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(boardId);
+    }
+
+    private Game findActiveGame(Long roomId) {
+        return gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(roomId, GameStatus.IN_PROGRESS)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_IN_PROGRESS));
     }
 
     private List<BingoCellResponse> createCells(BingoBoard board, int boardSize, List<Mission> missions) {

@@ -16,6 +16,7 @@ const srcDir = join(here, '..', 'src', 'screens');
 const assetDirs = [
   join(srcDir, 'OnboardingScreen', 'assets'),
   join(srcDir, 'SignupScreen', 'assets'),
+  join(srcDir, 'ShopScreen', 'assets'),
 ];
 
 for (const assetsDir of assetDirs) {
