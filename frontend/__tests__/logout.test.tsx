@@ -393,19 +393,52 @@ describe('HomeScreen 로그아웃 버튼', () => {
   });
 
   // 실패해도 세션이 정리되어 이 화면은 사라진다. 화면 안의 문구로는 알릴 수 없다.
-  test('로그아웃이 실패하면 Alert로 알린다', async () => {
+  test('서버가 거절하면 세션이 만료됐다고 알린다', async () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     const tree = await renderAuthenticated(<HomeScreen />);
     fetchMock.mockResolvedValueOnce(
-      jsonResponse(401, { message: '토큰이 만료되었습니다.' }),
+      jsonResponse(401, { message: '유효하지 않은 Refresh Token입니다.' }),
     );
 
     await pressLogout(tree);
 
     expect(alert).toHaveBeenCalledTimes(1);
-    expect(alert.mock.calls[0][1]).toContain('토큰이 만료되었습니다.');
+    expect(alert.mock.calls[0][0]).toBe('로그아웃했어요');
+    // 서버 원문("유효하지 않은 Refresh Token입니다.")을 그대로 노출하지 않는다.
+    expect(alert.mock.calls[0][1]).toBe('세션이 이미 만료되어 있었어요.');
     expect(getAccessToken()).toBeNull();
     alert.mockRestore();
+  });
+
+  // 네트워크 실패에 "다시 시도해 주세요"를 띄우면 거짓말이 된다. 이미 로그아웃됐다.
+  test('네트워크가 끊기면 서버에 반영되지 못했다고 알린다', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const tree = await renderAuthenticated(<HomeScreen />);
+    fetchMock.mockRejectedValueOnce(new Error('Network request failed'));
+
+    await pressLogout(tree);
+
+    expect(alert).toHaveBeenCalledTimes(1);
+    expect(alert.mock.calls[0][1]).toBe(
+      '네트워크에 연결되지 않아 서버에는 반영되지 못했어요.',
+    );
+    expect(getAccessToken()).toBeNull();
+    alert.mockRestore();
+  });
+
+  // pending으로 버튼을 비활성화하기까지 한 프레임이 걸린다. 그 사이의 두 번째 탭.
+  test('연속으로 두 번 눌러도 요청은 한 번만 나간다', async () => {
+    const tree = await renderAuthenticated(<HomeScreen />);
+    fetchMock.mockResolvedValue(jsonResponse(204));
+
+    const [button] = logoutButtons(tree);
+    await act(async () => {
+      button.props.onPress();
+      button.props.onPress();
+    });
+
+    // 마운트 시 재발급 1회 + 로그아웃 1회.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   test('로그아웃이 성공하면 Alert 없이 로그인 화면으로 되돌아간다', async () => {
