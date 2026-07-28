@@ -2,6 +2,7 @@ package com.wecandoit.bingo.controller;
 
 import static io.restassured.module.mockmvc.RestAssuredMockMvc.given;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
@@ -12,6 +13,8 @@ import static org.springframework.restdocs.payload.PayloadDocumentation.response
 
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.wecandoit.bingo.controller.response.BingoBoardResponse;
+import com.wecandoit.bingo.controller.response.BingoBoardResponse.BattleParticipantProgressResponse;
+import com.wecandoit.bingo.controller.response.BingoBoardResponse.BattleProgressResponse;
 import com.wecandoit.bingo.controller.response.BingoCellResponse;
 import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
@@ -22,6 +25,8 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
+import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.mission.controller.response.MissionResponse;
 import io.restassured.http.ContentType;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
@@ -118,7 +123,8 @@ class BingoControllerTest {
                         "인증 이미지가 조건과 다릅니다."
                 )),
                 true,
-                true
+                true,
+                null
         );
         BDDMockito.given(bingoReadService.getActiveBoard(1L, 10L)).willReturn(response);
 
@@ -168,9 +174,74 @@ class BingoControllerTest {
                                 fieldWithPath("cells[].submittedByMemberId").description("미션 제출 참여자 ID"),
                                 fieldWithPath("cells[].rejectionReason").description("미션 거절 사유"),
                                 fieldWithPath("completed").description("빙고판 100% 완료 여부"),
-                                fieldWithPath("canRenew").description("조기 갱신 가능 여부(방장이고 완료된 경우에만 true)")
+                                fieldWithPath("canRenew").description("조기 갱신 가능 여부(방장이고 완료된 경우에만 true)"),
+                                fieldWithPath("battleProgress").optional().description("대결 모드 참가자 진행도")
                         )
                 ));
+    }
+
+    @Test
+    @DisplayName("활성 빙고판이 없으면 조회에 실패한다")
+    void getActiveBoardReturnsBattleProgressWithoutOpponentSubmissionDetails() {
+        // given
+        MissionResponse mission = new MissionResponse(
+                1L,
+                "https://example.com/mission.png",
+                "OBJECT",
+                "미션 제목",
+                "미션 설명",
+                null,
+                LocalDateTime.of(2026, 7, 22, 10, 0)
+        );
+        BingoBoardResponse response = new BingoBoardResponse(
+                201L,
+                200L,
+                10L,
+                3,
+                3,
+                1,
+                9,
+                2,
+                BingoBoardStatus.IN_PROGRESS,
+                List.of(new BingoCellResponse(
+                        1001L,
+                        0,
+                        0,
+                        mission,
+                        BingoCellVerificationStatus.APPROVED,
+                        1L,
+                        null
+                )),
+                false,
+                false,
+                new BattleProgressResponse(
+                        GameRoomStatus.IN_PROGRESS,
+                        GameStatus.IN_PROGRESS,
+                        new BattleParticipantProgressResponse(1L, 201L, 9, 2, 1, false),
+                        new BattleParticipantProgressResponse(2L, 202L, 9, 4, 2, false),
+                        null
+                )
+        );
+        BDDMockito.given(bingoReadService.getActiveBoard(1L, 10L)).willReturn(response);
+
+        // when & then
+        given()
+                .when()
+                .get("/rooms/{roomId}/bingo-boards/active", 10L)
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("bingoBoardId", equalTo(201))
+                .body("cells[0].submittedByMemberId", equalTo(1))
+                .body("battleProgress.roomStatus", equalTo("IN_PROGRESS"))
+                .body("battleProgress.gameStatus", equalTo("IN_PROGRESS"))
+                .body("battleProgress.me.memberId", equalTo(1))
+                .body("battleProgress.me.bingoBoardId", equalTo(201))
+                .body("battleProgress.opponent.memberId", equalTo(2))
+                .body("battleProgress.opponent.bingoBoardId", equalTo(202))
+                .body("battleProgress.opponent.approvedCellCount", equalTo(4))
+                .body("battleProgress.opponent.submittedByMemberId", nullValue())
+                .body("battleProgress.opponent.rejectionReason", nullValue())
+                .body("battleProgress.result", nullValue());
     }
 
     @Test
@@ -336,7 +407,8 @@ class BingoControllerTest {
                 BingoBoardStatus.IN_PROGRESS,
                 List.of(new BingoCellResponse(1001L, 0, 0, mission, null, null, null)),
                 false,
-                false
+                false,
+                null
         );
         BDDMockito.given(bingoCommandService.renewBoard(1L, 10L)).willReturn(response);
 
@@ -377,7 +449,8 @@ class BingoControllerTest {
                                 fieldWithPath("cells[].submittedByMemberId").description("미션 제출 참여자 ID"),
                                 fieldWithPath("cells[].rejectionReason").description("미션 거절 사유"),
                                 fieldWithPath("completed").description("빙고판 100% 완료 여부"),
-                                fieldWithPath("canRenew").description("조기 갱신 가능 여부(방장이고 완료된 경우에만 true)")
+                                fieldWithPath("canRenew").description("조기 갱신 가능 여부(방장이고 완료된 경우에만 true)"),
+                                fieldWithPath("battleProgress").optional().description("대결 모드 참가자 진행도")
                         )
                 ));
     }

@@ -3,6 +3,7 @@ package com.wecandoit.bingo.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import com.wecandoit.bingo.controller.response.BingoBoardResponse;
 import com.wecandoit.bingo.domain.BingoBoard;
@@ -15,11 +16,13 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
+import com.wecandoit.game.domain.GameResult;
 import com.wecandoit.game.domain.GameRoomStatus;
 import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomMember;
 import com.wecandoit.game.repository.GameRepository;
+import com.wecandoit.game.repository.GameResultRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.mission.domain.Mission;
@@ -50,6 +53,8 @@ class BingoReadServiceTest {
     private RoomMemberRepository roomMemberRepository;
     @Mock
     private GameRepository gameRepository;
+    @Mock
+    private GameResultRepository gameResultRepository;
     @Mock
     private BingoBoardRepository bingoBoardRepository;
     @Mock
@@ -89,6 +94,7 @@ class BingoReadServiceTest {
         assertThat(response.totalCellCount()).isEqualTo(4);
         assertThat(response.approvedCellCount()).isEqualTo(4);
         assertThat(response.cells()).hasSize(4);
+        assertThat(response.battleProgress()).isNull();
         for (int i = 0; i < cells.size(); i++) {
             assertThat(response.cells().get(i).cellId()).isEqualTo(cells.get(i).getId());
             assertThat(response.cells().get(i).mission().missionId()).isEqualTo(cells.get(i).getMissionId());
@@ -194,23 +200,17 @@ class BingoReadServiceTest {
         Room room = Room.create(1L, GameMode.BATTLE, 3, 2);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
-        RoomMember roomMember = RoomMember.create(10L, 1L);
-        ReflectionTestUtils.setField(roomMember, "id", 101L);
-        BingoBoard board = BingoBoard.createForBattle(200L, roomMember, 2);
-        ReflectionTestUtils.setField(board, "id", 201L);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.IN_PROGRESS))
-                .willReturn(Optional.of(activeGame(200L, 10L)));
-        given(roomMemberRepository.findByRoomIdAndMemberId(10L, 1L)).willReturn(Optional.of(roomMember));
-        given(bingoBoardRepository.findFirstByGameIdAndRoomMemberIdAndStatusNotInOrderByIdDesc(
-                200L,
-                101L,
-                INACTIVE_BOARD_STATUSES
-        )).willReturn(Optional.of(board));
-        List<BingoCell> cells = cellsWithApprovedCount(201L, 4, 4);
-        given(bingoCellRepository.findAllByBoardId(201L)).willReturn(cells);
-        given(missionRepository.findAllById(Mockito.anyIterable())).willReturn(missionsForCells(cells));
+        RoomMember participantA = roomMember(101L, 10L, 1L);
+        RoomMember participantB = roomMember(102L, 10L, 2L);
+        BingoBoard boardA = battleBoard(201L, 200L, participantA, 2);
+        BingoBoard boardB = battleBoard(202L, 200L, participantB, 2);
+        List<BingoCell> cellsA = cellsWithApprovedCount(201L, 4, 1);
+        List<BingoCell> cellsB = cellsWithApprovedCount(202L, 4, 3);
+        givenBattleLookup(room, participantA, List.of(participantA, participantB), List.of(boardA, boardB));
+        given(bingoCellRepository.findAllByBoardIdIn(List.of(201L, 202L)))
+                .willReturn(merge(cellsA, cellsB));
+        given(missionRepository.findAllById(Mockito.anyIterable())).willReturn(missionsForCells(cellsA));
+        given(gameResultRepository.findByGameId(200L)).willReturn(Optional.empty());
 
         // when
         BingoBoardResponse response = bingoReadService.getActiveBoard(1L, 10L);
@@ -218,6 +218,138 @@ class BingoReadServiceTest {
         // then
         assertThat(response.bingoBoardId()).isEqualTo(201L);
         assertThat(response.canRenew()).isFalse();
+        assertThat(response.battleProgress().me().memberId()).isEqualTo(1L);
+        assertThat(response.battleProgress().me().bingoBoardId()).isEqualTo(201L);
+        assertThat(response.battleProgress().me().approvedCellCount()).isEqualTo(1);
+        assertThat(response.battleProgress().opponent().memberId()).isEqualTo(2L);
+        assertThat(response.battleProgress().opponent().bingoBoardId()).isEqualTo(202L);
+        assertThat(response.battleProgress().opponent().approvedCellCount()).isEqualTo(3);
+        assertThat(response.battleProgress().opponent().completedBingoCount()).isEqualTo(3);
+        assertThat(response.battleProgress().result()).isNull();
+        then(bingoBoardRepository).should().findAllByGameIdOrderByIdAsc(200L);
+        then(bingoCellRepository).should()
+                .findAllByBoardIdIn(List.of(201L, 202L));
+        then(missionRepository).should().findAllById(Mockito.anyIterable());
+    }
+
+    @Test
+    @DisplayName("대결 참가자 B가 조회하면 B의 개인 보드와 A의 진행도를 반환한다")
+    void getActiveBoardDoesNotSwapBattleParticipants() {
+        // given
+        Room room = battleRoom();
+        RoomMember participantA = roomMember(101L, 10L, 1L);
+        RoomMember participantB = roomMember(102L, 10L, 2L);
+        BingoBoard boardA = battleBoard(201L, 200L, participantA, 2);
+        BingoBoard boardB = battleBoard(202L, 200L, participantB, 2);
+        List<BingoCell> cellsA = cellsWithApprovedCount(201L, 4, 2);
+        List<BingoCell> cellsB = cellsWithApprovedCount(202L, 4, 4);
+        givenBattleLookup(room, participantB, List.of(participantA, participantB), List.of(boardA, boardB));
+        given(bingoCellRepository.findAllByBoardIdIn(List.of(202L, 201L)))
+                .willReturn(merge(cellsA, cellsB));
+        given(missionRepository.findAllById(Mockito.anyIterable())).willReturn(missionsForCells(cellsB));
+        given(gameResultRepository.findByGameId(200L)).willReturn(Optional.empty());
+
+        // when
+        BingoBoardResponse response = bingoReadService.getActiveBoard(2L, 10L);
+
+        // then
+        assertThat(response.bingoBoardId()).isEqualTo(202L);
+        assertThat(response.battleProgress().me().memberId()).isEqualTo(2L);
+        assertThat(response.battleProgress().me().bingoBoardId()).isEqualTo(202L);
+        assertThat(response.battleProgress().me().completedBingoCount()).isEqualTo(6);
+        assertThat(response.battleProgress().me().targetReached()).isTrue();
+        assertThat(response.battleProgress().opponent().memberId()).isEqualTo(1L);
+        assertThat(response.battleProgress().opponent().bingoBoardId()).isEqualTo(201L);
+    }
+
+    @Test
+    @DisplayName("완료된 대결은 현재 회차의 결과가 있을 때만 결과를 반환한다")
+    void getActiveBoardReturnsCurrentCompletedBattleResult() {
+        // given
+        Room room = battleRoom();
+        RoomMember participantA = roomMember(101L, 10L, 1L);
+        RoomMember participantB = roomMember(102L, 10L, 2L);
+        BingoBoard boardA = battleBoard(201L, 200L, participantA, 2);
+        BingoBoard boardB = battleBoard(202L, 200L, participantB, 2);
+        Game completedGame = activeGame(200L, 10L);
+        ReflectionTestUtils.setField(completedGame, "status", GameStatus.COMPLETED);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.findByRoomIdAndMemberId(10L, 1L)).willReturn(Optional.of(participantA));
+        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L))
+                .willReturn(List.of(participantA, participantB));
+        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.IN_PROGRESS))
+                .willReturn(Optional.empty());
+        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.COMPLETED))
+                .willReturn(Optional.of(completedGame));
+        given(bingoBoardRepository.findAllByGameIdOrderByIdAsc(200L)).willReturn(List.of(boardA, boardB));
+        List<BingoCell> cellsA = cellsWithApprovedCount(201L, 4, 4);
+        List<BingoCell> cellsB = cellsWithApprovedCount(202L, 4, 3);
+        given(bingoCellRepository.findAllByBoardIdIn(List.of(201L, 202L)))
+                .willReturn(merge(cellsA, cellsB));
+        given(missionRepository.findAllById(Mockito.anyIterable())).willReturn(missionsForCells(cellsA));
+        given(gameResultRepository.findByGameId(200L))
+                .willReturn(Optional.of(GameResult.create(200L, 10L, true, 3, 4, 500L)));
+
+        // when
+        BingoBoardResponse response = bingoReadService.getActiveBoard(1L, 10L);
+
+        // then
+        assertThat(response.battleProgress().gameStatus()).isEqualTo(GameStatus.COMPLETED);
+        assertThat(response.battleProgress().result()).isTrue();
+    }
+
+    @Test
+    @DisplayName("대결 참가자의 개인 보드가 누락되면 조회에 실패한다")
+    void getActiveBoardRejectsMissingBattleBoard() {
+        // given
+        Room room = battleRoom();
+        RoomMember participantA = roomMember(101L, 10L, 1L);
+        RoomMember participantB = roomMember(102L, 10L, 2L);
+        BingoBoard boardA = battleBoard(201L, 200L, participantA, 2);
+        givenBattleLookup(room, participantA, List.of(participantA, participantB), List.of(boardA));
+
+        // when & then
+        assertErrorCode(() -> bingoReadService.getActiveBoard(1L, 10L), ErrorCode.BINGO_BOARD_NOT_FOUND);
+    }
+
+    private void givenBattleLookup(
+            Room room,
+            RoomMember requester,
+            List<RoomMember> roomMembers,
+            List<BingoBoard> boards
+    ) {
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.findByRoomIdAndMemberId(10L, requester.getMemberId()))
+                .willReturn(Optional.of(requester));
+        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(roomMembers);
+        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.IN_PROGRESS))
+                .willReturn(Optional.of(activeGame(200L, 10L)));
+        given(bingoBoardRepository.findAllByGameIdOrderByIdAsc(200L)).willReturn(boards);
+    }
+
+    private Room battleRoom() {
+        Room room = Room.create(1L, GameMode.BATTLE, 3, 2);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
+        return room;
+    }
+
+    private RoomMember roomMember(Long id, Long roomId, Long memberId) {
+        RoomMember roomMember = RoomMember.create(roomId, memberId);
+        ReflectionTestUtils.setField(roomMember, "id", id);
+        return roomMember;
+    }
+
+    private BingoBoard battleBoard(Long id, Long gameId, RoomMember roomMember, int boardSize) {
+        BingoBoard board = BingoBoard.createForBattle(gameId, roomMember, boardSize);
+        ReflectionTestUtils.setField(board, "id", id);
+        return board;
+    }
+
+    private List<BingoCell> merge(List<BingoCell> first, List<BingoCell> second) {
+        List<BingoCell> merged = new ArrayList<>(first);
+        merged.addAll(second);
+        return merged;
     }
 
     private BingoBoard activeBoard(Long boardId, Long gameId, int boardSize) {
