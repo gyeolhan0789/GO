@@ -10,8 +10,7 @@ public record RoomDetailResponse(
         Long roomId,
         GameMode mode,
         GameRoomStatus status,
-        int targetBingoCount,
-        Integer targetStepCount,
+        Integer targetBingoCount,
         Long hostId,
         LocalDateTime startedAt,
         List<RoomMemberResponse> members
@@ -26,7 +25,6 @@ public record RoomDetailResponse(
                 room.getMode(),
                 room.getStatus(),
                 room.getTargetBingoCount(),
-                room.getTargetStepCount(),
                 room.getHostId(),
                 room.getStartedAt(),
                 members

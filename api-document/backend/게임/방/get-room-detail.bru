@@ -23,21 +23,24 @@ docs {
   ```json
   {
     "roomId": 1,
-    "mode": "SINGLE",
+    "mode": "BATTLE",
     "status": "IN_PROGRESS",
     "targetBingoCount": 3,
     "hostId": 1,
     "startedAt": "2026-07-24T10:05:00",
     "members": [
-      { "memberId": 1, "nickname": "host_nick", "host": true, "completedMissionCount": 2, "joinedAt": "2026-07-24T10:00:00" }
+      { "memberId": 1, "nickname": "host_nick", "host": true, "completedMissionCount": 2, "joinedAt": "2026-07-24T10:00:00", "bingoBoardId": 101 },
+      { "memberId": 2, "nickname": "guest_nick", "host": false, "completedMissionCount": 0, "joinedAt": "2026-07-24T10:01:00", "bingoBoardId": 102 }
     ]
   }
   ```
   ### 비즈니스 규칙
-  - `mode`: `SINGLE` | `COOPERATE`
+  - `mode`: `SINGLE` | `COOPERATE` | `BATTLE`
+  - `targetBingoCount`는 대결 모드에서만 값이 있으며 싱글·협동 모드에서는 `null`이다.
   - `status`: `CREATED` | `WAITING` | `READY` | `IN_PROGRESS` | `COMPLETED` | `CLOSED`
   - `startedAt`은 게임이 시작(`IN_PROGRESS`로 전환)되기 전에는 `null`이다.
   - `members`는 참여 시각(`joinedAt`) 오름차순으로 정렬된다.
+  - `members[].bingoBoardId`는 대결 모드에서 각 참가자의 개인 빙고판 ID이며, 싱글·협동 모드에서는 `null`이다.
 
   ### 에러 케이스
 

@@ -2,7 +2,8 @@ package com.wecandoit.game.domain;
 
 public enum GameMode {
     SINGLE(1, 1),
-    COOPERATE(2, 4);
+    COOPERATE(2, 4),
+    BATTLE(2, 2);
 
     private final int minimumParticipants;
     private final int maximumParticipants;

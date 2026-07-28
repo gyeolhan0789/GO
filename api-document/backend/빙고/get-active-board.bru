@@ -62,7 +62,7 @@ docs {
   - `completedBingoCount`는 현재 승인된 셀을 기준으로 완성된 가로·세로·대각선 수다.
   - `submittedByMemberId`는 해당 셀을 마지막으로 제출한 방 참여자 ID다. 닉네임은 게임방 참여자 조회 응답과 매핑하며 제출 이미지 URL은 노출하지 않는다.
   - `verificationStatus`가 null이면 제출 가능, `PENDING`이면 검증 중, `APPROVED`이면 승인 완료, `REJECTED`이면 거절 후 재제출 가능한 상태다.
-  - 게임(방) 자체의 종료 조건은 이와 별개다: `APPROVED`된 칸들이 만드는 완성된 빙고 줄(가로/세로/대각선) 수가 게임방의 `targetBingoCount` 이상이 되면, 칸이 100% 채워지지 않았어도 방이 자동으로 `COMPLETED` 처리되고 참여자에게 보상이 지급된다. 이 상태 변화는 이 응답에는 반영되지 않으며, 게임방 조회 API에서 확인해야 한다.
+  - `targetBingoCount`는 대결 모드에서만 사용한다. 싱글·협동 모드는 모든 칸이 완료되면 종료된다.
 
   ### 에러 케이스
 

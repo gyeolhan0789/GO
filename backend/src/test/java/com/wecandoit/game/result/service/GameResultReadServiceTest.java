@@ -86,7 +86,7 @@ class GameResultReadServiceTest {
         assertThat(response.mode()).isEqualTo(GameMode.COOPERATE);
         assertThat(response.result()).isTrue();
         assertThat(response.boardSize()).isEqualTo(3);
-        assertThat(response.targetBingoCount()).isEqualTo(3);
+        assertThat(response.targetBingoCount()).isNull();
         assertThat(response.bingoCount()).isEqualTo(3);
         assertThat(response.completedMissionCount()).isEqualTo(5);
         assertThat(response.rewardCash()).isEqualTo(500L);
@@ -129,7 +129,7 @@ class GameResultReadServiceTest {
     @DisplayName("완료되지 않은 방의 결과를 조회하면 실패한다")
     void getGameResultRejectsNotCompletedRoom() {
         // given
-        Room room = Room.create(1L, GameMode.SINGLE, 3, 3, null);
+        Room room = Room.create(1L, GameMode.SINGLE, null, 3);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
 
@@ -196,14 +196,14 @@ class GameResultReadServiceTest {
     }
 
     private Room completedRoom(Long roomId, Long hostId) {
-        Room room = Room.create(hostId, GameMode.SINGLE, 3, 3, null);
+        Room room = Room.create(hostId, GameMode.SINGLE, null, 3);
         ReflectionTestUtils.setField(room, "id", roomId);
         room.complete();
         return room;
     }
 
     private Room completedCooperateRoom(Long roomId, Long hostId) {
-        Room room = Room.create(hostId, GameMode.COOPERATE, 3, 3, 10000);
+        Room room = Room.create(hostId, GameMode.COOPERATE, null, 3);
         ReflectionTestUtils.setField(room, "id", roomId);
         room.complete();
         return room;

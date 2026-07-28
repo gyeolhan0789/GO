@@ -11,10 +11,12 @@ import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
-import com.wecandoit.game.domain.GameStatus;
-import com.wecandoit.game.repository.GameRepository;
+import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.game.domain.Room;
+import com.wecandoit.game.domain.RoomMember;
+import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.mission.domain.Mission;
@@ -45,24 +47,40 @@ public class BingoCommandService {
     private final ApplicationEventPublisher eventPublisher;
     private final NotificationMessageFactory notificationMessageFactory;
 
+    public List<BingoBoardResponse> generateBattleBoards(
+            Room room,
+            Long gameId,
+            List<RoomMember> roomMembers
+    ) {
+        if (room.getMode() != GameMode.BATTLE
+                || roomMembers.size() != GameMode.BATTLE.getMaximumParticipants()
+                || roomMembers.stream().anyMatch(roomMember ->
+                roomMember.getId() == null || !room.getId().equals(roomMember.getRoomId()))) {
+            throw new CustomException(ErrorCode.BINGO_BOARD_GENERATE_FORBIDDEN);
+        }
+        return roomMembers.stream()
+                .map(roomMember -> {
+                    validateBattleBoardNotExists(roomMember.getId());
+                    return generateNewBoard(room, gameId, roomMember);
+                })
+                .toList();
+    }
+
     public BingoBoardResponse generateInitialBoard(Room room, Long gameId) {
         validateBoardNotExists(gameId);
-        return generateNewBoard(room, gameId);
+        return generateNewBoard(room, gameId, null);
     }
 
     public BingoCell submitCell(Long memberId, Long roomId, Long cellId, String submitUrl) {
         validateMember(memberId, roomId);
-
+        Room room = roomRepository.findByIdForUpdate(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
         Game game = findActiveGame(roomId);
-        BingoBoard activeBoard = bingoBoardRepository.findActiveBoardForUpdate(game.getId(), INACTIVE_BOARD_STATUSES)
-                .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
+        BingoBoard activeBoard = findActiveBoardForUpdate(room, game.getId(), memberId);
         BingoCell cell = bingoCellRepository.findByIdForUpdate(cellId)
                 .filter(c -> c.getBoardId().equals(activeBoard.getId()))
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND));
-        Room room = roomRepository.findByIdForUpdate(roomId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
 
-        validateMember(memberId, roomId);
         validateRoomInProgress(room);
         validateCellSubmittable(cell);
         cell.submit(memberId, submitUrl);
@@ -81,7 +99,7 @@ public class BingoCommandService {
         validateRenewalHost(memberId, room);
         validateBoardCompleted(activeBoard.getId());
 
-        BingoBoardResponse newBoardResponse = generateNewBoard(room, game.getId());
+        BingoBoardResponse newBoardResponse = generateNewBoard(room, game.getId(), null);
         activeBoard.complete();
         bingoBoardRepository.save(activeBoard);
         return newBoardResponse;
@@ -94,6 +112,9 @@ public class BingoCommandService {
     public void autoRenewBoard(Long roomId) {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+        if (room.getMode() == GameMode.BATTLE) {
+            return;
+        }
         Game game = findActiveGame(roomId);
 
         bingoBoardRepository.findActiveBoardForUpdate(game.getId(), INACTIVE_BOARD_STATUSES)
@@ -103,7 +124,7 @@ public class BingoCommandService {
                     }
                     board.expire();
                     bingoBoardRepository.save(board);
-                    generateNewBoard(room, game.getId());
+                    generateNewBoard(room, game.getId(), null);
                     notifyRoomMembers(roomId);
                 });
     }
@@ -114,7 +135,7 @@ public class BingoCommandService {
                         notificationMessageFactory.weeklyBingoRenewal(roomMember.getMemberId())));
     }
 
-    private BingoBoardResponse generateNewBoard(Room room, Long gameId) {
+    private BingoBoardResponse generateNewBoard(Room room, Long gameId, RoomMember roomMember) {
         int boardSize = room.getBoardSize();
         int cellCount = boardSize * boardSize;
         List<Mission> missions = missionRepository.findRandomMissions(cellCount);
@@ -122,7 +143,10 @@ public class BingoCommandService {
             throw new CustomException(ErrorCode.MISSION_POOL_INSUFFICIENT);
         }
 
-        BingoBoard board = bingoBoardRepository.save(BingoBoard.create(gameId, boardSize));
+        BingoBoard board = roomMember == null
+                ? BingoBoard.create(gameId, boardSize)
+                : BingoBoard.createForBattle(gameId, roomMember, boardSize);
+        bingoBoardRepository.save(board);
         List<BingoCellResponse> cellResponses = createCells(board, boardSize, missions);
         return BingoBoardResponse.of(
                 board,
@@ -166,6 +190,28 @@ public class BingoCommandService {
     private void validateBoardNotExists(Long gameId) {
         if (bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(gameId, INACTIVE_BOARD_STATUSES)
                 .isPresent()) {
+            throw new CustomException(ErrorCode.BINGO_BOARD_ALREADY_EXISTS);
+        }
+    }
+
+    private BingoBoard findActiveBoardForUpdate(Room room, Long gameId, Long memberId) {
+        if (room.getMode() == GameMode.BATTLE) {
+            RoomMember roomMember = roomMemberRepository.findByRoomIdAndMemberId(room.getId(), memberId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN));
+            return bingoBoardRepository.findActiveBoardForUpdate(
+                            gameId,
+                            roomMember.getId(),
+                            INACTIVE_BOARD_STATUSES
+                    )
+                    .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
+        }
+        validateMember(memberId, room.getId());
+        return bingoBoardRepository.findActiveBoardForUpdate(gameId, INACTIVE_BOARD_STATUSES)
+                .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
+    }
+
+    private void validateBattleBoardNotExists(Long roomMemberId) {
+        if (bingoBoardRepository.existsByRoomMemberId(roomMemberId)) {
             throw new CustomException(ErrorCode.BINGO_BOARD_ALREADY_EXISTS);
         }
     }

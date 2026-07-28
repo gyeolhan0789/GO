@@ -1,14 +1,20 @@
 package com.wecandoit.game.service;
 
+import com.wecandoit.bingo.domain.BingoBoard;
+import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.controller.response.MyRoomMemberResponse;
 import com.wecandoit.game.controller.response.MyRoomResponse;
 import com.wecandoit.game.controller.response.RoomDetailResponse;
 import com.wecandoit.game.controller.response.RoomMemberResponse;
+import com.wecandoit.game.domain.Game;
+import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomMember;
+import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.member.service.MemberReadService;
@@ -26,7 +32,9 @@ public class RoomReadService {
 
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
+    private final GameRepository gameRepository;
     private final MemberReadService memberReadService;
+    private final BingoBoardRepository bingoBoardRepository;
 
     public RoomDetailResponse getRoomDetail(Long memberId, Long roomId) {
         Room room = roomRepository.findById(roomId)
@@ -39,7 +47,11 @@ public class RoomReadService {
         }
 
         List<RoomMember> roomMembers = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId);
-        return RoomDetailResponse.from(room, getRoomMemberResponses(room, roomMembers));
+        return RoomDetailResponse.from(room, getRoomMemberResponses(
+                room,
+                roomMembers,
+                getBingoBoardIdsByRoomMemberId(room)
+        ));
     }
 
     public List<MyRoomResponse> getMyRooms(Long memberId) {
@@ -89,10 +101,14 @@ public class RoomReadService {
         }
 
         List<RoomMember> roomMembers = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId);
-        return getRoomMemberResponses(room, roomMembers);
+        return getRoomMemberResponses(room, roomMembers, getBingoBoardIdsByRoomMemberId(room));
     }
 
-    private List<RoomMemberResponse> getRoomMemberResponses(Room room, List<RoomMember> roomMembers) {
+    private List<RoomMemberResponse> getRoomMemberResponses(
+            Room room,
+            List<RoomMember> roomMembers,
+            Map<Long, Long> bingoBoardIdsByRoomMemberId
+    ) {
         if (roomMembers.isEmpty()) {
             return List.of();
         }
@@ -102,9 +118,31 @@ public class RoomReadService {
                 .map(roomMember -> RoomMemberResponse.from(
                         roomMember,
                         getNickname(nicknamesByMemberId, roomMember.getMemberId()),
-                        room.getHostId().equals(roomMember.getMemberId())
+                        room.getHostId().equals(roomMember.getMemberId()),
+                        getBingoBoardId(bingoBoardIdsByRoomMemberId, roomMember)
                 ))
                 .toList();
+    }
+
+    private Long getBingoBoardId(Map<Long, Long> bingoBoardIdsByRoomMemberId, RoomMember roomMember) {
+        if (bingoBoardIdsByRoomMemberId.isEmpty()) {
+            return null;
+        }
+        return bingoBoardIdsByRoomMemberId.get(roomMember.getId());
+    }
+
+    private Map<Long, Long> getBingoBoardIdsByRoomMemberId(Room room) {
+        if (room.getMode() != GameMode.BATTLE) {
+            return Map.of();
+        }
+        Game game = gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(room.getId(), GameStatus.IN_PROGRESS)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_IN_PROGRESS));
+        return bingoBoardRepository.findAllByGameIdOrderByIdAsc(game.getId()).stream()
+                .filter(bingoBoard -> bingoBoard.getRoomMember() != null)
+                .collect(Collectors.toMap(
+                        bingoBoard -> bingoBoard.getRoomMember().getId(),
+                        BingoBoard::getId
+                ));
     }
 
     private Map<Long, Room> getRoomsById(List<Long> roomIds) {

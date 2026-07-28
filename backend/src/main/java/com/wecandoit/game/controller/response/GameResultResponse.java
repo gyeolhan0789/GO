@@ -11,7 +11,7 @@ public record GameResultResponse(
         GameMode mode,
         boolean result,
         int boardSize,
-        int targetBingoCount,
+        Integer targetBingoCount,
         int bingoCount,
         int completedMissionCount,
         long rewardCash,

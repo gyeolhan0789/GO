@@ -5,15 +5,20 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
+import com.wecandoit.bingo.domain.BingoBoard;
+import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.controller.response.MyRoomResponse;
 import com.wecandoit.game.controller.response.RoomDetailResponse;
 import com.wecandoit.game.controller.response.RoomMemberResponse;
+import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomMember;
+import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.RoomReadService;
@@ -39,7 +44,11 @@ class RoomReadServiceTest {
     @Mock
     private RoomMemberRepository roomMemberRepository;
     @Mock
+    private GameRepository gameRepository;
+    @Mock
     private MemberReadService memberReadService;
+    @Mock
+    private BingoBoardRepository bingoBoardRepository;
     private RoomReadService roomReadService;
 
     @BeforeEach
@@ -47,8 +56,66 @@ class RoomReadServiceTest {
         roomReadService = new RoomReadService(
                 roomRepository,
                 roomMemberRepository,
-                memberReadService
+                gameRepository,
+                memberReadService,
+                bingoBoardRepository
         );
+    }
+
+    @Test
+    @DisplayName("대결 방 상세 조회 시 각 참가자의 개인 빙고판 ID를 반환한다")
+    void getBattleRoomDetailReturnsBingoBoardIdsByRoomMember() {
+        // given
+        Room room = Room.create(1L, GameMode.BATTLE, 3, 3);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        RoomMember hostMember = roomMember(10L, 1L, 0, LocalDateTime.of(2026, 7, 22, 10, 0));
+        RoomMember guestMember = roomMember(10L, 2L, 0, LocalDateTime.of(2026, 7, 22, 10, 5));
+        ReflectionTestUtils.setField(hostMember, "id", 101L);
+        ReflectionTestUtils.setField(guestMember, "id", 102L);
+        BingoBoard hostBoard = BingoBoard.createForBattle(200L, hostMember, 3);
+        BingoBoard guestBoard = BingoBoard.createForBattle(200L, guestMember, 3);
+        ReflectionTestUtils.setField(hostBoard, "id", 201L);
+        ReflectionTestUtils.setField(guestBoard, "id", 202L);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L))
+                .willReturn(List.of(hostMember, guestMember));
+        given(memberReadService.getNicknamesByIds(List.of(1L, 2L)))
+                .willReturn(Map.of(1L, "방장", 2L, "상대방"));
+        Game game = Game.start(10L);
+        ReflectionTestUtils.setField(game, "id", 200L);
+        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.IN_PROGRESS))
+                .willReturn(Optional.of(game));
+        given(bingoBoardRepository.findAllByGameIdOrderByIdAsc(200L))
+                .willReturn(List.of(hostBoard, guestBoard));
+
+        // when
+        RoomDetailResponse response = roomReadService.getRoomDetail(1L, 10L);
+
+        // then
+        assertThat(response.members())
+                .extracting(RoomMemberResponse::bingoBoardId)
+                .containsExactly(201L, 202L);
+    }
+
+    @Test
+    @DisplayName("협동 방 참가자는 개인 빙고판 ID를 반환하지 않는다")
+    void getCooperateRoomDetailReturnsNullBingoBoardId() {
+        // given
+        Room room = Room.create(1L, GameMode.COOPERATE, null, 3);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        RoomMember hostMember = roomMember(10L, 1L, 0, LocalDateTime.of(2026, 7, 22, 10, 0));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of(hostMember));
+        given(memberReadService.getNicknamesByIds(List.of(1L))).willReturn(Map.of(1L, "방장"));
+
+        // when
+        RoomDetailResponse response = roomReadService.getRoomDetail(1L, 10L);
+
+        // then
+        assertThat(response.members().getFirst().bingoBoardId()).isNull();
+        then(bingoBoardRepository).shouldHaveNoInteractions();
     }
 
     @Test
@@ -73,7 +140,7 @@ class RoomReadServiceTest {
         assertThat(response.roomId()).isEqualTo(10L);
         assertThat(response.mode()).isEqualTo(GameMode.SINGLE);
         assertThat(response.status()).isEqualTo(GameRoomStatus.CREATED);
-        assertThat(response.targetBingoCount()).isEqualTo(3);
+        assertThat(response.targetBingoCount()).isNull();
         assertThat(response.hostId()).isEqualTo(1L);
         assertThat(response.startedAt()).isEqualTo(LocalDateTime.of(2026, 7, 22, 9, 50));
         assertThat(response.members()).hasSize(2);
@@ -194,7 +261,7 @@ class RoomReadServiceTest {
         assertThat(response.roomId()).isEqualTo(10L);
         assertThat(response.mode()).isEqualTo(GameMode.SINGLE);
         assertThat(response.status()).isEqualTo(GameRoomStatus.CREATED);
-        assertThat(response.targetBingoCount()).isEqualTo(3);
+        assertThat(response.targetBingoCount()).isNull();
         assertThat(response.hostId()).isEqualTo(1L);
         assertThat(response.joinedAt()).isEqualTo(LocalDateTime.of(2026, 7, 22, 10, 0));
         assertThat(response.members()).hasSize(2);
@@ -384,7 +451,7 @@ class RoomReadServiceTest {
     }
 
     private Room room(Long roomId, Long hostId) {
-        Room room = Room.create(hostId, GameMode.SINGLE, 3, 3, null);
+        Room room = Room.create(hostId, GameMode.SINGLE, null, 3);
         ReflectionTestUtils.setField(room, "id", roomId);
         return room;
     }

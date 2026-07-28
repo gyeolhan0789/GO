@@ -56,6 +56,10 @@ public class GameCompletionService {
     private final NotificationMessageFactory notificationMessageFactory;
 
     public void evaluateAndCompleteIfNeeded(Long gameId) {
+        evaluateAndCompleteIfNeeded(gameId, null);
+    }
+
+    public void evaluateAndCompleteIfNeeded(Long gameId, Long completedBoardId) {
         Game game = gameRepository.findByIdForUpdate(gameId)
                 .orElseThrow(() -> new CustomException(ErrorCode.GAME_NOT_FOUND));
         if (game.getStatus() != GameStatus.IN_PROGRESS) {
@@ -70,18 +74,20 @@ public class GameCompletionService {
             return;
         }
 
-        List<BingoCell> cells = bingoReadService.getActiveBoardCells(gameId);
-        if (room.getMode() == GameMode.SINGLE && cells.stream().anyMatch(cell -> cell.getCompletedAt() == null)) {
+        List<BingoCell> cells = completedBoardId == null
+                ? bingoReadService.getActiveBoardCells(gameId)
+                : bingoReadService.getBoardCells(completedBoardId);
+        if (room.getMode() != GameMode.BATTLE
+                && cells.stream().anyMatch(cell -> cell.getCompletedAt() == null)) {
             return;
         }
 
         int lineCount = BingoLineCounter.countCompletedLines(room.getBoardSize(), cells);
-        if (room.getMode() == GameMode.COOPERATE && lineCount < room.getTargetBingoCount()) {
+        if (room.getMode() == GameMode.BATTLE && lineCount < room.getTargetBingoCount()) {
             return;
         }
 
-        BingoBoard board = bingoBoardRepository.findActiveBoardForUpdate(gameId, INACTIVE_BOARD_STATUSES)
-                .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
+        BingoBoard board = findBoardForCompletion(gameId, completedBoardId);
 
         game.complete();
         board.complete();
@@ -118,6 +124,16 @@ public class GameCompletionService {
 
         members.forEach(member -> eventPublisher.publishEvent(
                 notificationMessageFactory.battleResult(member.getMemberId())));
+    }
+
+    private BingoBoard findBoardForCompletion(Long gameId, Long boardId) {
+        if (boardId == null) {
+            return bingoBoardRepository.findActiveBoardForUpdate(gameId, INACTIVE_BOARD_STATUSES)
+                    .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
+        }
+        return bingoBoardRepository.findByIdForUpdate(boardId)
+                .filter(board -> board.getGameId().equals(gameId))
+                .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
     }
 
     private GameResultParticipant updateMemberResultAndGrantReward(

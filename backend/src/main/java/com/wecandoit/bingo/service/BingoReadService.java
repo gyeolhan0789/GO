@@ -11,9 +11,11 @@ import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
+import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameStatus;
-import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.domain.Room;
+import com.wecandoit.game.domain.RoomMember;
+import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.mission.domain.Mission;
@@ -47,7 +49,7 @@ public class BingoReadService {
         validateMember(memberId, roomId);
 
         Game game = findActiveGame(roomId);
-        BingoBoard board = findActiveBoard(game.getId());
+        BingoBoard board = findActiveBoard(room, game.getId(), memberId);
         List<BingoCell> cells = bingoCellRepository.findAllByBoardId(board.getId());
         List<BingoCellResponse> cellResponses = toCellResponses(cells);
 
@@ -56,7 +58,7 @@ public class BingoReadService {
                 .count();
         int completedBingoCount = BingoLineCounter.countCompletedLines(room.getBoardSize(), cells);
         boolean completed = !cells.isEmpty() && approvedCellCount == cells.size();
-        boolean canRenew = completed && room.isHost(memberId);
+        boolean canRenew = completed && room.getMode() != GameMode.BATTLE && room.isHost(memberId);
         return BingoBoardResponse.of(
                 board,
                 roomId,
@@ -78,6 +80,10 @@ public class BingoReadService {
         return bingoCellRepository.findAllByBoardId(board.getId());
     }
 
+    public List<BingoCell> getBoardCells(Long boardId) {
+        return bingoCellRepository.findAllByBoardId(boardId);
+    }
+
     private void validateMember(Long memberId, Long roomId) {
         if (!roomMemberRepository.existsByRoomIdAndMemberId(roomId, memberId)) {
             throw new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN);
@@ -92,6 +98,20 @@ public class BingoReadService {
     private BingoBoard findActiveBoard(Long gameId) {
         return bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(gameId, INACTIVE_BOARD_STATUSES)
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
+    }
+
+    private BingoBoard findActiveBoard(Room room, Long gameId, Long memberId) {
+        if (room.getMode() == GameMode.BATTLE) {
+            RoomMember roomMember = roomMemberRepository.findByRoomIdAndMemberId(room.getId(), memberId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN));
+            return bingoBoardRepository.findFirstByGameIdAndRoomMemberIdAndStatusNotInOrderByIdDesc(
+                            gameId,
+                            roomMember.getId(),
+                            INACTIVE_BOARD_STATUSES
+                    )
+                    .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
+        }
+        return findActiveBoard(gameId);
     }
 
     private List<BingoCellResponse> toCellResponses(List<BingoCell> cells) {
