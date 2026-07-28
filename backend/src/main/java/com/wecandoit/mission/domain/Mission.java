@@ -21,7 +21,7 @@ public class Mission extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "mission_image_url", nullable = false, length = 100)
+    @Column(name = "mission_image_url", nullable = false, length = 2048)
     private String missionImageUrl;
 
     @Column(nullable = false, length = 50)
