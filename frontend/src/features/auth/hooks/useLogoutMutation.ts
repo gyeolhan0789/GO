@@ -1,10 +1,29 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
+import { ApiError, UNAUTHORIZED_STATUS } from '../../../shared/api/ApiError';
 import { isDeviceQuery } from '../../../shared/api/deviceQueries';
+import { refreshAccessToken } from '../../../shared/api/refreshAccessToken';
 import { readRefreshToken } from '../../../shared/api/refreshTokenStore';
 import { logout } from '../api/authApi';
 import { useAuth } from '../model/AuthContext';
 
+function isUnauthorized(error: unknown) {
+  return error instanceof ApiError && error.status === UNAUTHORIZED_STATUS;
+}
+
+/**
+ * 로그아웃 요청. 401을 받으면 재발급한 뒤 한 번만 다시 보낸다.
+ *
+ * 액세스 토큰 수명이 30분이라, 앱을 켜둔 채 로그아웃하면 만료된 토큰으로 요청이
+ * 나가 서버 필터에 막힌다. 이때 그냥 포기하면 로컬 세션만 정리되고 서버의
+ * 리프레시 토큰은 TTL(14일)까지 남는다. 재발급으로 토큰을 갈아끼우고 다시 보내면
+ * 서버도 리프레시 토큰 삭제와 액세스 토큰 블랙리스트 등록까지 마친다.
+ *
+ * 재시도를 `client`에 맡길 수 없는 이유: 재발급은 리프레시 토큰을 회전시키는데
+ * client의 범용 재시도는 헤더만 갈아끼우고 바디는 처음 것을 그대로 보낸다. 회전된
+ * 새 토큰으로 바디를 다시 만들 수 있는 건 여기뿐이다. 그래서 `logout`은
+ * `retryOnUnauthorized: false`로 요청하고 재시도를 이 함수가 직접 한다.
+ */
 async function requestLogout() {
   const refreshToken = await readRefreshToken();
 
@@ -15,7 +34,31 @@ async function requestLogout() {
     return;
   }
 
-  await logout({ refreshToken });
+  try {
+    await logout({ refreshToken });
+    return;
+  } catch (error) {
+    if (!isUnauthorized(error)) {
+      throw error;
+    }
+
+    // 재발급이 실패하는 경우(리프레시 토큰까지 만료, 다른 기기 로그인으로 저장된
+    // 토큰이 교체됨)는 서버에서 더 정리할 게 없거나 정리할 방법이 없다. 원래 401을
+    // 그대로 올려보내 화면이 안내하게 한다.
+    if (!(await refreshAccessToken())) {
+      throw error;
+    }
+
+    // 회전된 새 리프레시 토큰을 Keychain에서 다시 읽는다. 이 재읽기가 이 함수의
+    // 존재 이유다 — 위 refreshToken 변수는 이미 폐기된 값이다.
+    const rotatedRefreshToken = await readRefreshToken();
+
+    if (rotatedRefreshToken === null) {
+      throw error;
+    }
+
+    await logout({ refreshToken: rotatedRefreshToken });
+  }
 }
 
 /**

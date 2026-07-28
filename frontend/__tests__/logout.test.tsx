@@ -282,6 +282,79 @@ describe('useLogoutMutation', () => {
   });
 });
 
+describe('액세스 토큰 만료 시 재발급 후 재시도', () => {
+  test('회전된 새 리프레시 토큰으로 다시 보내 서버 정리까지 마친다', async () => {
+    const tree = await renderAuthenticated(<LogoutProbe />);
+    fetchMock
+      // 1) 만료된 액세스 토큰으로 나간 로그아웃 — 서버 필터가 막는다.
+      .mockResolvedValueOnce(
+        jsonResponse(401, { message: '토큰이 만료되었습니다.' }),
+      )
+      // 2) 재발급. 리프레시 토큰이 rotated-refresh -> rotated-twice로 회전한다.
+      .mockResolvedValueOnce(
+        jsonResponse(200, {
+          accessToken: 'fresh-access',
+          refreshToken: 'rotated-twice',
+        }),
+      )
+      // 3) 회전된 토큰으로 재시도 — 204.
+      .mockResolvedValueOnce(jsonResponse(204));
+
+    await pressLogout(tree);
+
+    const [, first, reissue, retry] = fetchMock.mock.calls;
+    expect(first[0]).toBe(LOGOUT_URL);
+    expect(bodyOf(first)).toEqual({ refreshToken: 'rotated-refresh' });
+    expect(reissue[0]).toBe(`${BASE_URL}/auth/reissue`);
+    // 재시도는 구토큰이 아니라 회전된 새 토큰을 실어야 한다. 구토큰을 보내면
+    // 서버가 저장값과 비교해 탈취로 판단한다.
+    expect(retry[0]).toBe(LOGOUT_URL);
+    expect(headersOf(retry)?.Authorization).toBe('Bearer fresh-access');
+    expect(bodyOf(retry)).toEqual({ refreshToken: 'rotated-twice' });
+
+    // 만료는 앱이 알아서 복구한 것이므로 사용자에게 알릴 일이 아니다.
+    expect(onError).not.toHaveBeenCalled();
+    expect(statusOf(tree)).toBe('unauthenticated');
+    await expect(readRefreshToken()).resolves.toBeNull();
+  });
+
+  test('재발급까지 실패하면 원래 401을 그대로 전달한다', async () => {
+    const tree = await renderAuthenticated(<LogoutProbe />);
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse(401, { message: '토큰이 만료되었습니다.' }),
+      )
+      // 저장된 토큰이 다른 기기 로그인으로 교체된 경우. 서버가 탈취로 보고 거절한다.
+      .mockResolvedValueOnce(
+        jsonResponse(401, { message: '유효하지 않은 Refresh Token입니다.' }),
+      );
+
+    await pressLogout(tree);
+
+    // 재발급이 실패했으니 재시도는 없다 — 마운트 1 + 로그아웃 1 + 재발급 1.
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0][0]).toHaveProperty(
+      'message',
+      '토큰이 만료되었습니다.',
+    );
+    expect(statusOf(tree)).toBe('unauthenticated');
+  });
+
+  test('만료가 아닌 실패는 재발급을 시도하지 않는다', async () => {
+    const tree = await renderAuthenticated(<LogoutProbe />);
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(400, { message: '리프레시 토큰은 필수입니다.' }),
+    );
+
+    await pressLogout(tree);
+
+    // 401이 아니면 재발급으로 복구할 수 있는 상황이 아니다.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(onError).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('로그아웃 시 쿼리 캐시', () => {
   test('계정 데이터는 비우고 기기 단위 값은 남긴다', async () => {
     const client = createQueryClient();

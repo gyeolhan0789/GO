@@ -1,3 +1,5 @@
+export const UNAUTHORIZED_STATUS = 401;
+
 export class ApiError extends Error {
   readonly status: number;
 
