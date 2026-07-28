@@ -163,6 +163,65 @@ class GameCompletionServiceConcurrencyTest {
     }
 
     @Test
+    @DisplayName("대결 참가자가 동시에 목표 빙고를 달성해도 승자와 결과는 하나만 확정된다")
+    void determinesSingleWinnerWhenBattleParticipantsCompleteConcurrently() throws Exception {
+        // given
+        Room battleRoom = Room.create(firstMemberId, GameMode.BATTLE, 1, 2);
+        battleRoom.start();
+        Long battleRoomId = roomRepository.saveAndFlush(battleRoom).getId();
+        RoomMember firstRoomMember =
+                roomMemberRepository.saveAndFlush(RoomMember.create(battleRoomId, firstMemberId));
+        RoomMember secondRoomMember =
+                roomMemberRepository.saveAndFlush(RoomMember.create(battleRoomId, secondMemberId));
+        Game battleGame = gameRepository.saveAndFlush(Game.start(battleRoomId));
+        BingoBoard firstBoard = bingoBoardRepository.saveAndFlush(
+                BingoBoard.createForBattle(battleGame.getId(), firstRoomMember, 2));
+        BingoBoard secondBoard = bingoBoardRepository.saveAndFlush(
+                BingoBoard.createForBattle(battleGame.getId(), secondRoomMember, 2));
+        Long firstBattleCellId = saveBattleBoardWithPendingWinningCell(firstBoard.getId(), firstMemberId, 21L);
+        Long secondBattleCellId = saveBattleBoardWithPendingWinningCell(secondBoard.getId(), secondMemberId, 31L);
+
+        CountDownLatch readyLatch = new CountDownLatch(2);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        try {
+            Future<?> first = executor.submit(() ->
+                    approveAfterSignal(firstBattleCellId, readyLatch, startLatch));
+            Future<?> second = executor.submit(() ->
+                    approveAfterSignal(secondBattleCellId, readyLatch, startLatch));
+            readyLatch.await();
+
+            // when
+            startLatch.countDown();
+            first.get();
+            second.get();
+
+            // then
+            assertThat(gameRepository.findById(battleGame.getId()).orElseThrow().getStatus())
+                    .isEqualTo(GameStatus.COMPLETED);
+            assertThat(roomRepository.findById(battleRoomId).orElseThrow().getStatus())
+                    .isEqualTo(GameRoomStatus.READY);
+            assertThat(bingoBoardRepository.findAllByGameIdOrderByIdAsc(battleGame.getId()))
+                    .extracting(BingoBoard::getStatus)
+                    .containsOnly(BingoBoardStatus.COMPLETED);
+            assertThat(gameResultRepository.count()).isEqualTo(1);
+            assertThat(gameResultParticipantRepository.findAllByGameIdOrderByIdAsc(battleGame.getId()))
+                    .filteredOn(participant -> Boolean.TRUE.equals(participant.getResult()))
+                    .hasSize(1);
+            assertThat(gameResultParticipantRepository.findAllByGameIdOrderByIdAsc(battleGame.getId()))
+                    .filteredOn(participant -> Boolean.FALSE.equals(participant.getResult()))
+                    .hasSize(1);
+            assertThat(cashHistoryRepository.count()).isEqualTo(1);
+            assertThat(memberRepository.findById(firstMemberId).orElseThrow().getCash()
+                    + memberRepository.findById(secondMemberId).orElseThrow().getCash())
+                    .isEqualTo(500L);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void completesAndRewardsTwoGamesInTheSameCooperateRoom() {
         verificationResultService.applyResult(firstPendingCellId, true, null);
         verificationResultService.applyResult(secondPendingCellId, true, null);
@@ -208,6 +267,21 @@ class GameCompletionServiceConcurrencyTest {
         BingoCell cell = BingoCell.create(targetBoardId, missionId, row, col);
         cell.submit(memberId, "https://example.com/game-" + targetBoardId + "-" + row + "-" + col + ".png");
         return bingoCellRepository.save(cell).getId();
+    }
+
+    private Long saveBattleBoardWithPendingWinningCell(Long targetBoardId, Long memberId, Long missionId) {
+        BingoCell approvedCell = BingoCell.create(targetBoardId, missionId, 0, 0);
+        approvedCell.submit(memberId, "https://example.com/battle-approved-" + memberId + ".png");
+        approvedCell.approve();
+        bingoCellRepository.save(approvedCell);
+
+        BingoCell pendingCell = BingoCell.create(targetBoardId, missionId + 1, 0, 1);
+        pendingCell.submit(memberId, "https://example.com/battle-pending-" + memberId + ".png");
+        Long pendingCellId = bingoCellRepository.save(pendingCell).getId();
+
+        bingoCellRepository.save(BingoCell.create(targetBoardId, missionId + 2, 1, 0));
+        bingoCellRepository.save(BingoCell.create(targetBoardId, missionId + 3, 1, 1));
+        return pendingCellId;
     }
 
     private void approveAfterSignal(

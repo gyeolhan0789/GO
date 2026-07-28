@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.wecandoit.game.domain.GameResult;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 import com.wecandoit.game.repository.GameResultRepository;
 import jakarta.persistence.EntityManager;
@@ -28,30 +27,6 @@ class GameResultRepositoryTest {
     private GameResultRepository gameResultRepository;
     @Autowired
     private EntityManager entityManager;
-
-    @Test
-    @DisplayName("방 ID로 게임 결과를 조회한다")
-    void findByGameIdFindsResult() {
-        // given
-        GameResult gameResult = gameResultRepository.save(GameResult.create(100L, 10L, true, 3, 9, 500L));
-
-        // when
-        Optional<GameResult> found = gameResultRepository.findByGameId(100L);
-
-        // then
-        assertThat(found).isPresent();
-        assertThat(found.get().getId()).isEqualTo(gameResult.getId());
-    }
-
-    @Test
-    @DisplayName("해당 방의 게임 결과가 없으면 빈 값을 반환한다")
-    void findByGameIdReturnsEmptyWhenMissing() {
-        // when
-        Optional<GameResult> found = gameResultRepository.findByGameId(999L);
-
-        // then
-        assertThat(found).isEmpty();
-    }
 
     @Test
     @DisplayName("같은 게임방의 결과를 두 번 저장하면 유니크 제약으로 차단한다")

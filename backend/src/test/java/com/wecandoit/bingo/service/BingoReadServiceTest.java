@@ -16,13 +16,13 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
-import com.wecandoit.game.domain.GameResult;
+import com.wecandoit.game.domain.GameResultParticipant;
 import com.wecandoit.game.domain.GameRoomStatus;
 import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomMember;
 import com.wecandoit.game.repository.GameRepository;
-import com.wecandoit.game.repository.GameResultRepository;
+import com.wecandoit.game.repository.GameResultParticipantRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.mission.domain.Mission;
@@ -54,7 +54,7 @@ class BingoReadServiceTest {
     @Mock
     private GameRepository gameRepository;
     @Mock
-    private GameResultRepository gameResultRepository;
+    private GameResultParticipantRepository gameResultParticipantRepository;
     @Mock
     private BingoBoardRepository bingoBoardRepository;
     @Mock
@@ -210,7 +210,8 @@ class BingoReadServiceTest {
         given(bingoCellRepository.findAllByBoardIdIn(List.of(201L, 202L)))
                 .willReturn(merge(cellsA, cellsB));
         given(missionRepository.findAllById(Mockito.anyIterable())).willReturn(missionsForCells(cellsA));
-        given(gameResultRepository.findByGameId(200L)).willReturn(Optional.empty());
+        given(gameResultParticipantRepository.findByGameIdAndMemberId(200L, 1L))
+                .willReturn(Optional.empty());
 
         // when
         BingoBoardResponse response = bingoReadService.getActiveBoard(1L, 10L);
@@ -247,7 +248,8 @@ class BingoReadServiceTest {
         given(bingoCellRepository.findAllByBoardIdIn(List.of(202L, 201L)))
                 .willReturn(merge(cellsA, cellsB));
         given(missionRepository.findAllById(Mockito.anyIterable())).willReturn(missionsForCells(cellsB));
-        given(gameResultRepository.findByGameId(200L)).willReturn(Optional.empty());
+        given(gameResultParticipantRepository.findByGameIdAndMemberId(200L, 2L))
+                .willReturn(Optional.empty());
 
         // when
         BingoBoardResponse response = bingoReadService.getActiveBoard(2L, 10L);
@@ -287,8 +289,8 @@ class BingoReadServiceTest {
         given(bingoCellRepository.findAllByBoardIdIn(List.of(201L, 202L)))
                 .willReturn(merge(cellsA, cellsB));
         given(missionRepository.findAllById(Mockito.anyIterable())).willReturn(missionsForCells(cellsA));
-        given(gameResultRepository.findByGameId(200L))
-                .willReturn(Optional.of(GameResult.create(200L, 10L, true, 3, 4, 500L)));
+        given(gameResultParticipantRepository.findByGameIdAndMemberId(200L, 1L))
+                .willReturn(Optional.of(GameResultParticipant.create(200L, 1L, 3, 500L, true)));
 
         // when
         BingoBoardResponse response = bingoReadService.getActiveBoard(1L, 10L);

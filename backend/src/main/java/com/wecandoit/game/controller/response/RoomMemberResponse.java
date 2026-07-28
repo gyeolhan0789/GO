@@ -12,16 +12,6 @@ public record RoomMemberResponse(
         Long bingoBoardId
 ) {
 
-    public RoomMemberResponse(
-            Long memberId,
-            String nickname,
-            boolean host,
-            int completedMissionCount,
-            LocalDateTime joinedAt
-    ) {
-        this(memberId, nickname, host, completedMissionCount, joinedAt, null);
-    }
-
     public static RoomMemberResponse from(
             RoomMember roomMember,
             String nickname,

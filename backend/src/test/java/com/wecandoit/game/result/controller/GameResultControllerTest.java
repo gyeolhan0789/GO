@@ -107,6 +107,7 @@ class GameResultControllerTest {
                 .body("participants[0].nickname", equalTo("host"))
                 .body("participants[0].completedMissionCount", equalTo(3))
                 .body("participants[0].rewardCash", equalTo(500))
+                .body("participants[0].result", equalTo(true))
                 .apply(document("game-result-detail",
                         pathParameters(
                                 parameterWithName("roomId").description("결과를 조회할 게임방 ID")
@@ -120,13 +121,15 @@ class GameResultControllerTest {
                                 fieldWithPath("targetBingoCount").description("목표 빙고 수"),
                                 fieldWithPath("bingoCount").description("달성한 빙고 줄 수"),
                                 fieldWithPath("completedMissionCount").description("완료한 미션 수 합계"),
-                                fieldWithPath("rewardCash").description("참여자 1인당 지급된 보상 캐시"),
+                                fieldWithPath("rewardCash").description("게임 완료 기준 보상 캐시"),
                                 fieldWithPath("participants[].memberId").description("참여자 ID"),
                                 fieldWithPath("participants[].nickname").description("참여자 닉네임"),
                                 fieldWithPath("participants[].completedMissionCount")
                                         .description("참여자가 완료한 미션 수"),
                                 fieldWithPath("participants[].rewardCash")
-                                        .description("참여자에게 지급된 보상 캐시")
+                                        .description("참여자에게 지급된 보상 캐시"),
+                                fieldWithPath("participants[].result")
+                                        .description("참여자 승리 또는 완료 여부")
                         )
                 ));
         then(gameResultReadService).should().getGameResult(1L, 10L);
@@ -206,13 +209,15 @@ class GameResultControllerTest {
                                 fieldWithPath("content[].bingoCount").description("달성한 빙고 줄 수"),
                                 fieldWithPath("content[].completedMissionCount").description("완료한 미션 수 합계"),
                                 fieldWithPath("content[].rewardCash")
-                                        .description("참여자 1인당 지급된 보상 캐시"),
+                                        .description("게임 완료 기준 보상 캐시"),
                                 fieldWithPath("content[].participants[].memberId").description("참여자 ID"),
                                 fieldWithPath("content[].participants[].nickname").description("참여자 닉네임"),
                                 fieldWithPath("content[].participants[].completedMissionCount")
                                         .description("참여자가 완료한 미션 수"),
                                 fieldWithPath("content[].participants[].rewardCash")
                                         .description("참여자에게 지급된 보상 캐시"),
+                                fieldWithPath("content[].participants[].result")
+                                        .description("참여자 승리 또는 완료 여부"),
                                 fieldWithPath("hasNext").description("다음 페이지 존재 여부")
                         )
                 ));
@@ -247,8 +252,8 @@ class GameResultControllerTest {
                 5,
                 500L,
                 List.of(
-                        new GameResultParticipantResponse(1L, "host", 3, 500L),
-                        new GameResultParticipantResponse(2L, "participant", 2, 500L)
+                        new GameResultParticipantResponse(1L, "host", 3, 500L, true),
+                        new GameResultParticipantResponse(2L, "participant", 2, 500L, true)
                 )
         );
     }
