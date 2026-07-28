@@ -57,6 +57,6 @@ public class BingoCellVerificationResultService {
 
         cell.approve();
         bingoCellRepository.save(cell);
-        gameCompletionService.evaluateAndCompleteIfNeeded(game.getId());
+        gameCompletionService.evaluateAndCompleteIfNeeded(game.getId(), board.getId());
     }
 }

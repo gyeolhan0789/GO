@@ -63,7 +63,7 @@ class BingoCellVerificationResultServiceTest {
         assertThat(cell.getVerificationStatus()).isEqualTo(BingoCellVerificationStatus.APPROVED);
         assertThat(cell.getRejectionReason()).isNull();
         assertThat(cell.getCompletedAt()).isNotNull();
-        then(gameCompletionService).should().evaluateAndCompleteIfNeeded(200L);
+        then(gameCompletionService).should().evaluateAndCompleteIfNeeded(200L, 100L);
     }
 
     @Test
@@ -172,7 +172,7 @@ class BingoCellVerificationResultServiceTest {
     }
 
     private Room inProgressRoom(Long roomId) {
-        Room room = Room.create(1L, GameMode.SINGLE, 3, 3, null);
+        Room room = Room.create(1L, GameMode.SINGLE, null, 3);
         ReflectionTestUtils.setField(room, "id", roomId);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         return room;

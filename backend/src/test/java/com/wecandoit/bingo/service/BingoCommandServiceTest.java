@@ -196,6 +196,70 @@ class BingoCommandServiceTest {
     }
 
     @Test
+    @DisplayName("대결 빙고판은 참가자별로 서로 다른 보드와 셀을 생성한다")
+    void generateBattleBoardsCreatesIndependentBoardsAndCells() {
+        // given
+        Room room = Room.create(1L, GameMode.BATTLE, 3, 2);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        RoomMember hostMember = RoomMember.create(10L, 1L);
+        RoomMember guestMember = RoomMember.create(10L, 2L);
+        ReflectionTestUtils.setField(hostMember, "id", 101L);
+        ReflectionTestUtils.setField(guestMember, "id", 102L);
+        given(bingoBoardRepository.existsByRoomMemberId(101L)).willReturn(false);
+        given(bingoBoardRepository.existsByRoomMemberId(102L)).willReturn(false);
+        given(missionRepository.findRandomMissions(4))
+                .willReturn(createMissions(4))
+                .willReturn(createMissions(4));
+        List<BingoBoard> savedBoards = new ArrayList<>();
+        given(bingoBoardRepository.save(Mockito.any(BingoBoard.class))).willAnswer(invocation -> {
+            BingoBoard board = invocation.getArgument(0);
+            ReflectionTestUtils.setField(board, "id", board.getRoomMember().getId() + 100L);
+            savedBoards.add(board);
+            return board;
+        });
+        List<BingoCell> savedCells = new ArrayList<>();
+        given(bingoCellRepository.save(Mockito.any(BingoCell.class))).willAnswer(invocation -> {
+            BingoCell cell = invocation.getArgument(0);
+            savedCells.add(cell);
+            return cell;
+        });
+
+        // when
+        List<BingoBoardResponse> responses =
+                bingoCommandService.generateBattleBoards(room, 200L, List.of(hostMember, guestMember));
+
+        // then
+        assertThat(responses).extracting(BingoBoardResponse::bingoBoardId)
+                .containsExactly(201L, 202L);
+        assertThat(responses).extracting(response -> response.cells().size())
+                .containsExactly(4, 4);
+        assertThat(savedBoards).extracting(board -> board.getRoomMember().getId())
+                .containsExactly(101L, 102L);
+        assertThat(savedCells).extracting(BingoCell::getBoardId)
+                .containsExactly(201L, 201L, 201L, 201L, 202L, 202L, 202L, 202L);
+    }
+
+    @Test
+    @DisplayName("동일한 대결 참가자에게 빙고판이 이미 있으면 중복 생성하지 않는다")
+    void generateBattleBoardsRejectsExistingRoomMemberBoard() {
+        // given
+        Room room = Room.create(1L, GameMode.BATTLE, 3, 3);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        RoomMember hostMember = RoomMember.create(10L, 1L);
+        RoomMember guestMember = RoomMember.create(10L, 2L);
+        ReflectionTestUtils.setField(hostMember, "id", 101L);
+        ReflectionTestUtils.setField(guestMember, "id", 102L);
+        given(bingoBoardRepository.existsByRoomMemberId(101L)).willReturn(true);
+
+        // when & then
+        assertErrorCode(
+                () -> bingoCommandService.generateBattleBoards(room, 200L, List.of(hostMember, guestMember)),
+                ErrorCode.BINGO_BOARD_ALREADY_EXISTS
+        );
+        then(bingoBoardRepository).should(Mockito.never()).save(Mockito.any(BingoBoard.class));
+    }
+
+    @Test
     @DisplayName("방 멤버가 칸을 제출하면 검증 대기 상태가 되고 완료 처리되지 않는다")
     void submitCellSetsPendingStatusWithoutCompleting() {
         // given
@@ -263,6 +327,7 @@ class BingoCommandServiceTest {
     void submitCellRejectsMissingCell() {
         // given
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(inProgressRoom(1L, 10L, 2)));
         BingoBoard board = activeBoard(100L, 200L, 2);
         given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(board));
@@ -280,6 +345,7 @@ class BingoCommandServiceTest {
     void submitCellRejectsCellFromDifferentBoard() {
         // given
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(inProgressRoom(1L, 10L, 2)));
         BingoBoard board = activeBoard(100L, 200L, 2);
         given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(board));
@@ -292,6 +358,46 @@ class BingoCommandServiceTest {
                 () -> bingoCommandService.submitCell(1L, 10L, 1000L, "https://example.com/proof.png"),
                 ErrorCode.BINGO_CELL_NOT_FOUND
         );
+    }
+
+    @Test
+    @DisplayName("대결 참가자는 본인 RoomMember의 개인 빙고판 셀만 제출한다")
+    void submitCellUsesBattleBoardOwnedByRoomMember() {
+        // given
+        Room room = Room.create(1L, GameMode.BATTLE, 3, 2);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
+        RoomMember roomMember = RoomMember.create(10L, 2L);
+        ReflectionTestUtils.setField(roomMember, "id", 102L);
+        BingoBoard board = BingoBoard.createForBattle(200L, roomMember, 2);
+        ReflectionTestUtils.setField(board, "id", 202L);
+        BingoCell cell = BingoCell.create(202L, 1L, 0, 0);
+        ReflectionTestUtils.setField(cell, "id", 1000L);
+        Game game = Game.start(10L);
+        ReflectionTestUtils.setField(game, "id", 200L);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(true);
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
+        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.IN_PROGRESS))
+                .willReturn(Optional.of(game));
+        given(roomMemberRepository.findByRoomIdAndMemberId(10L, 2L)).willReturn(Optional.of(roomMember));
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, 102L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.of(board));
+        given(bingoCellRepository.findByIdForUpdate(1000L)).willReturn(Optional.of(cell));
+        given(bingoCellRepository.save(cell)).willReturn(cell);
+
+        // when
+        BingoCell result = bingoCommandService.submitCell(
+                2L,
+                10L,
+                1000L,
+                "https://example.com/proof.png"
+        );
+
+        // then
+        assertThat(result.getBoardId()).isEqualTo(202L);
+        assertThat(result.getMemberId()).isEqualTo(2L);
+        then(bingoBoardRepository).should(Mockito.never())
+                .findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES);
     }
 
     @Test
@@ -408,7 +514,7 @@ class BingoCommandServiceTest {
     @DisplayName("방이 진행 중이 아니면 조기 갱신에 실패한다")
     void renewBoardRejectsRoomNotInProgress() {
         // given
-        Room room = Room.create(1L, GameMode.SINGLE, 3, 2, null);
+        Room room = Room.create(1L, GameMode.SINGLE, null, 2);
         ReflectionTestUtils.setField(room, "id", 10L);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
 
@@ -600,7 +706,7 @@ class BingoCommandServiceTest {
     }
 
     private Room inProgressRoom(Long hostId, Long roomId, int boardSize) {
-        Room room = Room.create(hostId, GameMode.SINGLE, 3, boardSize, null);
+        Room room = Room.create(hostId, GameMode.SINGLE, null, boardSize);
         ReflectionTestUtils.setField(room, "id", roomId);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         return room;

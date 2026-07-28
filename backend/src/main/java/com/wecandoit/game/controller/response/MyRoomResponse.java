@@ -11,7 +11,7 @@ public record MyRoomResponse(
         Long roomId,
         GameMode mode,
         GameRoomStatus status,
-        int targetBingoCount,
+        Integer targetBingoCount,
         Long hostId,
         LocalDateTime joinedAt,
         List<MyRoomMemberResponse> members

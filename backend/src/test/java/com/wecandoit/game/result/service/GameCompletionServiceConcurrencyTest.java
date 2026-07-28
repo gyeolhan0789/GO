@@ -95,7 +95,7 @@ class GameCompletionServiceConcurrencyTest {
                 "second"
         )).getId();
 
-        Room room = Room.create(firstMemberId, GameMode.COOPERATE, 2, 2, 10000);
+        Room room = Room.create(firstMemberId, GameMode.COOPERATE, null, 2);
         room.start();
         roomId = roomRepository.save(room).getId();
         roomMemberRepository.save(RoomMember.create(roomId, firstMemberId));
@@ -118,7 +118,10 @@ class GameCompletionServiceConcurrencyTest {
         secondPendingCell.submit(secondMemberId, "https://example.com/second.png");
         secondPendingCellId = bingoCellRepository.save(secondPendingCell).getId();
 
-        bingoCellRepository.save(BingoCell.create(boardId, 4L, 1, 1));
+        BingoCell fourthApprovedCell = BingoCell.create(boardId, 4L, 1, 1);
+        fourthApprovedCell.submit(secondMemberId, "https://example.com/fourth.png");
+        fourthApprovedCell.approve();
+        bingoCellRepository.save(fourthApprovedCell);
     }
 
     @Test
@@ -153,7 +156,7 @@ class GameCompletionServiceConcurrencyTest {
             assertThat(memberRepository.findById(secondMemberId).orElseThrow().getCash()).isEqualTo(500L);
             assertThat(roomMembers)
                     .extracting(RoomMember::getCompletedMissionCount)
-                    .containsExactly(2, 1);
+                    .containsExactly(2, 2);
         } finally {
             executor.shutdownNow();
         }
@@ -174,11 +177,12 @@ class GameCompletionServiceConcurrencyTest {
         Long firstCellId = savePendingCell(secondBoard.getId(), 11L, 0, 0, firstMemberId);
         Long secondCellId = savePendingCell(secondBoard.getId(), 12L, 0, 1, firstMemberId);
         Long thirdCellId = savePendingCell(secondBoard.getId(), 13L, 1, 0, secondMemberId);
-        bingoCellRepository.save(BingoCell.create(secondBoard.getId(), 14L, 1, 1));
+        Long fourthCellId = savePendingCell(secondBoard.getId(), 14L, 1, 1, secondMemberId);
 
         verificationResultService.applyResult(firstCellId, true, null);
         verificationResultService.applyResult(secondCellId, true, null);
         verificationResultService.applyResult(thirdCellId, true, null);
+        verificationResultService.applyResult(fourthCellId, true, null);
 
         assertThat(roomRepository.findById(roomId).orElseThrow().getStatus()).isEqualTo(GameRoomStatus.READY);
         assertThat(gameResultRepository.count()).isEqualTo(2);

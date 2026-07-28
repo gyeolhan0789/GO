@@ -12,15 +12,26 @@ import org.springframework.data.repository.query.Param;
 
 public interface BingoBoardRepository extends JpaRepository<BingoBoard, Long> {
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT b FROM BingoBoard b WHERE b.id = :boardId")
+    Optional<BingoBoard> findByIdForUpdate(@Param("boardId") Long boardId);
+
+    boolean existsByRoomMemberId(Long roomMemberId);
+
     Optional<BingoBoard> findFirstByGameIdAndStatusNotInOrderByIdDesc(
             Long gameId,
             List<BingoBoardStatus> excludedStatuses
     );
 
+    Optional<BingoBoard> findFirstByGameIdAndRoomMemberIdAndStatusNotInOrderByIdDesc(
+            Long gameId,
+            Long roomMemberId,
+            List<BingoBoardStatus> excludedStatuses
+    );
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
-            SELECT b
-            FROM BingoBoard b
+            SELECT b FROM BingoBoard b
             WHERE b.gameId = :gameId
               AND b.status NOT IN :excludedStatuses
             ORDER BY b.id DESC
@@ -28,6 +39,21 @@ public interface BingoBoardRepository extends JpaRepository<BingoBoard, Long> {
             """)
     Optional<BingoBoard> findActiveBoardForUpdate(
             @Param("gameId") Long gameId,
+            @Param("excludedStatuses") List<BingoBoardStatus> excludedStatuses
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT b FROM BingoBoard b
+            WHERE b.gameId = :gameId
+              AND b.roomMember.id = :roomMemberId
+              AND b.status NOT IN :excludedStatuses
+            ORDER BY b.id DESC
+            LIMIT 1
+            """)
+    Optional<BingoBoard> findActiveBoardForUpdate(
+            @Param("gameId") Long gameId,
+            @Param("roomMemberId") Long roomMemberId,
             @Param("excludedStatuses") List<BingoBoardStatus> excludedStatuses
     );
 

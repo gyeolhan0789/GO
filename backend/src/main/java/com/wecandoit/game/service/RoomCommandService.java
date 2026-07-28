@@ -4,18 +4,19 @@ import com.wecandoit.bingo.service.BingoCommandService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
-import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.controller.request.CreateRoomRequest;
 import com.wecandoit.game.controller.response.CreateRoomResponse;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameRoomStatus;
 import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomMember;
+import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.notification.event.NotificationMessageFactory;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -35,7 +36,7 @@ public class RoomCommandService {
     private final NotificationMessageFactory notificationMessageFactory;
 
     public CreateRoomResponse createRoom(Long memberId, CreateRoomRequest request) {
-        validateTargetStepCount(request.mode(), request.targetStepCount());
+        validateTargetBingoCount(request.mode(), request.targetBingoCount());
         if (request.mode() == GameMode.SINGLE) {
             return startSingleRoom(memberId, request);
         }
@@ -71,20 +72,19 @@ public class RoomCommandService {
                 memberId,
                 request.mode(),
                 request.targetBingoCount(),
-                request.boardSize(),
-                request.targetStepCount()
+                request.boardSize()
         ));
         roomMemberRepository.save(RoomMember.create(room.getId(), memberId));
         room.updateParticipantStatus(1);
         return room;
     }
 
-    private void validateTargetStepCount(GameMode mode, Integer targetStepCount) {
-        if (mode == GameMode.COOPERATE && targetStepCount == null) {
-            throw new CustomException(ErrorCode.ROOM_TARGET_STEP_COUNT_REQUIRED);
+    private void validateTargetBingoCount(GameMode mode, Integer targetBingoCount) {
+        if (mode == GameMode.BATTLE && targetBingoCount == null) {
+            throw new CustomException(ErrorCode.ROOM_TARGET_BINGO_COUNT_REQUIRED);
         }
-        if (mode == GameMode.SINGLE && targetStepCount != null) {
-            throw new CustomException(ErrorCode.ROOM_TARGET_STEP_COUNT_NOT_ALLOWED);
+        if (mode != GameMode.BATTLE && targetBingoCount != null) {
+            throw new CustomException(ErrorCode.ROOM_TARGET_BINGO_COUNT_NOT_ALLOWED);
         }
     }
 
@@ -122,6 +122,9 @@ public class RoomCommandService {
         if (!room.isHost(memberId)) {
             throw new CustomException(ErrorCode.ROOM_START_FORBIDDEN);
         }
+        if (room.getMode() == GameMode.BATTLE && room.getTargetBingoCount() == null) {
+            throw new CustomException(ErrorCode.ROOM_TARGET_BINGO_COUNT_REQUIRED);
+        }
 
         long participantCount = roomMemberRepository.countByRoomId(roomId);
         if (participantCount < room.getMode().getMinimumParticipants()) {
@@ -134,11 +137,16 @@ public class RoomCommandService {
             throw new CustomException(ErrorCode.ROOM_NOT_READY);
         }
 
+        List<RoomMember> roomMembers = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId);
         room.start();
         Game game = gameRepository.save(Game.start(roomId));
-        bingoCommandService.generateInitialBoard(room, game.getId());
+        if (room.getMode() == GameMode.BATTLE) {
+            bingoCommandService.generateBattleBoards(room, game.getId(), roomMembers);
+        } else {
+            bingoCommandService.generateInitialBoard(room, game.getId());
+        }
 
-        roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId).stream()
+        roomMembers.stream()
                 .map(RoomMember::getMemberId)
                 .filter(participantId -> !participantId.equals(memberId))
                 .forEach(participantId ->

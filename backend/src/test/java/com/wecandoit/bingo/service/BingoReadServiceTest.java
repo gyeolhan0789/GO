@@ -14,11 +14,12 @@ import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
-import com.wecandoit.game.domain.GameStatus;
-import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.game.domain.Room;
+import com.wecandoit.game.domain.RoomMember;
+import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.mission.domain.Mission;
@@ -83,7 +84,7 @@ class BingoReadServiceTest {
         // then
         assertThat(response.completed()).isTrue();
         assertThat(response.canRenew()).isTrue();
-        assertThat(response.targetBingoCount()).isEqualTo(3);
+        assertThat(response.targetBingoCount()).isNull();
         assertThat(response.completedBingoCount()).isEqualTo(6);
         assertThat(response.totalCellCount()).isEqualTo(4);
         assertThat(response.approvedCellCount()).isEqualTo(4);
@@ -186,6 +187,39 @@ class BingoReadServiceTest {
         assertErrorCode(() -> bingoReadService.getActiveBoard(1L, 10L), ErrorCode.BINGO_BOARD_NOT_FOUND);
     }
 
+    @Test
+    @DisplayName("대결 참가자는 본인 RoomMember에 연결된 개인 빙고판을 조회한다")
+    void getActiveBoardReturnsBattleBoardOwnedByRoomMember() {
+        // given
+        Room room = Room.create(1L, GameMode.BATTLE, 3, 2);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
+        RoomMember roomMember = RoomMember.create(10L, 1L);
+        ReflectionTestUtils.setField(roomMember, "id", 101L);
+        BingoBoard board = BingoBoard.createForBattle(200L, roomMember, 2);
+        ReflectionTestUtils.setField(board, "id", 201L);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.IN_PROGRESS))
+                .willReturn(Optional.of(activeGame(200L, 10L)));
+        given(roomMemberRepository.findByRoomIdAndMemberId(10L, 1L)).willReturn(Optional.of(roomMember));
+        given(bingoBoardRepository.findFirstByGameIdAndRoomMemberIdAndStatusNotInOrderByIdDesc(
+                200L,
+                101L,
+                INACTIVE_BOARD_STATUSES
+        )).willReturn(Optional.of(board));
+        List<BingoCell> cells = cellsWithApprovedCount(201L, 4, 4);
+        given(bingoCellRepository.findAllByBoardId(201L)).willReturn(cells);
+        given(missionRepository.findAllById(Mockito.anyIterable())).willReturn(missionsForCells(cells));
+
+        // when
+        BingoBoardResponse response = bingoReadService.getActiveBoard(1L, 10L);
+
+        // then
+        assertThat(response.bingoBoardId()).isEqualTo(201L);
+        assertThat(response.canRenew()).isFalse();
+    }
+
     private BingoBoard activeBoard(Long boardId, Long gameId, int boardSize) {
         BingoBoard board = BingoBoard.create(gameId, boardSize);
         ReflectionTestUtils.setField(board, "id", boardId);
@@ -223,14 +257,14 @@ class BingoReadServiceTest {
     }
 
     private Room inProgressRoom(Long hostId, Long roomId, int boardSize) {
-        Room room = Room.create(hostId, GameMode.SINGLE, 3, boardSize, null);
+        Room room = Room.create(hostId, GameMode.SINGLE, null, boardSize);
         ReflectionTestUtils.setField(room, "id", roomId);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         return room;
     }
 
     private Room inProgressCooperateRoom(Long hostId, Long roomId, int boardSize) {
-        Room room = Room.create(hostId, GameMode.COOPERATE, 3, boardSize, 10000);
+        Room room = Room.create(hostId, GameMode.COOPERATE, null, boardSize);
         ReflectionTestUtils.setField(room, "id", roomId);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         return room;
