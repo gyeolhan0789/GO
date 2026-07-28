@@ -1,8 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
+import { LOGIN_HISTORY_QUERY_KEY } from '../api/deviceQueries';
 import { getHasLoggedInBefore } from '../lib/loginHistoryStorage';
-
-const LOGIN_HISTORY_QUERY_KEY = ['login', 'hasLoggedInBefore'] as const;
 
 type UseHasLoggedInBeforeResult = {
   isLoading: boolean;
