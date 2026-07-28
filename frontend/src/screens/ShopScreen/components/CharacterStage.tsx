@@ -1,7 +1,7 @@
 import { Image, StyleSheet, View } from 'react-native';
 
 import { colors } from '../../../shared/constants/colors';
-import { radius } from '../../../shared/constants/radius';
+import { spacing } from '../../../shared/constants/spacing';
 
 // 배경 이미지 원본 비율(716 x 426).
 const STAGE_ASPECT_RATIO = 716 / 426;
@@ -19,7 +19,7 @@ export function CharacterStage() {
       <Image
         source={STAGE_BACKGROUND}
         style={styles.background}
-        resizeMode="cover"
+        resizeMode="contain"
       />
       {/* TODO: 백엔드가 내려주는 캐릭터 이미지를 단상 위에 올린다. */}
     </View>
@@ -28,8 +28,8 @@ export function CharacterStage() {
 
 const styles = StyleSheet.create({
   stage: {
+    marginHorizontal: -spacing.md,
     aspectRatio: STAGE_ASPECT_RATIO,
-    borderRadius: radius.md,
     overflow: 'hidden',
     // 이미지 로딩 전/실패 시에도 스테이지 자리가 비어 보이지 않게 한다.
     backgroundColor: colors.successBg,
