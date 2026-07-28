@@ -13,6 +13,8 @@ public interface BingoCellRepository extends JpaRepository<BingoCell, Long> {
 
     List<BingoCell> findAllByBoardId(Long boardId);
 
+    List<BingoCell> findAllByBoardIdIn(List<Long> boardIds);
+
     boolean existsByBoardIdAndCompletedAtIsNull(Long boardId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
