@@ -72,16 +72,16 @@ public class BingoCommandService {
     }
 
     public BingoCell submitCell(Long memberId, Long roomId, Long cellId, String submitUrl) {
-        validateMember(memberId, roomId);
         Room room = roomRepository.findByIdForUpdate(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+        validateMember(memberId, roomId);
+        validateRoomInProgress(room);
         Game game = findActiveGame(roomId);
         BingoBoard activeBoard = findActiveBoardForUpdate(room, game.getId(), memberId);
         BingoCell cell = bingoCellRepository.findByIdForUpdate(cellId)
                 .filter(c -> c.getBoardId().equals(activeBoard.getId()))
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND));
 
-        validateRoomInProgress(room);
         validateCellSubmittable(cell);
         cell.submit(memberId, submitUrl);
         return bingoCellRepository.save(cell);
