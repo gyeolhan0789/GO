@@ -100,6 +100,7 @@ class BingoControllerTest {
         );
         BingoBoardResponse response = new BingoBoardResponse(
                 100L,
+                200L,
                 10L,
                 3,
                 3,
@@ -128,6 +129,7 @@ class BingoControllerTest {
                 .then()
                 .statusCode(HttpStatus.OK.value())
                 .body("bingoBoardId", equalTo(100))
+                .body("gameId", equalTo(200))
                 .body("targetBingoCount", equalTo(3))
                 .body("completedBingoCount", equalTo(1))
                 .body("totalCellCount", equalTo(9))
@@ -144,6 +146,7 @@ class BingoControllerTest {
                         ),
                         responseFields(
                                 fieldWithPath("bingoBoardId").description("빙고판 ID"),
+                                fieldWithPath("gameId").description("게임 회차 ID"),
                                 fieldWithPath("roomId").description("게임방 ID"),
                                 fieldWithPath("boardSize").description("빙고판 크기"),
                                 fieldWithPath("targetBingoCount").description("게임 목표 빙고 수"),
@@ -323,6 +326,7 @@ class BingoControllerTest {
         );
         BingoBoardResponse response = new BingoBoardResponse(
                 101L,
+                200L,
                 10L,
                 3,
                 3,
@@ -343,6 +347,7 @@ class BingoControllerTest {
                 .then()
                 .statusCode(HttpStatus.CREATED.value())
                 .body("bingoBoardId", equalTo(101))
+                .body("gameId", equalTo(200))
                 .body("status", equalTo("IN_PROGRESS"))
                 .apply(document("bingo-boards-renewal",
                         pathParameters(
@@ -350,6 +355,7 @@ class BingoControllerTest {
                         ),
                         responseFields(
                                 fieldWithPath("bingoBoardId").description("새로 발급된 빙고판 ID"),
+                                fieldWithPath("gameId").description("게임 회차 ID"),
                                 fieldWithPath("roomId").description("게임방 ID"),
                                 fieldWithPath("boardSize").description("빙고판 크기"),
                                 fieldWithPath("targetBingoCount").description("게임 목표 빙고 수"),

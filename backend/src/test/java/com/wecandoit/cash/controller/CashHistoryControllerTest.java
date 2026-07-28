@@ -57,9 +57,9 @@ class CashHistoryControllerTest {
     void returnsTheAuthenticatedMembersCashHistories() {
         BDDMockito.given(cashHistoryReadService.getCashHistories(1L)).willReturn(List.of(
                 new CashHistoryResponse(1L, CashHistoryType.BINGO_REWARD, 500L,
-                        LocalDateTime.of(2026, 7, 24, 12, 0), 10L, null, null),
+                        LocalDateTime.of(2026, 7, 24, 12, 0), 10L, 100L, null, null),
                 new CashHistoryResponse(2L, CashHistoryType.ITEM_PURCHASE, -1_000L,
-                        LocalDateTime.of(2026, 7, 24, 11, 0), null, 20L, "Red Hat")
+                        LocalDateTime.of(2026, 7, 24, 11, 0), null, null, 20L, "Red Hat")
         ));
 
         given()
@@ -70,6 +70,7 @@ class CashHistoryControllerTest {
                 .body("$", hasSize(2))
                 .body("[0].amount", equalTo(500))
                 .body("[0].roomId", equalTo(10))
+                .body("[0].gameId", equalTo(100))
                 .body("[1].amount", equalTo(-1_000))
                 .body("[1].itemId", equalTo(20))
                 .body("[1].itemName", equalTo("Red Hat"))
@@ -80,6 +81,7 @@ class CashHistoryControllerTest {
                                 fieldWithPath("[].amount").description("증감 캐시 금액"),
                                 fieldWithPath("[].occurredAt").description("발생 시각"),
                                 fieldWithPath("[].roomId").description("보상 대상 방 ID").optional(),
+                                fieldWithPath("[].gameId").description("보상 대상 게임 회차 ID").optional(),
                                 fieldWithPath("[].itemId").description("구매 아이템 ID").optional(),
                                 fieldWithPath("[].itemName").description("구매 아이템 이름").optional()
                         )

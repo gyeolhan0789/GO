@@ -7,14 +7,19 @@ import static org.mockito.BDDMockito.given;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.SliceResponse;
-import com.wecandoit.game.result.controller.response.GameResultResponse;
-import com.wecandoit.game.result.domain.GameResult;
-import com.wecandoit.game.result.repository.GameResultRepository;
-import com.wecandoit.game.room.domain.GameMode;
-import com.wecandoit.game.room.domain.Room;
-import com.wecandoit.game.room.domain.RoomMember;
-import com.wecandoit.game.room.repository.RoomMemberRepository;
-import com.wecandoit.game.room.repository.RoomRepository;
+import com.wecandoit.game.controller.response.GameResultResponse;
+import com.wecandoit.game.domain.GameResult;
+import com.wecandoit.game.domain.GameResultParticipant;
+import com.wecandoit.game.repository.GameResultParticipantRepository;
+import com.wecandoit.game.repository.GameResultRepository;
+import com.wecandoit.game.domain.GameMode;
+import com.wecandoit.game.domain.Room;
+import com.wecandoit.game.domain.RoomMember;
+import com.wecandoit.game.repository.RoomMemberRepository;
+import com.wecandoit.game.repository.RoomRepository;
+import com.wecandoit.game.service.GameResultReadService;
+import com.wecandoit.member.domain.Member;
+import com.wecandoit.member.repository.MemberRepository;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,17 +40,23 @@ class GameResultReadServiceTest {
     @Mock
     private GameResultRepository gameResultRepository;
     @Mock
+    private GameResultParticipantRepository gameResultParticipantRepository;
+    @Mock
     private RoomRepository roomRepository;
     @Mock
     private RoomMemberRepository roomMemberRepository;
+    @Mock
+    private MemberRepository memberRepository;
     private GameResultReadService gameResultReadService;
 
     @BeforeEach
     void setUp() {
         gameResultReadService = new GameResultReadService(
                 gameResultRepository,
+                gameResultParticipantRepository,
                 roomRepository,
-                roomMemberRepository
+                roomMemberRepository,
+                memberRepository
         );
     }
 
@@ -53,22 +64,43 @@ class GameResultReadServiceTest {
     @DisplayName("완료된 방의 결과를 조회하면 게임 결과를 반환한다")
     void getGameResultReturnsResultForCompletedRoom() {
         // given
-        Room room = completedRoom(10L, 1L);
-        GameResult gameResult = GameResult.create(10L, true, 3, 9, 500L);
+        Room room = completedCooperateRoom(10L, 1L);
+        GameResult gameResult = gameResult(100L, 10L, 1000L);
+        GameResultParticipant host = participant(100L, 1L, 3);
+        GameResultParticipant participant = participant(100L, 2L, 2);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        given(gameResultRepository.findByRoomId(10L)).willReturn(Optional.of(gameResult));
+        given(gameResultRepository.findFirstByRoomIdOrderByCreatedAtDescIdDesc(10L))
+                .willReturn(Optional.of(gameResult));
+        given(gameResultParticipantRepository.findAllByGameIdOrderByIdAsc(100L))
+                .willReturn(List.of(host, participant));
+        given(memberRepository.findAllById(List.of(1L, 2L)))
+                .willReturn(List.of(member(1L, "host"), member(2L, "participant")));
 
         // when
         GameResultResponse response = gameResultReadService.getGameResult(1L, 10L);
 
         // then
         assertThat(response.roomId()).isEqualTo(10L);
+        assertThat(response.gameId()).isEqualTo(100L);
+        assertThat(response.mode()).isEqualTo(GameMode.COOPERATE);
         assertThat(response.result()).isTrue();
         assertThat(response.boardSize()).isEqualTo(3);
+        assertThat(response.targetBingoCount()).isEqualTo(3);
         assertThat(response.bingoCount()).isEqualTo(3);
-        assertThat(response.completedMissionCount()).isEqualTo(9);
+        assertThat(response.completedMissionCount()).isEqualTo(5);
         assertThat(response.rewardCash()).isEqualTo(500L);
+        assertThat(response.participants())
+                .extracting(
+                        participantResponse -> participantResponse.memberId(),
+                        participantResponse -> participantResponse.nickname(),
+                        participantResponse -> participantResponse.completedMissionCount(),
+                        participantResponse -> participantResponse.rewardCash()
+                )
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(1L, "host", 3, 500L),
+                        org.assertj.core.groups.Tuple.tuple(2L, "participant", 2, 500L)
+                );
     }
 
     @Test
@@ -112,7 +144,7 @@ class GameResultReadServiceTest {
         Room room = completedRoom(10L, 1L);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        given(gameResultRepository.findByRoomId(10L)).willReturn(Optional.empty());
+        given(gameResultRepository.findFirstByRoomIdOrderByCreatedAtDescIdDesc(10L)).willReturn(Optional.empty());
 
         // when & then
         assertErrorCode(() -> gameResultReadService.getGameResult(1L, 10L), ErrorCode.GAME_NOT_COMPLETED);
@@ -124,7 +156,8 @@ class GameResultReadServiceTest {
         // given
         RoomMember firstRoomMember = RoomMember.create(10L, 1L);
         RoomMember secondRoomMember = RoomMember.create(20L, 1L);
-        GameResult latestResult = GameResult.create(20L, true, 3, 9, 500L);
+        GameResult latestResult = gameResult(200L, 20L, 2000L);
+        GameResultParticipant participant = participant(200L, 1L, 9);
         Pageable pageable = PageRequest.of(0, 10);
         given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
                 .willReturn(List.of(secondRoomMember, firstRoomMember));
@@ -132,6 +165,9 @@ class GameResultReadServiceTest {
                 .willReturn(new SliceImpl<>(List.of(latestResult), pageable, false));
         given(roomRepository.findAllById(List.of(20L)))
                 .willReturn(List.of(completedRoom(20L, 1L)));
+        given(gameResultParticipantRepository.findAllByGameIdInOrderByIdAsc(List.of(200L)))
+                .willReturn(List.of(participant));
+        given(memberRepository.findAllById(List.of(1L))).willReturn(List.of(member(1L, "member1")));
 
         // when
         SliceResponse<GameResultResponse> response = gameResultReadService.getMyGameResults(1L, pageable);
@@ -140,6 +176,7 @@ class GameResultReadServiceTest {
         assertThat(response.content()).hasSize(1);
         assertThat(response.content().get(0).roomId()).isEqualTo(20L);
         assertThat(response.content().get(0).boardSize()).isEqualTo(3);
+        assertThat(response.content().get(0).participants()).hasSize(1);
         assertThat(response.hasNext()).isFalse();
     }
 
@@ -163,6 +200,38 @@ class GameResultReadServiceTest {
         ReflectionTestUtils.setField(room, "id", roomId);
         room.complete();
         return room;
+    }
+
+    private Room completedCooperateRoom(Long roomId, Long hostId) {
+        Room room = Room.create(hostId, GameMode.COOPERATE, 3, 3, 10000);
+        ReflectionTestUtils.setField(room, "id", roomId);
+        room.complete();
+        return room;
+    }
+
+    private RoomMember roomMember(Long roomId, Long memberId, int completedMissionCount) {
+        RoomMember roomMember = RoomMember.create(roomId, memberId);
+        roomMember.updateCompletedMissionCount(completedMissionCount);
+        return roomMember;
+    }
+
+    private GameResult gameResult(Long gameId, Long roomId, Long resultId) {
+        GameResult gameResult = GameResult.create(gameId, roomId, true, 3, 5, 500L);
+        ReflectionTestUtils.setField(gameResult, "id", resultId);
+        return gameResult;
+    }
+
+    private GameResultParticipant participant(Long gameId, Long memberId, int completedMissionCount) {
+        return GameResultParticipant.create(gameId, memberId, completedMissionCount, 500L);
+    }
+
+    private Member member(Long memberId, String nickname) {
+        Member member = Member.builder()
+                .email(nickname + "@example.com")
+                .nickname(nickname)
+                .build();
+        ReflectionTestUtils.setField(member, "id", memberId);
+        return member;
     }
 
     private void assertErrorCode(Runnable action, ErrorCode errorCode) {

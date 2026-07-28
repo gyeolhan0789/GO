@@ -30,11 +30,27 @@ docs {
     "content": [
       {
         "roomId": 1,
+        "mode": "COOPERATE",
         "result": true,
         "boardSize": 3,
+        "targetBingoCount": 3,
         "bingoCount": 3,
-        "completedMissionCount": 9,
-        "rewardCash": 500
+        "completedMissionCount": 5,
+        "rewardCash": 500,
+        "participants": [
+          {
+            "memberId": 1,
+            "nickname": "host",
+            "completedMissionCount": 3,
+            "rewardCash": 500
+          },
+          {
+            "memberId": 2,
+            "nickname": "participant",
+            "completedMissionCount": 2,
+            "rewardCash": 500
+          }
+        ]
       }
     ],
     "hasNext": false
@@ -47,7 +63,8 @@ docs {
   - 전체 개수 대신 다음 페이지 존재 여부(`hasNext`)만 제공하는 슬라이스 방식이다.
   - `result`는 현재 항상 `true`다(패배·타임아웃 종료 경로가 아직 없어 완료된 게임은 모두 승리로 기록된다).
   - 각 결과의 `boardSize`는 N x N 빙고판에서 한 변의 길이 N이다.
-  - 싱글·협동 모드에서는 `completedMissionCount`가 성공한 칸 수이고, 경쟁 모드에서는 `bingoCount`가 성공한 빙고 줄 수이다.
+  - 협동 모드의 `completedMissionCount`는 공동 보드의 승인 미션 수다.
+  - `participants`에서 참여자별 승인 미션 수와 지급 보상을 확인한다.
 
   ### 에러 케이스
 

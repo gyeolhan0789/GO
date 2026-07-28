@@ -14,12 +14,15 @@ import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
-import com.wecandoit.game.room.domain.GameMode;
-import com.wecandoit.game.room.domain.GameRoomStatus;
-import com.wecandoit.game.room.domain.Room;
-import com.wecandoit.game.room.domain.RoomMember;
-import com.wecandoit.game.room.repository.RoomMemberRepository;
-import com.wecandoit.game.room.repository.RoomRepository;
+import com.wecandoit.game.domain.Game;
+import com.wecandoit.game.domain.GameStatus;
+import com.wecandoit.game.repository.GameRepository;
+import com.wecandoit.game.domain.GameMode;
+import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.domain.Room;
+import com.wecandoit.game.domain.RoomMember;
+import com.wecandoit.game.repository.RoomMemberRepository;
+import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.mission.domain.Mission;
 import com.wecandoit.mission.repository.MissionRepository;
 import com.wecandoit.notification.domain.NotificationType;
@@ -30,6 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -56,6 +60,8 @@ class BingoCommandServiceTest {
     @Mock
     private RoomMemberRepository roomMemberRepository;
     @Mock
+    private GameRepository gameRepository;
+    @Mock
     private BingoBoardRepository bingoBoardRepository;
     @Mock
     private BingoCellRepository bingoCellRepository;
@@ -68,12 +74,21 @@ class BingoCommandServiceTest {
     @InjectMocks
     private BingoCommandService bingoCommandService;
 
+    @BeforeEach
+    void setUpActiveGame() {
+        Game game = Game.start(10L);
+        ReflectionTestUtils.setField(game, "id", 200L);
+        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.IN_PROGRESS))
+                .willReturn(Optional.of(game));
+    }
+
     @Test
     @DisplayName("방장이 진행 중인 방에서 빙고판을 생성하면 보드 크기만큼 무작위 미션이 배정된다")
     void generateInitialBoardCreatesBoardWithRandomMissions() {
         // given
         Room room = inProgressRoom(1L, 10L, 3);
-        given(bingoBoardRepository.existsByRoomId(10L)).willReturn(false);
+        given(bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(200L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.empty());
         List<Mission> missions = createMissions(9);
         given(missionRepository.findRandomMissions(9)).willReturn(missions);
         given(bingoBoardRepository.save(Mockito.any(BingoBoard.class))).willAnswer(invocation -> {
@@ -84,7 +99,7 @@ class BingoCommandServiceTest {
         given(bingoCellRepository.save(Mockito.any(BingoCell.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         // when
-        BingoBoardResponse response = bingoCommandService.generateInitialBoard(room);
+        BingoBoardResponse response = bingoCommandService.generateInitialBoard(room, 200L);
 
         // then
         assertThat(response.roomId()).isEqualTo(10L);
@@ -107,10 +122,12 @@ class BingoCommandServiceTest {
     void generateInitialBoardRejectsExistingBoardBeforeMissionSelection() {
         // given
         Room room = inProgressRoom(1L, 10L, 3);
-        given(bingoBoardRepository.existsByRoomId(10L)).willReturn(true);
+        given(bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(200L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.of(BingoBoard.create(10L, 3)));
 
         // when & then
-        assertErrorCode(() -> bingoCommandService.generateInitialBoard(room), ErrorCode.BINGO_BOARD_ALREADY_EXISTS);
+        assertErrorCode(() -> bingoCommandService.generateInitialBoard(room, 200L),
+                ErrorCode.BINGO_BOARD_ALREADY_EXISTS);
         then(missionRepository).shouldHaveNoInteractions();
     }
 
@@ -119,11 +136,13 @@ class BingoCommandServiceTest {
     void generateInitialBoardRejectsInsufficientMissionsBeforeBoardPersistence() {
         // given
         Room room = inProgressRoom(1L, 10L, 3);
-        given(bingoBoardRepository.existsByRoomId(10L)).willReturn(false);
+        given(bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(200L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.empty());
         given(missionRepository.findRandomMissions(9)).willReturn(createMissions(8));
 
         // when & then
-        assertErrorCode(() -> bingoCommandService.generateInitialBoard(room), ErrorCode.MISSION_POOL_INSUFFICIENT);
+        assertErrorCode(() -> bingoCommandService.generateInitialBoard(room, 200L),
+                ErrorCode.MISSION_POOL_INSUFFICIENT);
         then(bingoBoardRepository).should(Mockito.never()).save(Mockito.any(BingoBoard.class));
     }
 
@@ -132,7 +151,8 @@ class BingoCommandServiceTest {
     void generateInitialBoardDoesNotRequireASeparateRoomLookup() {
         // given
         Room room = inProgressRoom(1L, 10L, 3);
-        given(bingoBoardRepository.existsByRoomId(10L)).willReturn(false);
+        given(bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(200L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.empty());
         given(missionRepository.findRandomMissions(9)).willReturn(createMissions(9));
         given(bingoBoardRepository.save(Mockito.any(BingoBoard.class))).willAnswer(invocation -> {
             BingoBoard board = invocation.getArgument(0);
@@ -142,7 +162,7 @@ class BingoCommandServiceTest {
         given(bingoCellRepository.save(Mockito.any(BingoCell.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         // when
-        bingoCommandService.generateInitialBoard(room);
+        bingoCommandService.generateInitialBoard(room, 200L);
 
         // then
         then(roomRepository).shouldHaveNoInteractions();
@@ -153,10 +173,12 @@ class BingoCommandServiceTest {
     void generateInitialBoardRejectsExistingBoard() {
         // given
         Room room = inProgressRoom(1L, 10L, 3);
-        given(bingoBoardRepository.existsByRoomId(10L)).willReturn(true);
+        given(bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(200L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.of(BingoBoard.create(10L, 3)));
 
         // when & then
-        assertErrorCode(() -> bingoCommandService.generateInitialBoard(room), ErrorCode.BINGO_BOARD_ALREADY_EXISTS);
+        assertErrorCode(() -> bingoCommandService.generateInitialBoard(room, 200L),
+                ErrorCode.BINGO_BOARD_ALREADY_EXISTS);
     }
 
     @Test
@@ -164,11 +186,13 @@ class BingoCommandServiceTest {
     void generateInitialBoardRejectsInsufficientMissions() {
         // given
         Room room = inProgressRoom(1L, 10L, 3);
-        given(bingoBoardRepository.existsByRoomId(10L)).willReturn(false);
+        given(bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(200L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.empty());
         given(missionRepository.findRandomMissions(9)).willReturn(createMissions(8));
 
         // when & then
-        assertErrorCode(() -> bingoCommandService.generateInitialBoard(room), ErrorCode.MISSION_POOL_INSUFFICIENT);
+        assertErrorCode(() -> bingoCommandService.generateInitialBoard(room, 200L),
+                ErrorCode.MISSION_POOL_INSUFFICIENT);
     }
 
     @Test
@@ -176,8 +200,8 @@ class BingoCommandServiceTest {
     void submitCellSetsPendingStatusWithoutCompleting() {
         // given
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(true);
-        BingoBoard board = activeBoard(100L, 10L, 2);
-        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+        BingoBoard board = activeBoard(100L, 200L, 2);
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(board));
         BingoCell cell = BingoCell.create(100L, 1L, 0, 0);
         ReflectionTestUtils.setField(cell, "id", 1000L);
@@ -202,8 +226,8 @@ class BingoCommandServiceTest {
     void submitCellResetsRejectedCellToPending() {
         // given
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(true);
-        BingoBoard board = activeBoard(100L, 10L, 2);
-        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+        BingoBoard board = activeBoard(100L, 200L, 2);
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(board));
         BingoCell cell = BingoCell.create(100L, 1L, 0, 0);
         ReflectionTestUtils.setField(cell, "id", 1000L);
@@ -239,8 +263,8 @@ class BingoCommandServiceTest {
     void submitCellRejectsMissingCell() {
         // given
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        BingoBoard board = activeBoard(100L, 10L, 2);
-        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+        BingoBoard board = activeBoard(100L, 200L, 2);
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(board));
         given(bingoCellRepository.findByIdForUpdate(1000L)).willReturn(Optional.empty());
 
@@ -256,8 +280,8 @@ class BingoCommandServiceTest {
     void submitCellRejectsCellFromDifferentBoard() {
         // given
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        BingoBoard board = activeBoard(100L, 10L, 2);
-        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+        BingoBoard board = activeBoard(100L, 200L, 2);
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(board));
         BingoCell cell = BingoCell.create(999L, 1L, 0, 0);
         ReflectionTestUtils.setField(cell, "id", 1000L);
@@ -323,8 +347,8 @@ class BingoCommandServiceTest {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        BingoBoard activeBoard = activeBoard(100L, 10L, 2);
-        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+        BingoBoard activeBoard = activeBoard(100L, 200L, 2);
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(activeBoard));
         given(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).willReturn(false);
         List<Mission> missions = createMissions(4);
@@ -356,8 +380,8 @@ class BingoCommandServiceTest {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        BingoBoard activeBoard = activeBoard(100L, 10L, 2);
-        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+        BingoBoard activeBoard = activeBoard(100L, 200L, 2);
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(activeBoard));
         given(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).willReturn(true);
 
@@ -372,8 +396,8 @@ class BingoCommandServiceTest {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        BingoBoard activeBoard = activeBoard(100L, 10L, 2);
-        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+        BingoBoard activeBoard = activeBoard(100L, 200L, 2);
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(activeBoard));
 
         // when & then
@@ -410,7 +434,7 @@ class BingoCommandServiceTest {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.empty());
 
         // when & then
@@ -423,8 +447,8 @@ class BingoCommandServiceTest {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        BingoBoard activeBoard = activeBoard(100L, 10L, 2);
-        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+        BingoBoard activeBoard = activeBoard(100L, 200L, 2);
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(activeBoard));
         given(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).willReturn(false);
         given(missionRepository.findRandomMissions(4)).willReturn(createMissions(3));
@@ -441,9 +465,9 @@ class BingoCommandServiceTest {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        BingoBoard activeBoard = activeBoard(100L, 10L, 2);
+        BingoBoard activeBoard = activeBoard(100L, 200L, 2);
         ReflectionTestUtils.setField(activeBoard, "createdAt", LocalDateTime.now().minusDays(8));
-        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(activeBoard));
         given(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).willReturn(true);
         List<Mission> missions = createMissions(4);
@@ -472,9 +496,9 @@ class BingoCommandServiceTest {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        BingoBoard activeBoard = activeBoard(100L, 10L, 2);
+        BingoBoard activeBoard = activeBoard(100L, 200L, 2);
         ReflectionTestUtils.setField(activeBoard, "createdAt", LocalDateTime.now().minusDays(8));
-        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(activeBoard));
         given(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).willReturn(false);
         List<Mission> missions = createMissions(4);
@@ -503,9 +527,9 @@ class BingoCommandServiceTest {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        BingoBoard activeBoard = activeBoard(100L, 10L, 2);
+        BingoBoard activeBoard = activeBoard(100L, 200L, 2);
         ReflectionTestUtils.setField(activeBoard, "createdAt", LocalDateTime.now().minusDays(3));
-        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(activeBoard));
 
         // when
@@ -524,9 +548,9 @@ class BingoCommandServiceTest {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        BingoBoard activeBoard = activeBoard(100L, 10L, 2);
+        BingoBoard activeBoard = activeBoard(100L, 200L, 2);
         ReflectionTestUtils.setField(activeBoard, "createdAt", LocalDateTime.now().minusDays(8));
-        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(activeBoard));
         given(bingoCellRepository.existsByBoardIdAndCompletedAtIsNull(100L)).willReturn(true);
         given(missionRepository.findRandomMissions(4)).willReturn(createMissions(4));
@@ -555,16 +579,16 @@ class BingoCommandServiceTest {
         then(eventPublisher).should(Mockito.times(2)).publishEvent(Mockito.any(NotificationRequestedEvent.class));
     }
 
-    private BingoBoard activeBoard(Long boardId, Long roomId, int boardSize) {
-        BingoBoard board = BingoBoard.create(roomId, boardSize);
+    private BingoBoard activeBoard(Long boardId, Long gameId, int boardSize) {
+        BingoBoard board = BingoBoard.create(gameId, boardSize);
         ReflectionTestUtils.setField(board, "id", boardId);
         return board;
     }
 
     private BingoCell givenSubmissionContext(GameRoomStatus roomStatus) {
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(true);
-        BingoBoard board = activeBoard(100L, 10L, 2);
-        given(bingoBoardRepository.findActiveBoardForUpdate(10L, INACTIVE_BOARD_STATUSES))
+        BingoBoard board = activeBoard(100L, 200L, 2);
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(board));
         BingoCell cell = BingoCell.create(100L, 1L, 0, 0);
         ReflectionTestUtils.setField(cell, "id", 1000L);

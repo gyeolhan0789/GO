@@ -7,10 +7,13 @@ import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
-import com.wecandoit.game.result.service.GameCompletionService;
-import com.wecandoit.game.room.domain.GameRoomStatus;
-import com.wecandoit.game.room.domain.Room;
-import com.wecandoit.game.room.repository.RoomRepository;
+import com.wecandoit.game.domain.Game;
+import com.wecandoit.game.domain.GameStatus;
+import com.wecandoit.game.repository.GameRepository;
+import com.wecandoit.game.service.GameCompletionService;
+import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.domain.Room;
+import com.wecandoit.game.repository.RoomRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +25,7 @@ public class BingoCellVerificationResultService {
 
     private final BingoCellRepository bingoCellRepository;
     private final BingoBoardRepository bingoBoardRepository;
+    private final GameRepository gameRepository;
     private final RoomRepository roomRepository;
     private final GameCompletionService gameCompletionService;
 
@@ -31,7 +35,12 @@ public class BingoCellVerificationResultService {
 
         BingoBoard board = bingoBoardRepository.findById(cell.getBoardId())
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
-        Room room = roomRepository.findByIdForUpdate(board.getRoomId())
+        Game game = gameRepository.findByIdForUpdate(board.getGameId())
+                .orElseThrow(() -> new CustomException(ErrorCode.GAME_NOT_FOUND));
+        if (game.getStatus() != GameStatus.IN_PROGRESS) {
+            return;
+        }
+        Room room = roomRepository.findByIdForUpdate(game.getRoomId())
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
         if (room.getStatus() != GameRoomStatus.IN_PROGRESS) {
             return;
@@ -48,6 +57,6 @@ public class BingoCellVerificationResultService {
 
         cell.approve();
         bingoCellRepository.save(cell);
-        gameCompletionService.evaluateAndCompleteIfNeeded(board.getRoomId());
+        gameCompletionService.evaluateAndCompleteIfNeeded(game.getId());
     }
 }

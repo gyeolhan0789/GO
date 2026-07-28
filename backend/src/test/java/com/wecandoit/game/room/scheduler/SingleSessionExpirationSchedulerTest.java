@@ -3,11 +3,12 @@ package com.wecandoit.game.room.scheduler;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
-import com.wecandoit.game.room.domain.GameMode;
-import com.wecandoit.game.room.domain.GameRoomStatus;
-import com.wecandoit.game.room.domain.Room;
-import com.wecandoit.game.room.repository.RoomRepository;
-import com.wecandoit.game.room.service.RoomCommandService;
+import com.wecandoit.game.domain.GameMode;
+import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.domain.Room;
+import com.wecandoit.game.repository.RoomRepository;
+import com.wecandoit.game.scheduler.SingleSessionExpirationScheduler;
+import com.wecandoit.game.service.RoomCommandService;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
