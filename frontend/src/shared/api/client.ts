@@ -10,8 +10,6 @@ const DEFAULT_BASE_URL = 'http://localhost:8080';
 
 const BASE_URL = API_BASE_URL || DEFAULT_BASE_URL;
 
-const NO_CONTENT_STATUS = 204;
-
 type RequestOptions = Omit<RequestInit, 'body'> & { body?: unknown };
 
 async function readErrorMessage(response: Response) {
@@ -46,11 +44,14 @@ async function request<T>(
     throw new ApiError(response.status, await readErrorMessage(response));
   }
 
-  if (response.status === NO_CONTENT_STATUS) {
+  // 204뿐 아니라 201 등 다른 성공 상태도 본문 없이 응답할 수 있어(예: 친구 요청
+  // 보내기), 상태 코드 대신 실제 본문 유무로 판단한다.
+  const text = await response.text();
+  if (!text) {
     return undefined as T;
   }
 
-  return (await response.json()) as T;
+  return JSON.parse(text) as T;
 }
 
 export const apiClient = {
@@ -59,5 +60,7 @@ export const apiClient = {
     request<T>(path, { method: 'POST', body }),
   put: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'PUT', body }),
+  patch: <T>(path: string, body?: unknown) =>
+    request<T>(path, { method: 'PATCH', body }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 };

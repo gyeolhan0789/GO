@@ -1,3 +1,3 @@
 export const shadow = {
-  offset: 4,
+  offset: 3,
 } as const;

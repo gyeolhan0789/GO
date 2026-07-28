@@ -1,3 +1,4 @@
+import type { StyleProp, TextStyle } from 'react-native';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '../../constants/colors';
@@ -11,6 +12,7 @@ type BadgeProps = {
   label: string;
   variant?: BadgeVariant;
   showDot?: boolean;
+  labelStyle?: StyleProp<TextStyle>;
 };
 
 const VARIANT_COLORS: Record<BadgeVariant, { bg: string; text: string }> = {
@@ -20,13 +22,20 @@ const VARIANT_COLORS: Record<BadgeVariant, { bg: string; text: string }> = {
   danger: { bg: colors.dangerBg, text: colors.danger },
 };
 
-export function Badge({ label, variant = 'success', showDot = false }: BadgeProps) {
+export function Badge({
+  label,
+  variant = 'success',
+  showDot = false,
+  labelStyle,
+}: BadgeProps) {
   const { bg, text } = VARIANT_COLORS[variant];
 
   return (
     <View style={[styles.badge, { backgroundColor: bg }]}>
-      {showDot ? <View style={[styles.dot, { backgroundColor: text }]} /> : null}
-      <Text style={[styles.label, { color: text }]}>{label}</Text>
+      {showDot ? (
+        <View style={[styles.dot, { backgroundColor: text }]} />
+      ) : null}
+      <Text style={[styles.label, { color: text }, labelStyle]}>{label}</Text>
     </View>
   );
 }
