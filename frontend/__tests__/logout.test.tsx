@@ -35,8 +35,7 @@ jest.mock('react-native-keychain', () =>
 );
 const keychain: KeychainMock = jest.requireMock('react-native-keychain');
 
-// HomeScreen은 화면 이동을 useNavigation으로 받는다. 로그아웃은 이동을
-// RootNavigator에 맡기므로 테스트에서는 빈 navigation으로 충분하다.
+// 로그아웃은 화면 이동을 RootNavigator에 맡기므로 빈 navigation으로 충분하다.
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: jest.fn() }),
 }));
@@ -115,8 +114,6 @@ describe('로그아웃 요청', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  // 재발급은 리프레시 토큰을 회전시키므로, 재시도가 바디의 구토큰을 들고 나가
-  // 재사용 탐지에 걸린다. 만료는 감추지 않고 호출부까지 올려보낸다.
   test('액세스 토큰이 만료돼도 재발급 재시도 없이 401을 던진다', async () => {
     setAccessToken('expired');
     await saveRefreshToken('stored-refresh');
@@ -199,8 +196,7 @@ function statusOf(tree: ReactTestRenderer.ReactTestRenderer): unknown {
   return tree.root.findAllByType(Text)[0].props.children;
 }
 
-// `deep: false`가 없으면 accessibilityLabel이 host View까지 그대로 내려가 같은
-// 버튼이 여러 번 잡힌다.
+// deep: false가 없으면 accessibilityLabel이 host View까지 내려가 중복으로 잡힌다.
 function logoutButtons(tree: ReactTestRenderer.ReactTestRenderer) {
   return tree.root.findAll(
     node => node.props.accessibilityLabel === '로그아웃',
@@ -232,9 +228,6 @@ describe('useLogoutMutation', () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
-  // 나열된 실패(헤더 누락, 토큰 형식 오류, 만료)는 모두 액세스 토큰이 이미 못 쓰는
-  // 상태라는 뜻이다. 실패를 이유로 로그인 상태를 붙잡아 두면 사용자가 아무것도 안
-  // 되는 세션에 갇힌다.
   test.each([
     ['인증이 필요합니다.'],
     ['유효하지 않은 토큰입니다.'],
@@ -249,7 +242,6 @@ describe('useLogoutMutation', () => {
     expect(statusOf(tree)).toBe('unauthenticated');
     expect(getAccessToken()).toBeNull();
     await expect(readRefreshToken()).resolves.toBeNull();
-    // 에러는 막는 데 쓰지 않고, 호출부가 알릴 수 있도록 전달만 한다.
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError.mock.calls[0][0]).toHaveProperty('message', message);
   });
@@ -274,7 +266,6 @@ describe('useLogoutMutation', () => {
 
     await pressLogout(tree);
 
-    // 서버가 빈 리프레시 토큰을 400으로 거절하므로 요청을 만들지 않는다.
     expect(fetchMock).not.toHaveBeenCalled();
     expect(statusOf(tree)).toBe('unauthenticated');
     expect(getAccessToken()).toBeNull();
@@ -286,18 +277,15 @@ describe('액세스 토큰 만료 시 재발급 후 재시도', () => {
   test('회전된 새 리프레시 토큰으로 다시 보내 서버 정리까지 마친다', async () => {
     const tree = await renderAuthenticated(<LogoutProbe />);
     fetchMock
-      // 1) 만료된 액세스 토큰으로 나간 로그아웃 — 서버 필터가 막는다.
       .mockResolvedValueOnce(
         jsonResponse(401, { message: '토큰이 만료되었습니다.' }),
       )
-      // 2) 재발급. 리프레시 토큰이 rotated-refresh -> rotated-twice로 회전한다.
       .mockResolvedValueOnce(
         jsonResponse(200, {
           accessToken: 'fresh-access',
           refreshToken: 'rotated-twice',
         }),
       )
-      // 3) 회전된 토큰으로 재시도 — 204.
       .mockResolvedValueOnce(jsonResponse(204));
 
     await pressLogout(tree);
@@ -306,13 +294,11 @@ describe('액세스 토큰 만료 시 재발급 후 재시도', () => {
     expect(first[0]).toBe(LOGOUT_URL);
     expect(bodyOf(first)).toEqual({ refreshToken: 'rotated-refresh' });
     expect(reissue[0]).toBe(`${BASE_URL}/auth/reissue`);
-    // 재시도는 구토큰이 아니라 회전된 새 토큰을 실어야 한다. 구토큰을 보내면
-    // 서버가 저장값과 비교해 탈취로 판단한다.
+    // 구토큰을 보내면 서버가 저장값과 비교해 탈취로 판단한다.
     expect(retry[0]).toBe(LOGOUT_URL);
     expect(headersOf(retry)?.Authorization).toBe('Bearer fresh-access');
     expect(bodyOf(retry)).toEqual({ refreshToken: 'rotated-twice' });
 
-    // 만료는 앱이 알아서 복구한 것이므로 사용자에게 알릴 일이 아니다.
     expect(onError).not.toHaveBeenCalled();
     expect(statusOf(tree)).toBe('unauthenticated');
     await expect(readRefreshToken()).resolves.toBeNull();
@@ -324,14 +310,13 @@ describe('액세스 토큰 만료 시 재발급 후 재시도', () => {
       .mockResolvedValueOnce(
         jsonResponse(401, { message: '토큰이 만료되었습니다.' }),
       )
-      // 저장된 토큰이 다른 기기 로그인으로 교체된 경우. 서버가 탈취로 보고 거절한다.
       .mockResolvedValueOnce(
         jsonResponse(401, { message: '유효하지 않은 Refresh Token입니다.' }),
       );
 
     await pressLogout(tree);
 
-    // 재발급이 실패했으니 재시도는 없다 — 마운트 1 + 로그아웃 1 + 재발급 1.
+    // 마운트 1 + 로그아웃 1 + 재발급 1.
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError.mock.calls[0][0]).toHaveProperty(
@@ -349,7 +334,6 @@ describe('액세스 토큰 만료 시 재발급 후 재시도', () => {
 
     await pressLogout(tree);
 
-    // 401이 아니면 재발급으로 복구할 수 있는 상황이 아니다.
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(onError).toHaveBeenCalledTimes(1);
   });
@@ -358,7 +342,6 @@ describe('액세스 토큰 만료 시 재발급 후 재시도', () => {
 describe('로그아웃 시 쿼리 캐시', () => {
   test('계정 데이터는 비우고 기기 단위 값은 남긴다', async () => {
     const client = createQueryClient();
-    // 계정에 속한 캐시와 기기에 속한 캐시를 나란히 심어 둔다.
     client.setQueryData(['friends'], [{ id: 1 }]);
     client.setQueryData(ONBOARDING_QUERY_KEY, true);
     client.setQueryData(PERMISSIONS_QUERY_KEY, true);
@@ -371,7 +354,6 @@ describe('로그아웃 시 쿼리 캐시', () => {
     await pressLogout(tree);
 
     expect(client.getQueryData(['friends'])).toBeUndefined();
-    // 진입 게이트를 지우면 RootNavigator가 미완료로 읽어 온보딩으로 되돌아간다.
     expect(client.getQueryData(ONBOARDING_QUERY_KEY)).toBe(true);
     expect(client.getQueryData(PERMISSIONS_QUERY_KEY)).toBe(true);
     expect(client.getQueryData(PERMISSIONS_GRANTED_QUERY_KEY)).toBe(true);
@@ -392,7 +374,6 @@ describe('HomeScreen 로그아웃 버튼', () => {
     expect(logoutButtons(tree)).toHaveLength(1);
   });
 
-  // 실패해도 세션이 정리되어 이 화면은 사라진다. 화면 안의 문구로는 알릴 수 없다.
   test('서버가 거절하면 세션이 만료됐다고 알린다', async () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     const tree = await renderAuthenticated(<HomeScreen />);
@@ -404,13 +385,12 @@ describe('HomeScreen 로그아웃 버튼', () => {
 
     expect(alert).toHaveBeenCalledTimes(1);
     expect(alert.mock.calls[0][0]).toBe('로그아웃했어요');
-    // 서버 원문("유효하지 않은 Refresh Token입니다.")을 그대로 노출하지 않는다.
+    // 서버 원문을 그대로 노출하지 않는다.
     expect(alert.mock.calls[0][1]).toBe('세션이 이미 만료되어 있었어요.');
     expect(getAccessToken()).toBeNull();
     alert.mockRestore();
   });
 
-  // 네트워크 실패에 "다시 시도해 주세요"를 띄우면 거짓말이 된다. 이미 로그아웃됐다.
   test('네트워크가 끊기면 서버에 반영되지 못했다고 알린다', async () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     const tree = await renderAuthenticated(<HomeScreen />);
@@ -426,7 +406,6 @@ describe('HomeScreen 로그아웃 버튼', () => {
     alert.mockRestore();
   });
 
-  // pending으로 버튼을 비활성화하기까지 한 프레임이 걸린다. 그 사이의 두 번째 탭.
   test('연속으로 두 번 눌러도 요청은 한 번만 나간다', async () => {
     const tree = await renderAuthenticated(<HomeScreen />);
     fetchMock.mockResolvedValue(jsonResponse(204));

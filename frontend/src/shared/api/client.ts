@@ -7,16 +7,10 @@ type RequestOptions = Omit<RequestInit, 'body'> & { body?: unknown };
 
 type SendOptions = {
   /**
-   * 401을 받았을 때 리프레시 토큰으로 재발급하고 같은 요청을 한 번 더 보낼지.
-   * 기본은 true.
+   * 401일 때 재발급하고 같은 요청을 한 번 더 보낼지. 기본은 true.
    *
-   * 이 재시도는 Authorization 헤더만 새 액세스 토큰으로 갈아끼우고, 바디는 처음
-   * 넘어온 `options.body`를 그대로 다시 직렬화한다. 바디에 토큰이 없는 대부분의
-   * 요청에는 문제가 없지만, 재발급으로 회전되는 값을 바디에 싣는 요청은 구토큰을
-   * 들고 재시도해 서버의 재사용 탐지에 걸린다.
-   *
-   * 그런 요청은 이 스위치를 끄고 호출부에서 직접 재시도한다 — 바디를 다시 만들
-   * 수 있는 건 호출부뿐이다. `features/auth/hooks/useLogoutMutation` 참고.
+   * 재시도는 Authorization 헤더만 갈아끼우고 바디는 그대로 다시 보낸다. 재발급으로
+   * 회전되는 값을 바디에 싣는 요청은 이 스위치를 끄고 직접 재시도해야 한다.
    */
   retryOnUnauthorized?: boolean;
 };

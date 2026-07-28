@@ -40,15 +40,11 @@ export function signup(body: SignupRequest) {
 }
 
 /**
- * 로그아웃. 서버는 액세스 토큰을 블랙리스트에 올리고 저장된 리프레시 토큰을
- * 지운다. 액세스 토큰은 `Authorization: Bearer {accessToken}` 헤더로(client가
- * 붙인다), 리프레시 토큰은 바디로 보낸다. 성공(204) 응답에는 본문이 없다.
+ * 로그아웃. 액세스 토큰은 헤더로(client가 붙인다), 리프레시 토큰은 바디로 보낸다.
  *
- * 401 재발급 재시도는 끈다. 두 가지 이유가 있다.
- * - 재발급은 리프레시 토큰을 회전시키므로, 재시도가 바디의 구토큰을 들고 나가
- *   서버의 재사용 탐지에 걸린다.
- * - 헤더 누락·토큰 형식 오류·토큰 만료 401은 조용히 감추지 말고 그대로 호출부에
- *   전달해야 한다. `useLogoutMutation` 참고.
+ * 401 재시도를 끄는 이유: client의 재시도는 헤더만 갈아끼우고 바디는 처음 것을
+ * 그대로 보내므로, 재발급으로 회전된 리프레시 토큰을 반영하지 못해 서버의 재사용
+ * 탐지에 걸린다. 재시도는 `useLogoutMutation`이 직접 한다.
  */
 export function logout(body: LogoutRequest) {
   return apiClient.post<void>('/auth/logout', body, {

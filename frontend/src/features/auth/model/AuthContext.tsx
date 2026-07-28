@@ -78,13 +78,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     [],
   );
 
-  /**
-   * 이 기기의 세션을 끝낸다. 서버 로그아웃의 성공 여부와 무관하게 불린다 —
-   * `useLogoutMutation` 참고.
-   */
+  /** 이 기기의 세션을 끝낸다. 서버 로그아웃의 성공 여부와 무관하게 불린다. */
   const signOut = useCallback(async () => {
-    // 액세스 토큰을 먼저 비우면 그 자리에서 미인증으로 전환되어, 아직 남아 있는
-    // 리프레시 토큰으로 세션이 되살아날 틈이 생긴다. 디스크를 먼저 정리한다.
+    // 액세스 토큰을 먼저 비우면 남아 있는 리프레시 토큰으로 세션이 되살아날 틈이
+    // 생긴다. 디스크를 먼저 정리한다.
     await clearRefreshToken();
     setAccessToken(null);
   }, []);

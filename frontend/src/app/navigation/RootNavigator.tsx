@@ -56,13 +56,8 @@ export function RootNavigator() {
 
   return (
     <Stack.Navigator
-      // `initialRouteName`은 Navigator를 처음 마운트할 때 한 번만 읽힌다
-      // (react-navigation이 router를 최초 1회만 만든다). 그래서 로그인 상태가
-      // 뒤집혀 등록 화면이 통째로 바뀌어도 갱신되지 않는다. 로그인 상태로 앱을
-      // 켰다면 router가 쥔 이름은 'Main'인데 로그아웃 시점에 그 화면은 이미
-      // 사라졌으므로, react-navigation은 첫 번째로 등록된 화면(Onboarding)으로
-      // 되돌린다. 분기마다 key를 갈라 Navigator를 새로 마운트해, 방금 계산한
-      // 진입 화면이 실제로 쓰이게 한다.
+      // initialRouteName은 Navigator 최초 마운트에만 읽힌다. key로 분기를 갈라
+      // 새로 마운트하지 않으면, 인증이 풀릴 때 첫 등록 화면(Onboarding)으로 간다.
       key={isAuthenticated ? 'authenticated' : 'unauthenticated'}
       initialRouteName={initialRouteName}
       screenOptions={{ headerShown: false }}

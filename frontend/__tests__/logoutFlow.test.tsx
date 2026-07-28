@@ -33,8 +33,7 @@ const {
   clearAllMockStorages,
 } = require('@react-native-async-storage/async-storage/jest');
 
-// 권한 게이트는 저장된 완료 플래그와 실제 런타임 권한을 함께 본다. 여기서는
-// 이미 통과한 기기를 흉내낸다.
+// 권한 게이트를 이미 통과한 기기를 흉내낸다.
 jest.mock('../src/shared/lib/permissions', () => ({
   PERMISSION_KEYS: ['camera', 'activityRecognition', 'location', 'notifications'],
   checkPermission: jest.fn(() => Promise.resolve(true)),
@@ -146,12 +145,9 @@ describe('로그아웃 후 진입 화면', () => {
 
     const texts = collectTexts(tree.root);
     expect(texts).toContain('만나서 반가워요!');
-    // 온보딩은 이미 통과한 게이트다. 여기로 되돌아가면 안 된다.
     expect(texts).not.toContain('건너뛰기');
   });
 
-  // 온보딩·권한 완료 플래그는 계정이 아니라 기기에 속한 값이다. 로그아웃 때
-  // 계정 캐시와 함께 지우면 게이트가 미완료로 읽혀 온보딩부터 다시 시작한다.
   test('로그아웃이 실패해도 로그인 화면으로 간다', async () => {
     const tree = await renderAppSignedIn();
 
