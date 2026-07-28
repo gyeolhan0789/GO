@@ -7,6 +7,18 @@ const UNAUTHORIZED_STATUS = 401;
 
 type RequestOptions = Omit<RequestInit, 'body'> & { body?: unknown };
 
+type SendOptions = {
+  /**
+   * 401을 받았을 때 리프레시 토큰으로 재발급하고 같은 요청을 한 번 더 보낼지.
+   * 기본은 true.
+   *
+   * 로그아웃처럼 401 자체가 사용자에게 전달돼야 하는 요청은 끈다. 재발급은
+   * 리프레시 토큰을 회전시키므로, 이미 만들어둔 바디에 구토큰이 들어 있는
+   * 요청을 재시도하면 서버가 탈취로 오인한다. `features/auth/api/authApi` 참고.
+   */
+  retryOnUnauthorized?: boolean;
+};
+
 async function readErrorMessage(response: Response) {
   const body = (await response.json().catch(() => null)) as {
     message?: unknown;
@@ -38,6 +50,7 @@ function send(
 async function request<T>(
   path: string,
   options: RequestOptions = {},
+  { retryOnUnauthorized = true }: SendOptions = {},
 ): Promise<T> {
   const accessToken = getAccessToken();
 
@@ -46,7 +59,11 @@ async function request<T>(
   // 토큰을 실어 보냈는데도 401이면 액세스 토큰이 만료된 것이므로, 쿠키에 남은
   // refreshToken으로 한 번만 재발급하고 같은 요청을 다시 보낸다. 애초에 토큰이
   // 없었다면(로그인 실패 등) 재발급할 이유가 없어 그대로 에러를 낸다.
-  if (accessToken !== null && response.status === UNAUTHORIZED_STATUS) {
+  if (
+    retryOnUnauthorized &&
+    accessToken !== null &&
+    response.status === UNAUTHORIZED_STATUS
+  ) {
     const refreshed = await refreshAccessToken();
 
     if (refreshed) {
@@ -70,8 +87,8 @@ async function request<T>(
 
 export const apiClient = {
   get: <T>(path: string) => request<T>(path, { method: 'GET' }),
-  post: <T>(path: string, body?: unknown) =>
-    request<T>(path, { method: 'POST', body }),
+  post: <T>(path: string, body?: unknown, sendOptions?: SendOptions) =>
+    request<T>(path, { method: 'POST', body }, sendOptions),
   put: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'PUT', body }),
   patch: <T>(path: string, body?: unknown) =>
