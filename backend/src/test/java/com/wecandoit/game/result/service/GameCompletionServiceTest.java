@@ -406,21 +406,21 @@ class GameCompletionServiceTest {
     }
 
     private Room inProgressRoom(Long hostId, Long roomId, int boardSize) {
-        Room room = Room.create(hostId, GameMode.SINGLE, null, boardSize);
+        Room room = Room.create(hostId, "테스트 방", GameMode.SINGLE, null, boardSize);
         ReflectionTestUtils.setField(room, "id", roomId);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         return room;
     }
 
     private Room inProgressCooperateRoom(Long hostId, Long roomId, int boardSize) {
-        Room room = Room.create(hostId, GameMode.COOPERATE, null, boardSize);
+        Room room = Room.create(hostId, "테스트 방", GameMode.COOPERATE, null, boardSize);
         ReflectionTestUtils.setField(room, "id", roomId);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         return room;
     }
 
     private Room inProgressBattleRoom(Long hostId, Long roomId, int targetBingoCount, int boardSize) {
-        Room room = Room.create(hostId, GameMode.BATTLE, targetBingoCount, boardSize);
+        Room room = Room.create(hostId, "테스트 방", GameMode.BATTLE, targetBingoCount, boardSize);
         ReflectionTestUtils.setField(room, "id", roomId);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         return room;

@@ -196,7 +196,7 @@ class GameResultReadServiceTest {
     @DisplayName("완료되지 않은 방의 결과를 조회하면 실패한다")
     void getGameResultRejectsNotCompletedRoom() {
         // given
-        Room room = Room.create(1L, GameMode.SINGLE, null, 3);
+        Room room = Room.create(1L, "테스트 방", GameMode.SINGLE, null, 3);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
         given(gameResultRepository.findFirstByRoomIdOrderByCreatedAtDescIdDesc(10L)).willReturn(Optional.empty());
@@ -296,7 +296,7 @@ class GameResultReadServiceTest {
     }
 
     private Room completedRoom(Long roomId, Long hostId, GameMode mode) {
-        Room room = Room.create(hostId, mode, mode == GameMode.SINGLE ? null : 3, 3);
+        Room room = Room.create(hostId, "테스트 방", mode, mode == GameMode.SINGLE ? null : 3, 3);
         ReflectionTestUtils.setField(room, "id", roomId);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.COMPLETED);
         return room;

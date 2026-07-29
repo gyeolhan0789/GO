@@ -83,7 +83,7 @@ class BingoStepGoalRewardConcurrencyTest {
                 "step-second"
         )).getId();
 
-        Room room = Room.create(firstMemberId, GameMode.COOPERATE, null, 1_000, 3);
+        Room room = Room.create(firstMemberId, "테스트 방", GameMode.COOPERATE, null, 1_000, 3);
         room.start();
         Long roomId = roomRepository.saveAndFlush(room).getId();
         roomMemberRepository.saveAndFlush(RoomMember.create(roomId, firstMemberId));

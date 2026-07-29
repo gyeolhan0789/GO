@@ -96,7 +96,7 @@ class GameCompletionServiceConcurrencyTest {
                 "second"
         )).getId();
 
-        Room room = Room.create(firstMemberId, GameMode.COOPERATE, null, 2);
+        Room room = Room.create(firstMemberId, "테스트 방", GameMode.COOPERATE, null, 2);
         room.start();
         roomId = roomRepository.save(room).getId();
         roomMemberRepository.save(RoomMember.create(roomId, firstMemberId));
@@ -167,7 +167,7 @@ class GameCompletionServiceConcurrencyTest {
     @DisplayName("대결 참가자가 동시에 목표 빙고를 달성해도 승자와 결과는 하나만 확정된다")
     void determinesSingleWinnerWhenBattleParticipantsCompleteConcurrently() throws Exception {
         // given
-        Room battleRoom = Room.create(firstMemberId, GameMode.BATTLE, 1, 2);
+        Room battleRoom = Room.create(firstMemberId, "테스트 방", GameMode.BATTLE, 1, 2);
         battleRoom.start();
         Long battleRoomId = roomRepository.saveAndFlush(battleRoom).getId();
         RoomMember firstRoomMember =

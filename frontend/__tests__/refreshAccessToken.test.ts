@@ -47,7 +47,7 @@ describe('refreshAccessToken', () => {
     await saveRefreshToken('stored-refresh');
     fetchMock.mockResolvedValue(reissued('fresh', 'rotated-refresh'));
 
-    await expect(refreshAccessToken()).resolves.toBe(true);
+    await expect(refreshAccessToken()).resolves.toBe('success');
     expect(getAccessToken()).toBe('fresh');
     // 회전된 토큰을 덮어쓰지 않으면 다음 실행에서 재사용 탐지에 걸린다.
     await expect(readRefreshToken()).resolves.toBe('rotated-refresh');
@@ -70,8 +70,8 @@ describe('refreshAccessToken', () => {
     expect(options?.headers).not.toHaveProperty('Authorization');
   });
 
-  test('저장된 리프레시 토큰이 없으면 요청 없이 실패한다', async () => {
-    await expect(refreshAccessToken()).resolves.toBe(false);
+  test('저장된 리프레시 토큰이 없으면 요청 없이 거절로 끝낸다', async () => {
+    await expect(refreshAccessToken()).resolves.toBe('rejected');
     expect(fetchMock).not.toHaveBeenCalled();
     expect(getAccessToken()).toBeNull();
   });
@@ -83,50 +83,92 @@ describe('refreshAccessToken', () => {
       jsonResponse(401, { message: '유효하지 않은 Refresh Token입니다.' }),
     );
 
-    await expect(refreshAccessToken()).resolves.toBe(false);
+    await expect(refreshAccessToken()).resolves.toBe('rejected');
     expect(getAccessToken()).toBeNull();
     // Keychain에는 만료가 없어 직접 지우지 않으면 죽은 토큰이 계속 남는다.
     await expect(readRefreshToken()).resolves.toBeNull();
   });
 
-  test('네트워크 실패도 재발급 실패로 처리한다', async () => {
+  // 이 경로는 permitAll이라 백엔드가 403을 낼 수 없다. 왔다면 프록시가 낸 것이다.
+  test('403은 백엔드 응답이 아니므로 리프레시 토큰을 남긴다', async () => {
+    await saveRefreshToken('stored-refresh');
+    fetchMock.mockResolvedValue(jsonResponse(403, { message: 'Forbidden' }));
+
+    await expect(refreshAccessToken()).resolves.toBe('unavailable');
+    await expect(readRefreshToken()).resolves.toBe('stored-refresh');
+  });
+
+  // 백엔드가 400을 내는 건 `@NotBlank` 위반뿐인데, 프론트는 빈 값을 보내지 않는다.
+  test('400도 리프레시 토큰을 남긴다', async () => {
+    await saveRefreshToken('stored-refresh');
+    fetchMock.mockResolvedValue(
+      jsonResponse(400, { message: '리프레시 토큰은 필수입니다.' }),
+    );
+
+    await expect(refreshAccessToken()).resolves.toBe('unavailable');
+    await expect(readRefreshToken()).resolves.toBe('stored-refresh');
+  });
+
+  // 이 케이스가 원래 버그였다. 서버에 14일 남은 세션이 기기에서 영구 삭제됐다.
+  test('네트워크 실패는 리프레시 토큰을 남긴다', async () => {
     await saveRefreshToken('stored-refresh');
     setAccessToken('expired');
     fetchMock.mockRejectedValue(new Error('Network request failed'));
 
-    await expect(refreshAccessToken()).resolves.toBe(false);
+    await expect(refreshAccessToken()).resolves.toBe('unavailable');
     expect(getAccessToken()).toBeNull();
-    await expect(readRefreshToken()).resolves.toBeNull();
+    await expect(readRefreshToken()).resolves.toBe('stored-refresh');
   });
 
-  test('200이지만 accessToken이 없으면 실패로 본다', async () => {
+  test('서버 장애(500)는 리프레시 토큰을 남긴다', async () => {
+    await saveRefreshToken('stored-refresh');
+    fetchMock.mockResolvedValue(
+      jsonResponse(500, { message: 'Internal Server Error' }),
+    );
+
+    await expect(refreshAccessToken()).resolves.toBe('unavailable');
+    await expect(readRefreshToken()).resolves.toBe('stored-refresh');
+  });
+
+  test('게이트웨이 타임아웃(504)도 리프레시 토큰을 남긴다', async () => {
+    await saveRefreshToken('stored-refresh');
+    fetchMock.mockResolvedValue(jsonResponse(504));
+
+    await expect(refreshAccessToken()).resolves.toBe('unavailable');
+    await expect(readRefreshToken()).resolves.toBe('stored-refresh');
+  });
+
+  // 서버가 정말 회전시켰다면 다음 시도에서 401을 받고 그때 정리된다. 확실하지 않은
+  // 상태에서 먼저 지울 이유가 없다.
+  test('200이지만 accessToken이 없으면 토큰을 남긴 채 실패한다', async () => {
     await saveRefreshToken('stored-refresh');
     setAccessToken('expired');
     fetchMock.mockResolvedValue(jsonResponse(200, {}));
 
-    await expect(refreshAccessToken()).resolves.toBe(false);
+    await expect(refreshAccessToken()).resolves.toBe('unavailable');
     expect(getAccessToken()).toBeNull();
+    await expect(readRefreshToken()).resolves.toBe('stored-refresh');
   });
 
-  test('200이지만 refreshToken이 없으면 실패로 본다', async () => {
+  test('200이지만 refreshToken이 없으면 토큰을 남긴 채 실패한다', async () => {
     await saveRefreshToken('stored-refresh');
     setAccessToken('expired');
     fetchMock.mockResolvedValue(jsonResponse(200, { accessToken: 'fresh' }));
 
-    // 회전된 토큰을 못 받으면 다음 재발급이 반드시 실패하므로, 지금 끊는 편이 낫다.
-    await expect(refreshAccessToken()).resolves.toBe(false);
+    await expect(refreshAccessToken()).resolves.toBe('unavailable');
     expect(getAccessToken()).toBeNull();
+    await expect(readRefreshToken()).resolves.toBe('stored-refresh');
   });
 
-  test('회전된 토큰 저장에 실패하면 재발급도 실패로 처리한다', async () => {
+  test('회전된 토큰 저장에 실패하면 저장소를 비운다', async () => {
     await saveRefreshToken('stored-refresh');
     fetchMock.mockResolvedValue(reissued('fresh', 'rotated-refresh'));
     keychain.setGenericPassword.mockRejectedValueOnce(
       new Error('keychain unavailable'),
     );
 
-    // 구토큰이 남은 채 로그인 상태가 되면 다음 실행에서 세션이 통째로 날아간다.
-    await expect(refreshAccessToken()).resolves.toBe(false);
+    // 서버가 이미 회전시켜 구토큰은 죽었다. 남기면 재사용 탐지에 걸린다.
+    await expect(refreshAccessToken()).resolves.toBe('rejected');
     expect(getAccessToken()).toBeNull();
     await expect(readRefreshToken()).resolves.toBeNull();
   });
@@ -152,7 +194,11 @@ describe('refreshAccessToken', () => {
     await flushPending();
     release(reissued('fresh', 'rotated-refresh'));
 
-    await expect(Promise.all(attempts)).resolves.toEqual([true, true, true]);
+    await expect(Promise.all(attempts)).resolves.toEqual([
+      'success',
+      'success',
+      'success',
+    ]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(getAccessToken()).toBe('fresh');
   });

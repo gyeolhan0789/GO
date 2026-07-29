@@ -1,5 +1,5 @@
 pipeline {
-    agent any
+    agent { label 'deploy-admin' }
 
     environment {
         ADMIN_ROOT = '/var/www/wecandoit-admin'
@@ -26,7 +26,7 @@ pipeline {
                     node --version
                     npm ci
                     npm run lint
-                    npm run build
+                    VITE_API_ENV=prod VITE_API_BASE_URL=https://i15a506.p.ssafy.io npm run build
                     '''
                 }
             }
@@ -38,16 +38,16 @@ pipeline {
                 release="$ADMIN_ROOT/releases/$BUILD_NUMBER"
                 previous=$(readlink -f "$ADMIN_ROOT/current" || true)
                 next="$ADMIN_ROOT/.current-next-$BUILD_NUMBER"
-                sudo mkdir -p "$release"
-                sudo cp -R frontend/admin/dist/. "$release/"
-                sudo ln -sfn "$release" "$next"
-                sudo mv -Tf "$next" "$ADMIN_ROOT/current"
-                if ! sudo nginx -t || ! sudo systemctl reload nginx || ! curl -fsS "$ADMIN_HOST/" > /dev/null; then
+                mkdir -p "$release"
+                cp -R frontend/admin/dist/. "$release/"
+                ln -sfn "$release" "$next"
+                mv -Tf "$next" "$ADMIN_ROOT/current"
+                if ! sudo /usr/sbin/nginx -t || ! sudo /usr/bin/systemctl reload nginx || ! curl -fsS "$ADMIN_HOST/" > /dev/null; then
                   if [ -n "$previous" ]; then
                     rollback="$ADMIN_ROOT/.current-rollback-$BUILD_NUMBER"
-                    sudo ln -sfn "$previous" "$rollback"
-                    sudo mv -Tf "$rollback" "$ADMIN_ROOT/current"
-                    sudo nginx -t && sudo systemctl reload nginx
+                    ln -sfn "$previous" "$rollback"
+                    mv -Tf "$rollback" "$ADMIN_ROOT/current"
+                    sudo /usr/sbin/nginx -t && sudo /usr/bin/systemctl reload nginx
                   fi
                   exit 1
                 fi

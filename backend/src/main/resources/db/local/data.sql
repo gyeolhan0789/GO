@@ -22,11 +22,11 @@ VALUES
     (303, 'https://example.com/missions/relation.png', 'RELATION', 'Stand beside a tree', 'Submit a photo standing beside a tree.', '{"type":"RELATION","value":"tree"}'),
     (304, 'https://example.com/missions/object2.png', 'OBJECT', 'Find a red object', 'Submit a photo containing a red object.', '{"type":"OBJECT","value":"red"}');
 
-INSERT INTO rooms (id, host_id, mode, status, target_bingo_count, board_size, started_at)
+INSERT INTO rooms (id, name, host_id, mode, status, target_bingo_count, board_size, started_at)
 VALUES
-    (401, 101, 'COOPERATE', 'WAITING', NULL, 2, NULL),
-    (402, 102, 'COOPERATE', 'IN_PROGRESS', NULL, 2, '2026-07-27 09:00:00'),
-    (403, 101, 'COOPERATE', 'COMPLETED', NULL, 2, '2026-07-26 10:00:00');
+    (401, 'Local Waiting Room', 101, 'COOPERATE', 'WAITING', NULL, 2, NULL),
+    (402, 'Local Active Room', 102, 'COOPERATE', 'IN_PROGRESS', NULL, 2, '2026-07-27 09:00:00'),
+    (403, 'Local Result Room', 101, 'COOPERATE', 'COMPLETED', NULL, 2, '2026-07-26 10:00:00');
 
 INSERT INTO room_members (id, room_id, member_id, completed_mission_count, joined_at)
 VALUES
