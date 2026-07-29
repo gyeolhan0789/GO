@@ -37,6 +37,7 @@ public class RoomCommandService {
 
     public CreateRoomResponse createRoom(Long memberId, CreateRoomRequest request) {
         validateTargetBingoCount(request.mode(), request.targetBingoCount());
+        validateTargetStepCount(request.mode(), request.targetStepCount());
         if (request.mode() == GameMode.SINGLE) {
             return startSingleRoom(memberId, request);
         }
@@ -72,6 +73,7 @@ public class RoomCommandService {
                 memberId,
                 request.mode(),
                 request.targetBingoCount(),
+                request.targetStepCount(),
                 request.boardSize()
         ));
         roomMemberRepository.save(RoomMember.create(room.getId(), memberId));
@@ -85,6 +87,15 @@ public class RoomCommandService {
         }
         if (mode != GameMode.BATTLE && targetBingoCount != null) {
             throw new CustomException(ErrorCode.ROOM_TARGET_BINGO_COUNT_NOT_ALLOWED);
+        }
+    }
+
+    private void validateTargetStepCount(GameMode mode, Integer targetStepCount) {
+        if (mode != GameMode.BATTLE && (targetStepCount == null || targetStepCount < 1)) {
+            throw new CustomException(ErrorCode.ROOM_TARGET_STEP_COUNT_REQUIRED);
+        }
+        if (mode == GameMode.BATTLE && targetStepCount != null) {
+            throw new CustomException(ErrorCode.ROOM_TARGET_STEP_COUNT_NOT_ALLOWED);
         }
     }
 

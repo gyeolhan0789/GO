@@ -2,6 +2,7 @@ package com.wecandoit.history.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.groups.Tuple.tuple;
 
 import com.wecandoit.history.domain.MemberHistory;
 import java.time.LocalDate;
@@ -179,5 +180,40 @@ class MemberHistoryRepositoryTest {
         // then
         assertThat(memberHistories).hasSize(1);
         assertThat(memberHistories.getFirst().getHistoryDate()).isEqualTo(LocalDate.of(2026, 7, 22));
+    }
+
+    @Test
+    @DisplayName("여러 회원의 기간 내 히스토리를 회원과 날짜 오름차순으로 조회한다")
+    void findAllByMemberIdsAndHistoryDateBetweenReturnsOrderedHistories() {
+        // given
+        memberHistoryRepository.saveAndFlush(
+                MemberHistory.create(2L, LocalDate.of(2026, 7, 22), 20, 2_000, 200)
+        );
+        memberHistoryRepository.saveAndFlush(
+                MemberHistory.create(1L, LocalDate.of(2026, 7, 23), 30, 3_000, 300)
+        );
+        memberHistoryRepository.saveAndFlush(
+                MemberHistory.create(1L, LocalDate.of(2026, 7, 21), 10, 1_000, 100)
+        );
+        memberHistoryRepository.saveAndFlush(
+                MemberHistory.create(3L, LocalDate.of(2026, 7, 22), 40, 4_000, 400)
+        );
+
+        // when
+        List<MemberHistory> memberHistories = memberHistoryRepository
+                .findAllByMemberIdInAndHistoryDateBetweenOrderByMemberIdAscHistoryDateAsc(
+                        List.of(1L, 2L),
+                        LocalDate.of(2026, 7, 21),
+                        LocalDate.of(2026, 7, 23)
+                );
+
+        // then
+        assertThat(memberHistories)
+                .extracting(MemberHistory::getMemberId, MemberHistory::getHistoryDate)
+                .containsExactly(
+                        tuple(1L, LocalDate.of(2026, 7, 21)),
+                        tuple(1L, LocalDate.of(2026, 7, 23)),
+                        tuple(2L, LocalDate.of(2026, 7, 22))
+                );
     }
 }

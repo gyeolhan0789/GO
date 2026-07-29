@@ -10,4 +10,6 @@ public interface CashHistoryRepository extends JpaRepository<CashHistory, Long> 
     List<CashHistory> findAllByMemberIdOrderByCreatedAtDescIdDesc(Long memberId);
 
     boolean existsByMemberIdAndTypeAndReferenceId(Long memberId, CashHistoryType type, Long referenceId);
+
+    boolean existsByTypeAndReferenceId(CashHistoryType type, Long referenceId);
 }

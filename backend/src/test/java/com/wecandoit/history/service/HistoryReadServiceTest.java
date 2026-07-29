@@ -1,12 +1,14 @@
 package com.wecandoit.history.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.groups.Tuple.tuple;
 import static org.mockito.BDDMockito.given;
 
 import com.wecandoit.history.controller.response.HistoryResponse;
 import com.wecandoit.history.domain.HistoryPeriod;
 import com.wecandoit.history.domain.MemberHistory;
 import com.wecandoit.history.repository.MemberHistoryRepository;
+import com.wecandoit.history.service.HistoryReadService.StepRecord;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -134,5 +136,38 @@ class HistoryReadServiceTest {
         assertThat(response.totalStep()).isZero();
         assertThat(response.totalDistance()).isZero();
         assertThat(response.totalCalories()).isZero();
+    }
+
+    @Test
+    @DisplayName("여러 회원의 걸음 기록을 날짜 범위로 한 번에 조회한다")
+    void getStepRecordsReturnsMemberStepRecordsInRange() {
+        // given
+        LocalDate startDate = LocalDate.of(2026, 7, 20);
+        LocalDate endDate = LocalDate.of(2026, 7, 26);
+        given(memberHistoryRepository
+                .findAllByMemberIdInAndHistoryDateBetweenOrderByMemberIdAscHistoryDateAsc(
+                        List.of(1L, 2L),
+                        startDate,
+                        endDate
+                ))
+                .willReturn(List.of(
+                        MemberHistory.create(1L, startDate, 1_000, 700, 50),
+                        MemberHistory.create(2L, endDate, 2_000, 1_400, 100)
+                ));
+
+        // when
+        List<StepRecord> stepRecords = historyReadService.getStepRecords(
+                List.of(1L, 2L),
+                startDate,
+                endDate
+        );
+
+        // then
+        assertThat(stepRecords)
+                .extracting(StepRecord::memberId, StepRecord::historyDate, StepRecord::step)
+                .containsExactly(
+                        tuple(1L, startDate, 1_000),
+                        tuple(2L, endDate, 2_000)
+                );
     }
 }

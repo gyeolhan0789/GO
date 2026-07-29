@@ -91,7 +91,7 @@ class RoomCommandServiceTest {
         // when
         CreateRoomResponse response = roomCommandService.createRoom(
                 1L,
-                new CreateRoomRequest(GameMode.BATTLE, 3, 3)
+                new CreateRoomRequest(GameMode.BATTLE, 3, null, 3)
         );
 
         // then
@@ -137,13 +137,14 @@ class RoomCommandServiceTest {
         // when
         CreateRoomResponse response = roomCommandService.createRoom(
                 1L,
-                new CreateRoomRequest(GameMode.SINGLE, null, 3)
+                new CreateRoomRequest(GameMode.SINGLE, null, 10_000, 3)
         );
 
         // then
         ArgumentCaptor<Room> roomCaptor = ArgumentCaptor.forClass(Room.class);
         then(roomRepository).should().save(roomCaptor.capture());
         assertThat(roomCaptor.getValue().getTargetBingoCount()).isNull();
+        assertThat(roomCaptor.getValue().getTargetStepCount()).isEqualTo(10_000);
         assertThat(roomCaptor.getValue().getStatus()).isEqualTo(GameRoomStatus.IN_PROGRESS);
         then(bingoCommandService).should().generateInitialBoard(roomCaptor.getValue(), 200L);
     }
@@ -165,7 +166,7 @@ class RoomCommandServiceTest {
         // when
         CreateRoomResponse response = roomCommandService.createRoom(
                 1L,
-                new CreateRoomRequest(GameMode.SINGLE, null, DEFAULT_BOARD_SIZE)
+                new CreateRoomRequest(GameMode.SINGLE, null, 10_000, DEFAULT_BOARD_SIZE)
         );
 
         // then
@@ -187,7 +188,7 @@ class RoomCommandServiceTest {
         assertErrorCode(
                 () -> roomCommandService.createRoom(
                         1L,
-                        new CreateRoomRequest(GameMode.BATTLE, null, 3)
+                        new CreateRoomRequest(GameMode.BATTLE, null, null, 3)
                 ),
                 ErrorCode.ROOM_TARGET_BINGO_COUNT_REQUIRED
         );
@@ -201,7 +202,7 @@ class RoomCommandServiceTest {
         assertErrorCode(
                 () -> roomCommandService.createRoom(
                         1L,
-                        new CreateRoomRequest(GameMode.SINGLE, 3, 3)
+                        new CreateRoomRequest(GameMode.SINGLE, 3, 10_000, 3)
                 ),
                 ErrorCode.ROOM_TARGET_BINGO_COUNT_NOT_ALLOWED
         );
@@ -221,7 +222,7 @@ class RoomCommandServiceTest {
         // when
         CreateRoomResponse response = roomCommandService.createRoom(
                 1L,
-                new CreateRoomRequest(GameMode.BATTLE, 3, 3)
+                new CreateRoomRequest(GameMode.BATTLE, 3, null, 3)
         );
 
         // then
@@ -238,9 +239,51 @@ class RoomCommandServiceTest {
         assertErrorCode(
                 () -> roomCommandService.createRoom(
                         1L,
-                        new CreateRoomRequest(GameMode.COOPERATE, 3, 3)
+                        new CreateRoomRequest(GameMode.COOPERATE, 3, 10_000, 3)
                 ),
                 ErrorCode.ROOM_TARGET_BINGO_COUNT_NOT_ALLOWED
+        );
+        then(roomRepository).should(Mockito.never()).save(Mockito.any(Room.class));
+    }
+
+    @Test
+    @DisplayName("싱글 모드에서 목표 걸음 수가 없으면 게임방 생성에 실패한다")
+    void createSingleRoomRejectsMissingTargetStepCount() {
+        // when & then
+        assertErrorCode(
+                () -> roomCommandService.createRoom(
+                        1L,
+                        new CreateRoomRequest(GameMode.SINGLE, null, null, 3)
+                ),
+                ErrorCode.ROOM_TARGET_STEP_COUNT_REQUIRED
+        );
+        then(roomRepository).should(Mockito.never()).save(Mockito.any(Room.class));
+    }
+
+    @Test
+    @DisplayName("협동 모드에서 목표 걸음 수가 1 미만이면 게임방 생성에 실패한다")
+    void createCooperateRoomRejectsInvalidTargetStepCount() {
+        // when & then
+        assertErrorCode(
+                () -> roomCommandService.createRoom(
+                        1L,
+                        new CreateRoomRequest(GameMode.COOPERATE, null, 0, 3)
+                ),
+                ErrorCode.ROOM_TARGET_STEP_COUNT_REQUIRED
+        );
+        then(roomRepository).should(Mockito.never()).save(Mockito.any(Room.class));
+    }
+
+    @Test
+    @DisplayName("대결 모드에서 목표 걸음 수가 있으면 게임방 생성에 실패한다")
+    void createBattleRoomRejectsTargetStepCount() {
+        // when & then
+        assertErrorCode(
+                () -> roomCommandService.createRoom(
+                        1L,
+                        new CreateRoomRequest(GameMode.BATTLE, 3, 10_000, 3)
+                ),
+                ErrorCode.ROOM_TARGET_STEP_COUNT_NOT_ALLOWED
         );
         then(roomRepository).should(Mockito.never()).save(Mockito.any(Room.class));
     }

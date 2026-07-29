@@ -2,10 +2,12 @@ package com.wecandoit.cash.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.groups.Tuple.tuple;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 
 import com.wecandoit.cash.domain.CashHistory;
 import com.wecandoit.cash.domain.CashHistoryType;
@@ -15,7 +17,10 @@ import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.MissionType;
+import com.wecandoit.notification.domain.NotificationType;
 import com.wecandoit.notification.event.NotificationMessageFactory;
+import com.wecandoit.notification.event.NotificationRequestedEvent;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -105,6 +110,70 @@ class CashCommandServiceTest {
         then(cashHistoryRepository).should(never())
                 .existsByMemberIdAndTypeAndReferenceId(1L, CashHistoryType.BINGO_CELL_REWARD, 1000L);
         then(cashHistoryRepository).should(never()).save(any());
+    }
+
+    @Test
+    @DisplayName("공동 걸음 목표 보상을 현재 방 멤버 전원에게 지급한다")
+    void grantDailyStepGoalRewardRewardsAllRoomMembers() {
+        // given
+        Member firstMember = member(0L);
+        Member secondMember = member(50L);
+        NotificationRequestedEvent firstEvent = new NotificationRequestedEvent(
+                1L,
+                NotificationType.REWARD_EARNED,
+                "title",
+                "message"
+        );
+        NotificationRequestedEvent secondEvent = new NotificationRequestedEvent(
+                2L,
+                NotificationType.REWARD_EARNED,
+                "title",
+                "message"
+        );
+        given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(firstMember));
+        given(memberRepository.findByIdForUpdate(2L)).willReturn(Optional.of(secondMember));
+        given(notificationMessageFactory.rewardEarned(1L, 100L)).willReturn(firstEvent);
+        given(notificationMessageFactory.rewardEarned(2L, 100L)).willReturn(secondEvent);
+
+        // when
+        cashCommandService.grantDailyStepGoalReward(10L, 1000L, List.of(2L, 1L));
+
+        // then
+        assertThat(firstMember.getCash()).isEqualTo(100L);
+        assertThat(secondMember.getCash()).isEqualTo(150L);
+        ArgumentCaptor<Long> memberIdCaptor = ArgumentCaptor.forClass(Long.class);
+        then(memberRepository).should(times(2))
+                .findByIdForUpdate(memberIdCaptor.capture());
+        assertThat(memberIdCaptor.getAllValues()).containsExactly(1L, 2L);
+
+        ArgumentCaptor<CashHistory> historyCaptor = ArgumentCaptor.forClass(CashHistory.class);
+        then(cashHistoryRepository).should(times(2)).save(historyCaptor.capture());
+        assertThat(historyCaptor.getAllValues())
+                .extracting(
+                        CashHistory::getMemberId,
+                        CashHistory::getType,
+                        CashHistory::getAmount,
+                        CashHistory::getReferenceId,
+                        CashHistory::getRoomId
+                )
+                .containsExactly(
+                        tuple(
+                                1L,
+                                CashHistoryType.DAILY_STEP_GOAL_REWARD,
+                                100L,
+                                1000L,
+                                10L
+                        ),
+                        tuple(
+                                2L,
+                                CashHistoryType.DAILY_STEP_GOAL_REWARD,
+                                100L,
+                                1000L,
+                                10L
+                        )
+                );
+        then(eventPublisher).should().publishEvent(firstEvent);
+        then(eventPublisher).should().publishEvent(secondEvent);
     }
 
     private Member member(long cash) {

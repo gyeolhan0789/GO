@@ -1,6 +1,8 @@
 package com.wecandoit.cash.service;
 
 import com.wecandoit.cash.controller.response.CashResponse;
+import com.wecandoit.cash.domain.CashHistoryType;
+import com.wecandoit.cash.repository.CashHistoryRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.member.domain.Member;
@@ -15,10 +17,18 @@ import org.springframework.transaction.annotation.Transactional;
 public class CashReadService {
 
     private final MemberRepository memberRepository;
+    private final CashHistoryRepository cashHistoryRepository;
 
     public CashResponse getCash(Long memberId) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
         return CashResponse.of(member.getCash());
+    }
+
+    public boolean hasDailyStepGoalReward(Long bingoBoardId) {
+        return cashHistoryRepository.existsByTypeAndReferenceId(
+                CashHistoryType.DAILY_STEP_GOAL_REWARD,
+                bingoBoardId
+        );
     }
 }

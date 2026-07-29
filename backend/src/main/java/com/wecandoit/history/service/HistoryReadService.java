@@ -6,6 +6,7 @@ import com.wecandoit.history.domain.HistoryPeriod;
 import com.wecandoit.history.domain.MemberHistory;
 import com.wecandoit.history.repository.MemberHistoryRepository;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -36,6 +37,25 @@ public class HistoryReadService {
         return HistoryResponse.from(period, startDate, endDate, histories);
     }
 
+    public List<StepRecord> getStepRecords(
+            Collection<Long> memberIds,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
+        if (memberIds.isEmpty()) {
+            return List.of();
+        }
+        return memberHistoryRepository
+                .findAllByMemberIdInAndHistoryDateBetweenOrderByMemberIdAscHistoryDateAsc(
+                        memberIds,
+                        startDate,
+                        endDate
+                )
+                .stream()
+                .map(StepRecord::from)
+                .toList();
+    }
+
     private Map<LocalDate, MemberHistory> getMemberHistoriesByDate(
             Long memberId,
             LocalDate startDate,
@@ -58,5 +78,20 @@ public class HistoryReadService {
             return HistoryDateResponse.empty(historyDate);
         }
         return HistoryDateResponse.from(memberHistory);
+    }
+
+    public record StepRecord(
+            Long memberId,
+            LocalDate historyDate,
+            int step
+    ) {
+
+        private static StepRecord from(MemberHistory memberHistory) {
+            return new StepRecord(
+                    memberHistory.getMemberId(),
+                    memberHistory.getHistoryDate(),
+                    memberHistory.getStep()
+            );
+        }
     }
 }

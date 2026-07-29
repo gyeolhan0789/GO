@@ -38,22 +38,42 @@ public class Room extends BaseEntity {
     @Column(name = "target_bingo_count")
     private Integer targetBingoCount;
 
+    @Column(name = "target_step_count")
+    private Integer targetStepCount;
+
     @Column(name = "board_size", nullable = false)
     private int boardSize;
 
     @Column(name = "started_at")
     private LocalDateTime startedAt;
 
-    private Room(Long hostId, GameMode mode, Integer targetBingoCount, int boardSize) {
+    private Room(
+            Long hostId,
+            GameMode mode,
+            Integer targetBingoCount,
+            Integer targetStepCount,
+            int boardSize
+    ) {
         this.hostId = hostId;
         this.mode = mode;
         this.status = GameRoomStatus.CREATED;
         this.targetBingoCount = targetBingoCount;
+        this.targetStepCount = targetStepCount;
         this.boardSize = boardSize;
     }
 
     public static Room create(Long hostId, GameMode mode, Integer targetBingoCount, int boardSize) {
-        return new Room(hostId, mode, targetBingoCount, boardSize);
+        return create(hostId, mode, targetBingoCount, null, boardSize);
+    }
+
+    public static Room create(
+            Long hostId,
+            GameMode mode,
+            Integer targetBingoCount,
+            Integer targetStepCount,
+            int boardSize
+    ) {
+        return new Room(hostId, mode, targetBingoCount, targetStepCount, boardSize);
     }
 
     public boolean isHost(Long memberId) {

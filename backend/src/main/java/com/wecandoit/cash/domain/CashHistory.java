@@ -73,6 +73,22 @@ public class CashHistory extends BaseEntity {
         return new CashHistory(memberId, CashHistoryType.BINGO_CELL_REWARD, amount, cellId, roomId, null);
     }
 
+    public static CashHistory dailyStepGoalReward(
+            Long memberId,
+            Long bingoBoardId,
+            Long roomId,
+            long amount
+    ) {
+        return new CashHistory(
+                memberId,
+                CashHistoryType.DAILY_STEP_GOAL_REWARD,
+                amount,
+                bingoBoardId,
+                roomId,
+                null
+        );
+    }
+
     public static CashHistory itemPurchase(Long memberId, Long itemId, String itemName, long amount) {
         return new CashHistory(memberId, CashHistoryType.ITEM_PURCHASE, -amount, itemId, null, itemName);
     }
