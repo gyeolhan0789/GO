@@ -60,9 +60,7 @@ async function request<T>(
     accessToken !== null &&
     response.status === UNAUTHORIZED_STATUS
   ) {
-    const refreshed = await refreshAccessToken();
-
-    if (refreshed) {
+    if ((await refreshAccessToken()) === 'success') {
       response = await send(path, options, getAccessToken());
     }
   }
