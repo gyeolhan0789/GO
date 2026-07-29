@@ -1,5 +1,5 @@
 pipeline {
-    agent any
+    agent { label 'deploy-admin' }
 
     environment {
         ADMIN_ROOT = '/var/www/wecandoit-admin'
@@ -23,17 +23,6 @@ pipeline {
             steps {
                 dir('frontend/admin') {
                     sh '''
-                    if ! command -v node >/dev/null 2>&1; then
-                        NODE_VERSION=22.16.0
-                        NODE_DIRECTORY=".node-v${NODE_VERSION}"
-                        if [ ! -x "${NODE_DIRECTORY}/bin/node" ]; then
-                            rm -rf "${NODE_DIRECTORY}"
-                            mkdir -p "${NODE_DIRECTORY}"
-                            curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz" \
-                              | tar -xz --strip-components=1 -C "${NODE_DIRECTORY}"
-                        fi
-                        export PATH="$(pwd)/${NODE_DIRECTORY}/bin:${PATH}"
-                    fi
                     node --version
                     npm ci
                     npm run lint
@@ -49,16 +38,16 @@ pipeline {
                 release="$ADMIN_ROOT/releases/$BUILD_NUMBER"
                 previous=$(readlink -f "$ADMIN_ROOT/current" || true)
                 next="$ADMIN_ROOT/.current-next-$BUILD_NUMBER"
-                sudo mkdir -p "$release"
-                sudo cp -R frontend/admin/dist/. "$release/"
-                sudo ln -sfn "$release" "$next"
-                sudo mv -Tf "$next" "$ADMIN_ROOT/current"
-                if ! sudo nginx -t || ! sudo systemctl reload nginx || ! curl -fsS "$ADMIN_HOST/" > /dev/null; then
+                mkdir -p "$release"
+                cp -R frontend/admin/dist/. "$release/"
+                ln -sfn "$release" "$next"
+                mv -Tf "$next" "$ADMIN_ROOT/current"
+                if ! sudo /usr/sbin/nginx -t || ! sudo /usr/bin/systemctl reload nginx || ! curl -fsS "$ADMIN_HOST/" > /dev/null; then
                   if [ -n "$previous" ]; then
                     rollback="$ADMIN_ROOT/.current-rollback-$BUILD_NUMBER"
-                    sudo ln -sfn "$previous" "$rollback"
-                    sudo mv -Tf "$rollback" "$ADMIN_ROOT/current"
-                    sudo nginx -t && sudo systemctl reload nginx
+                    ln -sfn "$previous" "$rollback"
+                    mv -Tf "$rollback" "$ADMIN_ROOT/current"
+                    sudo /usr/sbin/nginx -t && sudo /usr/bin/systemctl reload nginx
                   fi
                   exit 1
                 fi
