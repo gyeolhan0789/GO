@@ -17,6 +17,7 @@ import { Toast } from '../../shared/components/Toast/Toast';
 import { colors } from '../../shared/constants/colors';
 import { spacing } from '../../shared/constants/spacing';
 import { AddFriendSheet } from './components/AddFriendSheet';
+import { CreateWalkRoomScreen } from './components/CreateWalkRoomScreen';
 import { FriendCard } from './components/FriendCard';
 import { ReceivedRequestRow } from './components/ReceivedRequestRow';
 import { WalkRoomCard } from './components/WalkRoomCard';
@@ -115,6 +116,7 @@ const MOCK_WALK_ROOMS: MyWalkRoom[] = [
 export function CompanionScreen() {
   const [tab, setTab] = useState<CompanionTab>('walkRooms');
   const [isAddFriendVisible, setAddFriendVisible] = useState(false);
+  const [isCreateRoomVisible, setCreateRoomVisible] = useState(false);
   const [pendingRequestId, setPendingRequestId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const friendsQuery = useFriendsQuery();
@@ -281,7 +283,7 @@ export function CompanionScreen() {
               setAddFriendVisible(true);
               return;
             }
-            // TODO: 산책방 생성 플로우 연결. 화면이 아직 없음.
+            setCreateRoomVisible(true);
           }}
         />
       </View>
@@ -289,6 +291,15 @@ export function CompanionScreen() {
       <AddFriendSheet
         visible={isAddFriendVisible}
         onClose={() => setAddFriendVisible(false)}
+      />
+
+      <CreateWalkRoomScreen
+        visible={isCreateRoomVisible}
+        onClose={() => setCreateRoomVisible(false)}
+        onCreated={() => {
+          setCreateRoomVisible(false);
+          setToastMessage('산책방을 만들었어요.');
+        }}
       />
 
       <Toast message={toastMessage} onHide={() => setToastMessage(null)} />
