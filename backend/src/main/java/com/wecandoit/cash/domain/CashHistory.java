@@ -65,8 +65,8 @@ public class CashHistory extends BaseEntity {
         this.itemName = itemName;
     }
 
-    public static CashHistory bingoReward(Long memberId, Long gameId, Long roomId, long amount) {
-        return new CashHistory(memberId, CashHistoryType.BINGO_REWARD, amount, gameId, roomId, null);
+    public static CashHistory gameGoalReward(Long memberId, Long gameId, Long roomId, long amount) {
+        return new CashHistory(memberId, CashHistoryType.GAME_GOAL_REWARD, amount, gameId, roomId, null);
     }
 
     public static CashHistory itemPurchase(Long memberId, Long itemId, String itemName, long amount) {

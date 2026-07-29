@@ -188,7 +188,7 @@ public class GameCompletionService {
         Member member = memberRepository.findByIdForUpdate(memberId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
         member.addCash(BINGO_REWARD_CASH);
-        cashHistoryRepository.save(CashHistory.bingoReward(memberId, gameId, roomId, BINGO_REWARD_CASH));
+        cashHistoryRepository.save(CashHistory.gameGoalReward(memberId, gameId, roomId, BINGO_REWARD_CASH));
         eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, BINGO_REWARD_CASH));
     }
 }
