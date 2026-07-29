@@ -8,7 +8,7 @@ import { spacing } from '../../constants/spacing';
 
 type CardProps = PropsWithChildren<{
   style?: StyleProp<ViewStyle>;
-  /** Sizing (flex, height) for the outer box — the shadow/border box that's the actual layout item in the parent. */
+  /** Sizing (flex, width, height) for the outer box — the shadow/border box that's the actual layout item in the parent. */
   wrapperStyle?: StyleProp<ViewStyle>;
 }>;
 

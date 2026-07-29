@@ -10,16 +10,20 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.status.RequestStatus;
 import com.wecandoit.friend.repository.FriendRepository;
-import com.wecandoit.game.request.controller.request.GameRequestCreateRequest;
-import com.wecandoit.game.request.controller.response.GameRequestCreateResponse;
-import com.wecandoit.game.request.domain.GameRequest;
-import com.wecandoit.game.request.repository.GameRequestRepository;
-import com.wecandoit.game.room.domain.GameMode;
-import com.wecandoit.game.room.domain.GameRoomStatus;
-import com.wecandoit.game.room.domain.Room;
-import com.wecandoit.game.room.domain.RoomMember;
-import com.wecandoit.game.room.repository.RoomMemberRepository;
-import com.wecandoit.game.room.repository.RoomRepository;
+import com.wecandoit.game.controller.request.GameRequestCreateRequest;
+import com.wecandoit.game.controller.response.GameRequestCreateResponse;
+import com.wecandoit.game.domain.GameRequest;
+import com.wecandoit.game.repository.GameRequestRepository;
+import com.wecandoit.game.domain.GameMode;
+import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.domain.Room;
+import com.wecandoit.game.domain.RoomMember;
+import com.wecandoit.game.repository.RoomMemberRepository;
+import com.wecandoit.game.repository.RoomRepository;
+import com.wecandoit.game.service.GameRequestCommandService;
+import com.wecandoit.notification.domain.NotificationType;
+import com.wecandoit.notification.event.NotificationMessageFactory;
+import com.wecandoit.notification.event.NotificationRequestedEvent;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,6 +35,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,6 +50,8 @@ class GameRequestCommandServiceTest {
     private RoomMemberRepository roomMemberRepository;
     @Mock
     private FriendRepository friendRepository;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
     private GameRequestCommandService gameRequestCommandService;
 
     @BeforeEach
@@ -53,7 +60,9 @@ class GameRequestCommandServiceTest {
                 gameRequestRepository,
                 roomRepository,
                 roomMemberRepository,
-                friendRepository
+                friendRepository,
+                eventPublisher,
+                new NotificationMessageFactory()
         );
     }
 
@@ -96,6 +105,34 @@ class GameRequestCommandServiceTest {
         assertThat(response.requestId()).isEqualTo(20L);
         assertThat(response.status()).isEqualTo(RequestStatus.PENDING);
         assertThat(response.created()).isTrue();
+    }
+
+    @Test
+    @DisplayName("친구를 초대하면 초대받은 사람에게 FRIEND_INVITE 알림 이벤트가 발행된다")
+    void createGameRequestPublishesNotificationEvent() {
+        // given
+        givenInvitableRoom(GameRoomStatus.CREATED);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
+        given(friendRepository.existsBetween(1L, 2L)).willReturn(true);
+        given(gameRequestRepository
+                .findFirstByRoomIdAndInviteeIdAndStatusOrderByCreatedAtDesc(10L, 2L, RequestStatus.PENDING))
+                .willReturn(Optional.empty());
+        given(gameRequestRepository.save(Mockito.any(GameRequest.class))).willAnswer(invocation -> {
+            GameRequest gameRequest = invocation.getArgument(0);
+            ReflectionTestUtils.setField(gameRequest, "id", 20L);
+            return gameRequest;
+        });
+
+        // when
+        gameRequestCommandService.createGameRequest(1L, 10L, new GameRequestCreateRequest(2L));
+
+        // then
+        ArgumentCaptor<NotificationRequestedEvent> captor =
+                ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        then(eventPublisher).should().publishEvent(captor.capture());
+        assertThat(captor.getValue().recipientMemberId()).isEqualTo(2L);
+        assertThat(captor.getValue().type()).isEqualTo(NotificationType.FRIEND_INVITE);
     }
 
     @Test
@@ -217,12 +254,30 @@ class GameRequestCommandServiceTest {
     }
 
     @Test
+    @DisplayName("최대 인원에 도달한 게임방에는 초대를 보낼 수 없다")
+    void createGameRequestRejectsFullRoom() {
+        // given
+        givenInvitableRoom(GameRoomStatus.READY);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomMemberRepository.countByRoomId(10L)).willReturn(4L);
+
+        // when & then
+        assertErrorCode(
+                () -> createGameRequest(1L, 2L),
+                ErrorCode.ROOM_MAXIMUM_PARTICIPANTS_REACHED
+        );
+        then(gameRequestRepository).shouldHaveNoInteractions();
+    }
+
+    @Test
     @DisplayName("게임방 초대 요청을 수락하면 요청 상태를 변경하고 방 참여자를 저장한다")
     void acceptGameRequestSavesRoomMember() {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
+        Room room = givenAcceptableRoom(GameRoomStatus.WAITING);
         given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
+        given(roomMemberRepository.countByRoomId(10L)).willReturn(1L);
 
         // when
         gameRequestCommandService.acceptGameRequest(2L, 10L, 20L);
@@ -234,6 +289,7 @@ class GameRequestCommandServiceTest {
         assertThat(gameRequest.getStatus()).isEqualTo(RequestStatus.ACCEPTED);
         assertThat(roomMember.getRoomId()).isEqualTo(10L);
         assertThat(roomMember.getMemberId()).isEqualTo(2L);
+        assertThat(room.getStatus()).isEqualTo(GameRoomStatus.READY);
     }
 
     @Test
@@ -404,6 +460,7 @@ class GameRequestCommandServiceTest {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
         given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
+        givenAcceptableRoom(GameRoomStatus.READY);
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(true);
 
         // when & then
@@ -415,11 +472,55 @@ class GameRequestCommandServiceTest {
         then(roomMemberRepository).should(never()).save(Mockito.any(RoomMember.class));
     }
 
+    @Test
+    @DisplayName("게임이 시작된 방의 초대 요청은 수락할 수 없다")
+    void acceptGameRequestRejectsInProgressRoom() {
+        // given
+        GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
+        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
+        givenAcceptableRoom(GameRoomStatus.IN_PROGRESS);
+
+        // when & then
+        assertErrorCode(
+                () -> gameRequestCommandService.acceptGameRequest(2L, 10L, 20L),
+                ErrorCode.GAME_REQUEST_NOT_AVAILABLE
+        );
+        assertThat(gameRequest.getStatus()).isEqualTo(RequestStatus.PENDING);
+        then(roomMemberRepository).should(never()).save(Mockito.any(RoomMember.class));
+    }
+
+    @Test
+    @DisplayName("수락 시점에 최대 인원에 도달한 게임방에는 참여할 수 없다")
+    void acceptGameRequestRejectsFullRoom() {
+        // given
+        GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
+        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
+        givenAcceptableRoom(GameRoomStatus.READY);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
+        given(roomMemberRepository.countByRoomId(10L)).willReturn(4L);
+
+        // when & then
+        assertErrorCode(
+                () -> gameRequestCommandService.acceptGameRequest(2L, 10L, 20L),
+                ErrorCode.ROOM_MAXIMUM_PARTICIPANTS_REACHED
+        );
+        assertThat(gameRequest.getStatus()).isEqualTo(RequestStatus.PENDING);
+        then(roomMemberRepository).should(never()).save(Mockito.any(RoomMember.class));
+    }
+
     private void givenInvitableRoom(GameRoomStatus status) {
-        Room room = Room.create(1L, GameMode.COOPERATE, 3, 3, 10000);
+        Room room = Room.create(1L, GameMode.COOPERATE, null, 3);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", status);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+    }
+
+    private Room givenAcceptableRoom(GameRoomStatus status) {
+        Room room = Room.create(1L, GameMode.COOPERATE, null, 3);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        ReflectionTestUtils.setField(room, "status", status);
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
+        return room;
     }
 
     private GameRequest gameRequest(Long id, Long roomId, Long inviterId, Long inviteeId) {

@@ -1,0 +1,61 @@
+name: wecandoit-backend-dev
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: wecandoit-mysql-dev
+    restart: always
+    environment:
+      MYSQL_DATABASE: wecandoit
+      MYSQL_USER: wecandoit
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    ports:
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - mysql-dev-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: wecandoit-redis-dev
+    restart: always
+    ports:
+      - "127.0.0.1:6380:6379"
+    volumes:
+      - redis-dev-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+    image: wecandoit-backend-dev
+    container_name: wecandoit-backend-dev
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/wecandoit?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+      SPRING_DATASOURCE_USERNAME: wecandoit
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "127.0.0.1:8081:8080"
+
+volumes:
+  mysql-dev-data:
+  redis-dev-data:

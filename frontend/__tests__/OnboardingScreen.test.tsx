@@ -7,6 +7,7 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Text } from 'react-native';
 import type { ReactTestInstance } from 'react-test-renderer';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { OnboardingScreen } from '../src/screens/OnboardingScreen/OnboardingScreen';
 import {
@@ -60,10 +61,16 @@ function collectTexts(root: ReactTestInstance): string[] {
 }
 
 async function renderScreen() {
+  // 화면이 완료 저장에 useOnboardingStatus(react-query)를 쓴다.
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   await act(async () => {
     renderer = ReactTestRenderer.create(
       <SafeAreaProvider initialMetrics={INITIAL_METRICS}>
-        <OnboardingScreen />
+        <QueryClientProvider client={client}>
+          <OnboardingScreen />
+        </QueryClientProvider>
       </SafeAreaProvider>,
     );
   });

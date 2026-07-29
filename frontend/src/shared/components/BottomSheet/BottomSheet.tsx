@@ -3,7 +3,9 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -83,7 +85,10 @@ export function BottomSheet({
 
   return (
     <Modal visible transparent animationType="none" onRequestClose={onClose}>
-      <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <Animated.View
           style={[
             StyleSheet.absoluteFill,
@@ -117,7 +122,7 @@ export function BottomSheet({
           ) : null}
           {children}
         </Animated.View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -134,7 +139,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.md,
     borderTopRightRadius: radius.md,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
   handle: {

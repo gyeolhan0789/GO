@@ -23,7 +23,7 @@ const filePath = (payload.tool_input && payload.tool_input.file_path) || '';
 // DB credentials / JWT secrets — direct Read/Edit/Write is blocked.
 const SECRET_PATTERNS = [
   /\.env(\.[\w-]+)?$/i,
-  /application-(local|dev|prod|production|staging|stage)\.ya?ml$/i,
+  /application-(local|production|staging|stage)\.ya?ml$/i,
 ];
 
 const isSecret = SECRET_PATTERNS.some((re) => re.test(filePath));

@@ -1,0 +1,89 @@
+pipeline {
+    agent any
+
+    environment {
+        COMPOSE_FILE = 'docker-compose.dev.yml'
+        SERVICE_NAME = 'backend'
+        HEALTH_CHECK_URL = 'https://i15a506.p.ssafy.io/dev/'
+    }
+
+    stages {
+        stage('Check Backend Changes') {
+            steps {
+                script {
+                    def changedFiles = sh(
+                        script: '''
+                        if git rev-parse HEAD~1 >/dev/null 2>&1; then
+                          git diff --name-only HEAD~1 HEAD
+                        else
+                          echo "backend/"
+                        fi
+                        ''',
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Changed files:\n${changedFiles}"
+
+                    def hasBackendChanges = changedFiles
+                        .split('\\n')
+                        .any { it.startsWith('backend/') }
+
+                    if (!hasBackendChanges) {
+                        currentBuild.result = 'NOT_BUILT'
+                        error('No backend changes. Skip backend development CD.')
+                    }
+                }
+            }
+        }
+
+        stage('Build Backend') {
+            steps {
+                dir('backend') {
+                    sh '''
+                    chmod +x gradlew
+                    ./gradlew clean bootJar -x test
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Backend') {
+            steps {
+                dir('backend') {
+                    withCredentials([
+                        string(credentialsId: 'dev-db-password', variable: 'DB_PASSWORD'),
+                        string(credentialsId: 'dev-db-root-password', variable: 'DB_ROOT_PASSWORD'),
+                        string(credentialsId: 'dev-jwt-secret', variable: 'JWT_SECRET')
+                    ]) {
+                        sh '''
+                        docker compose -f $COMPOSE_FILE up -d --build $SERVICE_NAME
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Check Deploy') {
+            steps {
+                sh '''
+                docker ps
+                STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 $HEALTH_CHECK_URL || echo "000")
+                echo "Health check status: $STATUS"
+                if [ "$STATUS" -ge 500 ] || [ "$STATUS" = "000" ]; then
+                  echo "Health check failed with status $STATUS"
+                  exit 1
+                fi
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Backend development CD completed successfully.'
+        }
+        failure {
+            echo 'Backend development CD failed or skipped. Check Console Output.'
+        }
+    }
+}

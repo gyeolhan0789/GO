@@ -17,17 +17,24 @@ headers {
 docs {
   ## 활성 빙고판 조회
 
-  게임방 참여자가 현재 활성 빙고판(완료/만료되지 않은)을 조회한다. `completed`는 모든 칸이 인증 완료되었는지, `canRenew`는 완료 상태이고 조회자가 호스트인 경우에만 true.
+  게임방 참여자가 현재 조회 대상 Game 회차의 빙고판을 조회한다.
+  싱글·협동은 기존 공용 빙고판을, 대결은 요청한 참가자의 개인 빙고판과 상대방의 집계 진행도를 반환한다.
 
-  ### 성공 응답 (200 OK)
+  ### 싱글·협동 성공 응답 (200 OK)
   ```json
   {
     "bingoBoardId": 1,
+    "gameId": 11,
     "roomId": 1,
     "boardSize": 4,
+    "targetBingoCount": null,
+    "completedBingoCount": 1,
+    "totalCellCount": 16,
+    "approvedCellCount": 4,
     "status": "IN_PROGRESS",
     "cells": [
       {
+        "cellId": 101,
         "row": 0,
         "col": 0,
         "mission": {
@@ -40,11 +47,70 @@ docs {
           "createdAt": "2026-07-24T10:00:00"
         },
         "verificationStatus": "PENDING",
+        "submittedByMemberId": 2,
         "rejectionReason": null
       }
     ],
     "completed": false,
-    "canRenew": false
+    "canRenew": false,
+    "battleProgress": null
+  }
+  ```
+
+  ### 대결 성공 응답 (200 OK)
+  ```json
+  {
+    "bingoBoardId": 101,
+    "gameId": 11,
+    "roomId": 1,
+    "boardSize": 4,
+    "targetBingoCount": 3,
+    "completedBingoCount": 1,
+    "totalCellCount": 16,
+    "approvedCellCount": 4,
+    "status": "IN_PROGRESS",
+    "cells": [
+      {
+        "cellId": 101,
+        "row": 0,
+        "col": 0,
+        "mission": {
+          "missionId": 10,
+          "missionImageUrl": "https://cdn.example.com/missions/10.png",
+          "type": "OBJECT",
+          "title": "빨간 우산 찾기",
+          "detail": "빨간색 우산을 찾아 사진을 찍으세요.",
+          "decisionCondition": "사진 속 우산 색상이 빨간색인지 확인",
+          "createdAt": "2026-07-24T10:00:00"
+        },
+        "verificationStatus": "APPROVED",
+        "submittedByMemberId": 1,
+        "rejectionReason": null
+      }
+    ],
+    "completed": false,
+    "canRenew": false,
+    "battleProgress": {
+      "roomStatus": "IN_PROGRESS",
+      "gameStatus": "IN_PROGRESS",
+      "me": {
+        "memberId": 1,
+        "bingoBoardId": 101,
+        "totalCellCount": 16,
+        "approvedCellCount": 4,
+        "completedBingoCount": 1,
+        "targetReached": false
+      },
+      "opponent": {
+        "memberId": 2,
+        "bingoBoardId": 102,
+        "totalCellCount": 16,
+        "approvedCellCount": 7,
+        "completedBingoCount": 2,
+        "targetReached": false
+      },
+      "result": null
+    }
   }
   ```
 
@@ -52,8 +118,14 @@ docs {
 
   ### 비즈니스 규칙
 
-  - `completed`는 이 빙고판의 모든 칸이 `APPROVED`로 인증 완료되어 `completedAt`이 채워졌는지를 의미하고, `canRenew`는 `completed`가 true이면서 조회자가 방 호스트인 경우에만 true가 된다. 이 두 필드는 빙고판 갱신(`/renewal`) 가능 여부를 판단하는 용도다.
-  - 게임(방) 자체의 종료 조건은 이와 별개다: `APPROVED`된 칸들이 만드는 완성된 빙고 줄(가로/세로/대각선) 수가 게임방의 `targetBingoCount` 이상이 되면, 칸이 100% 채워지지 않았어도 방이 자동으로 `COMPLETED` 처리되고 참여자에게 보상이 지급된다. 이 상태 변화는 이 응답에는 반영되지 않으며, 게임방 조회 API에서 확인해야 한다.
+  - 싱글·협동의 `completed`는 모든 칸이 `APPROVED`로 인증 완료됐는지를 의미한다. `canRenew`는 완료된 공용 빙고판을 호스트가 조회할 때만 true다.
+  - 대결의 `completed`는 현재 참가자가 `targetBingoCount`에 도달했는지를 의미하며 `canRenew`는 항상 false다.
+  - `completedBingoCount`는 현재 승인된 셀을 기준으로 완성된 가로·세로·대각선 수다.
+  - `submittedByMemberId`는 해당 셀을 마지막으로 제출한 방 참여자 ID다. 닉네임은 게임방 참여자 조회 응답과 매핑하며 제출 이미지 URL은 노출하지 않는다.
+  - `verificationStatus`가 null이면 제출 가능, `PENDING`이면 검증 중, `APPROVED`이면 승인 완료, `REJECTED`이면 거절 후 재제출 가능한 상태다.
+  - `targetBingoCount`는 대결 모드에서만 사용한다. 싱글·협동 모드는 모든 칸이 완료되면 종료된다.
+  - 대결 응답의 `cells`에는 요청자 자신의 미션별 상태만 포함된다. 상대방은 `battleProgress.opponent`의 완료 칸 수와 빙고 수 등 집계 정보만 제공하며 제출 원본, 인증 이미지, AI 판정 상세는 노출하지 않는다.
+  - 진행 중이라 결과가 아직 생성되지 않았다면 `battleProgress.result`는 null이다. 결과 확정 후에는 요청 참가자의 승리 여부를 `true`(승리) 또는 `false`(패배)로 반환한다.
 
   ### 에러 케이스
 
@@ -73,7 +145,7 @@ docs {
   }
   ```
 
-  **활성화된 빙고판이 없음(아직 미생성/모두 완료·만료됨)**
+  **현재 Game 회차의 조회 가능한 빙고판이 없음**
   ```json
   {
     "status": 404,

@@ -28,6 +28,15 @@
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-bash.js\""
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-worktree.js\""
+          }
+        ]
       }
     ]
   },

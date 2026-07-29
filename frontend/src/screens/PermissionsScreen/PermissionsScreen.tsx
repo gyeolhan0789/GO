@@ -21,9 +21,13 @@ import {
   type PermissionKey,
   type PermissionResult,
 } from '../../shared/lib/permissions';
+import {
+  hasSamsungHealthPermissions,
+  isSamsungHealthAvailable,
+  requestSamsungHealthPermissions,
+} from '../../shared/lib/samsungHealth';
 // 개발 단계: 권한 완료 저장 비활성화로 잠시 미사용.
-// TODO(권한 게이트 복구): 아래 import/complete 주석 해제.
-// import { usePermissionsStatus } from '../../shared/hooks/usePermissionsStatus';
+import { usePermissionsStatus } from '../../shared/hooks/usePermissionsStatus';
 import { PermissionCard } from './components/PermissionCard';
 
 type PermissionsNavigation = NativeStackNavigationProp<
@@ -52,6 +56,12 @@ const PERMISSION_CARDS: PermissionCardData[] = [
     description: '산책 중 걸음 수를 측정해요.',
   },
   {
+    key: 'location',
+    icon: 'location-outline',
+    title: '위치',
+    description: '산책 경로를 지도에 표시할 때 사용해요.',
+  },
+  {
     key: 'notifications',
     icon: 'notifications-outline',
     title: '알림',
@@ -61,13 +71,18 @@ const PERMISSION_CARDS: PermissionCardData[] = [
 
 export function PermissionsScreen() {
   const navigation = useNavigation<PermissionsNavigation>();
-  // const { complete } = usePermissionsStatus();
+  const { complete } = usePermissionsStatus();
 
   const [results, setResults] = useState<
     Partial<Record<PermissionKey, PermissionResult>>
   >({});
   const [requested, setRequested] = useState(false);
+  // 삼성헬스(건강 데이터)는 자체 권한 모델이라 상태를 따로 추적한다.
+  const [healthAvailable] = useState(isSamsungHealthAvailable());
+  const [healthGranted, setHealthGranted] = useState(false);
 
+  // 진입 게이트는 표준 런타임 권한 기준. 삼성헬스는 갤럭시/개발자모드 의존이라
+  // 게이트에 포함하지 않고(막히지 않게) 요청·표시만 한다.
   const allGranted = PERMISSION_KEYS.every(key => results[key] === 'granted');
   const anyBlocked = PERMISSION_KEYS.some(key => results[key] === 'blocked');
 
@@ -89,6 +104,10 @@ export function PermissionsScreen() {
       }
       return next;
     });
+
+    if (isSamsungHealthAvailable()) {
+      setHealthGranted(await hasSamsungHealthPermissions());
+    }
   }, []);
 
   useEffect(() => {
@@ -103,15 +122,23 @@ export function PermissionsScreen() {
 
   // 권한 허용 이후 로그인으로 이동한다. reset이라 뒤로가기로 권한 화면에
   // 되돌아올 수 없고, 로그인 화면에도 뒤로가기가 남지 않는다.
-  const goToLogin = useCallback(() => {
-    // 개발 단계: 완료 저장 생략. TODO(권한 게이트 복구): await complete(); 복원.
-    // await complete();
+  const goToLogin = useCallback(async () => {
+    // 저장이 실패해도 진행은 막지 않는다. 다음 실행에서 이 화면을 한 번 더 보게
+    // 될 뿐이고(권한은 이미 허용돼 있어 바로 넘어간다), 여기서 세워두는 편이 더
+    // 나쁘다.
+    await complete().catch(() => {});
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-  }, [navigation]);
+  }, [complete, navigation]);
 
   const handleRequest = useCallback(async () => {
     const next = await requestAllPermissions();
     setResults(next);
+
+    // 삼성헬스 권한은 자체 UI(삼성헬스 팝업)로 요청한다(사용 가능할 때만).
+    if (isSamsungHealthAvailable()) {
+      setHealthGranted(await requestSamsungHealthPermissions());
+    }
+
     setRequested(true);
   }, []);
 
@@ -135,6 +162,18 @@ export function PermissionsScreen() {
               status={results[card.key]}
             />
           ))}
+          <PermissionCard
+            icon="fitness-outline"
+            title="건강 데이터"
+            description={
+              healthAvailable
+                ? '걸음·거리·칼로리를 삼성헬스에서 가져와 표시할 때 사용해요.'
+                : '삼성헬스(갤럭시)에서만 사용할 수 있어요.'
+            }
+            status={
+              healthGranted ? 'granted' : requested ? 'denied' : undefined
+            }
+          />
         </View>
 
         {requested && !allGranted ? (

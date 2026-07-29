@@ -1,16 +1,18 @@
 package com.wecandoit.friend.controller;
 
-import com.wecandoit.friend.service.FriendRequestCommandService;
-import com.wecandoit.friend.service.FriendRequestReadService;
-
+import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.common.security.LoginMemberId;
 import com.wecandoit.friend.dto.ReceivedFriendRequestResponse;
 import com.wecandoit.friend.dto.SendFriendRequest;
+import com.wecandoit.friend.dto.SentFriendRequestResponse;
+import com.wecandoit.friend.service.FriendRequestCommandService;
+import com.wecandoit.friend.service.FriendRequestReadService;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,10 +39,28 @@ public class FriendRequestController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ReceivedFriendRequestResponse>> getReceivedRequests(
-            @LoginMemberId Long memberId
+    public ResponseEntity<SliceResponse<ReceivedFriendRequestResponse>> getReceivedRequests(
+            @LoginMemberId Long memberId,
+            Pageable pageable
     ) {
-        return ResponseEntity.ok(friendRequestReadService.getReceivedRequests(memberId));
+        return ResponseEntity.ok(friendRequestReadService.getReceivedRequests(memberId, pageable));
+    }
+
+    @GetMapping("/sent")
+    public ResponseEntity<SliceResponse<SentFriendRequestResponse>> getSentRequests(
+            @LoginMemberId Long memberId,
+            Pageable pageable
+    ) {
+        return ResponseEntity.ok(friendRequestReadService.getSentRequests(memberId, pageable));
+    }
+
+    @DeleteMapping("/{requestId}")
+    public ResponseEntity<Void> cancelRequest(
+            @LoginMemberId Long memberId,
+            @PathVariable Long requestId
+    ) {
+        friendRequestCommandService.cancelRequest(memberId, requestId);
+        return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{requestId}/accept")

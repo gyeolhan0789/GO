@@ -17,7 +17,6 @@ headers {
 body:json {
   {
     "mode": "SINGLE",
-    "targetBingoCount": 3,
     "boardSize": 4
   }
 }
@@ -25,13 +24,13 @@ body:json {
 docs {
   ## 게임방 생성
 
-  로그인한 회원을 호스트로 하는 게임방을 생성한다. `mode`는 `SINGLE`/`COOPERATE`, `boardSize`는 3~5.
+  로그인한 회원을 호스트로 하는 게임방을 생성한다. `mode`는 `SINGLE`/`COOPERATE`/`BATTLE`, `boardSize`는 3~5.
 
   ### Request 필드
   | 필드 | 타입 | 필수 | 제약조건 |
   |---|---|---|---|
-  | mode | string | Y | `GameMode` enum 값 중 하나: `SINGLE`, `COOPERATE` |
-  | targetBingoCount | Integer | Y | 1 이상 |
+  | mode | string | Y | `GameMode` enum 값 중 하나: `SINGLE`, `COOPERATE`, `BATTLE` |
+  | targetBingoCount | Integer | N | 대결 모드에서만 필수, 1 이상 |
   | boardSize | Integer | Y | 3 이상 5 이하 |
 
   ### 성공 응답 (201 Created)
@@ -44,6 +43,8 @@ docs {
 
   ### 비즈니스 규칙
   - `status`는 생성 직후 항상 `CREATED`이다. 이후 게임방은 `GameRoomStatus` 값을 순서대로 거친다: `CREATED` | `WAITING` | `READY` | `IN_PROGRESS` | `COMPLETED` | `CLOSED`.
+  - `BATTLE`은 정확히 2명이 참여해야 시작할 수 있고 `targetBingoCount`가 필수다.
+  - `SINGLE`과 `COOPERATE`는 `targetBingoCount`를 사용하지 않는다.
 
   ### 에러 케이스
 
@@ -55,7 +56,7 @@ docs {
   }
   ```
 
-  **targetBingoCount 누락 또는 1 미만**
+  **BATTLE에서 targetBingoCount 누락 또는 1 미만**
   ```json
   {
     "status": 400,

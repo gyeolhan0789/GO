@@ -5,11 +5,11 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.times;
 
-import com.wecandoit.bingo.service.BingoService;
-import com.wecandoit.game.room.domain.GameMode;
-import com.wecandoit.game.room.domain.GameRoomStatus;
-import com.wecandoit.game.room.domain.Room;
-import com.wecandoit.game.room.repository.RoomRepository;
+import com.wecandoit.bingo.service.BingoCommandService;
+import com.wecandoit.game.domain.GameMode;
+import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.domain.Room;
+import com.wecandoit.game.repository.RoomRepository;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,7 +27,7 @@ class BingoBoardRenewalSchedulerTest {
     @Mock
     private RoomRepository roomRepository;
     @Mock
-    private BingoService bingoService;
+    private BingoCommandService bingoCommandService;
     @InjectMocks
     private BingoBoardRenewalScheduler scheduler;
 
@@ -45,9 +45,9 @@ class BingoBoardRenewalSchedulerTest {
         scheduler.renewExpiredBoards();
 
         // then
-        then(bingoService).should(times(1)).autoRenewBoard(1L);
-        then(bingoService).should(times(1)).autoRenewBoard(2L);
-        then(bingoService).should(times(1)).autoRenewBoard(3L);
+        then(bingoCommandService).should(times(1)).autoRenewBoard(1L);
+        then(bingoCommandService).should(times(1)).autoRenewBoard(2L);
+        then(bingoCommandService).should(times(1)).autoRenewBoard(3L);
     }
 
     @Test
@@ -59,15 +59,15 @@ class BingoBoardRenewalSchedulerTest {
         Room room3 = inProgressRoom(3L);
         given(roomRepository.findAllByStatus(GameRoomStatus.IN_PROGRESS))
                 .willReturn(List.of(room1, room2, room3));
-        willThrow(new RuntimeException("갱신 실패")).given(bingoService).autoRenewBoard(2L);
+        willThrow(new RuntimeException("갱신 실패")).given(bingoCommandService).autoRenewBoard(2L);
 
         // when
         scheduler.renewExpiredBoards();
 
         // then
-        then(bingoService).should(times(1)).autoRenewBoard(1L);
-        then(bingoService).should(times(1)).autoRenewBoard(2L);
-        then(bingoService).should(times(1)).autoRenewBoard(3L);
+        then(bingoCommandService).should(times(1)).autoRenewBoard(1L);
+        then(bingoCommandService).should(times(1)).autoRenewBoard(2L);
+        then(bingoCommandService).should(times(1)).autoRenewBoard(3L);
     }
 
     @Test
@@ -80,11 +80,11 @@ class BingoBoardRenewalSchedulerTest {
         scheduler.renewExpiredBoards();
 
         // then
-        then(bingoService).should(Mockito.never()).autoRenewBoard(Mockito.anyLong());
+        then(bingoCommandService).should(Mockito.never()).autoRenewBoard(Mockito.anyLong());
     }
 
     private Room inProgressRoom(Long roomId) {
-        Room room = Room.create(1L, GameMode.SINGLE, 3, 3, null);
+        Room room = Room.create(1L, GameMode.SINGLE, null, 3);
         ReflectionTestUtils.setField(room, "id", roomId);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         return room;

@@ -26,7 +26,7 @@ docs {
       "roomId": 1,
       "mode": "SINGLE",
       "status": "WAITING",
-      "targetBingoCount": 3,
+      "targetBingoCount": null,
       "hostId": 1,
       "joinedAt": "2026-07-24T10:00:00",
       "members": [
@@ -35,7 +35,7 @@ docs {
     }
   ]
   ```
-  `mode`: `SINGLE` | `COOPERATE`
+  `mode`: `SINGLE` | `COOPERATE` | `BATTLE`
   `status`: `CREATED` | `WAITING` | `READY` | `IN_PROGRESS` | `COMPLETED` | `CLOSED`
   최상위 `joinedAt`은 응답을 요청한 로그인 회원 본인이 해당 게임방에 참여한 시각이다. `members[].joinedAt`은 제공되지 않는다(참여자별 참여 시각이 필요하면 게임방 참여자 목록 조회를 사용한다).
 

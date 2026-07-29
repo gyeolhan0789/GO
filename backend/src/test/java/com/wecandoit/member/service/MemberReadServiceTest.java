@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.given;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
+import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.friend.repository.FriendRepository;
 import com.wecandoit.friend.domain.FriendRequest;
 import com.wecandoit.friend.repository.FriendRequestRepository;
@@ -22,6 +23,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.SliceImpl;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @DisplayName("회원 조회 서비스")
@@ -50,8 +53,16 @@ class MemberReadServiceTest {
         Member sent = member(3L, "산책메이트");
         Member received = member(4L, "산책동료");
         Member none = member(5L, "산책초보");
-        given(memberRepository.findByNicknameContainingIgnoreCaseAndIdNot("산책", 1L))
-                .willReturn(List.of(friend, sent, received, none));
+        PageRequest pageable = PageRequest.of(0, 4);
+        given(memberRepository.findByNicknameContainingIgnoreCaseAndIdNotOrderByNicknameAscIdAsc(
+                "산책",
+                1L,
+                pageable
+        )).willReturn(new SliceImpl<>(
+                List.of(friend, sent, received, none),
+                pageable,
+                false
+        ));
         given(friendRepository.findFriendMemberIds(ArgumentMatchers.eq(1L), ArgumentMatchers.anySet()))
                 .willReturn(List.of(2L));
         given(friendRequestRepository.findPendingRelatedTo(ArgumentMatchers.eq(1L), ArgumentMatchers.anySet()))
@@ -61,10 +72,11 @@ class MemberReadServiceTest {
                 ));
 
         // when
-        List<MemberSearchResponse> responses = memberReadService.searchMembers(1L, " 산책 ");
+        SliceResponse<MemberSearchResponse> responses =
+                memberReadService.searchMembers(1L, " 산책 ", pageable);
 
         // then
-        assertThat(responses)
+        assertThat(responses.content())
                 .extracting(MemberSearchResponse::memberId, MemberSearchResponse::relationshipStatus)
                 .containsExactly(
                         org.assertj.core.groups.Tuple.tuple(2L, MemberRelationshipStatus.FRIEND),
@@ -72,6 +84,21 @@ class MemberReadServiceTest {
                         org.assertj.core.groups.Tuple.tuple(4L, MemberRelationshipStatus.REQUEST_RECEIVED),
                         org.assertj.core.groups.Tuple.tuple(5L, MemberRelationshipStatus.NONE)
                 );
+        assertThat(responses.hasNext()).isFalse();
+    }
+
+    @Test
+    @DisplayName("공백으로만 이루어진 검색어는 잘못된 입력으로 거부한다")
+    void searchMembersRejectsBlankKeyword() {
+        // when & then
+        assertThatThrownBy(() -> memberReadService.searchMembers(
+                1L,
+                "   ",
+                PageRequest.of(0, 20)
+        ))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_INPUT);
     }
 
     @Test

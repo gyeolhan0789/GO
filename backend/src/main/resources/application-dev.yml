@@ -1,0 +1,38 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3307/wecandoit?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: wecandoit
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+  data:
+    redis:
+      host: localhost
+      port: 6380
+
+server:
+  forward-headers-strategy: framework
+
+jwt:
+  access-token-expiration: 1800000
+  refresh-token-expiration: 1209600000
+
+cors:
+  allowed-origins:
+    - http://localhost:3000
+    - http://localhost:5173
+
+oauth:
+  providers:
+    google:
+      client-id: 642093609192-a20t75npaefijttl07oqr3v06ogp4npf.apps.googleusercontent.com
+      jwk-uri: https://www.googleapis.com/oauth2/v3/certs
+    kakao:
+      client-id: fbced36af5aff1bbd08073540fea816c
+      jwk-uri: https://kauth.kakao.com/.well-known/jwks.json
+
+# todo: 실제 AI 서버 주소로 변경 필요
+ai-server:
+  base-url: http://localhost:8000

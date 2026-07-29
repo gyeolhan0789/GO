@@ -1,7 +1,11 @@
 import { Linking, PermissionsAndroid, Platform } from 'react-native';
 import type { Permission } from 'react-native';
 
-export type PermissionKey = 'camera' | 'activityRecognition' | 'notifications';
+export type PermissionKey =
+  | 'camera'
+  | 'activityRecognition'
+  | 'location'
+  | 'notifications';
 
 export type PermissionResult = 'granted' | 'denied' | 'blocked';
 
@@ -18,6 +22,10 @@ const PERMISSION_SPECS: readonly PermissionSpec[] = [
     key: 'activityRecognition',
     androidPermission: PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION,
     minApiLevel: 29,
+  },
+  {
+    key: 'location',
+    androidPermission: PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
   },
   {
     key: 'notifications',
@@ -96,6 +104,19 @@ export async function checkPermission(key: PermissionKey): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * 정의된 모든 권한이 지금 허용돼 있는지 확인한다(요청 없이 조회만).
+ *
+ * 진입 게이트용이다. 저장된 "완료" 플래그와 달리 설정에서 나중에 권한을 회수한
+ * 경우까지 잡아낸다.
+ */
+export async function areAllPermissionsGranted(): Promise<boolean> {
+  const results = await Promise.all(
+    PERMISSION_KEYS.map(key => checkPermission(key)),
+  );
+  return results.every(Boolean);
 }
 
 /**

@@ -12,14 +12,24 @@ post {
 
 body:json {
   {
-    "idToken": ""
+    "idToken": "",
+    "gender": "MALE"
+  }
+}
+
+script:post-response {
+  if (res.body && res.body.accessToken && res.body.refreshToken) {
+    bru.setEnvVar("accessToken", res.body.accessToken);
+    bru.setEnvVar("refreshToken", res.body.refreshToken);
   }
 }
 
 docs {
+  성별은 필수이며 `MALE` 또는 `FEMALE`만 입력할 수 있다.
+
   ## Google OAuth 로그인
 
-  Google에서 발급받은 ID 토큰을 검증하고, 해당 이메일의 회원이 없으면 자동 가입 후 로그인 처리한다. accessToken은 응답 바디로, refreshToken은 HttpOnly 쿠키로 발급된다. 이 엔드포인트는 내부적으로 `AuthProvider.GOOGLE`로 고정되어 처리된다 (`AuthProvider` enum: `LOCAL`, `GOOGLE`, `KAKAO`).
+  Google에서 발급받은 ID 토큰을 검증하고, 해당 이메일의 회원이 없으면 자동 가입 후 로그인 처리한다. accessToken과 refreshToken은 모두 응답 바디로 발급된다. 이 엔드포인트는 내부적으로 `AuthProvider.GOOGLE`로 고정되어 처리된다 (`AuthProvider` enum: `LOCAL`, `GOOGLE`, `KAKAO`).
 
   ### Request 필드
   | 필드 | 필수 | 제약조건 |
@@ -29,7 +39,8 @@ docs {
   ### 성공 응답 (200 OK)
   ```json
   {
-    "accessToken": "eyJhbGciOiJIUzI1NiJ9...."
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9....",
+    "refreshToken": "eyJhbGciOiJIUzI1NiJ9...."
   }
   ```
 

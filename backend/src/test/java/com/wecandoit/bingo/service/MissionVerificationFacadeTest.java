@@ -6,7 +6,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -36,14 +35,14 @@ class MissionVerificationFacadeTest {
     private static final String SUBMIT_URL = "https://example.com/proof.png";
     private static final String AI_REASON = "이미지에서 조건을 확인할 수 없습니다.";
 
-    private final BingoService bingoService = Mockito.mock(BingoService.class);
+    private final BingoCommandService bingoCommandService = Mockito.mock(BingoCommandService.class);
     private final AiVerificationClient aiVerificationClient = Mockito.mock(AiVerificationClient.class);
     private final BingoCellVerificationResultService verificationResultService =
             Mockito.mock(BingoCellVerificationResultService.class);
     private final MissionRepository missionRepository = Mockito.mock(MissionRepository.class);
     private final BingoCellRepository bingoCellRepository = Mockito.mock(BingoCellRepository.class);
     private final MissionVerificationFacade facade = new MissionVerificationFacade(
-            bingoService,
+            bingoCommandService,
             aiVerificationClient,
             verificationResultService,
             missionRepository,
@@ -104,10 +103,10 @@ class MissionVerificationFacadeTest {
     }
 
     @Test
-    @DisplayName("AI 호출이 실패하면 AI_VERIFICATION_FAILED를 던지고 결과를 반영하지 않는다")
-    void throwsAndSkipsApplyResultWhenAiCallFails() {
+    @DisplayName("AI 호출이 실패하면 셀을 거절 상태로 복구하고 AI_VERIFICATION_FAILED를 던진다")
+    void rejectsCellAndThrowsWhenAiCallFails() {
         // given
-        when(bingoService.submitCell(MEMBER_ID, ROOM_ID, CELL_ID, SUBMIT_URL)).thenReturn(pendingCell());
+        when(bingoCommandService.submitCell(MEMBER_ID, ROOM_ID, CELL_ID, SUBMIT_URL)).thenReturn(pendingCell());
         when(missionRepository.findById(MISSION_ID)).thenReturn(Optional.of(mission()));
         when(aiVerificationClient.downloadImage(anyString())).thenReturn(new byte[]{1, 2, 3});
         when(aiVerificationClient.verify(any(), any(), any()))
@@ -118,12 +117,13 @@ class MissionVerificationFacadeTest {
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.AI_VERIFICATION_FAILED);
-        verify(verificationResultService, never()).applyResult(Mockito.anyLong(), Mockito.anyBoolean(), Mockito.any());
+        verify(verificationResultService)
+                .applyResult(CELL_ID, false, ErrorCode.AI_VERIFICATION_FAILED.getMessage());
     }
 
     private void stubSubmitAndLookup() {
         BingoCell cell = pendingCell();
-        when(bingoService.submitCell(MEMBER_ID, ROOM_ID, CELL_ID, SUBMIT_URL)).thenReturn(cell);
+        when(bingoCommandService.submitCell(MEMBER_ID, ROOM_ID, CELL_ID, SUBMIT_URL)).thenReturn(cell);
         when(missionRepository.findById(MISSION_ID)).thenReturn(Optional.of(mission()));
         when(bingoCellRepository.findById(CELL_ID)).thenReturn(Optional.of(cell));
     }

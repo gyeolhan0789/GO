@@ -10,7 +10,9 @@ import com.wecandoit.friend.repository.FriendRepository;
 import com.wecandoit.friend.dto.SendFriendRequest;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
+import com.wecandoit.notification.event.NotificationMessageFactory;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +24,8 @@ public class FriendRequestCommandService {
     private final FriendRequestRepository friendRequestRepository;
     private final FriendRepository friendRepository;
     private final MemberRepository memberRepository;
+    private final ApplicationEventPublisher eventPublisher;
+    private final NotificationMessageFactory notificationMessageFactory;
 
     public void sendRequest(Long inviterId, SendFriendRequest request) {
         Long inviteeId = request.inviteeId();
@@ -38,6 +42,7 @@ public class FriendRequestCommandService {
                 .ifPresent(friendRequest -> throwExistingRequestException(friendRequest, inviterId));
 
         friendRequestRepository.save(FriendRequest.create(members.inviter(), members.invitee()));
+        eventPublisher.publishEvent(notificationMessageFactory.friendRequest(inviteeId));
     }
 
     public void acceptRequest(Long inviteeId, Long requestId) {
@@ -61,6 +66,17 @@ public class FriendRequestCommandService {
         FriendRequest friendRequest = findRequestForUpdate(requestId);
         validateInviteeAndPending(friendRequest, inviteeId);
         friendRequest.reject();
+    }
+
+    public void cancelRequest(Long inviterId, Long requestId) {
+        FriendRequest friendRequest = findRequestForUpdate(requestId);
+        if (!friendRequest.isInviter(inviterId)) {
+            throw new CustomException(ErrorCode.FRIEND_REQUEST_FORBIDDEN);
+        }
+        if (!friendRequest.isPending()) {
+            throw new CustomException(ErrorCode.FRIEND_REQUEST_ALREADY_PROCESSED);
+        }
+        friendRequestRepository.delete(friendRequest);
     }
 
     private Members findMembersForUpdate(Long inviterId, Long inviteeId) {

@@ -1,6 +1,9 @@
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
 
+import { AuthSubmitButton } from '../../features/auth/components/AuthSubmitButton';
+import { useLogoutMutation } from '../../features/auth/hooks/useLogoutMutation';
+import { ApiError } from '../../shared/api/ApiError';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { Button } from '../../shared/components/Button/Button';
 import { spacing } from '../../shared/constants/spacing';
@@ -28,9 +31,40 @@ const MOCK_HOME_SUMMARY = {
   characterGender: 'male' as keyof typeof CHARACTER_IMAGE_BY_GENDER,
 };
 
+// 어느 쪽이든 로그아웃은 끝났으므로 그 사실을 먼저 알린다.
+const LOGOUT_ALERT_TITLE = '로그아웃했어요';
+const SESSION_ALREADY_GONE_MESSAGE = '세션이 이미 만료되어 있었어요.';
+const SERVER_UNREACHABLE_MESSAGE =
+  '네트워크에 연결되지 않아 서버에는 반영되지 못했어요.';
+
 export function HomeScreen() {
   const summary = MOCK_HOME_SUMMARY;
   const [isRoomSheetVisible, setRoomSheetVisible] = useState(false);
+  const logout = useLogoutMutation();
+  const isLoggingOut = useRef(false);
+
+  // 세션을 정리하면 이 화면이 로그인 화면으로 교체되므로 화면 안 문구로는 알릴 수
+  // 없다. catch에서 Alert를 띄우면 react-query 콜백 순서에 기대지 않아도 된다.
+  async function requestLogout() {
+    // pending 반영에 한 프레임이 걸려, 그 사이의 두 번째 탭은 동기 플래그로 막는다.
+    if (isLoggingOut.current) {
+      return;
+    }
+    isLoggingOut.current = true;
+
+    try {
+      await logout.mutateAsync();
+    } catch (error) {
+      Alert.alert(
+        LOGOUT_ALERT_TITLE,
+        error instanceof ApiError
+          ? SESSION_ALREADY_GONE_MESSAGE
+          : SERVER_UNREACHABLE_MESSAGE,
+      );
+    } finally {
+      isLoggingOut.current = false;
+    }
+  }
 
   return (
     <Screen>
@@ -55,6 +89,14 @@ export function HomeScreen() {
           size="lg"
           onPress={() => setRoomSheetVisible(true)}
         />
+        {/* 임시 배치. 마이페이지가 생기면 그쪽으로 옮긴다. */}
+        <View style={styles.logout}>
+          <AuthSubmitButton
+            label="로그아웃"
+            onPress={requestLogout}
+            pending={logout.isPending}
+          />
+        </View>
       </View>
 
       <WalkRoomSelectSheet
@@ -77,5 +119,9 @@ const styles = StyleSheet.create({
   },
   characterCard: {
     flex: 1,
+  },
+  logout: {
+    marginTop: 16,
+    alignSelf: 'stretch',
   },
 });

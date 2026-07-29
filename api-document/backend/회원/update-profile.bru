@@ -17,11 +17,14 @@ headers {
 body:json {
   {
     "nickname": "newNickname",
-    "region": "BUSAN"
+    "region": "BUSAN",
+    "gender": "FEMALE"
   }
 }
 
 docs {
+  성별은 선택 항목이다. 생략하면 기존 값을 유지하며, 입력할 때는 `MALE` 또는 `FEMALE`만 사용할 수 있다.
+
   ## 내 프로필 수정
 
   닉네임과 지역을 변경한다. 두 필드 모두 선택값이며, `null`을 보내면 해당 항목은 변경하지 않는다.

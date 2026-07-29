@@ -21,6 +21,7 @@ public enum ErrorCode {
     DUPLICATE_NICKNAME(HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다."),
     INVALID_PASSWORD(HttpStatus.UNAUTHORIZED, "현재 비밀번호가 올바르지 않습니다."),
     INVALID_PROVIDER(HttpStatus.BAD_REQUEST, "소셜 로그인 계정은 비밀번호를 변경할 수 없습니다."),
+    MEMBER_REGION_NOT_SET(HttpStatus.BAD_REQUEST, "지역을 설정해야 랭킹을 확인할 수 있습니다."),
 
     // Friend
     SELF_FRIEND_REQUEST(HttpStatus.BAD_REQUEST, "자기 자신에게 친구 요청을 보낼 수 없습니다."),
@@ -38,9 +39,13 @@ public enum ErrorCode {
     ROOM_MEMBER_FORBIDDEN(HttpStatus.FORBIDDEN, "게임방 참여자만 접근할 수 있습니다."),
     ROOM_CLOSED(HttpStatus.CONFLICT, "종료된 게임방은 처리할 수 없습니다."),
     ROOM_START_FORBIDDEN(HttpStatus.FORBIDDEN, "게임 시작 권한이 없습니다."),
+    ROOM_MINIMUM_PARTICIPANTS_REQUIRED(HttpStatus.CONFLICT, "게임 시작에 필요한 최소 인원이 충족되지 않았습니다."),
+    ROOM_MAXIMUM_PARTICIPANTS_REACHED(HttpStatus.CONFLICT, "게임방 최대 인원에 도달했습니다."),
     ROOM_NOT_READY(HttpStatus.CONFLICT, "READY 상태의 방에서만 게임을 시작할 수 있습니다."),
-    ROOM_TARGET_STEP_COUNT_REQUIRED(HttpStatus.BAD_REQUEST, "협동 모드에서는 목표 걸음 수가 필수입니다."),
-    ROOM_TARGET_STEP_COUNT_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "개인 모드에서는 목표 걸음 수를 설정할 수 없습니다."),
+    ROOM_TARGET_BINGO_COUNT_REQUIRED(HttpStatus.BAD_REQUEST, "대결 모드에서는 목표 빙고 수가 필수입니다."),
+    ROOM_TARGET_BINGO_COUNT_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "싱글 및 협동 모드에서는 목표 빙고 수를 설정할 수 없습니다."),
+    GAME_NOT_FOUND(HttpStatus.NOT_FOUND, "게임을 찾을 수 없습니다."),
+    GAME_NOT_COMPLETED(HttpStatus.CONFLICT, "완료되지 않은 게임입니다."),
 
     // Mission
     INVALID_MISSION_TYPE(HttpStatus.BAD_REQUEST, "미션 타입은 OBJECT, ATTRIBUTE, RELATION 중 하나여야 합니다."),
@@ -62,6 +67,8 @@ public enum ErrorCode {
     BINGO_BOARD_RENEWAL_FORBIDDEN(HttpStatus.FORBIDDEN, "빙고판 갱신 권한이 없습니다."),
     BINGO_BOARD_NOT_COMPLETED(HttpStatus.CONFLICT, "빙고판이 아직 100% 완료되지 않았습니다."),
     BINGO_CELL_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 칸을 찾을 수 없습니다."),
+    BINGO_CELL_VERIFICATION_IN_PROGRESS(HttpStatus.CONFLICT, "이미 검증 중인 빙고 칸입니다."),
+    BINGO_CELL_ALREADY_APPROVED(HttpStatus.CONFLICT, "이미 승인된 빙고 칸입니다."),
 
     // Game Request
     GAME_REQUEST_FORBIDDEN(HttpStatus.FORBIDDEN, "게임방 초대 권한이 없습니다."),
@@ -81,6 +88,14 @@ public enum ErrorCode {
 
     // AI Verification
     AI_VERIFICATION_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "AI 검증 서버 호출에 실패했습니다."),
+
+    // Notification
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다."),
+    NOTIFICATION_ACCESS_FORBIDDEN(HttpStatus.FORBIDDEN, "본인의 알림만 처리할 수 있습니다."),
+
+    // Image Upload
+    INVALID_IMAGE_TYPE(HttpStatus.BAD_REQUEST, "이미지 파일 형식은 JPEG 또는 PNG만 지원합니다."),
+    IMAGE_TOO_LARGE(HttpStatus.BAD_REQUEST, "이미지 파일 크기는 5MB를 초과할 수 없습니다."),
     ;
 
     private final HttpStatus httpStatus;

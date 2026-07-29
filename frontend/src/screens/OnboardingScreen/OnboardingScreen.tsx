@@ -15,8 +15,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 // 개발 단계: 온보딩 완료 저장 비활성화로 잠시 미사용.
-// TODO(온보딩 복구): 아래 import 주석 해제.
-// import { useOnboardingStatus } from '../../shared/hooks/useOnboardingStatus';
+import { useOnboardingStatus } from '../../shared/hooks/useOnboardingStatus';
 import { OnboardingSlide } from './components/OnboardingSlide';
 import { Pagination } from './components/Pagination';
 import { ONBOARDING_SLIDES } from './slides';
@@ -30,9 +29,7 @@ export function OnboardingScreen() {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<OnboardingNavigation>();
-  // 개발 단계: 온보딩 완료 저장을 잠시 비활성화 (매번 노출).
-  // TODO(온보딩 복구): 아래 complete 주석을 해제할 것.
-  // const { complete } = useOnboardingStatus();
+  const { complete } = useOnboardingStatus();
 
   const scrollRef = useRef<ScrollView>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -48,12 +45,13 @@ export function OnboardingScreen() {
     [width],
   );
 
-  const finish = useCallback(() => {
-    // 개발 단계: 완료 저장 생략. TODO(온보딩 복구): await complete(); 복원.
-    // await complete();
+  const finish = useCallback(async () => {
+    // 저장이 실패해도 진행은 막지 않는다. 다음 실행에서 온보딩을 한 번 더 보게
+    // 될 뿐이고, 여기서 사용자를 세워두는 편이 더 나쁘다.
+    await complete().catch(() => {});
     // 온보딩 이후 권한 요청 플로우로 이동.
     navigation.reset({ index: 0, routes: [{ name: 'Permissions' }] });
-  }, [navigation]);
+  }, [complete, navigation]);
 
   const handleNext = useCallback(() => {
     if (isLastSlide) {
@@ -130,7 +128,7 @@ const styles = StyleSheet.create({
   skipText: {
     fontFamily: 'NotoSansKR-Regular',
     fontSize: 15,
-    color: '#374151',
+    color: '#505050',
   },
   footer: {
     position: 'absolute',
