@@ -59,7 +59,7 @@ class CashHistoryControllerTest {
     @DisplayName("인증 회원의 캐시 이력 목록을 반환한다")
     void returnsTheAuthenticatedMembersCashHistories() {
         BDDMockito.given(cashHistoryReadService.getCashHistories(1L)).willReturn(List.of(
-                new CashHistoryResponse(1L, CashHistoryType.GAME_GOAL_REWARD, 500L,
+                new CashHistoryResponse(1L, CashHistoryType.GAME_GOAL_REWARD, 200L,
                         LocalDateTime.of(2026, 7, 24, 12, 0), 10L, 100L, null, null),
                 new CashHistoryResponse(2L, CashHistoryType.ITEM_PURCHASE, -1_000L,
                         LocalDateTime.of(2026, 7, 24, 11, 0), null, null, 20L, "Red Hat")
@@ -71,7 +71,7 @@ class CashHistoryControllerTest {
                 .then()
                 .statusCode(200)
                 .body("$", hasSize(2))
-                .body("[0].amount", equalTo(500))
+                .body("[0].amount", equalTo(200))
                 .body("[0].roomId", equalTo(10))
                 .body("[0].gameId", equalTo(100))
                 .body("[1].amount", equalTo(-1_000))

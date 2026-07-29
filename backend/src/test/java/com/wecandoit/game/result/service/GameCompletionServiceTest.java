@@ -152,7 +152,9 @@ class GameCompletionServiceTest {
         given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L))
                 .willReturn(List.of(winnerRoomMember, loserRoomMember));
         Member winner = member(1L, 0L);
+        Member loser = member(2L, 0L);
         given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(winner));
+        given(memberRepository.findByIdForUpdate(2L)).willReturn(Optional.of(loser));
 
         // when
         gameCompletionService.evaluateAndCompleteIfNeeded(200L, 201L);
@@ -164,12 +166,19 @@ class GameCompletionServiceTest {
         assertThat(loserBoard.getStatus()).isEqualTo(BingoBoardStatus.COMPLETED);
         assertThat(winnerRoomMember.getCompletedMissionCount()).isEqualTo(3);
         assertThat(loserRoomMember.getCompletedMissionCount()).isEqualTo(1);
-        assertThat(winner.getCash()).isEqualTo(500L);
+        assertThat(winner.getCash()).isEqualTo(300L);
+        assertThat(loser.getCash()).isEqualTo(50L);
         then(cashHistoryRepository).should().save(Mockito.argThat(history ->
                 history.getMemberId().equals(1L)
                         && history.getReferenceId().equals(200L)
                         && history.getRoomId().equals(10L)
-                        && history.getAmount() == 500L
+                        && history.getAmount() == 300L
+        ));
+        then(cashHistoryRepository).should().save(Mockito.argThat(history ->
+                history.getMemberId().equals(2L)
+                        && history.getReferenceId().equals(200L)
+                        && history.getRoomId().equals(10L)
+                        && history.getAmount() == 50L
         ));
 
         then(gameResultRepository).should().saveAndFlush(Mockito.argThat((GameResult result) ->
@@ -178,21 +187,20 @@ class GameCompletionServiceTest {
                         && result.isResult()
                         && result.getBingoCount() == 3
                         && result.getCompletedMissionCount() == 3
-                        && result.getRewardCash() == 500L
+                        && result.getRewardCash() == 300L
         ));
         then(gameResultParticipantRepository).should().saveAll(Mockito.argThat(participants -> {
             List<GameResultParticipant> results = (List<GameResultParticipant>) participants;
             return results.size() == 2
                     && results.get(0).getMemberId().equals(1L)
                     && results.get(0).getResult()
-                    && results.get(0).getRewardCash() == 500L
+                    && results.get(0).getRewardCash() == 300L
                     && results.get(0).getCompletedMissionCount() == 3
                     && results.get(1).getMemberId().equals(2L)
                     && !results.get(1).getResult()
-                    && results.get(1).getRewardCash() == 0L
+                    && results.get(1).getRewardCash() == 50L
                     && results.get(1).getCompletedMissionCount() == 1;
         }));
-        then(memberRepository).should(Mockito.never()).findByIdForUpdate(2L);
     }
 
     @Test
@@ -226,6 +234,7 @@ class GameCompletionServiceTest {
         given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L))
                 .willReturn(List.of(winnerRoomMember, loserRoomMember));
         given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(member(1L, 0L)));
+        given(memberRepository.findByIdForUpdate(2L)).willReturn(Optional.of(member(2L, 0L)));
 
         // when
         gameCompletionService.evaluateAndCompleteIfNeeded(200L, 201L);
@@ -233,19 +242,20 @@ class GameCompletionServiceTest {
         // then
         ArgumentCaptor<NotificationRequestedEvent> captor =
                 ArgumentCaptor.forClass(NotificationRequestedEvent.class);
-        then(eventPublisher).should(Mockito.times(3)).publishEvent(captor.capture());
+        then(eventPublisher).should(Mockito.times(4)).publishEvent(captor.capture());
         List<NotificationType> types = captor.getAllValues().stream()
                 .map(NotificationRequestedEvent::type)
                 .toList();
         assertThat(types).containsExactlyInAnyOrder(
                 NotificationType.BATTLE_RESULT,
                 NotificationType.BATTLE_RESULT,
+                NotificationType.REWARD_EARNED,
                 NotificationType.REWARD_EARNED
         );
         assertThat(captor.getAllValues())
                 .filteredOn(event -> event.type() == NotificationType.REWARD_EARNED)
                 .extracting(NotificationRequestedEvent::recipientMemberId)
-                .containsExactly(1L);
+                .containsExactlyInAnyOrder(1L, 2L);
     }
 
     @Test

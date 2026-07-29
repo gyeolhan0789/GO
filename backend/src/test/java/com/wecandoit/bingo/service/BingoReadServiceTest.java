@@ -290,7 +290,7 @@ class BingoReadServiceTest {
                 .willReturn(merge(cellsA, cellsB));
         given(missionRepository.findAllById(Mockito.anyIterable())).willReturn(missionsForCells(cellsA));
         given(gameResultParticipantRepository.findByGameIdAndMemberId(200L, 1L))
-                .willReturn(Optional.of(GameResultParticipant.create(200L, 1L, 3, 500L, true)));
+                .willReturn(Optional.of(GameResultParticipant.create(200L, 1L, 3, 300L, true)));
 
         // when
         BingoBoardResponse response = bingoReadService.getActiveBoard(1L, 10L);

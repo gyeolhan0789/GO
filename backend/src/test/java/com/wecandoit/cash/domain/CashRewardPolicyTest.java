@@ -13,6 +13,8 @@ class CashRewardPolicyTest {
     @DisplayName("게임 목표와 하루 목표 걸음 보상 포인트를 반환한다")
     void returnsGoalRewardPoints() {
         assertThat(CashRewardPolicy.GAME_GOAL.getPoint()).isEqualTo(200L);
+        assertThat(CashRewardPolicy.BATTLE_WINNER_GAME_GOAL.getPoint()).isEqualTo(300L);
+        assertThat(CashRewardPolicy.BATTLE_LOSER_GAME_GOAL.getPoint()).isEqualTo(50L);
         assertThat(CashRewardPolicy.DAILY_STEP_GOAL.getPoint()).isEqualTo(100L);
     }
 
