@@ -144,8 +144,8 @@ class RoomCommandServiceTest {
     }
 
     @Test
-    @DisplayName("싱글 모드는 목표 빙고 수 없이 게임방을 생성한다")
-    void createSingleRoomWithoutTargetBingoCount() {
+    @DisplayName("싱글 모드도 목표 빙고 수를 저장한다")
+    void createSingleRoomStoresTargetBingoCount() {
         // given
         lockMember();
         given(roomRepository.findFirstByMemberIdAndModeAndStatus(
@@ -162,13 +162,13 @@ class RoomCommandServiceTest {
         // when
         CreateRoomResponse response = roomCommandService.createRoom(
                 1L,
-                new CreateRoomRequest("테스트 방", GameMode.SINGLE, null, 10_000, 3)
+                new CreateRoomRequest("테스트 방", GameMode.SINGLE, 3, 10_000, 3)
         );
 
         // then
         ArgumentCaptor<Room> roomCaptor = ArgumentCaptor.forClass(Room.class);
         then(roomRepository).should().save(roomCaptor.capture());
-        assertThat(roomCaptor.getValue().getTargetBingoCount()).isNull();
+        assertThat(roomCaptor.getValue().getTargetBingoCount()).isEqualTo(3);
         assertThat(roomCaptor.getValue().getTargetStepCount()).isEqualTo(10_000);
         assertThat(roomCaptor.getValue().getStatus()).isEqualTo(GameRoomStatus.IN_PROGRESS);
         then(bingoCommandService).should().generateInitialBoard(roomCaptor.getValue(), 200L);
@@ -178,7 +178,7 @@ class RoomCommandServiceTest {
     @DisplayName("진행 중인 개인 방이 있으면 새 방을 만들지 않고 기존 방을 반환한다")
     void createSingleRoomReturnsExistingInProgressRoom() {
         // given
-        Room room = Room.create(1L, "기존 방", GameMode.SINGLE, null, DEFAULT_BOARD_SIZE);
+        Room room = Room.create(1L, "기존 방", GameMode.SINGLE, 3, DEFAULT_BOARD_SIZE);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         lockMember();
@@ -191,7 +191,7 @@ class RoomCommandServiceTest {
         // when
         CreateRoomResponse response = roomCommandService.createRoom(
                 1L,
-                new CreateRoomRequest("새 방", GameMode.SINGLE, null, 10_000, DEFAULT_BOARD_SIZE)
+                new CreateRoomRequest("새 방", GameMode.SINGLE, 3, 10_000, DEFAULT_BOARD_SIZE)
         );
 
         // then
@@ -208,29 +208,15 @@ class RoomCommandServiceTest {
     }
 
     @Test
-    @DisplayName("대결 모드에서 목표 빙고 수가 없으면 게임방 생성에 실패한다")
-    void createBattleRoomRejectsMissingTargetBingoCount() {
+    @DisplayName("목표 빙고 수가 없으면 게임방 생성에 실패한다")
+    void createRoomRejectsMissingTargetBingoCount() {
         // when & then
         assertErrorCode(
                 () -> roomCommandService.createRoom(
                         1L,
-                        new CreateRoomRequest("테스트 방", GameMode.BATTLE, null, null, 3)
+                        new CreateRoomRequest("테스트 방", GameMode.SINGLE, null, 10_000, 3)
                 ),
                 ErrorCode.ROOM_TARGET_BINGO_COUNT_REQUIRED
-        );
-        then(roomRepository).should(Mockito.never()).save(Mockito.any(Room.class));
-    }
-
-    @Test
-    @DisplayName("싱글 모드에서 목표 빙고 수가 있으면 게임방 생성에 실패한다")
-    void createSingleRoomRejectsTargetBingoCount() {
-        // when & then
-        assertErrorCode(
-                () -> roomCommandService.createRoom(
-                        1L,
-                        new CreateRoomRequest("테스트 방", GameMode.SINGLE, 3, 10_000, 3)
-                ),
-                ErrorCode.ROOM_TARGET_BINGO_COUNT_NOT_ALLOWED
         );
         then(roomRepository).should(Mockito.never()).save(Mockito.any(Room.class));
     }
@@ -259,17 +245,26 @@ class RoomCommandServiceTest {
     }
 
     @Test
-    @DisplayName("협동 모드에서 목표 빙고 수가 있으면 게임방 생성에 실패한다")
-    void createCooperateRoomRejectsTargetBingoCount() {
-        // when & then
-        assertErrorCode(
-                () -> roomCommandService.createRoom(
-                        1L,
-                        new CreateRoomRequest("테스트 방", GameMode.COOPERATE, 3, 10_000, 3)
-                ),
-                ErrorCode.ROOM_TARGET_BINGO_COUNT_NOT_ALLOWED
+    @DisplayName("협동 모드도 목표 빙고 수를 저장한다")
+    void createCooperateRoomStoresTargetBingoCount() {
+        // given
+        given(roomRepository.save(Mockito.any(Room.class))).willAnswer(invocation -> {
+            Room room = invocation.getArgument(0);
+            ReflectionTestUtils.setField(room, "id", 10L);
+            return room;
+        });
+
+        // when
+        roomCommandService.createRoom(
+                1L,
+                new CreateRoomRequest("테스트 방", GameMode.COOPERATE, 3, 10_000, 3)
         );
-        then(roomRepository).should(Mockito.never()).save(Mockito.any(Room.class));
+
+        // then
+        ArgumentCaptor<Room> roomCaptor = ArgumentCaptor.forClass(Room.class);
+        then(roomRepository).should().save(roomCaptor.capture());
+        assertThat(roomCaptor.getValue().getMode()).isEqualTo(GameMode.COOPERATE);
+        assertThat(roomCaptor.getValue().getTargetBingoCount()).isEqualTo(3);
     }
 
     @Test
@@ -279,7 +274,7 @@ class RoomCommandServiceTest {
         assertErrorCode(
                 () -> roomCommandService.createRoom(
                         1L,
-                        new CreateRoomRequest("테스트 방", GameMode.SINGLE, null, null, 3)
+                        new CreateRoomRequest("테스트 방", GameMode.SINGLE, 3, null, 3)
                 ),
                 ErrorCode.ROOM_TARGET_STEP_COUNT_REQUIRED
         );
@@ -293,7 +288,7 @@ class RoomCommandServiceTest {
         assertErrorCode(
                 () -> roomCommandService.createRoom(
                         1L,
-                        new CreateRoomRequest("테스트 방", GameMode.COOPERATE, null, 0, 3)
+                        new CreateRoomRequest("테스트 방", GameMode.COOPERATE, 3, 0, 3)
                 ),
                 ErrorCode.ROOM_TARGET_STEP_COUNT_REQUIRED
         );
