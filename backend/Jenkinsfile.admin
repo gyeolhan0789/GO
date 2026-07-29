@@ -23,10 +23,21 @@ pipeline {
             steps {
                 dir('frontend/admin') {
                     sh '''
+                    if ! command -v node >/dev/null 2>&1; then
+                        NODE_VERSION=22.16.0
+                        NODE_DIRECTORY=".node-v${NODE_VERSION}"
+                        if [ ! -x "${NODE_DIRECTORY}/bin/node" ]; then
+                            rm -rf "${NODE_DIRECTORY}"
+                            mkdir -p "${NODE_DIRECTORY}"
+                            curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz" \
+                              | tar -xz --strip-components=1 -C "${NODE_DIRECTORY}"
+                        fi
+                        export PATH="$(pwd)/${NODE_DIRECTORY}/bin:${PATH}"
+                    fi
                     node --version
                     npm ci
                     npm run lint
-                    npm run build
+                    VITE_API_ENV=prod VITE_API_BASE_URL=https://i15a506.p.ssafy.io npm run build
                     '''
                 }
             }
