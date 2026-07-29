@@ -1,12 +1,15 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { useAuth } from '../../features/auth/model/AuthContext';
+import { colors } from '../../shared/constants/colors';
 import { useOnboardingStatus } from '../../shared/hooks/useOnboardingStatus';
 import { usePermissionsStatus } from '../../shared/hooks/usePermissionsStatus';
 import { LoginScreen } from '../../screens/LoginScreen/LoginScreen';
 import { OnboardingScreen } from '../../screens/OnboardingScreen/OnboardingScreen';
 import { PermissionsScreen } from '../../screens/PermissionsScreen/PermissionsScreen';
 import { SignupScreen } from '../../screens/SignupScreen/SignupScreen';
+import { WalkDetailScreen } from '../../screens/WalkDetailScreen/WalkDetailScreen';
+import { WalkListScreen } from '../../screens/WalkListScreen/WalkListScreen';
 import { MainTabNavigator } from './MainTabNavigator';
 
 // 진입 순서: Onboarding -> Permissions -> Login -> Main.
@@ -18,9 +21,21 @@ export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
   Main: undefined;
+  WalkList: undefined;
+  WalkDetail: { walkId: number };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+/** 탭 밖 화면들이 공유하는 헤더 모양. 제목만 화면마다 바꿔 쓴다. */
+const DETAIL_HEADER_OPTIONS = {
+  headerShown: true,
+  headerTitleAlign: 'center',
+  headerTitleStyle: { fontFamily: 'BMDOHYEON', fontSize: 18 },
+  headerTintColor: colors.ink,
+  headerShadowVisible: false,
+  headerStyle: { backgroundColor: colors.surface },
+} as const;
 
 export function RootNavigator() {
   const { status } = useAuth();
@@ -63,7 +78,20 @@ export function RootNavigator() {
       screenOptions={{ headerShown: false }}
     >
       {isAuthenticated ? (
-        <Stack.Screen name="Main" component={MainTabNavigator} />
+        <>
+          <Stack.Screen name="Main" component={MainTabNavigator} />
+          {/* 탭 밖 화면들은 뒤로가기가 필요하니 네이티브 헤더를 쓴다. */}
+          <Stack.Screen
+            name="WalkList"
+            component={WalkListScreen}
+            options={{ ...DETAIL_HEADER_OPTIONS, title: '전체 산책 기록' }}
+          />
+          <Stack.Screen
+            name="WalkDetail"
+            component={WalkDetailScreen}
+            options={{ ...DETAIL_HEADER_OPTIONS, title: '산책 기록' }}
+          />
+        </>
       ) : (
         <>
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
