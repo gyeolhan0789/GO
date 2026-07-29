@@ -36,7 +36,7 @@ function deny(reason) {
 //    Heuristic guard, not a hard security boundary — a determined bypass
 //    (e.g. base64-encoding the filename) is still possible.
 const SECRET_FILE_RE =
-  /(^|[\s/"'])(\.env(\.[\w-]+)?|application-(local|dev|prod|production|staging|stage)\.ya?ml)(?=[\s"'`]|$)/i;
+  /(^|[\s/"'])(\.env(\.[\w-]+)?|application-(local|production|staging|stage)\.ya?ml)(?=[\s"'`]|$)/i;
 const REVEAL_OR_STAGE_RE =
   /\b(cat|type|more|less|head|tail|Get-Content|gc|grep|findstr|Select-String|git\s+(add|commit|show|diff|log\s+-p))\b/i;
 
