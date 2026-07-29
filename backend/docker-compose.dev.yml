@@ -8,14 +8,14 @@ services:
     environment:
       MYSQL_DATABASE: wecandoit
       MYSQL_USER: wecandoit
-      MYSQL_PASSWORD: ***REMOVED***
-      MYSQL_ROOT_PASSWORD: ***REMOVED***
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
     ports:
       - "127.0.0.1:3307:3306"
     volumes:
       - mysql-dev-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p***REMOVED***"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_ROOT_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -49,9 +49,10 @@ services:
       SPRING_PROFILES_ACTIVE: dev
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/wecandoit?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
       SPRING_DATASOURCE_USERNAME: wecandoit
-      SPRING_DATASOURCE_PASSWORD: ***REMOVED***
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
     ports:
       - "127.0.0.1:8081:8080"
 
