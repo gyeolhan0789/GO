@@ -11,7 +11,6 @@ type ChangeCharacterButtonProps = {
 
 const HEIGHT = 44;
 
-/** 미리보기 아래 가운데에 얹는 알약 버튼. 카드 안에서만 쓰여 폭은 내용에 맞춘다. */
 export function ChangeCharacterButton({ onPress }: ChangeCharacterButtonProps) {
   return (
     <Pressable
@@ -34,7 +33,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     backgroundColor: colors.primarySoft,
     // 미리보기 하단 모서리에 살짝 걸쳐 앉는다(디자인 시안과 동일).
-    marginTop: -HEIGHT / 2,
+    marginTop: -HEIGHT / 24,
   },
   pressed: {
     opacity: 0.85,

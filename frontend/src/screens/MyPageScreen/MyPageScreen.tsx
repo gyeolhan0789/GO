@@ -75,8 +75,6 @@ export function MyPageScreen({ navigation }: MyPageScreenProps) {
     ? resolveApiErrorMessage(updateProfile.error)
     : undefined;
 
-  console.log('character.data?.defaultImageUrl', character.data);
-
   return (
     <Screen edges={SCREEN_EDGES}>
       <KeyboardAvoidingView

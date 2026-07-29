@@ -8,16 +8,22 @@ import type {
 } from '../api/memberApi';
 
 /**
- * 화면이 다루는 아이템 한 개. 이미지 출처(서버 URL / 번들 에셋)를 여기서 하나로
- * 합쳐서, 옷 입히기 로직과 UI가 출처를 몰라도 되게 한다.
+ * 캐릭터 위에 겹쳐 그릴 수 있는 최소 정보. 보유 아이템인지 몰라도 되므로
+ * 미리보기와 옷 입히기 로직은 이것만 받는다.
+ *
+ * 회원은 같은 아이템을 두 번 살 수 없어(`existsByMemberIdAndItemId`) `itemId`
+ * 하나로 착용 중인지 비교할 수 있다.
  */
-export type CharacterItem = {
-  memberItemId: number;
+export type CharacterLayer = {
   itemId: number;
-  name: string;
   category: ItemCategory;
-  /** 이미지가 없으면 null. 미리보기와 카드가 각자 빈 자리를 표시한다. */
   image: ImageSourcePropType | null;
+};
+
+/** 회원이 보유한 아이템. 이미지 출처(서버 URL / 번들 에셋)는 여기서 합쳐진다. */
+export type CharacterItem = CharacterLayer & {
+  memberItemId: number;
+  name: string;
 };
 
 export type Character = {

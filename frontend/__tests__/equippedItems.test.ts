@@ -2,7 +2,10 @@
  * @format
  */
 
-import type { CharacterItem } from '../src/features/member/model/character';
+import type {
+  CharacterItem,
+  CharacterLayer,
+} from '../src/features/member/model/character';
 import {
   hasEquippedItem,
   isEquipped,
@@ -44,6 +47,23 @@ describe('장착 아이템 모델', () => {
 
     expect(isEquipped(equipped, hat)).toBe(false);
     expect(hasEquippedItem(equipped)).toBe(false);
+  });
+
+  test('회원 아이템 id가 없어도 겹쳐 입힐 수 있다', () => {
+    const layerHat: CharacterLayer = {
+      itemId: 901,
+      category: 'HAT',
+      image: null,
+    };
+    const layerTop: CharacterLayer = {
+      itemId: 902,
+      category: 'TOP',
+      image: null,
+    };
+    const equipped = toEquippedByCategory([layerHat, layerTop]);
+
+    expect(isEquipped(equipped, layerHat)).toBe(true);
+    expect(selectLayerItems(equipped)).toEqual([layerTop, layerHat]);
   });
 
   test('겹쳐 그릴 때 하의가 상의 아래, 모자가 가장 위에 온다', () => {
