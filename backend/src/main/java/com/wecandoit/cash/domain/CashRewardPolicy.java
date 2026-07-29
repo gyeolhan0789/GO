@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 public enum CashRewardPolicy {
 
     GAME_GOAL(200L),
+    BATTLE_WINNER_GAME_GOAL(300L),
+    BATTLE_LOSER_GAME_GOAL(50L),
     DAILY_STEP_GOAL(100L),
     BINGO_CELL_OBJECT(30L),
     BINGO_CELL_ATTRIBUTE(50L),

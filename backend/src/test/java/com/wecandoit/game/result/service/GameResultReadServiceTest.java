@@ -89,7 +89,7 @@ class GameResultReadServiceTest {
         assertThat(response.targetBingoCount()).isNull();
         assertThat(response.bingoCount()).isEqualTo(3);
         assertThat(response.completedMissionCount()).isEqualTo(5);
-        assertThat(response.rewardCash()).isEqualTo(500L);
+        assertThat(response.rewardCash()).isEqualTo(200L);
         assertThat(response.participants())
                 .extracting(
                         participantResponse -> participantResponse.memberId(),
@@ -98,8 +98,8 @@ class GameResultReadServiceTest {
                         participantResponse -> participantResponse.rewardCash()
                 )
                 .containsExactly(
-                        org.assertj.core.groups.Tuple.tuple(1L, "host", 3, 500L),
-                        org.assertj.core.groups.Tuple.tuple(2L, "participant", 2, 500L)
+                        org.assertj.core.groups.Tuple.tuple(1L, "host", 3, 200L),
+                        org.assertj.core.groups.Tuple.tuple(2L, "participant", 2, 200L)
                 );
     }
 
@@ -216,13 +216,13 @@ class GameResultReadServiceTest {
     }
 
     private GameResult gameResult(Long gameId, Long roomId, Long resultId) {
-        GameResult gameResult = GameResult.create(gameId, roomId, true, 3, 5, 500L);
+        GameResult gameResult = GameResult.create(gameId, roomId, true, 3, 5, 200L);
         ReflectionTestUtils.setField(gameResult, "id", resultId);
         return gameResult;
     }
 
     private GameResultParticipant participant(Long gameId, Long memberId, int completedMissionCount) {
-        return GameResultParticipant.create(gameId, memberId, completedMissionCount, 500L, true);
+        return GameResultParticipant.create(gameId, memberId, completedMissionCount, 200L, true);
     }
 
     private Member member(Long memberId, String nickname) {
