@@ -11,16 +11,21 @@ public record CashHistoryResponse(
         LocalDateTime occurredAt,
         Long roomId,
         Long gameId,
+        Long bingoCellId,
         Long itemId,
         String itemName
 ) {
 
     public static CashHistoryResponse from(CashHistory cashHistory) {
         Long roomId = cashHistory.getType() == CashHistoryType.GAME_GOAL_REWARD
+                || cashHistory.getType() == CashHistoryType.BINGO_CELL_REWARD
                 ? cashHistory.getRoomId() != null ? cashHistory.getRoomId() : cashHistory.getReferenceId()
                 : null;
         Long gameId = cashHistory.getType() == CashHistoryType.GAME_GOAL_REWARD
                 ? cashHistory.getRoomId() != null ? cashHistory.getReferenceId() : null
+                : null;
+        Long bingoCellId = cashHistory.getType() == CashHistoryType.BINGO_CELL_REWARD
+                ? cashHistory.getReferenceId()
                 : null;
         Long itemId = cashHistory.getType() == CashHistoryType.ITEM_PURCHASE
                 ? cashHistory.getReferenceId()
@@ -32,6 +37,7 @@ public record CashHistoryResponse(
                 cashHistory.getCreatedAt(),
                 roomId,
                 gameId,
+                bingoCellId,
                 itemId,
                 cashHistory.getItemName()
         );

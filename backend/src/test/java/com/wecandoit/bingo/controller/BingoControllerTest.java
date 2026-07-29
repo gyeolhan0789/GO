@@ -16,6 +16,7 @@ import com.wecandoit.bingo.controller.response.BingoBoardResponse;
 import com.wecandoit.bingo.controller.response.BingoBoardResponse.BattleParticipantProgressResponse;
 import com.wecandoit.bingo.controller.response.BingoBoardResponse.BattleProgressResponse;
 import com.wecandoit.bingo.controller.response.BingoCellResponse;
+import com.wecandoit.bingo.controller.response.BingoCellSubmitResponse;
 import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
 import com.wecandoit.bingo.service.BingoCommandService;
@@ -273,8 +274,8 @@ class BingoControllerTest {
                 null,
                 LocalDateTime.of(2026, 7, 22, 10, 0)
         );
-        BingoCellResponse response = new BingoCellResponse(
-                1000L, 0, 0, mission, BingoCellVerificationStatus.APPROVED, 1L, null
+        BingoCellSubmitResponse response = new BingoCellSubmitResponse(
+                1000L, 0, 0, mission, BingoCellVerificationStatus.APPROVED, 1L, null, 30L
         );
         BDDMockito.given(missionVerificationFacade.submitAndVerify(1L, 10L, 1000L, "https://example.com/proof.png"))
                 .willReturn(response);
@@ -292,6 +293,7 @@ class BingoControllerTest {
                 .body("col", equalTo(0))
                 .body("mission.missionId", equalTo(1))
                 .body("verificationStatus", equalTo("APPROVED"))
+                .body("rewardCash", equalTo(30))
                 .apply(document("bingo-cells-submit",
                         pathParameters(
                                 parameterWithName("roomId").description("칸을 제출할 게임방 ID"),
@@ -310,7 +312,8 @@ class BingoControllerTest {
                                 fieldWithPath("mission.createdAt").description("미션 생성 시각"),
                                 fieldWithPath("verificationStatus").description("AI 검증 후 인증 상태(APPROVED/REJECTED)"),
                                 fieldWithPath("submittedByMemberId").description("미션 제출 참여자 ID"),
-                                fieldWithPath("rejectionReason").description("거절 사유(승인 시 null)")
+                                fieldWithPath("rejectionReason").description("거절 사유(승인 시 null)"),
+                                fieldWithPath("rewardCash").description("이번 인증으로 지급된 캐시")
                         )
                 ));
     }

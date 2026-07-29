@@ -2,12 +2,13 @@ package com.wecandoit.bingo.service;
 
 import com.wecandoit.bingo.client.AiVerificationClient;
 import com.wecandoit.bingo.client.AiVerificationResult;
-import com.wecandoit.bingo.controller.response.BingoCellResponse;
+import com.wecandoit.bingo.controller.response.BingoCellSubmitResponse;
 import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.domain.MissionType;
 import com.wecandoit.mission.repository.MissionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -30,25 +31,32 @@ public class MissionVerificationFacade {
     private final MissionRepository missionRepository;
     private final BingoCellRepository bingoCellRepository;
 
-    public BingoCellResponse submitAndVerify(Long memberId, Long roomId, Long cellId, String submitUrl) {
+    public BingoCellSubmitResponse submitAndVerify(Long memberId, Long roomId, Long cellId, String submitUrl) {
         BingoCell submittedCell = bingoCommandService.submitCell(memberId, roomId, cellId, submitUrl);
         Mission mission = missionRepository.findById(submittedCell.getMissionId())
                 .orElseThrow(() -> new CustomException(ErrorCode.MISSION_NOT_FOUND));
+        MissionType missionType = MissionType.from(mission.getType());
 
         AiVerificationResult result;
         try {
             result = requestVerification(submittedCell.getSubmitUrl(), mission);
         } catch (CustomException e) {
-            verificationResultService.applyResult(cellId, false, ErrorCode.AI_VERIFICATION_FAILED.getMessage());
+            verificationResultService.applyResult(cellId, false, ErrorCode.AI_VERIFICATION_FAILED.getMessage(),
+                    missionType);
             throw e;
         }
 
         boolean approved = result.success() && result.confidence() >= CONFIDENCE_THRESHOLD;
-        verificationResultService.applyResult(cellId, approved, resolveRejectionReason(result, approved));
+        long rewardCash = verificationResultService.applyResult(
+                cellId,
+                approved,
+                resolveRejectionReason(result, approved),
+                missionType
+        );
 
         BingoCell verifiedCell = bingoCellRepository.findById(cellId)
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND));
-        return BingoCellResponse.of(verifiedCell, mission);
+        return BingoCellSubmitResponse.of(verifiedCell, mission, rewardCash);
     }
 
     private AiVerificationResult requestVerification(String submitUrl, Mission mission) {

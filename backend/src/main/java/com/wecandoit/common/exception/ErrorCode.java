@@ -48,7 +48,7 @@ public enum ErrorCode {
     GAME_NOT_COMPLETED(HttpStatus.CONFLICT, "완료되지 않은 게임입니다."),
 
     // Mission
-    INVALID_MISSION_TYPE(HttpStatus.BAD_REQUEST, "미션 타입은 OBJECT, ATTRIBUTE, RELATION 중 하나여야 합니다."),
+    INVALID_MISSION_TYPE(HttpStatus.BAD_REQUEST, "미션 타입은 OBJECT, ATTRIBUTE, RELATION, ORDINARY 중 하나여야 합니다."),
     MISSION_NOT_FOUND(HttpStatus.NOT_FOUND, "미션을 찾을 수 없습니다."),
 
     // Item

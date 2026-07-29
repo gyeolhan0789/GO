@@ -24,5 +24,6 @@ class CashRewardPolicyTest {
         assertThat(CashRewardPolicy.getBingoCellRewardPoint(MissionType.OBJECT)).isEqualTo(30L);
         assertThat(CashRewardPolicy.getBingoCellRewardPoint(MissionType.ATTRIBUTE)).isEqualTo(50L);
         assertThat(CashRewardPolicy.getBingoCellRewardPoint(MissionType.RELATION)).isEqualTo(70L);
+        assertThat(CashRewardPolicy.getBingoCellRewardPoint(MissionType.ORDINARY)).isEqualTo(30L);
     }
 }
