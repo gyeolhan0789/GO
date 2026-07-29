@@ -1,7 +1,9 @@
 module.exports = {
   preset: '@react-native/jest-preset',
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-native-vector-icons|@react-native-async-storage|@react-navigation|react-native-screens|react-native-safe-area-context|react-native-svg)/)',
+    // react-native-chart-kit은 dist에 ESM + 트랜스파일 안 된 JSX를 그대로 담아
+    // 배포한다. Metro는 알아서 변환하지만 Jest는 여기에 넣어줘야 파싱된다.
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-native-vector-icons|@react-native-async-storage|@react-navigation|react-native-screens|react-native-safe-area-context|react-native-svg|react-native-chart-kit)/)',
   ],
   moduleNameMapper: {
     '\\.(ttf|otf|woff|woff2)$': '<rootDir>/jest/fileMock.js',
