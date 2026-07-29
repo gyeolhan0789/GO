@@ -47,6 +47,8 @@ afterEach(() => {
     });
     renderer = null;
   }
+  // 복구 재시도를 검증하는 테스트가 가짜 타이머를 켜므로 매번 되돌린다.
+  jest.useRealTimers();
 });
 
 function AuthStatusProbe() {
@@ -105,6 +107,55 @@ describe('앱 시작 시 세션 복구', () => {
     expect(statusOf(tree)).toBe('unauthenticated');
     expect(getAccessToken()).toBeNull();
     await expect(readRefreshToken()).resolves.toBeNull();
+  });
+
+  // 이걸 만료로 취급하면 앱을 한 번 잘못 켠 것만으로 서버에 14일 남은 세션이
+  // 기기에서 영구 삭제된다.
+  test('서버에 닿지 못하면 리프레시 토큰을 남긴 채 미인증이 된다', async () => {
+    jest.useFakeTimers();
+    await saveRefreshToken('stored-refresh');
+    fetchMock.mockRejectedValue(new Error('Network request failed'));
+
+    const tree = await renderProvider();
+
+    await act(async () => {
+      await jest.runAllTimersAsync();
+    });
+
+    expect(statusOf(tree)).toBe('unauthenticated');
+    expect(getAccessToken()).toBeNull();
+    await expect(readRefreshToken()).resolves.toBe('stored-refresh');
+  });
+
+  test('첫 시도가 네트워크 실패여도 재시도가 성공하면 복구된다', async () => {
+    jest.useFakeTimers();
+    await saveRefreshToken('stored-refresh');
+    fetchMock
+      .mockRejectedValueOnce(new Error('Network request failed'))
+      .mockResolvedValueOnce(reissued('restored', 'rotated-refresh'));
+
+    const tree = await renderProvider();
+
+    await act(async () => {
+      await jest.runAllTimersAsync();
+    });
+
+    expect(statusOf(tree)).toBe('authenticated');
+    expect(getAccessToken()).toBe('restored');
+    await expect(readRefreshToken()).resolves.toBe('rotated-refresh');
+  });
+
+  // 거절은 재시도해도 결과가 같으므로 기다리게 하지 않는다.
+  test('서버가 거절하면 재시도 없이 바로 미인증이 된다', async () => {
+    await saveRefreshToken('stale-refresh');
+    fetchMock.mockResolvedValue(
+      jsonResponse(401, { message: '유효하지 않은 Refresh Token입니다.' }),
+    );
+
+    const tree = await renderProvider();
+
+    expect(statusOf(tree)).toBe('unauthenticated');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   // 이 게이트가 없으면 이미 로그인한 사용자에게 로그인 화면이 한 프레임 깜빡인다.
