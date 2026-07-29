@@ -1,0 +1,63 @@
+meta {
+  name: 관리자 아이템 등록
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{backendBaseUrl}}/admin/items
+  body: multipartForm
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+body:multipart-form {
+  name: 검은 모자
+  category: HAT
+  price: 1000
+  image: @file(C:\path\to\hat.png)
+}
+
+docs {
+  새 아이템과 이미지를 등록한다. 이미지는 로컬 볼륨에 저장되고 DB에는 경로만 저장된다. `ADMIN` 권한이 필요하다.
+
+  ### 성공 응답 (201 Created)
+  ```json
+  {
+    "itemId": 1,
+    "name": "검은 모자",
+    "category": "HAT",
+    "price": 1000,
+    "imageUrl": "/uploads/dev/items/resource-id/hat.png",
+    "availableForSale": true,
+    "updatedAt": "2026-07-29T12:00:00"
+  }
+  ```
+
+  **유효하지 않은 카테고리**
+  ```json
+  {
+    "status": 400,
+    "message": "유효하지 않은 아이템 카테고리입니다."
+  }
+  ```
+
+  **지원하지 않는 이미지 형식**
+  ```json
+  {
+    "status": 400,
+    "message": "이미지 파일 형식은 JPEG 또는 PNG만 지원합니다."
+  }
+  ```
+
+  **5MB 초과 이미지**
+  ```json
+  {
+    "status": 400,
+    "message": "이미지 파일 크기는 5MB를 초과할 수 없습니다."
+  }
+  ```
+}

@@ -1,0 +1,42 @@
+meta {
+  name: 관리자 아이템 목록 조회
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{backendBaseUrl}}/admin/items
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+docs {
+  판매 가능 여부와 관계없이 관리 대상 아이템 전체를 조회한다. `ADMIN` 권한이 필요하다.
+
+  ### 성공 응답 (200 OK)
+  ```json
+  [
+    {
+      "itemId": 1,
+      "name": "검은 모자",
+      "category": "HAT",
+      "price": 1000,
+      "imageUrl": "/uploads/dev/items/1/hat.png",
+      "availableForSale": true,
+      "updatedAt": "2026-07-29T12:00:00"
+    }
+  ]
+  ```
+
+  **ADMIN 권한 없음**
+  ```json
+  {
+    "status": 403,
+    "message": "접근 권한이 없습니다."
+  }
+  ```
+}

@@ -31,11 +31,6 @@ public final class ItemFixture {
             long price,
             String imageUrl
     ) {
-        Item item = new Item();
-        ReflectionTestUtils.setField(item, "name", name);
-        ReflectionTestUtils.setField(item, "category", category);
-        ReflectionTestUtils.setField(item, "price", price);
-        ReflectionTestUtils.setField(item, "imageUrl", imageUrl);
-        return item;
+        return Item.create(name, category, price, imageUrl);
     }
 }

@@ -32,4 +32,38 @@ public class Item extends BaseEntity {
 
     @Column(name = "image_url", length = 2048)
     private String imageUrl;
+
+    @Column(name = "available_for_sale", nullable = false, columnDefinition = "boolean default true")
+    private boolean availableForSale = true;
+
+    private Item(String name, String category, long price, String imageUrl) {
+        this.name = name;
+        this.category = category;
+        this.price = price;
+        this.imageUrl = imageUrl;
+    }
+
+    public static Item create(String name, String category, long price, String imageUrl) {
+        return new Item(name, category, price, imageUrl);
+    }
+
+    public void update(
+            String name,
+            String category,
+            long price,
+            String imageUrl,
+            boolean availableForSale
+    ) {
+        this.name = name;
+        this.category = category;
+        this.price = price;
+        if (imageUrl != null) {
+            this.imageUrl = imageUrl;
+        }
+        this.availableForSale = availableForSale;
+    }
+
+    public void stopSale() {
+        availableForSale = false;
+    }
 }
