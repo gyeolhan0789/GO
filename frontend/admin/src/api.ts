@@ -26,6 +26,30 @@ export type Mission = {
   createdAt: string
 }
 
+export type CharacterAsset = {
+  characterAssetId: number
+  gender: 'MALE' | 'FEMALE'
+  imageUrl: string
+  updatedAt: string
+}
+
+export type AdminItem = {
+  itemId: number
+  name: string
+  category: string
+  price: number
+  imageUrl: string
+  availableForSale: boolean
+  updatedAt: string
+}
+
+export type ItemInput = {
+  name: string
+  category: string
+  price: number
+  availableForSale?: boolean
+}
+
 export function getEnvironment() {
   return environment
 }
@@ -52,7 +76,7 @@ async function fetchJson<T>(
   token: string | null,
 ): Promise<T> {
   const headers = new Headers(init.headers)
-  headers.set('Content-Type', 'application/json')
+  if (!(init.body instanceof FormData)) headers.set('Content-Type', 'application/json')
   if (token) headers.set('Authorization', `Bearer ${token}`)
   const response = await fetch(`${environments[targetEnvironment].apiBaseUrl}${path}`, {
     ...init,
@@ -111,7 +135,9 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
 export async function loginWithEnvironmentFallback(email: string, password: string) {
   const targetGeneration = generation
 
-  for (const targetEnvironment of ['prod', 'dev'] as const) {
+  const targetEnvironments: Environment[] = environment === 'local' ? ['local'] : ['prod', 'dev']
+
+  for (const targetEnvironment of targetEnvironments) {
     try {
       const tokens = await fetchJson<AuthTokens>(
         '/auth/login',
@@ -201,4 +227,40 @@ export function getMissions() {
 
 export function createMission(input: Omit<Mission, 'missionId' | 'createdAt'>) {
   return request<void>('/admin/missions', { method: 'POST', body: JSON.stringify(input) })
+}
+
+export function getCharacterAssets() {
+  return request<CharacterAsset[]>('/admin/character-assets')
+}
+
+export function updateCharacterAsset(gender: CharacterAsset['gender'], image: File) {
+  const form = new FormData()
+  form.append('image', image)
+  return request<CharacterAsset>(`/admin/character-assets/${gender}`, { method: 'PUT', body: form })
+}
+
+export function getItems() {
+  return request<AdminItem[]>('/admin/items')
+}
+
+function itemForm(input: ItemInput, image?: File) {
+  const form = new FormData()
+  form.append('name', input.name)
+  form.append('category', input.category)
+  form.append('price', String(input.price))
+  if (input.availableForSale !== undefined) form.append('availableForSale', String(input.availableForSale))
+  if (image) form.append('image', image)
+  return form
+}
+
+export function createItem(input: ItemInput, image: File) {
+  return request<AdminItem>('/admin/items', { method: 'POST', body: itemForm(input, image) })
+}
+
+export function updateItem(itemId: number, input: ItemInput, image?: File) {
+  return request<AdminItem>(`/admin/items/${itemId}`, { method: 'PUT', body: itemForm(input, image) })
+}
+
+export function stopItemSale(itemId: number) {
+  return request<void>(`/admin/items/${itemId}`, { method: 'DELETE' })
 }

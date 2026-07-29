@@ -1,6 +1,6 @@
 INSERT INTO member (id, email, password, nickname, region, gender, cash, onboarding_completed, role, auth_provider)
 VALUES
-    (1, 'admin@wecandoit.local', '$2a$10$XmfxK2TUdBocD4Pq9Bms7OIDfJmE1d4tc9ScXVVGSJWNQ0L5LXTty', 'local-admin', 'SEOUL', 'MALE', 0, false, 'ADMIN', 'LOCAL'),
+    (2, 'admin-local@wecandoit.local', '$2b$10$HsrY96nGgLR5zUMEcvZ3nuTgyLiq8ABGdWaO/MraoIALlBS1NzVmG', 'local-admin-354', 'SEOUL', 'MALE', 0, false, 'ADMIN', 'LOCAL'),
     (101, 'test111@111.com', '$2b$10$8sHkEmlxplvBFONCDSvmVOyTHGtKcmS5SGEhEMKAaILv9eQ5tcDFy', 'test-user', 'SEOUL', 'MALE', 1500, true, 'USER', 'LOCAL'),
     (102, 'roomhost@wecandoit.local', '$2b$10$8sHkEmlxplvBFONCDSvmVOyTHGtKcmS5SGEhEMKAaILv9eQ5tcDFy', 'room-host', 'BUSAN', 'FEMALE', 1000, true, 'USER', 'LOCAL'),
     (103, 'friend@wecandoit.local', '$2b$10$8sHkEmlxplvBFONCDSvmVOyTHGtKcmS5SGEhEMKAaILv9eQ5tcDFy', 'friend-user', 'DAEGU', 'MALE', 800, true, 'USER', 'LOCAL'),
