@@ -200,7 +200,7 @@ class BingoCommandServiceTest {
     @DisplayName("대결 빙고판은 참가자별로 서로 다른 보드와 셀을 생성한다")
     void generateBattleBoardsCreatesIndependentBoardsAndCells() {
         // given
-        Room room = Room.create(1L, GameMode.BATTLE, 3, 2);
+        Room room = Room.create(1L, "테스트 방", GameMode.BATTLE, 3, 2);
         ReflectionTestUtils.setField(room, "id", 10L);
         RoomMember hostMember = RoomMember.create(10L, 1L);
         RoomMember guestMember = RoomMember.create(10L, 2L);
@@ -244,7 +244,7 @@ class BingoCommandServiceTest {
     @DisplayName("동일한 대결 참가자에게 빙고판이 이미 있으면 중복 생성하지 않는다")
     void generateBattleBoardsRejectsExistingRoomMemberBoard() {
         // given
-        Room room = Room.create(1L, GameMode.BATTLE, 3, 3);
+        Room room = Room.create(1L, "테스트 방", GameMode.BATTLE, 3, 3);
         ReflectionTestUtils.setField(room, "id", 10L);
         RoomMember hostMember = RoomMember.create(10L, 1L);
         RoomMember guestMember = RoomMember.create(10L, 2L);
@@ -390,7 +390,7 @@ class BingoCommandServiceTest {
             long cellId
     ) {
         // given
-        Room room = Room.create(1L, GameMode.BATTLE, 3, 2);
+        Room room = Room.create(1L, "테스트 방", GameMode.BATTLE, 3, 2);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         RoomMember roomMember = RoomMember.create(10L, memberId);
@@ -545,7 +545,7 @@ class BingoCommandServiceTest {
     @DisplayName("방이 진행 중이 아니면 조기 갱신에 실패한다")
     void renewBoardRejectsRoomNotInProgress() {
         // given
-        Room room = Room.create(1L, GameMode.SINGLE, null, 2);
+        Room room = Room.create(1L, "테스트 방", GameMode.SINGLE, null, 2);
         ReflectionTestUtils.setField(room, "id", 10L);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
 
@@ -737,7 +737,7 @@ class BingoCommandServiceTest {
     }
 
     private Room inProgressRoom(Long hostId, Long roomId, int boardSize) {
-        Room room = Room.create(hostId, GameMode.SINGLE, null, boardSize);
+        Room room = Room.create(hostId, "테스트 방", GameMode.SINGLE, null, boardSize);
         ReflectionTestUtils.setField(room, "id", roomId);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         return room;

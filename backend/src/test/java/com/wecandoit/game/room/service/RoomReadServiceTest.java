@@ -69,7 +69,7 @@ class RoomReadServiceTest {
     @DisplayName("대결 방 상세 조회 시 각 참가자의 개인 빙고판 ID를 반환한다")
     void getBattleRoomDetailReturnsBingoBoardIdsByRoomMember() {
         // given
-        Room room = Room.create(1L, GameMode.BATTLE, 3, 3);
+        Room room = Room.create(1L, "테스트 방", GameMode.BATTLE, 3, 3);
         ReflectionTestUtils.setField(room, "id", 10L);
         RoomMember hostMember = roomMember(10L, 1L, 0, LocalDateTime.of(2026, 7, 22, 10, 0));
         RoomMember guestMember = roomMember(10L, 2L, 0, LocalDateTime.of(2026, 7, 22, 10, 5));
@@ -105,7 +105,7 @@ class RoomReadServiceTest {
     @DisplayName("협동 방 참가자는 개인 빙고판 ID를 반환하지 않는다")
     void getCooperateRoomDetailReturnsNullBingoBoardId() {
         // given
-        Room room = Room.create(1L, GameMode.COOPERATE, null, 3);
+        Room room = Room.create(1L, "테스트 방", GameMode.COOPERATE, null, 3);
         ReflectionTestUtils.setField(room, "id", 10L);
         RoomMember hostMember = roomMember(10L, 1L, 0, LocalDateTime.of(2026, 7, 22, 10, 0));
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
@@ -141,6 +141,7 @@ class RoomReadServiceTest {
 
         // then
         assertThat(response.roomId()).isEqualTo(10L);
+        assertThat(response.name()).isEqualTo("테스트 방");
         assertThat(response.mode()).isEqualTo(GameMode.SINGLE);
         assertThat(response.status()).isEqualTo(GameRoomStatus.CREATED);
         assertThat(response.targetBingoCount()).isNull();
@@ -156,6 +157,24 @@ class RoomReadServiceTest {
         assertThat(response.members().get(1).nickname()).isEqualTo("참여자");
         assertThat(response.members().get(1).host()).isFalse();
         then(roomMemberRepository).should().findAllByRoomIdOrderByJoinedAtAsc(10L);
+    }
+
+    @Test
+    @DisplayName("이름이 없는 기존 게임방 상세도 조회할 수 있다")
+    void getRoomDetailReturnsNullNameForLegacyRoom() {
+        // given
+        Room room = room(10L, 1L);
+        ReflectionTestUtils.setField(room, "name", null);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of());
+
+        // when
+        RoomDetailResponse response = roomReadService.getRoomDetail(1L, 10L);
+
+        // then
+        assertThat(response.name()).isNull();
+        assertThat(response.members()).isEmpty();
     }
 
     @Test
@@ -262,6 +281,7 @@ class RoomReadServiceTest {
         assertThat(responses).hasSize(1);
         MyRoomResponse response = responses.getFirst();
         assertThat(response.roomId()).isEqualTo(10L);
+        assertThat(response.name()).isEqualTo("테스트 방");
         assertThat(response.mode()).isEqualTo(GameMode.SINGLE);
         assertThat(response.status()).isEqualTo(GameRoomStatus.CREATED);
         assertThat(response.targetBingoCount()).isNull();
@@ -458,7 +478,7 @@ class RoomReadServiceTest {
     void getStepGoalRewardTargetsReturnsActiveSharedBoardAndCurrentMembers() {
         // given
         LocalDateTime boardCreatedAt = LocalDateTime.of(2026, 7, 20, 10, 0);
-        Room room = Room.create(1L, GameMode.COOPERATE, null, 10_000, 3);
+        Room room = Room.create(1L, "테스트 방", GameMode.COOPERATE, null, 10_000, 3);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         RoomMember hostMember = roomMember(10L, 1L, 0, LocalDateTime.of(2026, 7, 20, 9, 0));
@@ -505,7 +525,7 @@ class RoomReadServiceTest {
     @DisplayName("목표 걸음 수가 없는 기존 방은 공동 걸음 보상 대상에서 제외한다")
     void getStepGoalRewardTargetsSkipsRoomWithoutTargetStepCount() {
         // given
-        Room room = Room.create(1L, GameMode.COOPERATE, null, 3);
+        Room room = Room.create(1L, "테스트 방", GameMode.COOPERATE, null, 3);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         RoomMember roomMember = roomMember(10L, 1L, 0, LocalDateTime.of(2026, 7, 20, 9, 0));
@@ -523,7 +543,7 @@ class RoomReadServiceTest {
     }
 
     private Room room(Long roomId, Long hostId) {
-        Room room = Room.create(hostId, GameMode.SINGLE, null, 3);
+        Room room = Room.create(hostId, "테스트 방", GameMode.SINGLE, null, 3);
         ReflectionTestUtils.setField(room, "id", roomId);
         return room;
     }
