@@ -50,9 +50,15 @@ pipeline {
         stage('Deploy Backend') {
             steps {
                 dir('backend') {
-                    sh '''
-                    docker compose -f $COMPOSE_FILE up -d --build $SERVICE_NAME
-                    '''
+                    withCredentials([
+                        string(credentialsId: 'dev-db-password', variable: 'DB_PASSWORD'),
+                        string(credentialsId: 'dev-db-root-password', variable: 'DB_ROOT_PASSWORD'),
+                        string(credentialsId: 'dev-jwt-secret', variable: 'JWT_SECRET')
+                    ]) {
+                        sh '''
+                        docker compose -f $COMPOSE_FILE up -d --build $SERVICE_NAME
+                        '''
+                    }
                 }
             }
         }
@@ -61,7 +67,12 @@ pipeline {
             steps {
                 sh '''
                 docker ps
-                curl -I $HEALTH_CHECK_URL || true
+                STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 $HEALTH_CHECK_URL || echo "000")
+                echo "Health check status: $STATUS"
+                if [ "$STATUS" -ge 500 ] || [ "$STATUS" = "000" ]; then
+                  echo "Health check failed with status $STATUS"
+                  exit 1
+                fi
                 '''
             }
         }

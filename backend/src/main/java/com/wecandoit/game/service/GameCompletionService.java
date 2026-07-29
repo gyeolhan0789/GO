@@ -6,6 +6,7 @@ import com.wecandoit.bingo.domain.BingoLineCounter;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.cash.domain.CashHistory;
+import com.wecandoit.cash.domain.CashRewardPolicy;
 import com.wecandoit.cash.repository.CashHistoryRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
@@ -37,8 +38,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional
 public class GameCompletionService {
-
-    private static final long BINGO_REWARD_CASH = 500L;
 
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
@@ -112,7 +111,7 @@ public class GameCompletionService {
                 true,
                 lineCount,
                 completedMissionCount,
-                BINGO_REWARD_CASH
+                getGameResultRewardCash(room.getMode())
         ));
 
         List<GameResultParticipant> participants = members.stream()
@@ -149,9 +148,9 @@ public class GameCompletionService {
     ) {
         member.updateCompletedMissionCount(completedCount);
         boolean result = mode != GameMode.BATTLE || member.getMemberId().equals(winnerMemberId);
-        long rewardCash = result ? BINGO_REWARD_CASH : 0L;
+        long rewardCash = getParticipantRewardCash(mode, result);
         if (rewardCash > 0) {
-            grantReward(member.getMemberId(), gameId, roomId);
+            grantReward(member.getMemberId(), gameId, roomId, rewardCash);
         }
         return GameResultParticipant.create(
                 gameId,
@@ -184,11 +183,27 @@ public class GameCompletionService {
         return board.getRoomMember().getMemberId();
     }
 
-    private void grantReward(Long memberId, Long gameId, Long roomId) {
+    private long getGameResultRewardCash(GameMode mode) {
+        if (mode == GameMode.BATTLE) {
+            return CashRewardPolicy.BATTLE_WINNER_GAME_GOAL.getPoint();
+        }
+        return CashRewardPolicy.GAME_GOAL.getPoint();
+    }
+
+    private long getParticipantRewardCash(GameMode mode, boolean result) {
+        if (mode == GameMode.BATTLE) {
+            return result
+                    ? CashRewardPolicy.BATTLE_WINNER_GAME_GOAL.getPoint()
+                    : CashRewardPolicy.BATTLE_LOSER_GAME_GOAL.getPoint();
+        }
+        return CashRewardPolicy.GAME_GOAL.getPoint();
+    }
+
+    private void grantReward(Long memberId, Long gameId, Long roomId, long rewardCash) {
         Member member = memberRepository.findByIdForUpdate(memberId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
-        member.addCash(BINGO_REWARD_CASH);
-        cashHistoryRepository.save(CashHistory.bingoReward(memberId, gameId, roomId, BINGO_REWARD_CASH));
-        eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, BINGO_REWARD_CASH));
+        member.addCash(rewardCash);
+        cashHistoryRepository.save(CashHistory.gameGoalReward(memberId, gameId, roomId, rewardCash));
+        eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, rewardCash));
     }
 }

@@ -10,6 +10,7 @@ import com.wecandoit.cash.domain.CashHistoryType;
 import com.wecandoit.cash.repository.CashHistoryRepository;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -18,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("캐시 이력 조회 서비스")
 class CashHistoryReadServiceTest {
 
     @Mock
@@ -27,8 +29,9 @@ class CashHistoryReadServiceTest {
     private CashHistoryReadService cashHistoryReadService;
 
     @Test
+    @DisplayName("회원의 캐시 이력을 저장소 조회 순서대로 응답으로 반환한다")
     void returnsOnlyTheRequestedMembersHistoriesInRepositoryOrder() {
-        CashHistory reward = CashHistory.bingoReward(1L, 100L, 10L, 500L);
+        CashHistory reward = CashHistory.gameGoalReward(1L, 100L, 10L, 200L);
         CashHistory purchase = CashHistory.itemPurchase(1L, 20L, "Red Hat", 1_000L);
         setIdAndCreatedAt(reward, 2L, LocalDateTime.of(2026, 7, 24, 12, 0));
         setIdAndCreatedAt(purchase, 1L, LocalDateTime.of(2026, 7, 24, 11, 0));
@@ -38,7 +41,7 @@ class CashHistoryReadServiceTest {
         List<CashHistoryResponse> responses = cashHistoryReadService.getCashHistories(1L);
 
         assertThat(responses).containsExactly(
-                new CashHistoryResponse(2L, CashHistoryType.BINGO_REWARD, 500L,
+                new CashHistoryResponse(2L, CashHistoryType.GAME_GOAL_REWARD, 200L,
                         reward.getCreatedAt(), 10L, 100L, null, null),
                 new CashHistoryResponse(1L, CashHistoryType.ITEM_PURCHASE, -1_000L,
                         purchase.getCreatedAt(), null, null, 20L, "Red Hat")

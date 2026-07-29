@@ -53,6 +53,7 @@ public enum ErrorCode {
 
     // Item
     ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "아이템을 찾을 수 없습니다."),
+    DEFAULT_CHARACTER_ASSET_NOT_FOUND(HttpStatus.NOT_FOUND, "기본 캐릭터 에셋을 찾을 수 없습니다."),
     INVALID_ITEM_CATEGORY(HttpStatus.BAD_REQUEST, "유효하지 않은 아이템 카테고리입니다."),
     DUPLICATE_ITEM_CATEGORY(HttpStatus.BAD_REQUEST, "같은 카테고리의 아이템을 중복 장착할 수 없습니다."),
     ITEM_ALREADY_OWNED(HttpStatus.CONFLICT, "이미 보유한 아이템입니다."),

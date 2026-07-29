@@ -152,8 +152,8 @@ class GameCompletionServiceConcurrencyTest {
             assertThat(gameResultRepository.count()).isEqualTo(1);
             assertThat(gameResultParticipantRepository.count()).isEqualTo(2);
             assertThat(cashHistoryRepository.count()).isEqualTo(2);
-            assertThat(memberRepository.findById(firstMemberId).orElseThrow().getCash()).isEqualTo(500L);
-            assertThat(memberRepository.findById(secondMemberId).orElseThrow().getCash()).isEqualTo(500L);
+            assertThat(memberRepository.findById(firstMemberId).orElseThrow().getCash()).isEqualTo(200L);
+            assertThat(memberRepository.findById(secondMemberId).orElseThrow().getCash()).isEqualTo(200L);
             assertThat(roomMembers)
                     .extracting(RoomMember::getCompletedMissionCount)
                     .containsExactly(2, 2);
@@ -212,10 +212,10 @@ class GameCompletionServiceConcurrencyTest {
             assertThat(gameResultParticipantRepository.findAllByGameIdOrderByIdAsc(battleGame.getId()))
                     .filteredOn(participant -> Boolean.FALSE.equals(participant.getResult()))
                     .hasSize(1);
-            assertThat(cashHistoryRepository.count()).isEqualTo(1);
+            assertThat(cashHistoryRepository.count()).isEqualTo(2);
             assertThat(memberRepository.findById(firstMemberId).orElseThrow().getCash()
                     + memberRepository.findById(secondMemberId).orElseThrow().getCash())
-                    .isEqualTo(500L);
+                    .isEqualTo(350L);
         } finally {
             executor.shutdownNow();
         }
@@ -259,8 +259,8 @@ class GameCompletionServiceConcurrencyTest {
                 .containsExactly(secondBoard.getId());
         assertThat(gameResultParticipantRepository.count()).isEqualTo(4);
         assertThat(cashHistoryRepository.count()).isEqualTo(4);
-        assertThat(memberRepository.findById(firstMemberId).orElseThrow().getCash()).isEqualTo(1_000L);
-        assertThat(memberRepository.findById(secondMemberId).orElseThrow().getCash()).isEqualTo(1_000L);
+        assertThat(memberRepository.findById(firstMemberId).orElseThrow().getCash()).isEqualTo(400L);
+        assertThat(memberRepository.findById(secondMemberId).orElseThrow().getCash()).isEqualTo(400L);
     }
 
     private Long savePendingCell(Long targetBoardId, Long missionId, int row, int col, Long memberId) {

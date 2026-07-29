@@ -1,5 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Ionicons, { type IoniconsIconName } from '@react-native-vector-icons/ionicons';
+import Ionicons, {
+  type IoniconsIconName,
+} from '@react-native-vector-icons/ionicons';
 
 import { colors } from '../../constants/colors';
 import { radius } from '../../constants/radius';
@@ -8,19 +10,27 @@ import { spacing } from '../../constants/spacing';
 import { fontFamily } from '../../constants/typography';
 
 type ButtonVariant = 'primary' | 'secondary';
+type ButtonSize = 'md' | 'lg';
 
 type ButtonProps = {
   label: string;
   onPress: () => void;
   variant?: ButtonVariant;
+  size?: ButtonSize;
   icon?: IoniconsIconName;
   disabled?: boolean;
+};
+
+const HEIGHT_BY_SIZE: Record<ButtonSize, number> = {
+  md: 56,
+  lg: 68,
 };
 
 export function Button({
   label,
   onPress,
   variant = 'primary',
+  size = 'md',
   icon,
   disabled = false,
 }: ButtonProps) {
@@ -34,6 +44,7 @@ export function Button({
         disabled={disabled}
         style={({ pressed }) => [
           styles.base,
+          { height: HEIGHT_BY_SIZE[size] },
           isPrimary ? styles.primary : styles.secondary,
           disabled && styles.disabled,
           pressed && !disabled && styles.pressed,
@@ -76,7 +87,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ink,
   },
   base: {
-    height: 56,
     borderRadius: radius.md,
     borderWidth: 2,
     borderColor: colors.ink,

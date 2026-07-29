@@ -102,11 +102,11 @@ class GameResultControllerTest {
                 .body("targetBingoCount", equalTo(3))
                 .body("bingoCount", equalTo(3))
                 .body("completedMissionCount", equalTo(5))
-                .body("rewardCash", equalTo(500))
+                .body("rewardCash", equalTo(200))
                 .body("participants[0].memberId", equalTo(1))
                 .body("participants[0].nickname", equalTo("host"))
                 .body("participants[0].completedMissionCount", equalTo(3))
-                .body("participants[0].rewardCash", equalTo(500))
+                .body("participants[0].rewardCash", equalTo(200))
                 .body("participants[0].result", equalTo(true))
                 .apply(document("game-result-detail",
                         pathParameters(
@@ -196,7 +196,7 @@ class GameResultControllerTest {
                 .body("content[0].targetBingoCount", equalTo(3))
                 .body("content[0].bingoCount", equalTo(3))
                 .body("content[0].completedMissionCount", equalTo(5))
-                .body("content[0].rewardCash", equalTo(500))
+                .body("content[0].rewardCash", equalTo(200))
                 .body("hasNext", equalTo(false))
                 .apply(document("game-result-list",
                         responseFields(
@@ -250,10 +250,10 @@ class GameResultControllerTest {
                 3,
                 3,
                 5,
-                500L,
+                200L,
                 List.of(
-                        new GameResultParticipantResponse(1L, "host", 3, 500L, true),
-                        new GameResultParticipantResponse(2L, "participant", 2, 500L, true)
+                        new GameResultParticipantResponse(1L, "host", 3, 200L, true),
+                        new GameResultParticipantResponse(2L, "participant", 2, 200L, true)
                 )
         );
     }
