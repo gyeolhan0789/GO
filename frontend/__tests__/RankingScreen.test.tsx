@@ -13,13 +13,8 @@ import { RankingScreen } from '../src/screens/RankingScreen/RankingScreen';
 import { installFetchMock, jsonResponse } from '../jest/fetchMock';
 import type { FetchMock } from '../jest/fetchMock';
 
-const MY_MEMBER_ID = 4;
-
-const CHARACTER = {
-  memberId: MY_MEMBER_ID,
-  nickname: '나',
-  equippedItems: [],
-};
+/** 내 줄은 응답의 myRank로 가린다. 목업도 4위를 나로 둔다. */
+const MY_RANK = 4;
 
 function rankingPage(
   content: {
@@ -30,7 +25,7 @@ function rankingPage(
   }[],
 ) {
   return {
-    myRank: 4,
+    myRank: MY_RANK,
     myWeeklySteps: 58720,
     rankings: {
       content,
@@ -47,7 +42,7 @@ const FRIEND_RANKING = rankingPage([
   { rank: 1, memberId: 1, nickname: '민준', weeklySteps: 71720 },
   { rank: 2, memberId: 2, nickname: '하늘', weeklySteps: 59720 },
   { rank: 3, memberId: 3, nickname: '태민', weeklySteps: 59520 },
-  { rank: 4, memberId: MY_MEMBER_ID, nickname: '덕맨', weeklySteps: 58720 },
+  { rank: MY_RANK, memberId: 4, nickname: '덕맨', weeklySteps: 58720 },
   { rank: 5, memberId: 5, nickname: '유나', weeklySteps: 52310 },
 ]);
 
@@ -72,9 +67,6 @@ beforeEach(() => {
     }
     if (url.includes('/rankings')) {
       return jsonResponse(200, { ...REGION_RANKING, region: 'SEOUL' });
-    }
-    if (url.includes('/members/character')) {
-      return jsonResponse(200, CHARACTER);
     }
     throw new Error(`unexpected request: ${url}`);
   });
@@ -198,10 +190,7 @@ describe('RankingScreen', () => {
 
   test('불러오는 동안 스켈레톤을 보여주고, 다 받으면 치운다', async () => {
     let resolveRanking: ((value: unknown) => void) | null = null;
-    fetchMock.mockImplementation(async url => {
-      if (url.includes('/members/character')) {
-        return jsonResponse(200, CHARACTER);
-      }
+    fetchMock.mockImplementation(async () => {
       return new Promise(resolve => {
         resolveRanking = resolve;
       }) as never;
@@ -235,12 +224,9 @@ describe('RankingScreen', () => {
   });
 
   test('기록이 없으면 빈 상태 문구를 보여준다', async () => {
-    fetchMock.mockImplementation(async url => {
-      if (url.includes('/members/character')) {
-        return jsonResponse(200, CHARACTER);
-      }
-      return jsonResponse(200, rankingPage([]));
-    });
+    fetchMock.mockImplementation(async () =>
+      jsonResponse(200, rankingPage([])),
+    );
 
     const tree = await renderScreen();
 

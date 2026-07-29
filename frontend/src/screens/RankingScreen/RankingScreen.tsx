@@ -8,7 +8,6 @@ import {
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-import { useMyCharacterQuery } from '../../features/member/hooks/useMyCharacterQuery';
 import type { RankingScope } from '../../features/ranking/api/rankingApi';
 import { useRankingQuery } from '../../features/ranking/hooks/useRankingQuery';
 import { resolveApiErrorMessage } from '../../shared/api/resolveApiErrorMessage';
@@ -33,7 +32,9 @@ const EMPTY_MESSAGE = {
 export function RankingScreen() {
   const [scope, setScope] = useState<RankingScope>('friend');
   const ranking = useRankingQuery(scope);
-  const me = useMyCharacterQuery();
+  // 내가 누구인지는 같은 응답의 myRank로 안다. 회원 조회를 따로 걸지 않아도 되고,
+  // 탭마다 순위가 달라지는 것도 자연스럽게 따라간다.
+  const myRank = ranking.data?.myRank;
 
   const items = useMemo(
     () => ranking.data?.rankings.content ?? [],
@@ -89,7 +90,7 @@ export function RankingScreen() {
               <RankingRow
                 key={item.memberId}
                 item={item}
-                isMe={item.memberId === me.data?.memberId}
+                isMe={item.rank === myRank}
               />
             ))}
           </Card>
