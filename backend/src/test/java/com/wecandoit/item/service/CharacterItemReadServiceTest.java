@@ -8,6 +8,8 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
+import com.wecandoit.character.domain.CharacterImage;
+import com.wecandoit.character.repository.CharacterImageRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.item.controller.response.CharacterResponse;
@@ -20,6 +22,7 @@ import com.wecandoit.item.repository.ItemRepository;
 import com.wecandoit.item.repository.MemberEquippedItemRepository;
 import com.wecandoit.item.repository.MemberItemRepository;
 import com.wecandoit.member.domain.Member;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.repository.MemberRepository;
 import java.util.List;
 import java.util.Optional;
@@ -44,6 +47,8 @@ class CharacterItemReadServiceTest {
     private MemberItemRepository memberItemRepository;
     @Mock
     private ItemRepository itemRepository;
+    @Mock
+    private CharacterImageRepository characterImageRepository;
     private CharacterItemReadService characterItemReadService;
 
     @BeforeEach
@@ -52,7 +57,8 @@ class CharacterItemReadServiceTest {
                 memberRepository,
                 memberEquippedItemRepository,
                 memberItemRepository,
-                itemRepository
+                itemRepository,
+                characterImageRepository
         );
     }
 
@@ -203,6 +209,9 @@ class CharacterItemReadServiceTest {
         Item hatItem = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
         Item topItem = item(200L, "파란 상의", "TOP", "https://example.com/top.png");
         given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+        given(characterImageRepository.findByGender(Gender.MALE))
+                .willReturn(Optional.of(CharacterImage.create(
+                        Gender.MALE, "/uploads/test/characters/male/default.png")));
         given(memberEquippedItemRepository.findAllByMemberId(1L))
                 .willReturn(List.of(equippedHat, equippedTop));
         given(memberItemRepository.findAllById(List.of(10L, 20L))).willReturn(List.of(hat, top));
@@ -214,6 +223,9 @@ class CharacterItemReadServiceTest {
         // then
         assertThat(response.memberId()).isEqualTo(1L);
         assertThat(response.nickname()).isEqualTo("테스터");
+        assertThat(response.gender()).isEqualTo(Gender.MALE);
+        assertThat(response.defaultImageUrl())
+                .isEqualTo("/uploads/test/characters/male/default.png");
         assertThat(response.equippedItems())
                 .extracting("memberItemId", "itemId", "name", "category", "imageUrl")
                 .containsExactly(
@@ -240,6 +252,9 @@ class CharacterItemReadServiceTest {
         // given
         Member member = member(1L, "테스터");
         given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+        given(characterImageRepository.findByGender(Gender.MALE))
+                .willReturn(Optional.of(CharacterImage.create(
+                        Gender.MALE, "/uploads/test/characters/male/default.png")));
         given(memberEquippedItemRepository.findAllByMemberId(1L)).willReturn(List.of());
 
         // when
@@ -263,6 +278,24 @@ class CharacterItemReadServiceTest {
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
         then(memberEquippedItemRepository).should(never()).findAllByMemberId(Mockito.anyLong());
+    }
+
+    @Test
+    @DisplayName("기본 캐릭터 에셋이 아직 등록되지 않아도 기존 캐릭터 정보를 조회한다")
+    void getMyCharacterReturnsCharacterWithoutDefaultAsset() {
+        // given
+        Member member = member(1L, "테스터");
+        given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+        given(characterImageRepository.findByGender(Gender.MALE)).willReturn(Optional.empty());
+
+        given(memberEquippedItemRepository.findAllByMemberId(1L)).willReturn(List.of());
+
+        // when
+        CharacterResponse response = characterItemReadService.getMyCharacter(1L);
+
+        // then
+        assertThat(response.defaultImageUrl()).isNull();
+        assertThat(response.equippedItems()).isEmpty();
     }
 
     private Member member(Long id, String nickname) {
