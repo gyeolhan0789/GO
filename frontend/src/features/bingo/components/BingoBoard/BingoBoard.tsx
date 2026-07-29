@@ -7,7 +7,7 @@ import { BingoCell } from '../BingoCell/BingoCell';
 
 export type BingoBoardSize = 3 | 4 | 5;
 
-type BingoBoardCell = {
+export type BingoBoardCell = {
   id: string;
   completed: boolean;
   /** Color of whoever completed this cell (see BingoCell). */
