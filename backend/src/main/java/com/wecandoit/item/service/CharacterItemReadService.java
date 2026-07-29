@@ -1,5 +1,6 @@
 package com.wecandoit.item.service;
 
+import com.wecandoit.character.repository.CharacterImageRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.item.controller.response.CharacterResponse;
@@ -31,13 +32,17 @@ public class CharacterItemReadService {
     private final MemberEquippedItemRepository memberEquippedItemRepository;
     private final MemberItemRepository memberItemRepository;
     private final ItemRepository itemRepository;
+    private final CharacterImageRepository characterImageRepository;
 
     public CharacterResponse getMyCharacter(Long memberId) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+        String defaultImageUrl = characterImageRepository.findByGender(member.getGender())
+                .map(asset -> asset.getImageUrl())
+                .orElse(null);
         List<MemberEquippedItem> equippedItems = memberEquippedItemRepository.findAllByMemberId(memberId);
         if (equippedItems.isEmpty()) {
-            return CharacterResponse.of(member, List.of());
+            return CharacterResponse.of(member, defaultImageUrl, List.of());
         }
 
         Map<Long, MemberItem> memberItemsById = memberItemRepository.findAllById(
@@ -52,7 +57,7 @@ public class CharacterItemReadService {
         List<EquippedItemResponse> equippedItemResponses = equippedItems.stream()
                 .map(equippedItem -> toResponse(memberId, equippedItem, memberItemsById, itemsById))
                 .toList();
-        return CharacterResponse.of(member, equippedItemResponses);
+        return CharacterResponse.of(member, defaultImageUrl, equippedItemResponses);
     }
 
     public List<MemberItemResponse> getMyItems(Long memberId) {
