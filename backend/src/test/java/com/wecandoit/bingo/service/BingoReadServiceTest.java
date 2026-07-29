@@ -197,7 +197,7 @@ class BingoReadServiceTest {
     @DisplayName("대결 참가자는 본인 RoomMember에 연결된 개인 빙고판을 조회한다")
     void getActiveBoardReturnsBattleBoardOwnedByRoomMember() {
         // given
-        Room room = Room.create(1L, GameMode.BATTLE, 3, 2);
+        Room room = Room.create(1L, "테스트 방", GameMode.BATTLE, 3, 2);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         RoomMember participantA = roomMember(101L, 10L, 1L);
@@ -330,7 +330,7 @@ class BingoReadServiceTest {
     }
 
     private Room battleRoom() {
-        Room room = Room.create(1L, GameMode.BATTLE, 3, 2);
+        Room room = Room.create(1L, "테스트 방", GameMode.BATTLE, 3, 2);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         return room;
@@ -391,14 +391,14 @@ class BingoReadServiceTest {
     }
 
     private Room inProgressRoom(Long hostId, Long roomId, int boardSize) {
-        Room room = Room.create(hostId, GameMode.SINGLE, null, boardSize);
+        Room room = Room.create(hostId, "테스트 방", GameMode.SINGLE, null, boardSize);
         ReflectionTestUtils.setField(room, "id", roomId);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         return room;
     }
 
     private Room inProgressCooperateRoom(Long hostId, Long roomId, int boardSize) {
-        Room room = Room.create(hostId, GameMode.COOPERATE, null, boardSize);
+        Room room = Room.create(hostId, "테스트 방", GameMode.COOPERATE, null, boardSize);
         ReflectionTestUtils.setField(room, "id", roomId);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         return room;

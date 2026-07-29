@@ -2,7 +2,7 @@ package com.wecandoit.bingo.controller;
 
 import com.wecandoit.bingo.controller.request.SubmitBingoCellRequest;
 import com.wecandoit.bingo.controller.response.BingoBoardResponse;
-import com.wecandoit.bingo.controller.response.BingoCellResponse;
+import com.wecandoit.bingo.controller.response.BingoCellSubmitResponse;
 import com.wecandoit.bingo.service.BingoCommandService;
 import com.wecandoit.bingo.service.BingoReadService;
 import com.wecandoit.bingo.service.MissionVerificationFacade;
@@ -37,13 +37,13 @@ public class BingoController {
     }
 
     @PostMapping("/{roomId}/bingo-boards/cells/{cellId}/submit")
-    public ResponseEntity<BingoCellResponse> submitCell(
+    public ResponseEntity<BingoCellSubmitResponse> submitCell(
             @LoginMemberId Long memberId,
             @PathVariable Long roomId,
             @PathVariable Long cellId,
             @Valid @RequestBody SubmitBingoCellRequest request
     ) {
-        BingoCellResponse response = missionVerificationFacade.submitAndVerify(
+        BingoCellSubmitResponse response = missionVerificationFacade.submitAndVerify(
                 memberId, roomId, cellId, request.submitUrl());
         return ResponseEntity.ok(response);
     }

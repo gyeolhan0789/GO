@@ -1,6 +1,6 @@
 INSERT INTO member (id, email, password, nickname, region, gender, cash, onboarding_completed, role, auth_provider)
 VALUES
-    (1, 'admin@wecandoit.local', '$2a$10$XmfxK2TUdBocD4Pq9Bms7OIDfJmE1d4tc9ScXVVGSJWNQ0L5LXTty', 'local-admin', 'SEOUL', 'MALE', 0, false, 'ADMIN', 'LOCAL'),
+    (2, 'admin-local@wecandoit.local', '$2b$10$HsrY96nGgLR5zUMEcvZ3nuTgyLiq8ABGdWaO/MraoIALlBS1NzVmG', 'local-admin-354', 'SEOUL', 'MALE', 0, false, 'ADMIN', 'LOCAL'),
     (101, 'test111@111.com', '$2b$10$8sHkEmlxplvBFONCDSvmVOyTHGtKcmS5SGEhEMKAaILv9eQ5tcDFy', 'test-user', 'SEOUL', 'MALE', 1500, true, 'USER', 'LOCAL'),
     (102, 'roomhost@wecandoit.local', '$2b$10$8sHkEmlxplvBFONCDSvmVOyTHGtKcmS5SGEhEMKAaILv9eQ5tcDFy', 'room-host', 'BUSAN', 'FEMALE', 1000, true, 'USER', 'LOCAL'),
     (103, 'friend@wecandoit.local', '$2b$10$8sHkEmlxplvBFONCDSvmVOyTHGtKcmS5SGEhEMKAaILv9eQ5tcDFy', 'friend-user', 'DAEGU', 'MALE', 800, true, 'USER', 'LOCAL'),
@@ -22,11 +22,11 @@ VALUES
     (303, 'https://example.com/missions/relation.png', 'RELATION', 'Stand beside a tree', 'Submit a photo standing beside a tree.', '{"type":"RELATION","value":"tree"}'),
     (304, 'https://example.com/missions/object2.png', 'OBJECT', 'Find a red object', 'Submit a photo containing a red object.', '{"type":"OBJECT","value":"red"}');
 
-INSERT INTO rooms (id, host_id, mode, status, target_bingo_count, board_size, started_at)
+INSERT INTO rooms (id, name, host_id, mode, status, target_bingo_count, board_size, started_at)
 VALUES
-    (401, 101, 'COOPERATE', 'WAITING', NULL, 2, NULL),
-    (402, 102, 'COOPERATE', 'IN_PROGRESS', NULL, 2, '2026-07-27 09:00:00'),
-    (403, 101, 'COOPERATE', 'COMPLETED', NULL, 2, '2026-07-26 10:00:00');
+    (401, 'Local Waiting Room', 101, 'COOPERATE', 'WAITING', NULL, 2, NULL),
+    (402, 'Local Active Room', 102, 'COOPERATE', 'IN_PROGRESS', NULL, 2, '2026-07-27 09:00:00'),
+    (403, 'Local Result Room', 101, 'COOPERATE', 'COMPLETED', NULL, 2, '2026-07-26 10:00:00');
 
 INSERT INTO room_members (id, room_id, member_id, completed_mission_count, joined_at)
 VALUES

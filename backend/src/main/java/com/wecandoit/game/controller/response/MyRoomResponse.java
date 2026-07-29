@@ -9,9 +9,11 @@ import java.util.List;
 
 public record MyRoomResponse(
         Long roomId,
+        String name,
         GameMode mode,
         GameRoomStatus status,
         Integer targetBingoCount,
+        Integer targetStepCount,
         Long hostId,
         LocalDateTime joinedAt,
         List<MyRoomMemberResponse> members
@@ -24,12 +26,15 @@ public record MyRoomResponse(
     ) {
         return new MyRoomResponse(
                 room.getId(),
+                room.getName(),
                 room.getMode(),
                 room.getStatus(),
                 room.getTargetBingoCount(),
+                room.getTargetStepCount(),
                 room.getHostId(),
                 myRoomMember.getJoinedAt(),
                 members
         );
     }
 }
+

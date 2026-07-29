@@ -23,7 +23,7 @@ async function requestLogout() {
     await logout({ refreshToken });
     return;
   } catch (error) {
-    if (!isUnauthorized(error) || !(await refreshAccessToken())) {
+    if (!isUnauthorized(error) || (await refreshAccessToken()) !== 'success') {
       throw error;
     }
 

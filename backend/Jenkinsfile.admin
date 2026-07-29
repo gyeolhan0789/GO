@@ -1,0 +1,58 @@
+pipeline {
+    agent { label 'deploy-admin' }
+
+    environment {
+        ADMIN_ROOT = '/var/www/wecandoit-admin'
+        ADMIN_HOST = 'https://i15a506.p.ssafy.io/admin-ui/'
+    }
+
+    stages {
+        stage('Check Admin Changes') {
+            steps {
+                script {
+                    def changedFiles = sh(script: 'git diff --name-only HEAD~1 HEAD || echo frontend/admin/', returnStdout: true).trim()
+                    if (!changedFiles.split('\\n').any { it.startsWith('frontend/admin/') || it == 'backend/Jenkinsfile.admin' }) {
+                        currentBuild.result = 'NOT_BUILT'
+                        error('No admin deployment changes.')
+                    }
+                }
+            }
+        }
+
+        stage('Build Admin') {
+            steps {
+                dir('frontend/admin') {
+                    sh '''
+                    node --version
+                    npm ci
+                    npm run lint
+                    VITE_API_ENV=prod VITE_API_BASE_URL=https://i15a506.p.ssafy.io npm run build
+                    '''
+                }
+            }
+        }
+
+        stage('Release Admin') {
+            steps {
+                sh '''
+                release="$ADMIN_ROOT/releases/$BUILD_NUMBER"
+                previous=$(readlink -f "$ADMIN_ROOT/current" || true)
+                next="$ADMIN_ROOT/.current-next-$BUILD_NUMBER"
+                mkdir -p "$release"
+                cp -R frontend/admin/dist/. "$release/"
+                ln -sfn "$release" "$next"
+                mv -Tf "$next" "$ADMIN_ROOT/current"
+                if ! sudo /usr/sbin/nginx -t || ! sudo /usr/bin/systemctl reload nginx || ! curl -fsS "$ADMIN_HOST/" > /dev/null; then
+                  if [ -n "$previous" ]; then
+                    rollback="$ADMIN_ROOT/.current-rollback-$BUILD_NUMBER"
+                    ln -sfn "$previous" "$rollback"
+                    mv -Tf "$rollback" "$ADMIN_ROOT/current"
+                    sudo /usr/sbin/nginx -t && sudo /usr/bin/systemctl reload nginx
+                  fi
+                  exit 1
+                fi
+                '''
+            }
+        }
+    }
+}

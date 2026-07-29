@@ -50,7 +50,7 @@ class SingleSessionExpirationSchedulerTest {
     }
 
     private Room room(Long roomId) {
-        Room room = Room.create(1L, GameMode.SINGLE, null, 3);
+        Room room = Room.create(1L, "테스트 방", GameMode.SINGLE, null, 3);
         ReflectionTestUtils.setField(room, "id", roomId);
         return room;
     }

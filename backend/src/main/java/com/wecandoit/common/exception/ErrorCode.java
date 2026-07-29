@@ -42,13 +42,14 @@ public enum ErrorCode {
     ROOM_MINIMUM_PARTICIPANTS_REQUIRED(HttpStatus.CONFLICT, "게임 시작에 필요한 최소 인원이 충족되지 않았습니다."),
     ROOM_MAXIMUM_PARTICIPANTS_REACHED(HttpStatus.CONFLICT, "게임방 최대 인원에 도달했습니다."),
     ROOM_NOT_READY(HttpStatus.CONFLICT, "READY 상태의 방에서만 게임을 시작할 수 있습니다."),
-    ROOM_TARGET_BINGO_COUNT_REQUIRED(HttpStatus.BAD_REQUEST, "대결 모드에서는 목표 빙고 수가 필수입니다."),
-    ROOM_TARGET_BINGO_COUNT_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "싱글 및 협동 모드에서는 목표 빙고 수를 설정할 수 없습니다."),
+    ROOM_TARGET_BINGO_COUNT_REQUIRED(HttpStatus.BAD_REQUEST, "목표 빙고 수는 필수입니다."),
+    ROOM_TARGET_STEP_COUNT_REQUIRED(HttpStatus.BAD_REQUEST, "싱글 및 협동 모드에서는 1 이상의 목표 걸음 수가 필수입니다."),
+    ROOM_TARGET_STEP_COUNT_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "대결 모드에서는 목표 걸음 수를 설정할 수 없습니다."),
     GAME_NOT_FOUND(HttpStatus.NOT_FOUND, "게임을 찾을 수 없습니다."),
     GAME_NOT_COMPLETED(HttpStatus.CONFLICT, "완료되지 않은 게임입니다."),
 
     // Mission
-    INVALID_MISSION_TYPE(HttpStatus.BAD_REQUEST, "미션 타입은 OBJECT, ATTRIBUTE, RELATION 중 하나여야 합니다."),
+    INVALID_MISSION_TYPE(HttpStatus.BAD_REQUEST, "미션 타입은 OBJECT, ATTRIBUTE, RELATION, ORDINARY 중 하나여야 합니다."),
     MISSION_NOT_FOUND(HttpStatus.NOT_FOUND, "미션을 찾을 수 없습니다."),
 
     // Item

@@ -1,6 +1,7 @@
 package com.wecandoit.game.service;
 
 import com.wecandoit.bingo.domain.BingoBoard;
+import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
@@ -18,8 +19,10 @@ import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.member.service.MemberReadService;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,6 +32,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class RoomReadService {
+
+    private static final List<BingoBoardStatus> INACTIVE_BOARD_STATUSES =
+            List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED);
 
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
@@ -102,6 +108,101 @@ public class RoomReadService {
 
         List<RoomMember> roomMembers = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId);
         return getRoomMemberResponses(room, roomMembers, getBingoBoardIdsByRoomMemberId(room));
+    }
+
+    public List<StepGoalRewardTarget> getStepGoalRewardTargets(Long memberId) {
+        List<Long> participatingRoomIds = roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(memberId).stream()
+                .map(RoomMember::getRoomId)
+                .distinct()
+                .toList();
+        if (participatingRoomIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<Room> targetRooms = roomRepository.findAllById(participatingRoomIds).stream()
+                .filter(this::isStepGoalRewardTarget)
+                .toList();
+        if (targetRooms.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> targetRoomIds = targetRooms.stream()
+                .map(Room::getId)
+                .toList();
+        Map<Long, Game> activeGamesByRoomId = gameRepository
+                .findAllByRoomIdInAndStatus(targetRoomIds, GameStatus.IN_PROGRESS)
+                .stream()
+                .collect(Collectors.toMap(
+                        Game::getRoomId,
+                        Function.identity(),
+                        (first, second) -> first.getId() > second.getId() ? first : second
+                ));
+        if (activeGamesByRoomId.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, BingoBoard> activeBoardsByGameId = bingoBoardRepository
+                .findAllByGameIdInAndStatusNotInOrderByIdAsc(
+                        activeGamesByRoomId.values().stream().map(Game::getId).toList(),
+                        INACTIVE_BOARD_STATUSES
+                )
+                .stream()
+                .filter(bingoBoard -> bingoBoard.getRoomMember() == null)
+                .collect(Collectors.toMap(
+                        BingoBoard::getGameId,
+                        Function.identity(),
+                        (first, second) -> second
+                ));
+        Map<Long, List<RoomMember>> roomMembersByRoomId = roomMemberRepository
+                .findAllByRoomIdInOrderByJoinedAtAsc(targetRoomIds)
+                .stream()
+                .collect(Collectors.groupingBy(RoomMember::getRoomId));
+
+        return targetRooms.stream()
+                .map(room -> toStepGoalRewardTarget(
+                        room,
+                        activeGamesByRoomId.get(room.getId()),
+                        activeBoardsByGameId,
+                        roomMembersByRoomId
+                ))
+                .filter(target -> target != null)
+                .sorted((first, second) -> first.bingoBoardId().compareTo(second.bingoBoardId()))
+                .toList();
+    }
+
+    private boolean isStepGoalRewardTarget(Room room) {
+        return room.getStatus() == GameRoomStatus.IN_PROGRESS
+                && room.getMode() != GameMode.BATTLE
+                && room.getTargetStepCount() != null
+                && room.getTargetStepCount() > 0;
+    }
+
+    private StepGoalRewardTarget toStepGoalRewardTarget(
+            Room room,
+            Game game,
+            Map<Long, BingoBoard> activeBoardsByGameId,
+            Map<Long, List<RoomMember>> roomMembersByRoomId
+    ) {
+        if (game == null) {
+            return null;
+        }
+        BingoBoard bingoBoard = activeBoardsByGameId.get(game.getId());
+        List<RoomMember> roomMembers = roomMembersByRoomId.getOrDefault(room.getId(), List.of());
+        if (bingoBoard == null || roomMembers.isEmpty()) {
+            return null;
+        }
+        return new StepGoalRewardTarget(
+                room.getId(),
+                bingoBoard.getId(),
+                bingoBoard.getCreatedAt().toLocalDate(),
+                room.getTargetStepCount(),
+                roomMembers.stream()
+                        .map(roomMember -> new StepGoalRewardMember(
+                                roomMember.getMemberId(),
+                                roomMember.getJoinedAt().toLocalDate()
+                        ))
+                        .toList()
+        );
     }
 
     private List<RoomMemberResponse> getRoomMemberResponses(
@@ -188,5 +289,20 @@ public class RoomReadService {
             throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
         }
         return nickname;
+    }
+
+    public record StepGoalRewardTarget(
+            Long roomId,
+            Long bingoBoardId,
+            LocalDate boardStartedDate,
+            int targetStepCount,
+            List<StepGoalRewardMember> members
+    ) {
+    }
+
+    public record StepGoalRewardMember(
+            Long memberId,
+            LocalDate joinedDate
+    ) {
     }
 }

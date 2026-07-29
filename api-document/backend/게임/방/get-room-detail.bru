@@ -36,7 +36,7 @@ docs {
   ```
   ### 비즈니스 규칙
   - `mode`: `SINGLE` | `COOPERATE` | `BATTLE`
-  - `targetBingoCount`는 대결 모드에서만 값이 있으며 싱글·협동 모드에서는 `null`이다.
+  - `targetBingoCount`는 모든 모드에서 저장된다.
   - `status`: `CREATED` | `WAITING` | `READY` | `IN_PROGRESS` | `COMPLETED` | `CLOSED`
   - `startedAt`은 게임이 시작(`IN_PROGRESS`로 전환)되기 전에는 `null`이다.
   - `members`는 참여 시각(`joinedAt`) 오름차순으로 정렬된다.

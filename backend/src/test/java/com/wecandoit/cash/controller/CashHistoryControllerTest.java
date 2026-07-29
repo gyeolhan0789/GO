@@ -60,9 +60,9 @@ class CashHistoryControllerTest {
     void returnsTheAuthenticatedMembersCashHistories() {
         BDDMockito.given(cashHistoryReadService.getCashHistories(1L)).willReturn(List.of(
                 new CashHistoryResponse(1L, CashHistoryType.GAME_GOAL_REWARD, 200L,
-                        LocalDateTime.of(2026, 7, 24, 12, 0), 10L, 100L, null, null),
+                        LocalDateTime.of(2026, 7, 24, 12, 0), 10L, 100L, null, null, null, null),
                 new CashHistoryResponse(2L, CashHistoryType.ITEM_PURCHASE, -1_000L,
-                        LocalDateTime.of(2026, 7, 24, 11, 0), null, null, 20L, "Red Hat")
+                        LocalDateTime.of(2026, 7, 24, 11, 0), null, null, null, null, 20L, "Red Hat")
         ));
 
         given()
@@ -85,6 +85,8 @@ class CashHistoryControllerTest {
                                 fieldWithPath("[].occurredAt").description("발생 시각"),
                                 fieldWithPath("[].roomId").description("보상 대상 방 ID").optional(),
                                 fieldWithPath("[].gameId").description("보상 대상 게임 회차 ID").optional(),
+                                fieldWithPath("[].bingoCellId").description("빙고 칸 보상 대상 칸 ID").optional(),
+                                fieldWithPath("[].bingoBoardId").description("공동 걸음 목표 보상 대상 빙고판 ID").optional(),
                                 fieldWithPath("[].itemId").description("구매 아이템 ID").optional(),
                                 fieldWithPath("[].itemName").description("구매 아이템 이름").optional()
                         )

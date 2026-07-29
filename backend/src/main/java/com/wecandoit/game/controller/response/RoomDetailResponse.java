@@ -8,9 +8,11 @@ import java.util.List;
 
 public record RoomDetailResponse(
         Long roomId,
+        String name,
         GameMode mode,
         GameRoomStatus status,
         Integer targetBingoCount,
+        Integer targetStepCount,
         Long hostId,
         LocalDateTime startedAt,
         List<RoomMemberResponse> members
@@ -22,9 +24,11 @@ public record RoomDetailResponse(
     ) {
         return new RoomDetailResponse(
                 room.getId(),
+                room.getName(),
                 room.getMode(),
                 room.getStatus(),
                 room.getTargetBingoCount(),
+                room.getTargetStepCount(),
                 room.getHostId(),
                 room.getStartedAt(),
                 members
