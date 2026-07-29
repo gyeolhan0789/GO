@@ -10,6 +10,7 @@ import { Screen } from '../../shared/components/Screen/Screen';
 import { Button } from '../../shared/components/Button/Button';
 import { spacing } from '../../shared/constants/spacing';
 import { useSamsungHealthToday } from '../../shared/hooks/useSamsungHealthToday';
+import { CreateSoloWalkSheet } from './components/CreateSoloWalkSheet';
 import { HomeHeader } from './components/HomeHeader';
 import { HomeCarousel } from './components/HomeCarousel';
 import { WalkRoomSelectSheet } from './components/WalkRoomSelectSheet';
@@ -51,6 +52,7 @@ const SERVER_UNREACHABLE_MESSAGE =
 export function HomeScreen() {
   const summary = MOCK_HOME_SUMMARY;
   const [isRoomSheetVisible, setRoomSheetVisible] = useState(false);
+  const [isSoloSheetVisible, setSoloSheetVisible] = useState(false);
   const logout = useLogoutMutation();
   const isLoggingOut = useRef(false);
 
@@ -115,11 +117,21 @@ export function HomeScreen() {
           bingoSize={5}
           bingoCells={MOCK_BINGO_CELLS}
         />
-        <Button
-          label="산책하기"
-          size="lg"
-          onPress={() => setRoomSheetVisible(true)}
-        />
+        <View style={styles.startButtons}>
+          <Button
+            label="혼자하기"
+            size="lg"
+            variant="secondary"
+            onPress={() => setSoloSheetVisible(true)}
+            style={styles.startButton}
+          />
+          <Button
+            label="같이하기"
+            size="lg"
+            onPress={() => setRoomSheetVisible(true)}
+            style={styles.startButton}
+          />
+        </View>
       </View>
 
       <WalkRoomSelectSheet
@@ -128,6 +140,16 @@ export function HomeScreen() {
         onStart={() => {
           // TODO: 산책 진행 화면으로 이동. 화면이 아직 없어 선택만 반영하고 닫는다.
           setRoomSheetVisible(false);
+        }}
+      />
+
+      <CreateSoloWalkSheet
+        visible={isSoloSheetVisible}
+        nickname={characterName}
+        onClose={() => setSoloSheetVisible(false)}
+        onCreated={() => {
+          setSoloSheetVisible(false);
+          // TODO: 산책 진행 화면으로 이동. 화면이 아직 없어 생성만 반영하고 닫는다.
         }}
       />
     </Screen>
@@ -141,6 +163,13 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   carousel: {
+    flex: 1,
+  },
+  startButtons: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  startButton: {
     flex: 1,
   },
 });

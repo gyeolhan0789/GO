@@ -41,11 +41,7 @@ export function CreateWalkRoomScreen({
   onCreated,
 }: CreateWalkRoomScreenProps) {
   const [step, setStep] = useState<1 | 2>(1);
-  // TODO: 백엔드 방 생성 API에 방 이름 필드가 아직 없다. 필드가 추가되면
-  // createRoom 호출에 실어 보낸다.
   const [roomName, setRoomName] = useState('');
-  // TODO: 게임방 도메인에 공동 목표 걸음수 개념이 아직 없다. 필드가 추가되면
-  // createRoom 호출에 실어 보낸다.
   const [stepGoal, setStepGoal] = useState('');
   const [boardSize, setBoardSize] = useState<BoardSizeOption>('4');
   const [selectedFriendIds, setSelectedFriendIds] = useState<number[]>([]);
@@ -87,11 +83,25 @@ export function CreateWalkRoomScreen({
     onClose();
   };
 
+  const handleNext = () => {
+    if (!roomName.trim()) {
+      Alert.alert('산책방 이름을 입력해주세요.');
+      return;
+    }
+    if (!stepGoal || Number(stepGoal) < 1) {
+      Alert.alert('공동 목표 걸음수를 입력해주세요.');
+      return;
+    }
+    setStep(2);
+  };
+
   const handleCreate = async () => {
     try {
       const room = await createRoomMutation.mutateAsync({
+        name: roomName.trim(),
         mode: 'COOPERATE',
         boardSize: Number(boardSize) as 3 | 4 | 5,
+        targetStepCount: Number(stepGoal),
       });
 
       // 초대는 친구 한 명당 별도 API라 순차로 보낸다. 하나가 실패해도 나머지는
@@ -225,7 +235,7 @@ export function CreateWalkRoomScreen({
         <View style={styles.footer}>
           {step === 1 ? (
             <Pressable
-              onPress={() => setStep(2)}
+              onPress={handleNext}
               style={styles.submitButton}
               accessibilityRole="button"
               accessibilityLabel="다음"
