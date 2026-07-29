@@ -7,6 +7,8 @@ import { usePermissionsStatus } from '../../shared/hooks/usePermissionsStatus';
 import { LoginScreen } from '../../screens/LoginScreen/LoginScreen';
 import { OnboardingScreen } from '../../screens/OnboardingScreen/OnboardingScreen';
 import { PermissionsScreen } from '../../screens/PermissionsScreen/PermissionsScreen';
+import { CharacterCustomizeScreen } from '../../screens/CharacterCustomizeScreen/CharacterCustomizeScreen';
+import { MyPageScreen } from '../../screens/MyPageScreen/MyPageScreen';
 import { SignupScreen } from '../../screens/SignupScreen/SignupScreen';
 import { WalkDetailScreen } from '../../screens/WalkDetailScreen/WalkDetailScreen';
 import { WalkListScreen } from '../../screens/WalkListScreen/WalkListScreen';
@@ -23,6 +25,8 @@ export type RootStackParamList = {
   Main: undefined;
   WalkList: undefined;
   WalkDetail: { walkId: number };
+  MyPage: undefined;
+  CharacterCustomize: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -90,6 +94,16 @@ export function RootNavigator() {
             name="WalkDetail"
             component={WalkDetailScreen}
             options={{ ...DETAIL_HEADER_OPTIONS, title: '산책 기록' }}
+          />
+          <Stack.Screen
+            name="MyPage"
+            component={MyPageScreen}
+            options={{ ...DETAIL_HEADER_OPTIONS, title: '프로필 설정' }}
+          />
+          <Stack.Screen
+            name="CharacterCustomize"
+            component={CharacterCustomizeScreen}
+            options={{ ...DETAIL_HEADER_OPTIONS, title: '캐릭터 꾸미기' }}
           />
         </>
       ) : (

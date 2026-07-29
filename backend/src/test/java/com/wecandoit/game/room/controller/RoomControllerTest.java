@@ -134,7 +134,7 @@ class RoomControllerTest {
                         requestFields(
                                 fieldWithPath("name").description("게임방 이름 (1~20자, 앞뒤 공백 제거)"),
                                 fieldWithPath("mode").description("게임 모드"),
-                                fieldWithPath("targetBingoCount").description("대결 모드 목표 빙고 수 (그 외 null)"),
+                                fieldWithPath("targetBingoCount").description("목표 빙고 수"),
                                 fieldWithPath("targetStepCount").description("싱글·협동 모드 공동 목표 걸음 수 (대결 null)"),
                                 fieldWithPath("boardSize").description("빙고판 크기 (3~5)")
                         ),
@@ -169,7 +169,7 @@ class RoomControllerTest {
                 .apply(document("room-create-invalid-name",
                         requestFields(
                                 fieldWithPath("mode").description("게임 모드"),
-                                fieldWithPath("targetBingoCount").description("대결 모드 목표 빙고 수"),
+                                fieldWithPath("targetBingoCount").description("목표 빙고 수"),
                                 fieldWithPath("targetStepCount").description("공동 목표 걸음 수"),
                                 fieldWithPath("boardSize").description("빙고판 크기")
                         ),
@@ -244,7 +244,7 @@ class RoomControllerTest {
                 .apply(document("room-create-invalid-mode",
                         requestFields(
                                 fieldWithPath("name").description("게임방 이름"),
-                                fieldWithPath("targetBingoCount").description("대결 모드 목표 빙고 수 (그 외 null)")
+                                fieldWithPath("targetBingoCount").description("목표 빙고 수")
                         ),
                         responseFields(
                                 fieldWithPath("status").description("HTTP 상태 코드"),
@@ -307,7 +307,7 @@ class RoomControllerTest {
                         "테스트 방",
                         GameMode.COOPERATE,
                         GameRoomStatus.WAITING,
-                        null,
+                        3,
                         10_000,
                         1L,
                         joinedAt,
@@ -327,7 +327,7 @@ class RoomControllerTest {
                 .body("[0].name", equalTo("테스트 방"))
                 .body("[0].mode", equalTo("COOPERATE"))
                 .body("[0].status", equalTo("WAITING"))
-                .body("[0].targetBingoCount", nullValue())
+                .body("[0].targetBingoCount", equalTo(3))
                 .body("[0].targetStepCount", equalTo(10_000))
                 .body("[0].hostId", equalTo(1))
                 .body("[0].joinedAt", equalTo("2026-07-22T10:00:00"))
@@ -343,7 +343,7 @@ class RoomControllerTest {
                                 fieldWithPath("[].name").description("게임방 이름 (기존 방은 null 가능)"),
                                 fieldWithPath("[].mode").description("게임 모드"),
                                 fieldWithPath("[].status").description("게임방 상태"),
-                                fieldWithPath("[].targetBingoCount").description("대결 모드 목표 빙고 수 (그 외 null)"),
+                                fieldWithPath("[].targetBingoCount").description("목표 빙고 수"),
                                 fieldWithPath("[].targetStepCount")
                                         .description("싱글·협동 모드 공동 목표 걸음 수 (대결 null)"),
                                 fieldWithPath("[].hostId").description("방장 회원 ID"),
@@ -390,7 +390,7 @@ class RoomControllerTest {
                         "테스트 방",
                         GameMode.COOPERATE,
                         GameRoomStatus.WAITING,
-                        null,
+                        3,
                         10_000,
                         1L,
                         startedAt,
@@ -414,7 +414,7 @@ class RoomControllerTest {
                 .body("name", equalTo("테스트 방"))
                 .body("mode", equalTo("COOPERATE"))
                 .body("status", equalTo("WAITING"))
-                .body("targetBingoCount", nullValue())
+                .body("targetBingoCount", equalTo(3))
                 .body("targetStepCount", equalTo(10_000))
                 .body("hostId", equalTo(1))
                 .body("startedAt", equalTo("2026-07-22T09:50:00"))
@@ -432,7 +432,7 @@ class RoomControllerTest {
                                 fieldWithPath("name").description("게임방 이름 (기존 방은 null 가능)"),
                                 fieldWithPath("mode").description("게임 모드"),
                                 fieldWithPath("status").description("게임방 상태"),
-                                fieldWithPath("targetBingoCount").description("대결 모드 목표 빙고 수 (그 외 null)"),
+                                fieldWithPath("targetBingoCount").description("목표 빙고 수"),
                                 fieldWithPath("targetStepCount")
                                         .description("싱글·협동 모드 공동 목표 걸음 수 (대결 null)"),
                                 fieldWithPath("hostId").description("방장 회원 ID"),
@@ -658,7 +658,7 @@ class RoomControllerTest {
                                 fieldWithPath("name").description("게임방 이름 (기존 방은 null 가능)"),
                                 fieldWithPath("mode").description("게임 모드"),
                                 fieldWithPath("status").description("게임방 상태"),
-                                fieldWithPath("targetBingoCount").description("대결 모드 목표 빙고 수 (그 외 null)"),
+                                fieldWithPath("targetBingoCount").description("목표 빙고 수"),
                                 fieldWithPath("targetStepCount")
                                         .description("싱글·협동 모드 공동 목표 걸음 수 (대결 null)"),
                                 fieldWithPath("hostId").description("방장 회원 ID"),
