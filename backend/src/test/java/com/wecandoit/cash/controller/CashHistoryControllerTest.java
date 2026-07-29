@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.BDDMockito;
@@ -30,6 +31,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 @ExtendWith({RestDocumentationExtension.class, MockitoExtension.class})
+@DisplayName("캐시 이력 API")
 class CashHistoryControllerTest {
 
     @Mock
@@ -54,9 +56,10 @@ class CashHistoryControllerTest {
     }
 
     @Test
+    @DisplayName("인증 회원의 캐시 이력 목록을 반환한다")
     void returnsTheAuthenticatedMembersCashHistories() {
         BDDMockito.given(cashHistoryReadService.getCashHistories(1L)).willReturn(List.of(
-                new CashHistoryResponse(1L, CashHistoryType.BINGO_REWARD, 500L,
+                new CashHistoryResponse(1L, CashHistoryType.GAME_GOAL_REWARD, 500L,
                         LocalDateTime.of(2026, 7, 24, 12, 0), 10L, 100L, null, null),
                 new CashHistoryResponse(2L, CashHistoryType.ITEM_PURCHASE, -1_000L,
                         LocalDateTime.of(2026, 7, 24, 11, 0), null, null, 20L, "Red Hat")

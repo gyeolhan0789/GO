@@ -16,10 +16,10 @@ public record CashHistoryResponse(
 ) {
 
     public static CashHistoryResponse from(CashHistory cashHistory) {
-        Long roomId = cashHistory.getType() == CashHistoryType.BINGO_REWARD
+        Long roomId = cashHistory.getType() == CashHistoryType.GAME_GOAL_REWARD
                 ? cashHistory.getRoomId() != null ? cashHistory.getRoomId() : cashHistory.getReferenceId()
                 : null;
-        Long gameId = cashHistory.getType() == CashHistoryType.BINGO_REWARD
+        Long gameId = cashHistory.getType() == CashHistoryType.GAME_GOAL_REWARD
                 ? cashHistory.getRoomId() != null ? cashHistory.getReferenceId() : null
                 : null;
         Long itemId = cashHistory.getType() == CashHistoryType.ITEM_PURCHASE
