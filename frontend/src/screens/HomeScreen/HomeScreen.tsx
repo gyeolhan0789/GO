@@ -1,6 +1,9 @@
 import { useRef, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
+import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 import type { BingoBoardCell } from '../../features/bingo/components/BingoBoard/BingoBoard';
 import { useLogoutMutation } from '../../features/auth/hooks/useLogoutMutation';
 import { useMyCashQuery } from '../../features/member/hooks/useMyCashQuery';
@@ -50,6 +53,8 @@ const SERVER_UNREACHABLE_MESSAGE =
 
 export function HomeScreen() {
   const summary = MOCK_HOME_SUMMARY;
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [isRoomSheetVisible, setRoomSheetVisible] = useState(false);
   const logout = useLogoutMutation();
   const isLoggingOut = useRef(false);
@@ -102,7 +107,10 @@ export function HomeScreen() {
   return (
     <Screen>
       <View style={styles.content}>
-        <HomeHeader points={points} />
+        <HomeHeader
+          points={points}
+          onProfilePress={() => navigation.navigate('MyPage')}
+        />
         <HomeCarousel
           style={styles.carousel}
           steps={todaySteps}
