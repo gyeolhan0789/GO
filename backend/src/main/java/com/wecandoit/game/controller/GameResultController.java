@@ -2,6 +2,7 @@ package com.wecandoit.game.controller;
 
 import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.common.security.LoginMemberId;
+import com.wecandoit.game.controller.response.GameResultDetailResponse;
 import com.wecandoit.game.controller.response.GameResultResponse;
 import com.wecandoit.game.service.GameResultReadService;
 import lombok.RequiredArgsConstructor;
@@ -20,11 +21,11 @@ public class GameResultController {
     private final GameResultReadService gameResultReadService;
 
     @GetMapping("/{roomId}")
-    public ResponseEntity<GameResultResponse> getGameResult(
+    public ResponseEntity<GameResultDetailResponse> getGameResult(
             @LoginMemberId Long memberId,
             @PathVariable Long roomId
     ) {
-        GameResultResponse response = gameResultReadService.getGameResult(memberId, roomId);
+        GameResultDetailResponse response = gameResultReadService.getGameResult(memberId, roomId);
         return ResponseEntity.ok(response);
     }
 
