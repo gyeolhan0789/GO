@@ -110,6 +110,7 @@ class BingoControllerTest {
                 10L,
                 3,
                 3,
+                10_000,
                 1,
                 9,
                 3,
@@ -138,6 +139,7 @@ class BingoControllerTest {
                 .body("bingoBoardId", equalTo(100))
                 .body("gameId", equalTo(200))
                 .body("targetBingoCount", equalTo(3))
+                .body("targetStepCount", equalTo(10_000))
                 .body("completedBingoCount", equalTo(1))
                 .body("totalCellCount", equalTo(9))
                 .body("approvedCellCount", equalTo(3))
@@ -157,6 +159,7 @@ class BingoControllerTest {
                                 fieldWithPath("roomId").description("게임방 ID"),
                                 fieldWithPath("boardSize").description("빙고판 크기"),
                                 fieldWithPath("targetBingoCount").description("게임 목표 빙고 수"),
+                                fieldWithPath("targetStepCount").description("게임방 공동 목표 걸음 수"),
                                 fieldWithPath("completedBingoCount").description("현재 완성된 빙고 수"),
                                 fieldWithPath("totalCellCount").description("전체 셀 수"),
                                 fieldWithPath("approvedCellCount").description("승인된 셀 수"),
@@ -200,6 +203,7 @@ class BingoControllerTest {
                 10L,
                 3,
                 3,
+                null,
                 1,
                 9,
                 2,
@@ -404,6 +408,7 @@ class BingoControllerTest {
                 10L,
                 3,
                 3,
+                10_000,
                 0,
                 1,
                 0,
@@ -434,6 +439,7 @@ class BingoControllerTest {
                                 fieldWithPath("roomId").description("게임방 ID"),
                                 fieldWithPath("boardSize").description("빙고판 크기"),
                                 fieldWithPath("targetBingoCount").description("게임 목표 빙고 수"),
+                                fieldWithPath("targetStepCount").description("게임방 공동 목표 걸음 수"),
                                 fieldWithPath("completedBingoCount").description("현재 완성된 빙고 수"),
                                 fieldWithPath("totalCellCount").description("전체 셀 수"),
                                 fieldWithPath("approvedCellCount").description("승인된 셀 수"),

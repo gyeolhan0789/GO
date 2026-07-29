@@ -10,6 +10,7 @@ import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.MissionType;
 import com.wecandoit.notification.event.NotificationMessageFactory;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -41,5 +42,26 @@ public class CashCommandService {
         cashHistoryRepository.save(CashHistory.bingoCellReward(memberId, cellId, roomId, rewardCash));
         eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, rewardCash));
         return rewardCash;
+    }
+
+    public void grantDailyStepGoalReward(Long roomId, Long bingoBoardId, List<Long> memberIds) {
+        long rewardCash = CashRewardPolicy.DAILY_STEP_GOAL.getPoint();
+        List<Long> sortedMemberIds = memberIds.stream()
+                .distinct()
+                .sorted()
+                .toList();
+
+        sortedMemberIds.forEach(memberId -> {
+            Member member = memberRepository.findByIdForUpdate(memberId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+            member.addCash(rewardCash);
+            cashHistoryRepository.save(CashHistory.dailyStepGoalReward(
+                    memberId,
+                    bingoBoardId,
+                    roomId,
+                    rewardCash
+            ));
+            eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, rewardCash));
+        });
     }
 }

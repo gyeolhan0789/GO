@@ -96,7 +96,7 @@ class RoomControllerTest {
     @DisplayName("게임방을 생성하면 생성된 방 ID와 상태를 반환한다")
     void createRoomReturnsCreatedRoom() {
         // given
-        CreateRoomRequest request = new CreateRoomRequest(GameMode.BATTLE, 3, 3);
+        CreateRoomRequest request = new CreateRoomRequest(GameMode.BATTLE, 3, null, 3);
         given(roomCommandService.createRoom(1L, request))
                 .willReturn(new CreateRoomResponse(10L, GameRoomStatus.WAITING));
         given(roomReadService.getRoomDetail(1L, 10L)).willReturn(new RoomDetailResponse(
@@ -104,6 +104,7 @@ class RoomControllerTest {
                 GameMode.BATTLE,
                 GameRoomStatus.WAITING,
                 3,
+                null,
                 1L,
                 null,
                 List.of()
@@ -116,6 +117,7 @@ class RoomControllerTest {
                         {
                           "mode": "BATTLE",
                           "targetBingoCount": 3,
+                          "targetStepCount": null,
                           "boardSize": 3
                         }
                         """)
@@ -129,6 +131,7 @@ class RoomControllerTest {
                         requestFields(
                                 fieldWithPath("mode").description("게임 모드"),
                                 fieldWithPath("targetBingoCount").description("대결 모드 목표 빙고 수 (그 외 null)"),
+                                fieldWithPath("targetStepCount").description("싱글·협동 모드 공동 목표 걸음 수 (대결 null)"),
                                 fieldWithPath("boardSize").description("빙고판 크기 (3~5)")
                         ),
                         relaxedResponseFields(
@@ -218,6 +221,7 @@ class RoomControllerTest {
                         GameMode.COOPERATE,
                         GameRoomStatus.WAITING,
                         null,
+                        10_000,
                         1L,
                         joinedAt,
                         List.of(
@@ -236,6 +240,7 @@ class RoomControllerTest {
                 .body("[0].mode", equalTo("COOPERATE"))
                 .body("[0].status", equalTo("WAITING"))
                 .body("[0].targetBingoCount", nullValue())
+                .body("[0].targetStepCount", equalTo(10_000))
                 .body("[0].hostId", equalTo(1))
                 .body("[0].joinedAt", equalTo("2026-07-22T10:00:00"))
                 .body("[0].members[0].memberId", equalTo(1))
@@ -250,6 +255,8 @@ class RoomControllerTest {
                                 fieldWithPath("[].mode").description("게임 모드"),
                                 fieldWithPath("[].status").description("게임방 상태"),
                                 fieldWithPath("[].targetBingoCount").description("대결 모드 목표 빙고 수 (그 외 null)"),
+                                fieldWithPath("[].targetStepCount")
+                                        .description("싱글·협동 모드 공동 목표 걸음 수 (대결 null)"),
                                 fieldWithPath("[].hostId").description("방장 회원 ID"),
                                 fieldWithPath("[].joinedAt").description("로그인 회원의 게임방 참여 시각"),
                                 fieldWithPath("[].members[].memberId").description("참여자 회원 ID"),
@@ -294,6 +301,7 @@ class RoomControllerTest {
                         GameMode.COOPERATE,
                         GameRoomStatus.WAITING,
                         null,
+                        10_000,
                         1L,
                         startedAt,
                         List.of(new RoomMemberResponse(
@@ -316,6 +324,7 @@ class RoomControllerTest {
                 .body("mode", equalTo("COOPERATE"))
                 .body("status", equalTo("WAITING"))
                 .body("targetBingoCount", nullValue())
+                .body("targetStepCount", equalTo(10_000))
                 .body("hostId", equalTo(1))
                 .body("startedAt", equalTo("2026-07-22T09:50:00"))
                 .body("members[0].memberId", equalTo(1))
@@ -332,6 +341,8 @@ class RoomControllerTest {
                                 fieldWithPath("mode").description("게임 모드"),
                                 fieldWithPath("status").description("게임방 상태"),
                                 fieldWithPath("targetBingoCount").description("대결 모드 목표 빙고 수 (그 외 null)"),
+                                fieldWithPath("targetStepCount")
+                                        .description("싱글·협동 모드 공동 목표 걸음 수 (대결 null)"),
                                 fieldWithPath("hostId").description("방장 회원 ID"),
                                 fieldWithPath("startedAt").description("게임 시작 시각"),
                                 fieldWithPath("members[].memberId").description("참여자 회원 ID"),
@@ -521,6 +532,7 @@ class RoomControllerTest {
                         GameMode.BATTLE,
                         GameRoomStatus.IN_PROGRESS,
                         3,
+                        null,
                         1L,
                         startedAt,
                         List.of(
@@ -539,6 +551,7 @@ class RoomControllerTest {
                 .body("mode", equalTo("BATTLE"))
                 .body("status", equalTo("IN_PROGRESS"))
                 .body("targetBingoCount", equalTo(3))
+                .body("targetStepCount", nullValue())
                 .body("startedAt", equalTo("2026-07-22T09:50:00"))
                 .body("members[0].bingoBoardId", equalTo(201))
                 .body("members[1].bingoBoardId", equalTo(202))
@@ -551,6 +564,8 @@ class RoomControllerTest {
                                 fieldWithPath("mode").description("게임 모드"),
                                 fieldWithPath("status").description("게임방 상태"),
                                 fieldWithPath("targetBingoCount").description("대결 모드 목표 빙고 수 (그 외 null)"),
+                                fieldWithPath("targetStepCount")
+                                        .description("싱글·협동 모드 공동 목표 걸음 수 (대결 null)"),
                                 fieldWithPath("hostId").description("방장 회원 ID"),
                                 fieldWithPath("startedAt").description("게임 시작 시각"),
                                 fieldWithPath("members[].memberId").description("참여자 회원 ID"),

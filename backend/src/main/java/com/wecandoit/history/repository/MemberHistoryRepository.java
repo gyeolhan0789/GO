@@ -22,6 +22,12 @@ public interface MemberHistoryRepository extends JpaRepository<MemberHistory, Lo
             LocalDate endDate
     );
 
+    List<MemberHistory> findAllByMemberIdInAndHistoryDateBetweenOrderByMemberIdAscHistoryDateAsc(
+            Collection<Long> memberIds,
+            LocalDate startDate,
+            LocalDate endDate
+    );
+
     @Query("""
             select m.id as memberId,
                    m.nickname as nickname,

@@ -153,6 +153,7 @@ public class BingoCommandService {
                 room.getId(),
                 cellResponses,
                 room.getTargetBingoCount(),
+                room.getTargetStepCount(),
                 0,
                 0,
                 false,
