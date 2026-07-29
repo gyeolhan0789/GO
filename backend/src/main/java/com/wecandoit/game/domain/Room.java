@@ -20,9 +20,14 @@ import lombok.NoArgsConstructor;
 @Table(name = "rooms")
 public class Room extends BaseEntity {
 
+    public static final int NAME_MAX_LENGTH = 20;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(length = NAME_MAX_LENGTH)
+    private String name;
 
     @Column(name = "host_id", nullable = false)
     private Long hostId;
@@ -49,12 +54,14 @@ public class Room extends BaseEntity {
 
     private Room(
             Long hostId,
+            String name,
             GameMode mode,
             Integer targetBingoCount,
             Integer targetStepCount,
             int boardSize
     ) {
         this.hostId = hostId;
+        this.name = name.strip();
         this.mode = mode;
         this.status = GameRoomStatus.CREATED;
         this.targetBingoCount = targetBingoCount;
@@ -62,18 +69,25 @@ public class Room extends BaseEntity {
         this.boardSize = boardSize;
     }
 
-    public static Room create(Long hostId, GameMode mode, Integer targetBingoCount, int boardSize) {
-        return create(hostId, mode, targetBingoCount, null, boardSize);
+    public static Room create(
+            Long hostId,
+            String name,
+            GameMode mode,
+            Integer targetBingoCount,
+            int boardSize
+    ) {
+        return create(hostId, name, mode, targetBingoCount, null, boardSize);
     }
 
     public static Room create(
             Long hostId,
+            String name,
             GameMode mode,
             Integer targetBingoCount,
             Integer targetStepCount,
             int boardSize
     ) {
-        return new Room(hostId, mode, targetBingoCount, targetStepCount, boardSize);
+        return new Room(hostId, name, mode, targetBingoCount, targetStepCount, boardSize);
     }
 
     public boolean isHost(Long memberId) {

@@ -9,6 +9,7 @@ import java.util.List;
 
 public record MyRoomResponse(
         Long roomId,
+        String name,
         GameMode mode,
         GameRoomStatus status,
         Integer targetBingoCount,
@@ -25,6 +26,7 @@ public record MyRoomResponse(
     ) {
         return new MyRoomResponse(
                 room.getId(),
+                room.getName(),
                 room.getMode(),
                 room.getStatus(),
                 room.getTargetBingoCount(),
@@ -35,3 +37,4 @@ public record MyRoomResponse(
         );
     }
 }
+

@@ -509,14 +509,14 @@ class GameRequestCommandServiceTest {
     }
 
     private void givenInvitableRoom(GameRoomStatus status) {
-        Room room = Room.create(1L, GameMode.COOPERATE, null, 3);
+        Room room = Room.create(1L, "테스트 방", GameMode.COOPERATE, null, 3);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", status);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
     }
 
     private Room givenAcceptableRoom(GameRoomStatus status) {
-        Room room = Room.create(1L, GameMode.COOPERATE, null, 3);
+        Room room = Room.create(1L, "테스트 방", GameMode.COOPERATE, null, 3);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", status);
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));

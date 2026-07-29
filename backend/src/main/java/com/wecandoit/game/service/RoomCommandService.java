@@ -71,6 +71,7 @@ public class RoomCommandService {
     private Room createNewRoom(Long memberId, CreateRoomRequest request) {
         Room room = roomRepository.save(Room.create(
                 memberId,
+                request.name(),
                 request.mode(),
                 request.targetBingoCount(),
                 request.targetStepCount(),
