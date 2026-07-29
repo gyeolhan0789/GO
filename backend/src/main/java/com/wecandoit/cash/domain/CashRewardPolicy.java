@@ -14,7 +14,8 @@ public enum CashRewardPolicy {
     DAILY_STEP_GOAL(100L),
     BINGO_CELL_OBJECT(30L),
     BINGO_CELL_ATTRIBUTE(50L),
-    BINGO_CELL_RELATION(70L);
+    BINGO_CELL_RELATION(70L),
+    BINGO_CELL_ORDINARY(30L);
 
     private final long point;
 
@@ -23,6 +24,7 @@ public enum CashRewardPolicy {
             case OBJECT -> BINGO_CELL_OBJECT.point;
             case ATTRIBUTE -> BINGO_CELL_ATTRIBUTE.point;
             case RELATION -> BINGO_CELL_RELATION.point;
+            case ORDINARY -> BINGO_CELL_ORDINARY.point;
         };
     }
 }

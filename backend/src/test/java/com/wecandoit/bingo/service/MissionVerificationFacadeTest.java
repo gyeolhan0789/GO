@@ -6,17 +6,19 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.wecandoit.bingo.client.AiVerificationClient;
 import com.wecandoit.bingo.client.AiVerificationResult;
-import com.wecandoit.bingo.controller.response.BingoCellResponse;
+import com.wecandoit.bingo.controller.response.BingoCellSubmitResponse;
 import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.domain.MissionType;
 import com.wecandoit.mission.repository.MissionRepository;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -57,13 +59,15 @@ class MissionVerificationFacadeTest {
         when(aiVerificationClient.downloadImage(anyString())).thenReturn(new byte[]{1, 2, 3});
         when(aiVerificationClient.verify(any(), any(), any()))
                 .thenReturn(new AiVerificationResult(true, 0.85, "통과"));
+        doReturn(30L).when(verificationResultService)
+                .applyResult(CELL_ID, true, null, MissionType.OBJECT);
 
         // when
-        BingoCellResponse response = facade.submitAndVerify(MEMBER_ID, ROOM_ID, CELL_ID, SUBMIT_URL);
+        BingoCellSubmitResponse response = facade.submitAndVerify(MEMBER_ID, ROOM_ID, CELL_ID, SUBMIT_URL);
 
         // then
-        verify(verificationResultService).applyResult(eq(CELL_ID), eq(true), isNull());
-        assertThat(response).isNotNull();
+        verify(verificationResultService).applyResult(eq(CELL_ID), eq(true), isNull(), eq(MissionType.OBJECT));
+        assertThat(response.rewardCash()).isEqualTo(30L);
     }
 
     @Test
@@ -80,7 +84,12 @@ class MissionVerificationFacadeTest {
 
         // then
         ArgumentCaptor<String> reasonCaptor = ArgumentCaptor.forClass(String.class);
-        verify(verificationResultService).applyResult(eq(CELL_ID), eq(false), reasonCaptor.capture());
+        verify(verificationResultService).applyResult(
+                eq(CELL_ID),
+                eq(false),
+                reasonCaptor.capture(),
+                eq(MissionType.OBJECT)
+        );
         assertThat(reasonCaptor.getValue())
                 .isNotEqualTo(AI_REASON)
                 .isEqualTo("AI 검증 신뢰도가 기준(0.7)에 미달했습니다.");
@@ -99,7 +108,7 @@ class MissionVerificationFacadeTest {
         facade.submitAndVerify(MEMBER_ID, ROOM_ID, CELL_ID, SUBMIT_URL);
 
         // then
-        verify(verificationResultService).applyResult(CELL_ID, false, AI_REASON);
+        verify(verificationResultService).applyResult(CELL_ID, false, AI_REASON, MissionType.OBJECT);
     }
 
     @Test
@@ -118,7 +127,7 @@ class MissionVerificationFacadeTest {
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.AI_VERIFICATION_FAILED);
         verify(verificationResultService)
-                .applyResult(CELL_ID, false, ErrorCode.AI_VERIFICATION_FAILED.getMessage());
+                .applyResult(CELL_ID, false, ErrorCode.AI_VERIFICATION_FAILED.getMessage(), MissionType.OBJECT);
     }
 
     private void stubSubmitAndLookup() {

@@ -22,6 +22,7 @@ import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
+import com.wecandoit.mission.domain.MissionType;
 import com.wecandoit.notification.service.NotificationCommandService;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -151,9 +152,9 @@ class GameCompletionServiceConcurrencyTest {
             assertThat(completedBoard.getStatus()).isEqualTo(BingoBoardStatus.COMPLETED);
             assertThat(gameResultRepository.count()).isEqualTo(1);
             assertThat(gameResultParticipantRepository.count()).isEqualTo(2);
-            assertThat(cashHistoryRepository.count()).isEqualTo(2);
-            assertThat(memberRepository.findById(firstMemberId).orElseThrow().getCash()).isEqualTo(200L);
-            assertThat(memberRepository.findById(secondMemberId).orElseThrow().getCash()).isEqualTo(200L);
+            assertThat(cashHistoryRepository.count()).isEqualTo(4);
+            assertThat(memberRepository.findById(firstMemberId).orElseThrow().getCash()).isEqualTo(230L);
+            assertThat(memberRepository.findById(secondMemberId).orElseThrow().getCash()).isEqualTo(230L);
             assertThat(roomMembers)
                     .extracting(RoomMember::getCompletedMissionCount)
                     .containsExactly(2, 2);
@@ -212,10 +213,10 @@ class GameCompletionServiceConcurrencyTest {
             assertThat(gameResultParticipantRepository.findAllByGameIdOrderByIdAsc(battleGame.getId()))
                     .filteredOn(participant -> Boolean.FALSE.equals(participant.getResult()))
                     .hasSize(1);
-            assertThat(cashHistoryRepository.count()).isEqualTo(2);
+            assertThat(cashHistoryRepository.count()).isEqualTo(3);
             assertThat(memberRepository.findById(firstMemberId).orElseThrow().getCash()
                     + memberRepository.findById(secondMemberId).orElseThrow().getCash())
-                    .isEqualTo(350L);
+                    .isEqualTo(380L);
         } finally {
             executor.shutdownNow();
         }
@@ -223,8 +224,8 @@ class GameCompletionServiceConcurrencyTest {
 
     @Test
     void completesAndRewardsTwoGamesInTheSameCooperateRoom() {
-        verificationResultService.applyResult(firstPendingCellId, true, null);
-        verificationResultService.applyResult(secondPendingCellId, true, null);
+        verificationResultService.applyResult(firstPendingCellId, true, null, MissionType.OBJECT);
+        verificationResultService.applyResult(secondPendingCellId, true, null, MissionType.OBJECT);
 
         Room reusableRoom = roomRepository.findById(roomId).orElseThrow();
         assertThat(reusableRoom.getStatus()).isEqualTo(GameRoomStatus.READY);
@@ -238,10 +239,10 @@ class GameCompletionServiceConcurrencyTest {
         Long thirdCellId = savePendingCell(secondBoard.getId(), 13L, 1, 0, secondMemberId);
         Long fourthCellId = savePendingCell(secondBoard.getId(), 14L, 1, 1, secondMemberId);
 
-        verificationResultService.applyResult(firstCellId, true, null);
-        verificationResultService.applyResult(secondCellId, true, null);
-        verificationResultService.applyResult(thirdCellId, true, null);
-        verificationResultService.applyResult(fourthCellId, true, null);
+        verificationResultService.applyResult(firstCellId, true, null, MissionType.OBJECT);
+        verificationResultService.applyResult(secondCellId, true, null, MissionType.OBJECT);
+        verificationResultService.applyResult(thirdCellId, true, null, MissionType.OBJECT);
+        verificationResultService.applyResult(fourthCellId, true, null, MissionType.OBJECT);
 
         assertThat(roomRepository.findById(roomId).orElseThrow().getStatus()).isEqualTo(GameRoomStatus.READY);
         assertThat(gameResultRepository.count()).isEqualTo(2);
@@ -258,9 +259,9 @@ class GameCompletionServiceConcurrencyTest {
                 .extracting(BingoBoard::getId)
                 .containsExactly(secondBoard.getId());
         assertThat(gameResultParticipantRepository.count()).isEqualTo(4);
-        assertThat(cashHistoryRepository.count()).isEqualTo(4);
-        assertThat(memberRepository.findById(firstMemberId).orElseThrow().getCash()).isEqualTo(400L);
-        assertThat(memberRepository.findById(secondMemberId).orElseThrow().getCash()).isEqualTo(400L);
+        assertThat(cashHistoryRepository.count()).isEqualTo(10);
+        assertThat(memberRepository.findById(firstMemberId).orElseThrow().getCash()).isEqualTo(490L);
+        assertThat(memberRepository.findById(secondMemberId).orElseThrow().getCash()).isEqualTo(490L);
     }
 
     private Long savePendingCell(Long targetBoardId, Long missionId, int row, int col, Long memberId) {
@@ -292,7 +293,7 @@ class GameCompletionServiceConcurrencyTest {
         readyLatch.countDown();
         try {
             startLatch.await();
-            verificationResultService.applyResult(cellId, true, null);
+            verificationResultService.applyResult(cellId, true, null, MissionType.OBJECT);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException(e);

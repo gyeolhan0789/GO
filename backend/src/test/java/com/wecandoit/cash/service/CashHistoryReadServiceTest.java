@@ -32,19 +32,23 @@ class CashHistoryReadServiceTest {
     @DisplayName("회원의 캐시 이력을 저장소 조회 순서대로 응답으로 반환한다")
     void returnsOnlyTheRequestedMembersHistoriesInRepositoryOrder() {
         CashHistory reward = CashHistory.gameGoalReward(1L, 100L, 10L, 200L);
+        CashHistory bingoCellReward = CashHistory.bingoCellReward(1L, 1000L, 10L, 30L);
         CashHistory purchase = CashHistory.itemPurchase(1L, 20L, "Red Hat", 1_000L);
-        setIdAndCreatedAt(reward, 2L, LocalDateTime.of(2026, 7, 24, 12, 0));
+        setIdAndCreatedAt(reward, 3L, LocalDateTime.of(2026, 7, 24, 12, 0));
+        setIdAndCreatedAt(bingoCellReward, 2L, LocalDateTime.of(2026, 7, 24, 11, 30));
         setIdAndCreatedAt(purchase, 1L, LocalDateTime.of(2026, 7, 24, 11, 0));
         given(cashHistoryRepository.findAllByMemberIdOrderByCreatedAtDescIdDesc(1L))
-                .willReturn(List.of(reward, purchase));
+                .willReturn(List.of(reward, bingoCellReward, purchase));
 
         List<CashHistoryResponse> responses = cashHistoryReadService.getCashHistories(1L);
 
         assertThat(responses).containsExactly(
-                new CashHistoryResponse(2L, CashHistoryType.GAME_GOAL_REWARD, 200L,
-                        reward.getCreatedAt(), 10L, 100L, null, null),
+                new CashHistoryResponse(3L, CashHistoryType.GAME_GOAL_REWARD, 200L,
+                        reward.getCreatedAt(), 10L, 100L, null, null, null),
+                new CashHistoryResponse(2L, CashHistoryType.BINGO_CELL_REWARD, 30L,
+                        bingoCellReward.getCreatedAt(), 10L, null, 1000L, null, null),
                 new CashHistoryResponse(1L, CashHistoryType.ITEM_PURCHASE, -1_000L,
-                        purchase.getCreatedAt(), null, null, 20L, "Red Hat")
+                        purchase.getCreatedAt(), null, null, null, 20L, "Red Hat")
         );
         then(cashHistoryRepository).should().findAllByMemberIdOrderByCreatedAtDescIdDesc(1L);
     }
