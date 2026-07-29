@@ -42,6 +42,7 @@ class ItemRepositoryTest {
         assertThat(found.get().getCategory()).isEqualTo("HAT");
         assertThat(found.get().getPrice()).isEqualTo(1000L);
         assertThat(found.get().getImageUrl()).isEqualTo("https://example.com/hat.png");
+        assertThat(found.get().isAvailableForSale()).isTrue();
     }
 
     @Test
@@ -73,7 +74,7 @@ class ItemRepositoryTest {
 
     @Test
     @DisplayName("문자열 카테고리로 아이템 목록을 조회한다")
-    void findAllByCategoryReturnsMatchingItems() {
+    void findAllByCategoryAndAvailableForSaleTrueReturnsMatchingItems() {
         // given
         saveItem("검은 모자", "HAT", 1000L, "https://example.com/black-hat.png");
         saveItem("흰 모자", "HAT", 1200L, "https://example.com/white-hat.png");
@@ -81,12 +82,31 @@ class ItemRepositoryTest {
         clearPersistenceContext();
 
         // when
-        List<Item> items = itemRepository.findAllByCategory("HAT");
+        List<Item> items = itemRepository.findAllByCategoryAndAvailableForSaleTrue("HAT");
 
         // then
         assertThat(items)
                 .extracting(Item::getName)
                 .containsExactlyInAnyOrder("검은 모자", "흰 모자");
+    }
+
+    @Test
+    @DisplayName("상점 조회에서는 판매 가능한 아이템만 반환한다")
+    void findAllByAvailableForSaleTrueExcludesStoppedItems() {
+        // given
+        saveItem("판매 모자", "HAT", 1000L, "https://example.com/available.png");
+        Item stoppedItem = saveItem("판매 중지 모자", "HAT", 1200L, "https://example.com/stopped.png");
+        stoppedItem.stopSale();
+        itemRepository.flush();
+        clearPersistenceContext();
+
+        // when
+        List<Item> items = itemRepository.findAllByAvailableForSaleTrue();
+
+        // then
+        assertThat(items)
+                .extracting(Item::getName)
+                .containsExactly("판매 모자");
     }
 
     @Test

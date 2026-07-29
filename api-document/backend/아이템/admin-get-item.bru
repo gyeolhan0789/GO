@@ -1,0 +1,40 @@
+meta {
+  name: 관리자 아이템 상세 조회
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{backendBaseUrl}}/admin/items/1
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+docs {
+  아이템 ID로 관리 정보를 상세 조회한다. `ADMIN` 권한이 필요하다.
+
+  ### 성공 응답 (200 OK)
+  ```json
+  {
+    "itemId": 1,
+    "name": "검은 모자",
+    "category": "HAT",
+    "price": 1000,
+    "imageUrl": "/uploads/dev/items/1/hat.png",
+    "availableForSale": true,
+    "updatedAt": "2026-07-29T12:00:00"
+  }
+  ```
+
+  **존재하지 않는 아이템**
+  ```json
+  {
+    "status": 404,
+    "message": "아이템을 찾을 수 없습니다."
+  }
+  ```
+}

@@ -31,9 +31,9 @@ public class ShopItemReadService {
 
     private List<Item> findItems(ItemCategory category) {
         if (category == null) {
-            return itemRepository.findAll();
+            return itemRepository.findAllByAvailableForSaleTrue();
         }
-        return itemRepository.findAllByCategory(category.name());
+        return itemRepository.findAllByCategoryAndAvailableForSaleTrue(category.name());
     }
 
     private ItemCategory parseCategory(String category) {

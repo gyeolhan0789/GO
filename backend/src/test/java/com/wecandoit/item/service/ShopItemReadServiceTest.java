@@ -43,7 +43,7 @@ class ShopItemReadServiceTest {
         Item top = item(200L, "파란 상의", "TOP", "https://example.com/top.png");
         ReflectionTestUtils.setField(hat, "price", 1_000L);
         ReflectionTestUtils.setField(top, "price", 2_000L);
-        given(itemRepository.findAll()).willReturn(List.of(hat, top));
+        given(itemRepository.findAllByAvailableForSaleTrue()).willReturn(List.of(hat, top));
 
         // when
         List<ShopItemResponse> responses = shopItemReadService.getShopItems();
@@ -67,21 +67,21 @@ class ShopItemReadServiceTest {
                                 "https://example.com/top.png"
                         )
                 );
-        then(itemRepository).should().findAll();
+        then(itemRepository).should().findAllByAvailableForSaleTrue();
     }
 
     @Test
     @DisplayName("상점 아이템이 없으면 빈 목록을 반환한다")
     void getShopItemsReturnsEmptyList() {
         // given
-        given(itemRepository.findAll()).willReturn(List.of());
+        given(itemRepository.findAllByAvailableForSaleTrue()).willReturn(List.of());
 
         // when
         List<ShopItemResponse> responses = shopItemReadService.getShopItems();
 
         // then
         assertThat(responses).isEmpty();
-        then(itemRepository).should().findAll();
+        then(itemRepository).should().findAllByAvailableForSaleTrue();
     }
 
     @Test
@@ -90,7 +90,7 @@ class ShopItemReadServiceTest {
         // given
         Item hat = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
         ReflectionTestUtils.setField(hat, "price", 1_000L);
-        given(itemRepository.findAllByCategory("HAT")).willReturn(List.of(hat));
+        given(itemRepository.findAllByCategoryAndAvailableForSaleTrue("HAT")).willReturn(List.of(hat));
 
         // when
         List<ShopItemResponse> responses = shopItemReadService.getShopItems("HAT");
@@ -99,22 +99,22 @@ class ShopItemReadServiceTest {
         assertThat(responses)
                 .extracting(ShopItemResponse::itemId, ShopItemResponse::category)
                 .containsExactly(org.assertj.core.groups.Tuple.tuple(100L, "HAT"));
-        then(itemRepository).should().findAllByCategory("HAT");
-        then(itemRepository).should(never()).findAll();
+        then(itemRepository).should().findAllByCategoryAndAvailableForSaleTrue("HAT");
+        then(itemRepository).should(never()).findAllByAvailableForSaleTrue();
     }
 
     @Test
     @DisplayName("카테고리에 해당하는 상점 아이템이 없으면 빈 목록을 반환한다")
     void getShopItemsByCategoryReturnsEmptyList() {
         // given
-        given(itemRepository.findAllByCategory("TOP")).willReturn(List.of());
+        given(itemRepository.findAllByCategoryAndAvailableForSaleTrue("TOP")).willReturn(List.of());
 
         // when
         List<ShopItemResponse> responses = shopItemReadService.getShopItems("TOP");
 
         // then
         assertThat(responses).isEmpty();
-        then(itemRepository).should().findAllByCategory("TOP");
+        then(itemRepository).should().findAllByCategoryAndAvailableForSaleTrue("TOP");
     }
 
     @Test
@@ -125,8 +125,8 @@ class ShopItemReadServiceTest {
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_ITEM_CATEGORY);
-        then(itemRepository).should(never()).findAll();
-        then(itemRepository).should(never()).findAllByCategory(Mockito.anyString());
+        then(itemRepository).should(never()).findAllByAvailableForSaleTrue();
+        then(itemRepository).should(never()).findAllByCategoryAndAvailableForSaleTrue(Mockito.anyString());
     }
 
     @Test
@@ -137,7 +137,7 @@ class ShopItemReadServiceTest {
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_ITEM_CATEGORY);
-        then(itemRepository).should(never()).findAll();
-        then(itemRepository).should(never()).findAllByCategory(Mockito.anyString());
+        then(itemRepository).should(never()).findAllByAvailableForSaleTrue();
+        then(itemRepository).should(never()).findAllByCategoryAndAvailableForSaleTrue(Mockito.anyString());
     }
 }

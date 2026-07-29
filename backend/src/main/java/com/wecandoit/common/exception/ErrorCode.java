@@ -57,6 +57,7 @@ public enum ErrorCode {
     INVALID_ITEM_CATEGORY(HttpStatus.BAD_REQUEST, "유효하지 않은 아이템 카테고리입니다."),
     DUPLICATE_ITEM_CATEGORY(HttpStatus.BAD_REQUEST, "같은 카테고리의 아이템을 중복 장착할 수 없습니다."),
     ITEM_ALREADY_OWNED(HttpStatus.CONFLICT, "이미 보유한 아이템입니다."),
+    ITEM_NOT_AVAILABLE_FOR_SALE(HttpStatus.CONFLICT, "판매 중지된 아이템은 구매할 수 없습니다."),
     INSUFFICIENT_CASH(HttpStatus.BAD_REQUEST, "캐시가 부족합니다."),
 
     // Bingo Board
