@@ -46,7 +46,7 @@ VALUES
     (501, 491, 2, 10000, 'IN_PROGRESS', NULL),
     (502, 492, 2, 10000, 'COMPLETED', '2026-07-26 11:00:00');
 
-INSERT INTO bingo_cells (id, board_id, mission_id, `row`, col, completed_at, verification_status, rejection_reason, member_id, submit_url)
+INSERT INTO bingo_cells (id, board_id, mission_id, row_index, col_index, completed_at, verification_status, rejection_reason, member_id, submit_url)
 VALUES
     (551, 501, 301, 0, 0, NULL, 'PENDING', NULL, 101, 'https://example.com/submissions/pending.jpg'),
     (552, 501, 302, 0, 1, '2026-07-27 09:20:00', 'APPROVED', NULL, 101, 'https://example.com/submissions/approved.jpg'),
