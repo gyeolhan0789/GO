@@ -106,6 +106,8 @@ class RoomControllerTest {
                 GameRoomStatus.WAITING,
                 3,
                 null,
+                9,
+                0,
                 1L,
                 null,
                 List.of()
@@ -309,6 +311,8 @@ class RoomControllerTest {
                         GameRoomStatus.WAITING,
                         3,
                         10_000,
+                        9,
+                        2,
                         1L,
                         joinedAt,
                         List.of(
@@ -329,6 +333,8 @@ class RoomControllerTest {
                 .body("[0].status", equalTo("WAITING"))
                 .body("[0].targetBingoCount", equalTo(3))
                 .body("[0].targetStepCount", equalTo(10_000))
+                .body("[0].totalMissionCount", equalTo(9))
+                .body("[0].completedMissionCount", equalTo(2))
                 .body("[0].hostId", equalTo(1))
                 .body("[0].joinedAt", equalTo("2026-07-22T10:00:00"))
                 .body("[0].members[0].memberId", equalTo(1))
@@ -346,6 +352,8 @@ class RoomControllerTest {
                                 fieldWithPath("[].targetBingoCount").description("목표 빙고 수"),
                                 fieldWithPath("[].targetStepCount")
                                         .description("싱글·협동 모드 공동 목표 걸음 수 (대결 null)"),
+                                fieldWithPath("[].totalMissionCount").description("방 전체 미션 총 개수"),
+                                fieldWithPath("[].completedMissionCount").description("방 전체 완료 미션 수"),
                                 fieldWithPath("[].hostId").description("방장 회원 ID"),
                                 fieldWithPath("[].joinedAt").description("로그인 회원의 게임방 참여 시각"),
                                 fieldWithPath("[].members[].memberId").description("참여자 회원 ID"),
@@ -392,6 +400,8 @@ class RoomControllerTest {
                         GameRoomStatus.WAITING,
                         3,
                         10_000,
+                        9,
+                        2,
                         1L,
                         startedAt,
                         List.of(new RoomMemberResponse(
@@ -416,6 +426,8 @@ class RoomControllerTest {
                 .body("status", equalTo("WAITING"))
                 .body("targetBingoCount", equalTo(3))
                 .body("targetStepCount", equalTo(10_000))
+                .body("totalMissionCount", equalTo(9))
+                .body("completedMissionCount", equalTo(2))
                 .body("hostId", equalTo(1))
                 .body("startedAt", equalTo("2026-07-22T09:50:00"))
                 .body("members[0].memberId", equalTo(1))
@@ -435,6 +447,8 @@ class RoomControllerTest {
                                 fieldWithPath("targetBingoCount").description("목표 빙고 수"),
                                 fieldWithPath("targetStepCount")
                                         .description("싱글·협동 모드 공동 목표 걸음 수 (대결 null)"),
+                                fieldWithPath("totalMissionCount").description("방 전체 미션 총 개수"),
+                                fieldWithPath("completedMissionCount").description("방 전체 완료 미션 수"),
                                 fieldWithPath("hostId").description("방장 회원 ID"),
                                 fieldWithPath("startedAt").description("게임 시작 시각"),
                                 fieldWithPath("members[].memberId").description("참여자 회원 ID"),
@@ -626,6 +640,8 @@ class RoomControllerTest {
                         GameRoomStatus.IN_PROGRESS,
                         3,
                         null,
+                        18,
+                        0,
                         1L,
                         startedAt,
                         List.of(
@@ -646,6 +662,8 @@ class RoomControllerTest {
                 .body("status", equalTo("IN_PROGRESS"))
                 .body("targetBingoCount", equalTo(3))
                 .body("targetStepCount", nullValue())
+                .body("totalMissionCount", equalTo(18))
+                .body("completedMissionCount", equalTo(0))
                 .body("startedAt", equalTo("2026-07-22T09:50:00"))
                 .body("members[0].bingoBoardId", equalTo(201))
                 .body("members[1].bingoBoardId", equalTo(202))
@@ -661,6 +679,8 @@ class RoomControllerTest {
                                 fieldWithPath("targetBingoCount").description("목표 빙고 수"),
                                 fieldWithPath("targetStepCount")
                                         .description("싱글·협동 모드 공동 목표 걸음 수 (대결 null)"),
+                                fieldWithPath("totalMissionCount").description("방 전체 미션 총 개수"),
+                                fieldWithPath("completedMissionCount").description("방 전체 완료 미션 수"),
                                 fieldWithPath("hostId").description("방장 회원 ID"),
                                 fieldWithPath("startedAt").description("게임 시작 시각"),
                                 fieldWithPath("members[].memberId").description("참여자 회원 ID"),
