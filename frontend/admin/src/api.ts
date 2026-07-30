@@ -3,14 +3,12 @@ import type { Environment } from './environment'
 import {
   clearRefreshToken,
   getAccessToken,
-  readEnvironment,
   readRefreshToken,
   saveRefreshToken,
-  saveEnvironment,
   setAccessToken,
 } from './session'
 
-let environment: Environment = readEnvironment() ?? defaultEnvironment
+let environment: Environment = defaultEnvironment
 let generation = 0
 const refreshFlights = new Map<number, Promise<void>>()
 
@@ -139,33 +137,8 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
 }
 
 export async function loginWithEnvironmentFallback(email: string, password: string) {
-  const targetGeneration = generation
-
-  const targetEnvironments: Environment[] = environment === 'local' ? ['local'] : ['prod', 'dev']
-
-  for (const targetEnvironment of targetEnvironments) {
-    try {
-      const tokens = await fetchJson<AuthTokens>(
-        '/auth/login',
-        { method: 'POST', body: JSON.stringify({ email, password }) },
-        targetEnvironment,
-        null,
-      )
-      if (!tokens.accessToken || !tokens.refreshToken) throw new Error('Login response is invalid.')
-      if (generation !== targetGeneration) throw new Error('The session changed during login.')
-
-      environment = targetEnvironment
-      saveEnvironment(targetEnvironment)
-      setAccessToken(targetEnvironment, tokens.accessToken)
-      saveRefreshToken(targetEnvironment, tokens.refreshToken)
-      return targetEnvironment
-    } catch (cause) {
-      if (targetEnvironment === 'prod' && cause instanceof HttpError && cause.status === 401) continue
-      throw cause
-    }
-  }
-
-  throw new Error('Login failed.')
+  await login(email, password)
+  return environment
 }
 
 export async function login(email: string, password: string) {
