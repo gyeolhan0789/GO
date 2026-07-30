@@ -3,12 +3,16 @@ import type { Environment } from './environment'
 import {
   clearRefreshToken,
   getAccessToken,
+  readEnvironment,
   readRefreshToken,
+  saveEnvironment,
   saveRefreshToken,
   setAccessToken,
 } from './session'
 
-let environment: Environment = defaultEnvironment
+let environment: Environment = import.meta.env.DEV
+  ? defaultEnvironment
+  : readEnvironment() ?? defaultEnvironment
 let generation = 0
 const refreshFlights = new Map<number, Promise<void>>()
 
@@ -137,8 +141,32 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
 }
 
 export async function loginWithEnvironmentFallback(email: string, password: string) {
-  await login(email, password)
-  return environment
+  const targetGeneration = generation
+  const targetEnvironments: Environment[] = environment === 'local' ? ['local'] : ['prod', 'dev']
+
+  for (const targetEnvironment of targetEnvironments) {
+    try {
+      const tokens = await fetchJson<AuthTokens>(
+        '/auth/login',
+        { method: 'POST', body: JSON.stringify({ email, password }) },
+        targetEnvironment,
+        null,
+      )
+      if (!tokens.accessToken || !tokens.refreshToken) throw new Error('로그인 응답이 올바르지 않습니다.')
+      if (generation !== targetGeneration) throw new Error('세션이 변경되어 로그인 응답을 무시했습니다.')
+
+      environment = targetEnvironment
+      saveEnvironment(targetEnvironment)
+      setAccessToken(targetEnvironment, tokens.accessToken)
+      saveRefreshToken(targetEnvironment, tokens.refreshToken)
+      return targetEnvironment
+    } catch (cause) {
+      if (targetEnvironment === 'prod' && cause instanceof HttpError && cause.status === 401) continue
+      throw cause
+    }
+  }
+
+  throw new Error('로그인에 실패했습니다.')
 }
 
 export async function login(email: string, password: string) {
