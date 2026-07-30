@@ -85,7 +85,8 @@ function MissionPage({ environment, onLogout }: { environment: Environment; onLo
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const form = new FormData(event.currentTarget)
+    const formElement = event.currentTarget
+    const form = new FormData(formElement)
     const decisionConditionText = String(form.get('decisionCondition') ?? '').trim()
     let decisionCondition: unknown = null
     try { decisionCondition = decisionConditionText ? JSON.parse(decisionConditionText) : null } catch {
