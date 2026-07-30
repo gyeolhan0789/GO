@@ -14,7 +14,7 @@ import type { KeychainMock } from '../jest/keychainMock';
 import { logout } from '../src/features/auth/api/authApi';
 import { useLogoutMutation } from '../src/features/auth/hooks/useLogoutMutation';
 import { AuthProvider, useAuth } from '../src/features/auth/model/AuthContext';
-import { HomeScreen } from '../src/screens/HomeScreen/HomeScreen';
+import { MyPageScreen } from '../src/screens/MyPageScreen/MyPageScreen';
 import {
   getAccessToken,
   setAccessToken,
@@ -38,6 +38,19 @@ const keychain: KeychainMock = jest.requireMock('react-native-keychain');
 // 로그아웃은 화면 이동을 RootNavigator에 맡기므로 빈 navigation으로 충분하다.
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: jest.fn() }),
+}));
+
+// 마이페이지가 띄우는 캐릭터 조회까지 네트워크를 타면 로그아웃 요청 기록에 섞인다.
+jest.mock('../src/features/member/api/memberApi', () => ({
+  getMyCharacter: jest.fn(() =>
+    Promise.resolve({
+      memberId: 1,
+      nickname: '멍멍이',
+      defaultImageUrl: null,
+      equippedItems: [],
+    }),
+  ),
+  updateMyProfile: jest.fn(() => Promise.resolve()),
 }));
 
 const BASE_URL = 'http://localhost:8080';
@@ -361,25 +374,35 @@ describe('로그아웃 시 쿼리 캐시', () => {
   });
 });
 
-// TODO: 로그아웃 버튼이 마이페이지로 옮겨가면 그 화면 기준으로 이 테스트들을
-// 되살린다. 로직(useLogoutMutation, Alert 메시지 분기)은 HomeScreen에 그대로
-// 남아 있고, 이 파일의 'useLogoutMutation' describe에서 UI 없이 이미 검증된다.
-describe.skip('HomeScreen 로그아웃 버튼', () => {
-  test('로그인 상태에서만 로그아웃 버튼을 띄운다', async () => {
-    const tree = await render(<HomeScreen />);
+// 마이페이지는 로그인 뒤에만 닿는 화면이라(RootNavigator가 게이트) 화면 자체는
+// 인증 여부를 다시 따지지 않는다. navigation은 캐릭터 변경 이동에만 쓰인다.
+const NAVIGATION_STUB = {
+  navigate: jest.fn(),
+} as unknown as React.ComponentProps<typeof MyPageScreen>['navigation'];
 
-    expect(logoutButtons(tree)).toHaveLength(0);
+function myPage() {
+  return (
+    <MyPageScreen
+      navigation={NAVIGATION_STUB}
+      route={
+        { key: 'MyPage', name: 'MyPage' } as React.ComponentProps<
+          typeof MyPageScreen
+        >['route']
+      }
+    />
+  );
+}
 
-    await act(async () => {
-      setAccessToken('access-token');
-    });
+describe('마이페이지 로그아웃 버튼', () => {
+  test('로그아웃 버튼을 띄운다', async () => {
+    const tree = await renderAuthenticated(myPage());
 
     expect(logoutButtons(tree)).toHaveLength(1);
   });
 
   test('서버가 거절하면 세션이 만료됐다고 알린다', async () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-    const tree = await renderAuthenticated(<HomeScreen />);
+    const tree = await renderAuthenticated(myPage());
     fetchMock.mockResolvedValueOnce(
       jsonResponse(401, { message: '유효하지 않은 Refresh Token입니다.' }),
     );
@@ -396,7 +419,7 @@ describe.skip('HomeScreen 로그아웃 버튼', () => {
 
   test('네트워크가 끊기면 서버에 반영되지 못했다고 알린다', async () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-    const tree = await renderAuthenticated(<HomeScreen />);
+    const tree = await renderAuthenticated(myPage());
     fetchMock.mockRejectedValueOnce(new Error('Network request failed'));
 
     await pressLogout(tree);
@@ -410,7 +433,7 @@ describe.skip('HomeScreen 로그아웃 버튼', () => {
   });
 
   test('연속으로 두 번 눌러도 요청은 한 번만 나간다', async () => {
-    const tree = await renderAuthenticated(<HomeScreen />);
+    const tree = await renderAuthenticated(myPage());
     fetchMock.mockResolvedValue(jsonResponse(204));
 
     const [button] = logoutButtons(tree);
@@ -425,7 +448,7 @@ describe.skip('HomeScreen 로그아웃 버튼', () => {
 
   test('로그아웃이 성공하면 Alert 없이 로그인 화면으로 되돌아간다', async () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-    const tree = await renderAuthenticated(<HomeScreen />);
+    const tree = await renderAuthenticated(myPage());
     fetchMock.mockResolvedValueOnce(jsonResponse(204));
 
     await pressLogout(tree);

@@ -12,6 +12,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import type { RootStackParamList } from '../src/app/navigation/RootNavigator';
+import { AuthProvider } from '../src/features/auth/model/AuthContext';
 import { MyPageScreen } from '../src/screens/MyPageScreen/MyPageScreen';
 import { installFetchMock, jsonResponse } from '../jest/fetchMock';
 import type { FetchMock } from '../jest/fetchMock';
@@ -22,6 +23,12 @@ jest.mock('../src/features/member/mocks/characterMocks', () => ({
   ...jest.requireActual('../src/features/member/mocks/characterMocks'),
   USE_MOCK_CHARACTER: false,
 }));
+
+// 로그아웃 버튼이 useAuth를 타므로 AuthProvider가 필요하다. 저장된 리프레시
+// 토큰이 없는 기기라 세션 복구는 요청 없이 끝난다.
+jest.mock('react-native-keychain', () =>
+  require('../jest/keychainMock').createKeychainMock(),
+);
 
 const INITIAL_METRICS = {
   frame: { x: 0, y: 0, width: 400, height: 800 },
@@ -132,17 +139,19 @@ async function renderScreen() {
   await act(async () => {
     renderer = ReactTestRenderer.create(
       <QueryClientProvider client={client}>
-        <SafeAreaProvider initialMetrics={INITIAL_METRICS}>
-          <NavigationContainer>
-            <Stack.Navigator>
-              <Stack.Screen name="MyPage" component={MyPageScreen} />
-              <Stack.Screen
-                name="CharacterCustomize"
-                component={CharacterCustomizeStub}
-              />
-            </Stack.Navigator>
-          </NavigationContainer>
-        </SafeAreaProvider>
+        <AuthProvider>
+          <SafeAreaProvider initialMetrics={INITIAL_METRICS}>
+            <NavigationContainer>
+              <Stack.Navigator>
+                <Stack.Screen name="MyPage" component={MyPageScreen} />
+                <Stack.Screen
+                  name="CharacterCustomize"
+                  component={CharacterCustomizeStub}
+                />
+              </Stack.Navigator>
+            </NavigationContainer>
+          </SafeAreaProvider>
+        </AuthProvider>
       </QueryClientProvider>,
     );
   });
