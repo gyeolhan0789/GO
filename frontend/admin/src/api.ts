@@ -54,6 +54,12 @@ export function getEnvironment() {
   return environment
 }
 
+export function resolveImageUrl(imageUrl: string | undefined) {
+  if (!imageUrl || /^https?:\/\//i.test(imageUrl)) return imageUrl
+  const normalizedPath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
+  return `${environments[environment].apiBaseUrl}${normalizedPath}`
+}
+
 class HttpError extends Error {
   readonly status: number
 
