@@ -128,18 +128,13 @@ export function WalkSessionScreen() {
           {remainingSteps.toLocaleString()}보 남았어요
         </Text>
 
-        <View style={styles.memberStepsList}>
+        <View style={styles.memberLegendRow}>
           {MOCK_TEAM_MEMBERS.map(member => (
-            <View key={member.id} style={styles.memberStepsRow}>
-              <View style={styles.memberNameRow}>
-                <View
-                  style={[styles.memberDot, { backgroundColor: member.color }]}
-                />
-                <Text style={styles.memberName}>{member.nickname}</Text>
-              </View>
-              <Text style={styles.memberSteps}>
-                {member.steps.toLocaleString()}보
-              </Text>
+            <View key={member.id} style={styles.memberLegendItem}>
+              <View
+                style={[styles.memberDot, { backgroundColor: member.color }]}
+              />
+              <Text style={styles.memberName}>{member.nickname}</Text>
             </View>
           ))}
         </View>
@@ -300,16 +295,13 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     marginBottom: spacing.md,
   },
-  memberStepsList: {
-    gap: spacing.xs,
+  memberLegendRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
     marginBottom: spacing.lg,
   },
-  memberStepsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  memberNameRow: {
+  memberLegendItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
@@ -323,14 +315,9 @@ const styles = StyleSheet.create({
   },
   memberName: {
     fontFamily: fontFamily.regular,
-    fontSize: 13,
+    fontSize: 12,
     color: colors.ink,
     opacity: 0.7,
-  },
-  memberSteps: {
-    fontFamily: fontFamily.bold,
-    fontSize: 13,
-    color: colors.ink,
   },
   statsRow: {
     flexDirection: 'row',
