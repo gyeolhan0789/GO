@@ -28,7 +28,10 @@ export function CharacterLayers({
   items,
   style,
 }: CharacterLayersProps) {
-  const layers = items.filter(item => item.image != null);
+  const layers = items.filter(
+    (item): item is CharacterLayer & { image: ImageSourcePropType } =>
+      item.image != null,
+  );
 
   return (
     <View style={style}>
@@ -52,8 +55,7 @@ export function CharacterLayers({
       {layers.map(item => (
         <Image
           key={item.itemId}
-          // 위 filter로 걸렀지만 타입에는 남는 null을 여기서 좁힌다.
-          source={item.image ?? undefined}
+          source={item.image}
           style={styles.layer}
           resizeMode="contain"
           accessibilityIgnoresInvertColors
