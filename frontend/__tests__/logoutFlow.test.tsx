@@ -33,6 +33,21 @@ const {
   clearAllMockStorages,
 } = require('@react-native-async-storage/async-storage/jest');
 
+// 회원 조회까지 네트워크를 타면 auth 요청 기록에 섞인다. 이 테스트가 보는 건
+// 로그아웃 후 어느 화면으로 가는지뿐이다.
+jest.mock('../src/features/member/api/memberApi', () => ({
+  getMyCharacter: jest.fn(() =>
+    Promise.resolve({
+      memberId: 1,
+      nickname: '멍멍이',
+      defaultImageUrl: null,
+      equippedItems: [],
+    }),
+  ),
+  getMyCash: jest.fn(() => Promise.resolve({ cash: 0 })),
+  updateMyProfile: jest.fn(() => Promise.resolve()),
+}));
+
 // 권한 게이트를 이미 통과한 기기를 흉내낸다.
 jest.mock('../src/shared/lib/permissions', () => ({
   PERMISSION_KEYS: ['camera', 'activityRecognition', 'location', 'notifications'],
@@ -123,9 +138,12 @@ async function renderAppSignedIn() {
   return renderer;
 }
 
-async function pressLogout(tree: ReactTestRenderer.ReactTestRenderer) {
+async function pressByLabel(
+  tree: ReactTestRenderer.ReactTestRenderer,
+  label: string,
+) {
   const [button] = tree.root.findAll(
-    node => node.props.accessibilityLabel === '로그아웃',
+    node => node.props.accessibilityLabel === label,
     { deep: false },
   );
 
@@ -135,15 +153,21 @@ async function pressLogout(tree: ReactTestRenderer.ReactTestRenderer) {
   await flush();
 }
 
-// TODO: 로그아웃 버튼이 마이페이지로 옮겨가면 그 화면 기준으로 이 테스트들을
-// 되살린다. HomeScreen에는 현재 누를 수 있는 로그아웃 버튼이 없다.
-describe.skip('로그아웃 후 진입 화면', () => {
+/** 로그아웃 버튼은 마이페이지에 있어, 홈에서 프로필을 눌러 먼저 들어간다. */
+async function openMyPage(tree: ReactTestRenderer.ReactTestRenderer) {
+  await pressByLabel(tree, '프로필 설정');
+}
+
+describe('로그아웃 후 진입 화면', () => {
   test('로그아웃하면 온보딩이 아니라 로그인 화면으로 간다', async () => {
     const tree = await renderAppSignedIn();
-    expect(collectTexts(tree.root)).toContain('오늘 걸음');
+    // 캐러셀 안쪽은 onLayout으로 폭을 받은 뒤에야 그려지므로(테스트 렌더러는
+    // 레이아웃 이벤트를 내지 않는다) 홈에 있다는 표식은 산책하기 버튼으로 본다.
+    expect(collectTexts(tree.root)).toContain('산책하기');
 
+    await openMyPage(tree);
     fetchMock.mockResolvedValueOnce(jsonResponse(204));
-    await pressLogout(tree);
+    await pressByLabel(tree, '로그아웃');
 
     const texts = collectTexts(tree.root);
     expect(texts).toContain('만나서 반가워요!');
@@ -153,10 +177,11 @@ describe.skip('로그아웃 후 진입 화면', () => {
   test('로그아웃이 실패해도 로그인 화면으로 간다', async () => {
     const tree = await renderAppSignedIn();
 
+    await openMyPage(tree);
     fetchMock.mockResolvedValueOnce(
       jsonResponse(401, { message: '토큰이 만료되었습니다.' }),
     );
-    await pressLogout(tree);
+    await pressByLabel(tree, '로그아웃');
 
     const texts = collectTexts(tree.root);
     expect(texts).toContain('만나서 반가워요!');

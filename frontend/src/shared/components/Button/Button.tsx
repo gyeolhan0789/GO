@@ -20,6 +20,8 @@ type ButtonProps = {
   size?: ButtonSize;
   icon?: IoniconsIconName;
   disabled?: boolean;
+  /** label이 진행 상태에 따라 바뀌는 버튼에 고정된 이름을 주기 위한 값. */
+  accessibilityLabel?: string;
   /** 바깥 래퍼(그림자 박스 포함)에 적용. flex:1 등 배치 제어용. */
   style?: StyleProp<ViewStyle>;
 };
@@ -36,6 +38,7 @@ export function Button({
   size = 'md',
   icon,
   disabled = false,
+  accessibilityLabel,
   style,
 }: ButtonProps) {
   const isPrimary = variant === 'primary';
@@ -46,6 +49,7 @@ export function Button({
       <Pressable
         onPress={onPress}
         disabled={disabled}
+        accessibilityLabel={accessibilityLabel}
         style={({ pressed }) => [
           styles.base,
           { height: HEIGHT_BY_SIZE[size] },
