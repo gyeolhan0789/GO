@@ -15,6 +15,7 @@ export const colors = {
   mutedStrong: '#6B7280',
   infoBg: '#E3EDF7',
   infoText: '#2E5A8C',
+  progress: '#e1e2e4',
   // highlightBg는 채도가 높아 넓은 면에 깔면 눈이 아프다. 빙고 칸처럼 면으로
   // 칠하고 그 위에 아이콘을 얹는 자리에는 이 옅은 짝을 쓴다(대비 5.9:1).
   highlightSoftBg: '#FDF0D9',

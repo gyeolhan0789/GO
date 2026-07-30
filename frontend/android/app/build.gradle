@@ -2,6 +2,14 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
+// Google Maps API 키는 local.properties(gitignore 대상)에서만 읽는다. 커밋되는
+// 파일에는 절대 실제 키 값을 넣지 않는다.
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localProperties.load(new FileInputStream(localPropertiesFile))
+}
+
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.
@@ -84,6 +92,10 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        // local.properties에 MAPS_API_KEY=... 를 추가하면 AndroidManifest의
+        // ${MAPS_API_KEY} 자리로 들어간다. 키가 없으면 빈 문자열이라 지도가
+        // 회색 화면으로만 뜨고 크래시는 나지 않는다.
+        manifestPlaceholders = [MAPS_API_KEY: localProperties.getProperty('MAPS_API_KEY', '')]
     }
     signingConfigs {
         debug {

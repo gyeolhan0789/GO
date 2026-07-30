@@ -16,7 +16,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * {@code (row, col, board_id)} prevents duplicate coordinates on the same bingo board.
+ * {@code (row_index, col_index, board_id)} prevents duplicate coordinates on the same bingo board.
  */
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -25,7 +25,7 @@ import lombok.NoArgsConstructor;
         name = "bingo_cells",
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_bingo_cells_position_board",
-                columnNames = {"row", "col", "board_id"}
+                columnNames = {"row_index", "col_index", "board_id"}
         )
 )
 public class BingoCell extends BaseEntity {
@@ -40,10 +40,10 @@ public class BingoCell extends BaseEntity {
     @Column(name = "mission_id", nullable = false)
     private Long missionId;
 
-    @Column(name = "row", nullable = false)
+    @Column(name = "row_index", nullable = false)
     private int row;
 
-    @Column(name = "col", nullable = false)
+    @Column(name = "col_index", nullable = false)
     private int col;
 
     @Column(name = "completed_at")

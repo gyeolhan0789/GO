@@ -160,16 +160,15 @@ class BingoReadServiceTest {
     }
 
     @Test
-    @DisplayName("공유 보드 생성 후 7일이 지나면 갱신 필요 여부를 반환한다")
+    @DisplayName("게임 시작 후 7일이 지나면 host에게 갱신 필요 여부와 갱신 권한을 반환한다")
     void getActiveBoardReturnsRenewalRequiredForOldSharedBoard() {
         // given
         Room room = inProgressRoom(1L, 10L, 2);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
         given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.IN_PROGRESS))
-                .willReturn(Optional.of(activeGame(200L, 10L)));
+                .willReturn(Optional.of(activeGameStartedAt(200L, 10L, LocalDateTime.now().minusDays(8))));
         BingoBoard board = activeBoard(100L, 200L, 2);
-        ReflectionTestUtils.setField(board, "createdAt", LocalDateTime.now().minusDays(8));
         given(bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(board));
         List<BingoCell> cells = cellsWithApprovedCount(board.getId(), 4, 3);
@@ -183,6 +182,31 @@ class BingoReadServiceTest {
         assertThat(response.renewalRequired()).isTrue();
         assertThat(response.renewalMessage()).isEqualTo("빙고판 갱신이 필요합니다.");
         assertThat(response.canRenew()).isTrue();
+    }
+
+    @Test
+    @DisplayName("게임 시작 후 7일이 지나도 host가 아니면 갱신 권한 없이 안내만 반환한다")
+    void getActiveBoardReturnsRenewalRequiredWithoutRenewPermissionForParticipant() {
+        // given
+        Room room = inProgressRoom(1L, 10L, 2);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(true);
+        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.IN_PROGRESS))
+                .willReturn(Optional.of(activeGameStartedAt(200L, 10L, LocalDateTime.now().minusDays(8))));
+        BingoBoard board = activeBoard(100L, 200L, 2);
+        given(bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(200L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.of(board));
+        List<BingoCell> cells = cellsWithApprovedCount(board.getId(), 4, 3);
+        given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
+        given(missionRepository.findAllById(Mockito.anyIterable())).willReturn(missionsForCells(cells));
+
+        // when
+        BingoBoardResponse response = bingoReadService.getActiveBoard(2L, 10L);
+
+        // then
+        assertThat(response.renewalRequired()).isTrue();
+        assertThat(response.renewalMessage()).isEqualTo("빙고판 갱신이 필요합니다.");
+        assertThat(response.canRenew()).isFalse();
     }
 
     @Test
@@ -423,6 +447,12 @@ class BingoReadServiceTest {
     private Game activeGame(Long gameId, Long roomId) {
         Game game = Game.start(roomId);
         ReflectionTestUtils.setField(game, "id", gameId);
+        return game;
+    }
+
+    private Game activeGameStartedAt(Long gameId, Long roomId, LocalDateTime startedAt) {
+        Game game = activeGame(gameId, roomId);
+        ReflectionTestUtils.setField(game, "startedAt", startedAt);
         return game;
     }
 
