@@ -6,7 +6,7 @@ argument-hint: "[optional source branch]"
 
 # GitLab MR description generation
 
-Follow `convention/git-convention.md` for branch, commit, and MR rules.
+Follow `docs/git-convention.md` for branch, commit, and MR rules.
 
 1. Confirm `glab` is installed. Do not treat a failing `glab --version` in the current shell as proof it is missing — a stale PATH cache is a common false negative, especially right after another process installed it. Before running any install command, check for an existing installation first: `winget list --id GLab.GLab`, and check whether a known install path (for example `%LOCALAPPDATA%\Programs\glab`) is already present in the user `Path` environment variable. If either check shows it is already installed, add that path to the current session's PATH and use it — never run an install, reinstall, or upgrade command in that case. Only install it through the approved Windows package manager (for example, `winget install --id GLab.GLab --exact`) once both checks confirm there is no existing installation. Then run `glab auth status`. If authentication is unavailable, stop and provide this PAT recovery path:
    - Open `https://lab.ssafy.com/-/user_settings/personal_access_tokens`.
