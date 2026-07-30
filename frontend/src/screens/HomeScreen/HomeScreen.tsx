@@ -8,7 +8,10 @@ import type { BingoBoardCell } from '../../features/bingo/components/BingoBoard/
 import { useLogoutMutation } from '../../features/auth/hooks/useLogoutMutation';
 import { useMyCashQuery } from '../../features/member/hooks/useMyCashQuery';
 import { useMyCharacterQuery } from '../../features/member/hooks/useMyCharacterQuery';
-import { startWalkSession } from '../../features/walk-session/model/walkSessionStore';
+import {
+  isWalkSessionActive,
+  startWalkSession,
+} from '../../features/walk-session/model/walkSessionStore';
 import { ApiError } from '../../shared/api/ApiError';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { Button } from '../../shared/components/Button/Button';
@@ -125,7 +128,15 @@ export function HomeScreen() {
         <Button
           label="산책하기"
           size="lg"
-          onPress={() => setRoomSheetVisible(true)}
+          onPress={() => {
+            // 이미 진행 중인 산책이 있으면 방 목록을 다시 고를 필요 없이
+            // 그 세션으로 바로 이동한다.
+            if (isWalkSessionActive()) {
+              navigation.navigate('WalkSession');
+              return;
+            }
+            setRoomSheetVisible(true);
+          }}
         />
       </View>
 
