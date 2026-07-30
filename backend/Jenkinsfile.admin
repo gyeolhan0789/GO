@@ -7,17 +7,6 @@ pipeline {
     }
 
     stages {
-        stage('Check Admin Changes') {
-            steps {
-                script {
-                    def changedFiles = sh(script: 'git diff --name-only HEAD~1 HEAD || echo frontend/admin/', returnStdout: true).trim()
-                    if (!changedFiles.split('\\n').any { it.startsWith('frontend/admin/') || it == 'backend/Jenkinsfile.admin' }) {
-                        currentBuild.result = 'NOT_BUILT'
-                        error('No admin deployment changes.')
-                    }
-                }
-            }
-        }
 
         stage('Build Admin') {
             steps {
