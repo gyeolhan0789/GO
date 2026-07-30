@@ -42,8 +42,13 @@ function rankingPage(
     myRank,
     myWeeklySteps: 58720,
     rankings: {
-      // 아바타는 착용 아이템으로 그린다. 조합 자체는 여기서 볼 게 아니라 비워둔다.
-      content: content.map(item => ({ ...item, equippedItems: [] })),
+      // 아바타 조합 자체는 여기서 볼 게 아니라, 서버가 주는 필드만 채워둔다.
+      content: content.map(item => ({
+        ...item,
+        gender: 'MALE',
+        defaultImageUrl: null,
+        equippedItems: [],
+      })),
       totalElements: content.length,
       totalPages: 1,
       currentPage: 0,

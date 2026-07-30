@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { formatThousands } from '../../../features/history/model/format';
-import { CharacterLayers } from '../../../features/member/components/CharacterLayers';
+import { CharacterBust } from '../../../features/member/components/CharacterBust';
 import type { Character } from '../../../features/member/model/character';
 import {
   selectLayerItems,
@@ -50,7 +50,7 @@ export function MyRankBar({ rank, weeklySteps, character }: MyRankBarProps) {
     >
       <Text style={styles.rank}>{isRanked ? rank : UNRANKED_LABEL}</Text>
 
-      <CharacterLayers
+      <CharacterBust
         baseImage={character?.baseImage ?? null}
         items={layers}
         style={styles.avatar}
@@ -93,9 +93,7 @@ const styles = StyleSheet.create({
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     borderRadius: radius.pill,
-    // 레이어가 절대 배치라 상자를 넘는 부분을 잘라야 원형이 유지된다.
-    overflow: 'hidden',
-    backgroundColor: colors.mutedStrong,
+    backgroundColor: colors.surface,
   },
   label: {
     flex: 1,

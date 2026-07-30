@@ -30,8 +30,10 @@ export function RankingRow({ item, isMe }: RankingRowProps) {
       <Text style={[styles.rank, isMe && styles.rankMe]}>{item.rank}</Text>
 
       <RankingAvatar
+        gender={item.gender}
+        defaultImageUrl={item.defaultImageUrl}
         equippedItems={item.equippedItems}
-        style={[styles.avatar, isMe && styles.avatarMe]}
+        style={styles.avatar}
       />
 
       <Text
@@ -92,10 +94,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutralBg,
-  },
-  avatarMe: {
-    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.muted,
   },
   nickname: {
     flex: 1,

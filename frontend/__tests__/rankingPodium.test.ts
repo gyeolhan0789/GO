@@ -5,13 +5,23 @@
 import type { RankingItem } from '../src/features/ranking/api/rankingApi';
 import { orderRanking, splitPodium } from '../src/screens/RankingScreen/model';
 
+/** 줄 세우기·번호 매기기는 캐릭터와 무관해서 아바타 필드는 비워 둔다. */
+const NO_CHARACTER: Pick<
+  RankingItem,
+  'gender' | 'defaultImageUrl' | 'equippedItems'
+> = {
+  gender: 'MALE',
+  defaultImageUrl: null,
+  equippedItems: [],
+};
+
 function item(rank: number): RankingItem {
   return {
     rank,
     memberId: rank * 10,
     nickname: `${rank}위`,
     weeklySteps: 1000 - rank,
-    equippedItems: [],
+    ...NO_CHARACTER,
   };
 }
 
@@ -22,7 +32,7 @@ function tied(nickname: string, rank = 1, weeklySteps = 0): RankingItem {
     memberId: nickname.charCodeAt(0),
     nickname,
     weeklySteps,
-    equippedItems: [],
+    ...NO_CHARACTER,
   };
 }
 

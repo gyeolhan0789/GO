@@ -28,8 +28,15 @@ const MEDAL_COLOR: Record<number, string> = {
 const BLOCK_HEIGHT: Record<number, number> = { 1: 84, 2: 60, 3: 46 };
 
 const STAND_HEIGHT = 150;
-const CHARACTER_SIZE = 66;
+const CHARACTER_SIZE = 96;
 const STEP_ICON_SIZE = 13;
+
+/**
+ * 캐릭터 발끝 아래로 남는 빈 여백. 512 캔버스에서 발끝이 y≈415라 아래 97px이
+ * 투명하고, `contain`으로 줄여도 이 비율은 그대로다. 그만큼 끌어내려야 캐릭터가
+ * 단을 밟고 선 것처럼 보인다.
+ */
+const CHARACTER_FOOT_GAP = Math.round(CHARACTER_SIZE * ((512 - 415) / 512));
 
 export function PodiumCard({ places, myNickname }: PodiumCardProps) {
   return (
@@ -56,8 +63,11 @@ function Place({ place, isMe }: { place: RankingItem; isMe: boolean }) {
     <View style={styles.place}>
       <View style={styles.stand}>
         <RankingAvatar
+          gender={place.gender}
+          defaultImageUrl={place.defaultImageUrl}
           equippedItems={place.equippedItems}
           style={styles.character}
+          variant="full"
         />
         <View
           style={[
@@ -113,6 +123,8 @@ const styles = StyleSheet.create({
   character: {
     width: CHARACTER_SIZE,
     height: CHARACTER_SIZE,
+    // 빈 여백만큼 블록을 끌어올려 발끝이 단에 닿게 한다.
+    marginBottom: -CHARACTER_FOOT_GAP,
   },
   block: {
     alignSelf: 'stretch',
