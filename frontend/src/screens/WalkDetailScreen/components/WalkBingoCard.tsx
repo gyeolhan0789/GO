@@ -1,11 +1,11 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { BingoBoard } from '../../../features/bingo/components/BingoBoard/BingoBoard';
 import type { BingoBoardSize } from '../../../features/bingo/components/BingoBoard/BingoBoard';
 import type { BingoCellOwner } from '../../../features/history/model/walkDetail';
 import {
+  countCellsByOwner,
   countCompletedCells,
   resolveBingoCellOwner,
 } from '../../../features/history/model/walkDetail';
@@ -17,12 +17,12 @@ import { spacing } from '../../../shared/constants/spacing';
 type WalkBingoCardProps = {
   size: BingoBoardSize;
   cells: WalkBingoCell[];
-  /** 본인. 이 사람이 완료한 칸이 초록으로 칠해진다. */
+  /** 본인. 이 사람이 깬 칸이 초록으로 칠해진다. */
   myMemberId: number;
 };
 
 const CHECK_SIZE = 22;
-const INFO_ICON_SIZE = 20;
+const SWATCH_SIZE = 14;
 
 /** 미완료 칸은 색을 주지 않는다. */
 const OWNER_STYLE: Record<
@@ -34,14 +34,16 @@ const OWNER_STYLE: Record<
   none: {},
 };
 
-export function WalkBingoCard({
-  size,
-  cells,
-  myMemberId,
-}: WalkBingoCardProps) {
-  const [isLegendOpen, setLegendOpen] = useState(false);
+const LEGEND: { owner: BingoCellOwner; label: string; swatch: string }[] = [
+  { owner: 'mine', label: '내가 깬 칸', swatch: colors.successBg },
+  { owner: 'other', label: '친구가 깬 칸', swatch: colors.highlightSoftBg },
+  { owner: 'none', label: '못 깬 칸', swatch: colors.neutralBg },
+];
 
+export function WalkBingoCard({ size, cells, myMemberId }: WalkBingoCardProps) {
   const completedCount = countCompletedCells(cells);
+  const countsByOwner = countCellsByOwner(cells, myMemberId);
+
   const boardCells = cells.map(cell => {
     const owner = resolveBingoCellOwner(cell, myMemberId);
     const { background, check } = OWNER_STYLE[owner];
@@ -58,32 +60,22 @@ export function WalkBingoCard({
 
   return (
     <Card>
-      <View style={styles.headerRow}>
-        <Text style={styles.heading}>
-          {`진행한 빙고판 ${completedCount}/${cells.length}`}
-        </Text>
-        <Pressable
-          onPress={() => setLegendOpen(open => !open)}
-          hitSlop={spacing.sm}
-          accessibilityRole="button"
-          accessibilityLabel="빙고판 색 설명"
-          accessibilityState={{ expanded: isLegendOpen }}
-        >
-          <Ionicons
-            name="information-circle-outline"
-            size={INFO_ICON_SIZE}
-            color={colors.successText}
-          />
-        </Pressable>
-      </View>
+      <Text style={styles.heading}>
+        {`진행한 빙고판 ${completedCount}/${cells.length}`}
+      </Text>
 
-      {isLegendOpen ? (
-        <View style={styles.legend}>
-          <LegendRow color={colors.successBg} label="내가 완료" />
-          <LegendRow color={colors.highlightSoftBg} label="다른 친구 완료" />
-          <LegendRow color={colors.neutralBg} label="아직 미완료" />
-        </View>
-      ) : null}
+      {/* 누가 깼는지가 이 화면의 핵심이라 범례를 접어두지 않고 늘 펼쳐 둔다. */}
+      <View style={styles.legend}>
+        {LEGEND.map(({ owner, label, swatch }) => (
+          <View key={owner} style={styles.legendRow}>
+            <View style={[styles.legendSwatch, { backgroundColor: swatch }]} />
+            <Text style={styles.legendLabel}>{label}</Text>
+            <Text
+              style={styles.legendCount}
+            >{`${countsByOwner[owner]}칸`}</Text>
+          </View>
+        ))}
+      </View>
 
       <View style={styles.board}>
         <BingoBoard size={size} cells={boardCells} />
@@ -92,40 +84,27 @@ export function WalkBingoCard({
   );
 }
 
-function LegendRow({ color, label }: { color: string; label: string }) {
-  return (
-    <View style={styles.legendRow}>
-      <View style={[styles.legendSwatch, { backgroundColor: color }]} />
-      <Text style={styles.legendLabel}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
   heading: {
-    flexShrink: 1,
     fontFamily: 'BMDOHYEON',
     fontSize: 15,
     color: colors.ink,
   },
   legend: {
-    gap: spacing.xs,
+    flexDirection: 'row',
+    // 좁은 화면에서 잘리지 않게 다음 줄로 넘긴다.
+    flexWrap: 'wrap',
+    gap: spacing.md,
     marginTop: spacing.sm,
   },
   legendRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   legendSwatch: {
-    width: 16,
-    height: 16,
+    width: SWATCH_SIZE,
+    height: SWATCH_SIZE,
     borderRadius: 4,
     borderWidth: 2,
     borderColor: colors.ink,
@@ -135,6 +114,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.ink,
     opacity: 0.7,
+  },
+  legendCount: {
+    fontFamily: 'BMDOHYEON',
+    fontSize: 12,
+    color: colors.ink,
   },
   board: {
     marginTop: spacing.md,

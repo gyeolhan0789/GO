@@ -9,7 +9,7 @@ import { colors } from '../../shared/constants/colors';
 import { spacing } from '../../shared/constants/spacing';
 import { ParticipantList } from './components/ParticipantList';
 import { WalkBingoCard } from './components/WalkBingoCard';
-import { WalkStatsCard } from './components/WalkStatsCard';
+import { WalkSummaryCard } from './components/WalkSummaryCard';
 
 type WalkDetailScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -17,10 +17,10 @@ type WalkDetailScreenProps = NativeStackScreenProps<
 >;
 
 export function WalkDetailScreen({ route }: WalkDetailScreenProps) {
-  const { walkId } = route.params;
+  const { roomId } = route.params;
 
-  const walkQuery = useWalkDetailQuery(walkId);
-  const walk = walkQuery.data;
+  const walkQuery = useWalkDetailQuery(roomId);
+  const { walk } = walkQuery;
   const participant = walk ? resolveMyParticipant(walk.participants) : null;
 
   if (walkQuery.isLoading) {
@@ -45,7 +45,7 @@ export function WalkDetailScreen({ route }: WalkDetailScreenProps) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <WalkStatsCard walk={walk} participant={participant} />
+        <WalkSummaryCard walk={walk} />
 
         <ParticipantList participants={walk.participants} />
 
