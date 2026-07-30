@@ -18,6 +18,10 @@ const BOARD_SIZE_OPTIONS: { label: string; value: BoardSizeOption }[] = [
   { label: '5 x 5', value: '5' },
 ];
 
+// TODO: 목표 빙고 수를 고르는 UI가 아직 없다. 값이 정해지기 전까지는 최소값
+// (1줄 완성)으로 보낸다.
+const DEFAULT_TARGET_BINGO_COUNT = 1;
+
 type CreateSoloWalkSheetProps = {
   visible: boolean;
   onClose: () => void;
@@ -50,6 +54,7 @@ export function CreateSoloWalkSheet({
         name: nickname,
         mode: 'SINGLE',
         boardSize: Number(boardSize) as 3 | 4 | 5,
+        targetBingoCount: DEFAULT_TARGET_BINGO_COUNT,
         targetStepCount,
       });
       onCreated();

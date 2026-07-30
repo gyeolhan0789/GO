@@ -32,8 +32,8 @@ export type CreateRoomRequest = {
   name: string;
   mode: GameMode;
   boardSize: 3 | 4 | 5;
-  /** BATTLE만 허용, 1 이상. SINGLE/COOPERATE에는 보내면 안 된다. */
-  targetBingoCount?: number;
+  /** 모드 관계없이 필수, 1 이상. */
+  targetBingoCount: number;
   /** SINGLE/COOPERATE는 필수(1 이상), BATTLE에는 보내면 안 된다. */
   targetStepCount?: number;
 };
