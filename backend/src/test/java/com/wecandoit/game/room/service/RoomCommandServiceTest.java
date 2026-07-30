@@ -11,6 +11,7 @@ import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.controller.request.CreateRoomRequest;
+import com.wecandoit.game.controller.request.UpdateRoomNameRequest;
 import com.wecandoit.game.controller.response.CreateRoomResponse;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameRoomStatus;
@@ -307,6 +308,83 @@ class RoomCommandServiceTest {
                 ErrorCode.ROOM_TARGET_STEP_COUNT_NOT_ALLOWED
         );
         then(roomRepository).should(Mockito.never()).save(Mockito.any(Room.class));
+    }
+
+    @Test
+    @DisplayName("방장이 게임방 이름을 변경하면 앞뒤 공백을 제거한 이름으로 변경한다")
+    void updateRoomNameChangesName() {
+        // given
+        Room room = Room.create(1L, "기존 방", GameMode.COOPERATE, 3, 10_000, 3);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
+
+        // when
+        roomCommandService.updateRoomName(
+                1L,
+                10L,
+                new UpdateRoomNameRequest("  변경된 방  ")
+        );
+
+        // then
+        assertThat(room.getName()).isEqualTo("변경된 방");
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 게임방의 이름을 변경하면 실패한다")
+    void updateRoomNameRejectsMissingRoom() {
+        // given
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.empty());
+
+        // when & then
+        assertErrorCode(
+                () -> roomCommandService.updateRoomName(
+                        1L,
+                        10L,
+                        new UpdateRoomNameRequest("변경된 방")
+                ),
+                ErrorCode.ROOM_NOT_FOUND
+        );
+    }
+
+    @Test
+    @DisplayName("방장이 아닌 회원이 게임방 이름을 변경하면 실패한다")
+    void updateRoomNameRejectsNonHost() {
+        // given
+        Room room = Room.create(1L, "기존 방", GameMode.COOPERATE, 3, 10_000, 3);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
+
+        // when & then
+        assertErrorCode(
+                () -> roomCommandService.updateRoomName(
+                        2L,
+                        10L,
+                        new UpdateRoomNameRequest("변경된 방")
+                ),
+                ErrorCode.ROOM_UPDATE_FORBIDDEN
+        );
+        assertThat(room.getName()).isEqualTo("기존 방");
+    }
+
+    @Test
+    @DisplayName("종료된 게임방의 이름을 변경하면 실패한다")
+    void updateRoomNameRejectsClosedRoom() {
+        // given
+        Room room = Room.create(1L, "기존 방", GameMode.COOPERATE, 3, 10_000, 3);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        room.close();
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
+
+        // when & then
+        assertErrorCode(
+                () -> roomCommandService.updateRoomName(
+                        1L,
+                        10L,
+                        new UpdateRoomNameRequest("변경된 방")
+                ),
+                ErrorCode.ROOM_CLOSED
+        );
+        assertThat(room.getName()).isEqualTo("기존 방");
     }
 
     @Test

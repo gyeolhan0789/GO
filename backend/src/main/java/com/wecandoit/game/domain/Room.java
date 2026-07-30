@@ -106,6 +106,10 @@ public class Room extends BaseEntity {
         return status == GameRoomStatus.COMPLETED;
     }
 
+    public void updateName(String name) {
+        this.name = name;
+    }
+
     public void updateParticipantStatus(long participantCount) {
         if (mode == GameMode.SINGLE
                 || status == GameRoomStatus.IN_PROGRESS
