@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -10,6 +11,7 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
+import { useLogoutMutation } from '../../features/auth/hooks/useLogoutMutation';
 import { CharacterPreview } from '../../features/member/components/CharacterPreview';
 import { useMyCharacterQuery } from '../../features/member/hooks/useMyCharacterQuery';
 import { useUpdateProfileMutation } from '../../features/member/hooks/useUpdateProfileMutation';
@@ -17,6 +19,7 @@ import {
   selectLayerItems,
   toEquippedByCategory,
 } from '../../features/member/model/equippedItems';
+import { ApiError } from '../../shared/api/ApiError';
 import { resolveApiErrorMessage } from '../../shared/api/resolveApiErrorMessage';
 import { Button } from '../../shared/components/Button/Button';
 import { Card } from '../../shared/components/Card/Card';
@@ -37,11 +40,19 @@ const NICKNAME_MAX_LENGTH = 10;
 const NICKNAME_LENGTH_MESSAGE = `닉네임은 ${NICKNAME_MIN_LENGTH}자 이상 ${NICKNAME_MAX_LENGTH}자 이하로 입력해 주세요.`;
 const NICKNAME_SAVED_MESSAGE = '닉네임을 변경했어요';
 
+// 어느 쪽이든 로그아웃은 끝났으므로 그 사실을 먼저 알린다.
+const LOGOUT_ALERT_TITLE = '로그아웃했어요';
+const SESSION_ALREADY_GONE_MESSAGE = '세션이 이미 만료되어 있었어요.';
+const SERVER_UNREACHABLE_MESSAGE =
+  '네트워크에 연결되지 않아 서버에는 반영되지 못했어요.';
+
 const SCREEN_EDGES = ['bottom'] as const;
 
 export function MyPageScreen({ navigation }: MyPageScreenProps) {
   const character = useMyCharacterQuery();
   const updateProfile = useUpdateProfileMutation();
+  const logout = useLogoutMutation();
+  const isLoggingOut = useRef(false);
   // null이면 아직 손대지 않았다는 뜻이라 서버 값을 그대로 보여준다. 이렇게 두면
   // 조회가 늦게 끝나도 입력값을 effect로 덮어쓰지 않는다.
   const [draftNickname, setDraftNickname] = useState<string | null>(null);
@@ -68,6 +79,29 @@ export function MyPageScreen({ navigation }: MyPageScreenProps) {
         setToastMessage(NICKNAME_SAVED_MESSAGE);
       },
     });
+  }
+
+  // 세션을 정리하면 이 화면이 로그인 화면으로 교체되므로 화면 안 문구로는 알릴 수
+  // 없다. catch에서 Alert를 띄우면 react-query 콜백 순서에 기대지 않아도 된다.
+  async function requestLogout() {
+    // pending 반영에 한 프레임이 걸려, 그 사이의 두 번째 탭은 동기 플래그로 막는다.
+    if (isLoggingOut.current) {
+      return;
+    }
+    isLoggingOut.current = true;
+
+    try {
+      await logout.mutateAsync();
+    } catch (error) {
+      Alert.alert(
+        LOGOUT_ALERT_TITLE,
+        error instanceof ApiError
+          ? SESSION_ALREADY_GONE_MESSAGE
+          : SERVER_UNREACHABLE_MESSAGE,
+      );
+    } finally {
+      isLoggingOut.current = false;
+    }
   }
 
   // 길이 미달은 입력 중에 계속 빨갛게 뜨면 성가시므로, 서버가 거절한 이유만 띄운다.
@@ -122,6 +156,14 @@ export function MyPageScreen({ navigation }: MyPageScreenProps) {
             disabled={
               !isNicknameChanged || !isNicknameValid || updateProfile.isPending
             }
+          />
+
+          <Button
+            label={logout.isPending ? '로그아웃 중...' : '로그아웃'}
+            accessibilityLabel="로그아웃"
+            variant="secondary"
+            onPress={requestLogout}
+            disabled={logout.isPending}
           />
         </ScrollView>
       </KeyboardAvoidingView>
