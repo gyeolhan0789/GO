@@ -35,6 +35,7 @@ public enum ErrorCode {
 
     // Game Room
     ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "게임방을 찾을 수 없습니다."),
+    ROOM_UPDATE_FORBIDDEN(HttpStatus.FORBIDDEN, "게임방 수정 권한이 없습니다."),
     ROOM_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "게임방 삭제 권한이 없습니다."),
     ROOM_MEMBER_FORBIDDEN(HttpStatus.FORBIDDEN, "게임방 참여자만 접근할 수 있습니다."),
     ROOM_CLOSED(HttpStatus.CONFLICT, "종료된 게임방은 처리할 수 없습니다."),

@@ -14,6 +14,10 @@ public interface GameRepository extends JpaRepository<Game, Long> {
 
     Optional<Game> findFirstByRoomIdAndStatusOrderByIdDesc(Long roomId, GameStatus status);
 
+    Optional<Game> findFirstByRoomIdOrderByIdDesc(Long roomId);
+
+    List<Game> findAllByRoomIdIn(List<Long> roomIds);
+
     List<Game> findAllByRoomIdInAndStatus(List<Long> roomIds, GameStatus status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

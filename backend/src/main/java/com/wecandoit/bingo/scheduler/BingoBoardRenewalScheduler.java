@@ -19,13 +19,13 @@ public class BingoBoardRenewalScheduler {
     private final BingoCommandService bingoCommandService;
 
     @Scheduled(cron = "0 0 * * * *")
-    public void renewExpiredBoards() {
+    public void notifyRenewalRequiredBoards() {
         List<Room> rooms = roomRepository.findAllByStatus(GameRoomStatus.IN_PROGRESS);
         for (Room room : rooms) {
             try {
-                bingoCommandService.autoRenewBoard(room.getId());
+                bingoCommandService.notifyRenewalRequired(room.getId());
             } catch (Exception e) {
-                log.error("빙고판 자동 갱신 실패. roomId={}", room.getId(), e);
+                log.error("빙고판 갱신 필요 알림 실패. roomId={}", room.getId(), e);
             }
         }
     }

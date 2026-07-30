@@ -29,6 +29,8 @@ public interface BingoBoardRepository extends JpaRepository<BingoBoard, Long> {
             List<BingoBoardStatus> excludedStatuses
     );
 
+    List<BingoBoard> findAllByGameIdInOrderByIdAsc(List<Long> gameIds);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             SELECT b FROM BingoBoard b
