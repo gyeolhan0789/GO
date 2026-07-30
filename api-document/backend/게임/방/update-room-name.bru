@@ -1,0 +1,77 @@
+meta {
+  name: 게임방 이름 변경
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{backendBaseUrl}}/rooms/1
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "변경된 방"
+  }
+}
+
+docs {
+  ## 게임방 이름 변경
+
+  방장이 게임방 이름을 변경한다. 입력한 이름의 앞뒤 공백은 제거하며, 종료된 방은 변경할 수 없다.
+
+  ### 요청 필드
+  | 필드 | 타입 | 필수 | 제약 조건 |
+  |---|---|---|---|
+  | name | string | Y | 앞뒤 공백 제거 후 1~20자 |
+
+  ### 성공 응답 (204 No Content)
+  본문 없음
+
+  ### 오류 케이스
+
+  **이름 누락 또는 공백**
+  ```json
+  {
+    "status": 400,
+    "message": "게임방 이름은 필수입니다."
+  }
+  ```
+
+  **이름 20자 초과**
+  ```json
+  {
+    "status": 400,
+    "message": "게임방 이름은 20자 이하여야 합니다."
+  }
+  ```
+
+  **방장이 아닌 회원의 변경 시도**
+  ```json
+  {
+    "status": 403,
+    "message": "게임방 수정 권한이 없습니다."
+  }
+  ```
+
+  **존재하지 않는 게임방**
+  ```json
+  {
+    "status": 404,
+    "message": "게임방을 찾을 수 없습니다."
+  }
+  ```
+
+  **종료된 게임방**
+  ```json
+  {
+    "status": 409,
+    "message": "종료된 게임방은 처리할 수 없습니다."
+  }
+  ```
+}

@@ -5,6 +5,7 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.controller.request.CreateRoomRequest;
+import com.wecandoit.game.controller.request.UpdateRoomNameRequest;
 import com.wecandoit.game.controller.response.CreateRoomResponse;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameRoomStatus;
@@ -95,6 +96,16 @@ public class RoomCommandService {
         if (mode == GameMode.BATTLE && targetStepCount != null) {
             throw new CustomException(ErrorCode.ROOM_TARGET_STEP_COUNT_NOT_ALLOWED);
         }
+    }
+
+    public void updateRoomName(Long memberId, Long roomId, UpdateRoomNameRequest request) {
+        Room room = findRoom(roomId);
+        validateRoomOpen(room);
+        if (!room.isHost(memberId)) {
+            throw new CustomException(ErrorCode.ROOM_UPDATE_FORBIDDEN);
+        }
+
+        room.updateName(request.name());
     }
 
     public void deleteRoom(Long memberId, Long roomId) {

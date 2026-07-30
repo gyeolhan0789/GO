@@ -22,6 +22,7 @@ import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.game.controller.request.CreateRoomRequest;
+import com.wecandoit.game.controller.request.UpdateRoomNameRequest;
 import com.wecandoit.game.controller.RoomController;
 import com.wecandoit.game.controller.response.CreateRoomResponse;
 import com.wecandoit.game.controller.response.MyRoomMemberResponse;
@@ -741,6 +742,105 @@ class RoomControllerTest {
 
         // when & then
         assertStartGameErrorResponse(HttpStatus.CONFLICT, "room-start-insufficient-participants");
+    }
+
+    @Test
+    @DisplayName("방장이 게임방 이름을 변경하면 204 상태를 반환한다")
+    void updateRoomNameReturnsNoContent() {
+        // given
+        UpdateRoomNameRequest request = new UpdateRoomNameRequest("변경된 방");
+
+        // when & then
+        given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                          "name": "  변경된 방  "
+                        }
+                        """)
+                .when()
+                .patch("/rooms/{roomId}", 10L)
+                .then()
+                .statusCode(HttpStatus.NO_CONTENT.value())
+                .apply(document("room-update-name",
+                        pathParameters(
+                                parameterWithName("roomId").description("이름을 변경할 게임방 ID")
+                        ),
+                        requestFields(
+                                fieldWithPath("name").description("변경할 게임방 이름 (1~20자, 앞뒤 공백 제거)")
+                        )
+                ));
+        then(roomCommandService).should().updateRoomName(1L, 10L, request);
+    }
+
+    @Test
+    @DisplayName("게임방 이름이 공백이면 이름 변경에 실패한다")
+    void updateRoomNameRejectsBlankName() {
+        // when & then
+        given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                          "name": "   "
+                        }
+                        """)
+                .when()
+                .patch("/rooms/{roomId}", 10L)
+                .then()
+                .statusCode(HttpStatus.BAD_REQUEST.value());
+        then(roomCommandService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("게임방 이름이 20자를 초과하면 이름 변경에 실패한다")
+    void updateRoomNameRejectsTooLongName() {
+        // when & then
+        given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                          "name": "123456789012345678901"
+                        }
+                        """)
+                .when()
+                .patch("/rooms/{roomId}", 10L)
+                .then()
+                .statusCode(HttpStatus.BAD_REQUEST.value());
+        then(roomCommandService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("방장이 아닌 회원이 게임방 이름을 변경하면 403 상태를 반환한다")
+    void updateRoomNameRejectsNonHost() {
+        // given
+        willThrow(new CustomException(ErrorCode.ROOM_UPDATE_FORBIDDEN))
+                .given(roomCommandService)
+                .updateRoomName(Mockito.eq(1L), Mockito.eq(10L), Mockito.any(UpdateRoomNameRequest.class));
+
+        // when & then
+        given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                          "name": "변경된 방"
+                        }
+                        """)
+                .when()
+                .patch("/rooms/{roomId}", 10L)
+                .then()
+                .statusCode(HttpStatus.FORBIDDEN.value())
+                .apply(document("room-update-name-forbidden",
+                        pathParameters(
+                                parameterWithName("roomId").description("이름을 변경할 게임방 ID")
+                        ),
+                        requestFields(
+                                fieldWithPath("name").description("변경할 게임방 이름")
+                        ),
+                        responseFields(
+                                fieldWithPath("status").description("HTTP 상태 코드"),
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
     }
 
     @Test
