@@ -59,7 +59,8 @@ export type GameResultBingoCellResponse = {
   row: number;
   col: number;
   mission: GameResultMissionResponse;
-  verificationStatus: BingoCellVerificationStatus;
+  /** 아무도 손대지 않은 칸은 상태 자체가 null로 온다. */
+  verificationStatus: BingoCellVerificationStatus | null;
   /** 사진을 낸 사람. 아무도 안 냈으면 null. */
   submittedByMemberId: number | null;
 };
@@ -69,13 +70,11 @@ export type GameResultBoardOwnerResponse = {
   nickname: string;
 };
 
+/** 화면이 쓰는 것만 받는다. bingoBoardId·칸 수 집계는 쓰는 데가 없어 뺐다. */
 export type GameResultBingoBoardResponse = {
-  bingoBoardId: number;
   /** 대결은 판 주인이 한 명, 협동·혼자는 참가자 전원이 함께 쓴다. */
   owners: GameResultBoardOwnerResponse[];
   boardSize: number;
-  totalCellCount: number;
-  approvedCellCount: number;
   cells: GameResultBingoCellResponse[];
 };
 

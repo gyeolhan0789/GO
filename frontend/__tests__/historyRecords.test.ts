@@ -558,14 +558,11 @@ const detailResponse = {
   ...gameResultResponse,
   bingoBoards: [
     {
-      bingoBoardId: 1,
       owners: [
         { memberId: 101, nickname: '걷는곰' },
         { memberId: 102, nickname: '민서' },
       ],
       boardSize: 3,
-      totalCellCount: 9,
-      approvedCellCount: 6,
       cells: buildCells(3, { 0: 101, 1: 102, 3: 101, 5: 102, 7: 101, 8: 101 }),
     },
   ],
@@ -690,13 +687,11 @@ describe('toWalkDetail', () => {
   test('대결에서는 내가 주인인 판을 고른다', () => {
     const myBoard = {
       ...detailResponse.bingoBoards[0],
-      bingoBoardId: 2,
       owners: [{ memberId: MY_MEMBER_ID, nickname: '걷는곰' }],
       cells: buildCells(3, { 4: MY_MEMBER_ID }),
     };
     const rivalBoard = {
       ...detailResponse.bingoBoards[0],
-      bingoBoardId: 3,
       owners: [{ memberId: 102, nickname: '민서' }],
       cells: buildCells(3, { 0: 102, 1: 102 }),
     };

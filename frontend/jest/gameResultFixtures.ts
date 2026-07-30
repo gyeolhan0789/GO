@@ -114,10 +114,9 @@ function buildCells(): GameResultBingoCellResponse[] {
       row: Math.floor(index / BOARD_SIZE),
       col: index % BOARD_SIZE,
       mission: { missionId: index + 1, title: `미션 ${index + 1}` },
+      // 아무도 손대지 않은 칸은 서버가 상태를 null로 준다.
       verificationStatus:
-        submittedByMemberId === null
-          ? ('PENDING' as const)
-          : ('APPROVED' as const),
+        submittedByMemberId === null ? null : ('APPROVED' as const),
       submittedByMemberId,
     };
   });
@@ -156,15 +155,12 @@ export function buildGameResultDetailResponse(
     ],
     bingoBoards: [
       {
-        bingoBoardId: 1,
         owners: [
           { memberId: MY_MEMBER_ID, nickname: '걷는곰' },
           { memberId: 102, nickname: '민서' },
           { memberId: 110, nickname: '민지' },
         ],
         boardSize: BOARD_SIZE,
-        totalCellCount: CELL_COUNT,
-        approvedCellCount: Object.keys(APPROVED_BY).length,
         cells: buildCells(),
       },
     ],
