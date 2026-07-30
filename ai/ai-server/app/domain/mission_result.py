@@ -50,8 +50,6 @@ class ReasonCode(str, Enum):
 
     DARK_IMAGE = "DARK_IMAGE"
 
-    SHAKING_IMAGE = "SHAKING_IMAGE"
-
 
 
     # =========================

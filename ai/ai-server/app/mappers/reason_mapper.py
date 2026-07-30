@@ -76,20 +76,7 @@ class ReasonMapper:
             )
 
             return ai_result
-
-        if any(
-            keyword in reason
-            for keyword in [
-                "흔들",
-                "shake"
-            ]
-        ):
-
-            ai_result.reason_code = (
-                ReasonCode.SHAKING_IMAGE
-            )
-
-            return ai_result
+        
 
         # ==========================
         # 촬영 구도 문제
