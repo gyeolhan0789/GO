@@ -1,6 +1,9 @@
 import { useRef, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
+import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 import type { BingoBoardCell } from '../../features/bingo/components/BingoBoard/BingoBoard';
 import { useLogoutMutation } from '../../features/auth/hooks/useLogoutMutation';
 import { useMyCashQuery } from '../../features/member/hooks/useMyCashQuery';
@@ -15,6 +18,8 @@ import { HomeCarousel } from './components/HomeCarousel';
 import { WalkRoomSelectSheet } from './components/WalkRoomSelectSheet';
 import characterFemale from './assets/character-female.png';
 import characterMale from './assets/character-male.png';
+
+type HomeNavigation = NativeStackNavigationProp<RootStackParamList, 'Main'>;
 
 const CHARACTER_IMAGE_BY_GENDER = {
   male: characterMale,
@@ -50,6 +55,7 @@ const SERVER_UNREACHABLE_MESSAGE =
 
 export function HomeScreen() {
   const summary = MOCK_HOME_SUMMARY;
+  const navigation = useNavigation<HomeNavigation>();
   const [isRoomSheetVisible, setRoomSheetVisible] = useState(false);
   const logout = useLogoutMutation();
   const isLoggingOut = useRef(false);
@@ -126,8 +132,10 @@ export function HomeScreen() {
         visible={isRoomSheetVisible}
         onClose={() => setRoomSheetVisible(false)}
         onStart={() => {
-          // TODO: 산책 진행 화면으로 이동. 화면이 아직 없어 선택만 반영하고 닫는다.
           setRoomSheetVisible(false);
+          // TODO: 선택한 room의 roomId를 파라미터로 넘긴다. 아직 실제 방 목록
+          // API가 없어(mock) 넘길 값이 없다.
+          navigation.navigate('WalkSession');
         }}
       />
     </Screen>

@@ -1,0 +1,359 @@
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Ionicons from '@react-native-vector-icons/ionicons';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
+import type { RootStackParamList } from '../../app/navigation/RootNavigator';
+import { Button } from '../../shared/components/Button/Button';
+import { Screen } from '../../shared/components/Screen/Screen';
+import { colors } from '../../shared/constants/colors';
+import { radius } from '../../shared/constants/radius';
+import { shadow } from '../../shared/constants/shadow';
+import { spacing } from '../../shared/constants/spacing';
+import { fontFamily } from '../../shared/constants/typography';
+import { StepsProgressBar } from '../HomeScreen/components/StepsProgressBar';
+import { WalkRouteMap } from './components/WalkRouteMap';
+import { useRouteTracking } from './hooks/useRouteTracking';
+
+// TODO: 방/걸음수/이동 경로 실제 API 연동 전까지의 임시 목업 데이터.
+const MOCK_ROOM = {
+  name: '주말 산책러들',
+  targetSteps: 10000,
+  teamSteps: 5700,
+  mySteps: 3200,
+  myCalories: 128,
+  myDistanceKm: 2.7,
+};
+
+function formatElapsed(totalSeconds: number) {
+  const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+  const seconds = String(totalSeconds % 60).padStart(2, '0');
+  return `${minutes}:${seconds}`;
+}
+
+type WalkSessionNavigation = NativeStackNavigationProp<
+  RootStackParamList,
+  'WalkSession'
+>;
+
+export function WalkSessionScreen() {
+  const navigation = useNavigation<WalkSessionNavigation>();
+  const insets = useSafeAreaInsets();
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [isPaused, setPaused] = useState(false);
+  // 일시정지하면 경로도 같이 멈춘다. 지금까지 찍은 좌표는 그대로 남는다.
+  const route = useRouteTracking(!isPaused);
+
+  // TODO: 실제로는 서버가 내려주는 시작 시각 기준으로 계산한다. 지금은 화면
+  // 진입 시점부터 클라이언트에서만 세는 임시 타이머.
+  useEffect(() => {
+    if (isPaused) {
+      return;
+    }
+    const timer = setInterval(() => {
+      setElapsedSeconds(seconds => seconds + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isPaused]);
+
+  const teamPercent = Math.round(
+    (MOCK_ROOM.teamSteps / MOCK_ROOM.targetSteps) * 100,
+  );
+  const remainingSteps = Math.max(0, MOCK_ROOM.targetSteps - MOCK_ROOM.teamSteps);
+
+  const handleEndWalk = useCallback(() => {
+    Alert.alert('산책 종료', '지금 산책을 종료할까요?', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '종료',
+        style: 'destructive',
+        onPress: () => {
+          // TODO: 실제 산책 종료/방 나가기(DELETE /rooms/{roomId}/members/me) 연동.
+          navigation.goBack();
+        },
+      },
+    ]);
+  }, [navigation]);
+
+  return (
+    <Screen edges={['top']}>
+      {/* 전체 화면 배경으로 쓰는 이동 경로 지도. */}
+      <View style={styles.mapArea}>
+        <WalkRouteMap route={route} />
+      </View>
+
+      <View style={styles.topBar}>
+        <Pressable
+          style={styles.iconButton}
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="뒤로가기"
+        >
+          <Ionicons name="chevron-back" size={22} color={colors.ink} />
+        </Pressable>
+        <View style={styles.roomBadge}>
+          <Ionicons name="people" size={16} color={colors.successText} />
+          <Text style={styles.roomBadgeText}>{MOCK_ROOM.name}</Text>
+        </View>
+        <Pressable
+          style={styles.iconButton}
+          onPress={() => navigation.navigate('BingoBoard')}
+          accessibilityRole="button"
+          accessibilityLabel="팀 빙고 보기"
+        >
+          <Ionicons name="grid-outline" size={20} color={colors.ink} />
+        </Pressable>
+      </View>
+
+      <View style={styles.elapsedBadge}>
+        <Text style={styles.elapsedText}>{formatElapsed(elapsedSeconds)}</Text>
+      </View>
+
+      <View style={styles.panel}>
+        <Text style={styles.sectionLabel}>이번 산책 팀 목표</Text>
+        <View style={styles.teamGoalRow}>
+          <Text style={styles.teamGoalValue}>
+            {MOCK_ROOM.teamSteps.toLocaleString()}
+          </Text>
+          <Text style={styles.teamGoalTarget}>
+            {' '}
+            / {MOCK_ROOM.targetSteps.toLocaleString()}보
+          </Text>
+        </View>
+        <StepsProgressBar percent={teamPercent} />
+        <Text style={styles.remainingText}>
+          {remainingSteps.toLocaleString()}보 남았어요
+        </Text>
+
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>오늘 걸음</Text>
+            <Text style={[styles.statValue, styles.statValueAccent]}>
+              {MOCK_ROOM.mySteps.toLocaleString()}
+            </Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>칼로리</Text>
+            <Text style={styles.statValue}>{MOCK_ROOM.myCalories}</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>거리</Text>
+            <Text style={styles.statValue}>
+              {MOCK_ROOM.myDistanceKm}
+              <Text style={styles.statUnit}>km</Text>
+            </Text>
+          </View>
+        </View>
+
+        <View style={[styles.panelFooter, { paddingBottom: spacing.lg + insets.bottom }]}>
+          <View style={styles.footerRow}>
+            <View style={styles.pauseButtonWrapper}>
+              <View style={styles.pauseButtonShadow} />
+              <Pressable
+                style={styles.pauseButton}
+                onPress={() => setPaused(value => !value)}
+                accessibilityRole="button"
+                accessibilityLabel={isPaused ? '재개' : '일시정지'}
+              >
+                <Ionicons
+                  name={isPaused ? 'play' : 'pause'}
+                  size={20}
+                  color={colors.ink}
+                />
+              </Pressable>
+            </View>
+            <Button
+              label="산책 종료"
+              size="lg"
+              onPress={handleEndWalk}
+              style={styles.endButton}
+            />
+          </View>
+        </View>
+      </View>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  mapArea: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.neutralBg,
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  roomBadge: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.successBg,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+  },
+  roomBadgeText: {
+    fontFamily: fontFamily.bold,
+    fontSize: 14,
+    color: colors.successText,
+  },
+  elapsedBadge: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.sm,
+    marginLeft: spacing.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  elapsedText: {
+    fontFamily: fontFamily.bold,
+    fontSize: 13,
+    color: colors.ink,
+  },
+  panel: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.md,
+    borderTopRightRadius: radius.md,
+    borderWidth: 2,
+    borderBottomWidth: 0,
+    borderColor: colors.ink,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+  },
+  sectionLabel: {
+    fontFamily: fontFamily.regular,
+    fontSize: 14,
+    color: colors.ink,
+    opacity: 0.6,
+  },
+  teamGoalRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  teamGoalValue: {
+    fontFamily: fontFamily.bold,
+    fontSize: 30,
+    color: colors.ink,
+  },
+  teamGoalTarget: {
+    fontFamily: fontFamily.bold,
+    fontSize: 15,
+    color: colors.ink,
+    opacity: 0.6,
+    marginBottom: 4,
+  },
+  remainingText: {
+    fontFamily: fontFamily.regular,
+    fontSize: 13,
+    color: colors.ink,
+    opacity: 0.6,
+    marginTop: spacing.xs,
+    marginBottom: spacing.lg,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: colors.neutralBg,
+  },
+  statLabel: {
+    fontFamily: fontFamily.regular,
+    fontSize: 12,
+    color: colors.ink,
+    opacity: 0.6,
+  },
+  statValue: {
+    fontFamily: fontFamily.bold,
+    fontSize: 17,
+    color: colors.ink,
+  },
+  statValueAccent: {
+    color: colors.successText,
+  },
+  statUnit: {
+    fontFamily: fontFamily.regular,
+    fontSize: 12,
+    color: colors.ink,
+    opacity: 0.6,
+  },
+  panelFooter: {
+    paddingTop: spacing.lg,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  // 산책 종료 버튼(Button, size="lg")과 세로폭을 맞추려고 정사각형 한 변을
+  // 그 높이(68)에 맞춘다. 그림자 박스도 Button 컴포넌트와 같은 방식(어긋난
+  // 잉크색 사각형)으로 넣어 톤을 맞춘다.
+  pauseButtonWrapper: {
+    position: 'relative',
+    marginRight: shadow.offset,
+  },
+  pauseButtonShadow: {
+    position: 'absolute',
+    top: shadow.offset,
+    left: shadow.offset,
+    width: '100%',
+    height: '100%',
+    borderRadius: radius.md,
+    backgroundColor: colors.ink,
+  },
+  pauseButton: {
+    width: 68,
+    height: 68,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  endButton: {
+    flex: 1,
+  },
+});

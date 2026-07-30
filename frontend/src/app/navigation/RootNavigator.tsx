@@ -4,12 +4,14 @@ import { useAuth } from '../../features/auth/model/AuthContext';
 import { colors } from '../../shared/constants/colors';
 import { useOnboardingStatus } from '../../shared/hooks/useOnboardingStatus';
 import { usePermissionsStatus } from '../../shared/hooks/usePermissionsStatus';
+import { BingoBoardScreen } from '../../screens/BingoBoardScreen/BingoBoardScreen';
 import { LoginScreen } from '../../screens/LoginScreen/LoginScreen';
 import { OnboardingScreen } from '../../screens/OnboardingScreen/OnboardingScreen';
 import { PermissionsScreen } from '../../screens/PermissionsScreen/PermissionsScreen';
 import { SignupScreen } from '../../screens/SignupScreen/SignupScreen';
 import { WalkDetailScreen } from '../../screens/WalkDetailScreen/WalkDetailScreen';
 import { WalkListScreen } from '../../screens/WalkListScreen/WalkListScreen';
+import { WalkSessionScreen } from '../../screens/WalkSessionScreen/WalkSessionScreen';
 import { MainTabNavigator } from './MainTabNavigator';
 
 // 진입 순서: Onboarding -> Permissions -> Login -> Main.
@@ -23,6 +25,10 @@ export type RootStackParamList = {
   Main: undefined;
   WalkList: undefined;
   WalkDetail: { walkId: number };
+  // TODO: 방 생성/선택 API 연동되면 roomId를 필수 파라미터로 받는다.
+  WalkSession: undefined;
+  // TODO: roomId 연동되면 필수 파라미터로 받는다.
+  BingoBoard: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -91,6 +97,10 @@ export function RootNavigator() {
             component={WalkDetailScreen}
             options={{ ...DETAIL_HEADER_OPTIONS, title: '산책 기록' }}
           />
+          {/* 진행 중 화면은 자체 상단바(나가기 버튼)를 쓰므로 네이티브 헤더를 끈다. */}
+          <Stack.Screen name="WalkSession" component={WalkSessionScreen} />
+          {/* 보드/미션 상세 2단계를 자체 상단바로 전환하므로 네이티브 헤더를 끈다. */}
+          <Stack.Screen name="BingoBoard" component={BingoBoardScreen} />
         </>
       ) : (
         <>
