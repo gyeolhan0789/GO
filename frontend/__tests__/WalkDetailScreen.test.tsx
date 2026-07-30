@@ -13,7 +13,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import type { RootStackParamList } from '../src/app/navigation/RootNavigator';
 import { BingoCell } from '../src/features/bingo/components/BingoCell/BingoCell';
-import { colors } from '../src/shared/constants/colors';
+import { participantColors } from '../src/shared/constants/colors';
 import { WalkDetailScreen } from '../src/screens/WalkDetailScreen/WalkDetailScreen';
 import { installFetchMock, jsonResponse } from '../jest/fetchMock';
 import type { FetchMock } from '../jest/fetchMock';
@@ -80,17 +80,20 @@ function collectTexts(root: ReactTestInstance): string[] {
 }
 
 /** 배경색별 빙고 칸 수. */
+/**
+ * 칸 색은 참가자 순서로 배정된다(본인이 맨 앞이라 participantColors[0]).
+ * 색깔별 칸 수를 세면 누가 몇 칸을 깼는지 그대로 드러난다.
+ */
 function countCellsByColor(root: ReactTestInstance) {
   const cells = root.findAllByType(BingoCell);
+  const completedWith = (color: string) =>
+    cells.filter(cell => cell.props.completed && cell.props.color === color)
+      .length;
 
   return {
-    mine: cells.filter(
-      cell => cell.props.completed && cell.props.color === colors.successBg,
-    ).length,
-    other: cells.filter(
-      cell =>
-        cell.props.completed && cell.props.color === colors.highlightSoftBg,
-    ).length,
+    me: completedWith(participantColors[0]),
+    friend1: completedWith(participantColors[1]),
+    friend2: completedWith(participantColors[2]),
     none: cells.filter(cell => !cell.props.completed).length,
   };
 }
@@ -182,10 +185,11 @@ describe('WalkDetailScreen', () => {
     expect(collectTexts(tree.root)).toContain('진행한 빙고판 6/9');
     // 3x3 판이라 칸은 9개.
     expect(tree.root.findAllByType(BingoCell)).toHaveLength(9);
-    // 내가 4칸, 다른 사람이 2칸, 남은 3칸은 미완료.
+    // 친구 둘이 각각 다른 색을 받아야 누가 깼는지 구분된다.
     expect(countCellsByColor(tree.root)).toEqual({
-      mine: 4,
-      other: 2,
+      me: 4,
+      friend1: 1,
+      friend2: 1,
       none: 3,
     });
   });
@@ -195,11 +199,13 @@ describe('WalkDetailScreen', () => {
     const texts = collectTexts(tree.root);
 
     // 누가 깼는지가 이 화면의 핵심이라 접어두지 않는다.
-    expect(texts).toContain('내가 깬 칸');
-    expect(texts).toContain('친구가 깬 칸');
+    expect(texts).toContain('나');
+    expect(texts).toContain('민서');
+    expect(texts).toContain('민지');
     expect(texts).toContain('못 깬 칸');
+    // 나 4칸, 민서 1칸, 민지 1칸, 못 깬 칸 3칸.
     expect(texts).toContain('4칸');
-    expect(texts).toContain('2칸');
+    expect(texts).toContain('1칸');
     expect(texts).toContain('3칸');
   });
 

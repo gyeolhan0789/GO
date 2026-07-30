@@ -3,58 +3,79 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { BingoBoard } from '../../../features/bingo/components/BingoBoard/BingoBoard';
 import type { BingoBoardSize } from '../../../features/bingo/components/BingoBoard/BingoBoard';
-import type { BingoCellOwner } from '../../../features/history/model/walkDetail';
 import {
-  countCellsByOwner,
+  countCellsByMember,
   countCompletedCells,
-  resolveBingoCellOwner,
 } from '../../../features/history/model/walkDetail';
-import type { WalkBingoCell } from '../../../features/history/types';
+import type {
+  WalkBingoCell,
+  WalkDetailParticipant,
+} from '../../../features/history/types';
 import { Card } from '../../../shared/components/Card/Card';
-import { colors } from '../../../shared/constants/colors';
+import { colors, participantColors } from '../../../shared/constants/colors';
 import { spacing } from '../../../shared/constants/spacing';
 
 type WalkBingoCardProps = {
   size: BingoBoardSize;
   cells: WalkBingoCell[];
-  /** 본인. 이 사람이 깬 칸이 초록으로 칠해진다. */
-  myMemberId: number;
+  /** 본인이 맨 앞. 이 순서대로 색을 나눠 갖는다. */
+  participants: WalkDetailParticipant[];
 };
 
-const CHECK_SIZE = 22;
 const SWATCH_SIZE = 14;
 
-/** 미완료 칸은 색을 주지 않는다. */
-const OWNER_STYLE: Record<
-  BingoCellOwner,
-  { background?: string; check?: string }
-> = {
-  mine: { background: colors.successBg, check: colors.successText },
-  other: { background: colors.highlightSoftBg, check: colors.highlightText },
-  none: {},
-};
+/**
+ * 판이 커질수록 칸이 좁아져 같은 크기로는 미션 제목이 안 들어간다.
+ * 체크 표시는 색만으로 완료를 알리지 않기 위해 남긴다.
+ */
+const CELL_TEXT = {
+  3: { check: 16, font: 11, lines: 3 },
+  4: { check: 13, font: 9, lines: 3 },
+  5: { check: 11, font: 8, lines: 2 },
+} as const satisfies Record<
+  BingoBoardSize,
+  { check: number; font: number; lines: number }
+>;
 
-const LEGEND: { owner: BingoCellOwner; label: string; swatch: string }[] = [
-  { owner: 'mine', label: '내가 깬 칸', swatch: colors.successBg },
-  { owner: 'other', label: '친구가 깬 칸', swatch: colors.highlightSoftBg },
-  { owner: 'none', label: '못 깬 칸', swatch: colors.neutralBg },
-];
-
-export function WalkBingoCard({ size, cells, myMemberId }: WalkBingoCardProps) {
+export function WalkBingoCard({
+  size,
+  cells,
+  participants,
+}: WalkBingoCardProps) {
   const completedCount = countCompletedCells(cells);
-  const countsByOwner = countCellsByOwner(cells, myMemberId);
+  const countsByMember = countCellsByMember(cells);
+
+  // 색은 참가자 순서로 나눠 준다. 협동은 최대 4명이라 팔레트가 모자라지 않는다.
+  const colorByMember = new Map(
+    participants.map((participant, index) => [
+      participant.memberId,
+      participantColors[index % participantColors.length],
+    ]),
+  );
+
+  const text = CELL_TEXT[size];
 
   const boardCells = cells.map(cell => {
-    const owner = resolveBingoCellOwner(cell, myMemberId);
-    const { background, check } = OWNER_STYLE[owner];
+    const completedBy = cell.completedBy;
 
     return {
       id: `${cell.index}`,
-      completed: owner !== 'none',
-      color: background,
-      icon: check ? (
-        <Ionicons name="checkmark" size={CHECK_SIZE} color={check} />
-      ) : undefined,
+      completed: completedBy !== null,
+      color: completedBy === null ? undefined : colorByMember.get(completedBy),
+      icon: (
+        <View style={styles.cellContent}>
+          {completedBy === null ? null : (
+            <Ionicons name="checkmark" size={text.check} color={colors.ink} />
+          )}
+          <Text
+            style={[styles.cellTitle, { fontSize: text.font }]}
+            numberOfLines={text.lines}
+            ellipsizeMode="tail"
+          >
+            {cell.missionTitle}
+          </Text>
+        </View>
+      ),
     };
   });
 
@@ -64,17 +85,32 @@ export function WalkBingoCard({ size, cells, myMemberId }: WalkBingoCardProps) {
         {`진행한 빙고판 ${completedCount}/${cells.length}`}
       </Text>
 
-      {/* 누가 깼는지가 이 화면의 핵심이라 범례를 접어두지 않고 늘 펼쳐 둔다. */}
+      {/* 누가 어느 칸을 깼는지가 이 화면의 핵심이라 범례를 늘 펼쳐 둔다. */}
       <View style={styles.legend}>
-        {LEGEND.map(({ owner, label, swatch }) => (
-          <View key={owner} style={styles.legendRow}>
-            <View style={[styles.legendSwatch, { backgroundColor: swatch }]} />
-            <Text style={styles.legendLabel}>{label}</Text>
-            <Text
-              style={styles.legendCount}
-            >{`${countsByOwner[owner]}칸`}</Text>
+        {participants.map(participant => (
+          <View key={participant.memberId} style={styles.legendRow}>
+            <View
+              style={[
+                styles.legendSwatch,
+                { backgroundColor: colorByMember.get(participant.memberId) },
+              ]}
+            />
+            <Text style={styles.legendLabel} numberOfLines={1}>
+              {participant.isMe ? '나' : participant.nickname}
+            </Text>
+            <Text style={styles.legendCount}>
+              {`${countsByMember.get(participant.memberId) ?? 0}칸`}
+            </Text>
           </View>
         ))}
+
+        <View style={styles.legendRow}>
+          <View style={[styles.legendSwatch, styles.emptySwatch]} />
+          <Text style={styles.legendLabel}>못 깬 칸</Text>
+          <Text style={styles.legendCount}>
+            {`${cells.length - completedCount}칸`}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.board}>
@@ -89,6 +125,16 @@ const styles = StyleSheet.create({
     fontFamily: 'BMDOHYEON',
     fontSize: 15,
     color: colors.ink,
+  },
+  cellContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  cellTitle: {
+    fontFamily: 'NotoSansKR-Medium',
+    color: colors.ink,
+    textAlign: 'center',
   },
   legend: {
     flexDirection: 'row',
@@ -109,7 +155,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.ink,
   },
+  emptySwatch: {
+    backgroundColor: colors.neutralBg,
+  },
   legendLabel: {
+    flexShrink: 1,
     fontFamily: 'BMDOHYEON',
     fontSize: 12,
     color: colors.ink,

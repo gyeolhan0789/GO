@@ -3,7 +3,6 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 import { useWalkDetailQuery } from '../../features/history/hooks/useWalkDetailQuery';
-import { resolveMyParticipant } from '../../features/history/model/walkDetail';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { colors } from '../../shared/constants/colors';
 import { spacing } from '../../shared/constants/spacing';
@@ -21,7 +20,6 @@ export function WalkDetailScreen({ route }: WalkDetailScreenProps) {
 
   const walkQuery = useWalkDetailQuery(roomId);
   const { walk } = walkQuery;
-  const participant = walk ? resolveMyParticipant(walk.participants) : null;
 
   if (walkQuery.isLoading) {
     return (
@@ -31,7 +29,7 @@ export function WalkDetailScreen({ route }: WalkDetailScreenProps) {
     );
   }
 
-  if (walkQuery.isError || !walk || !participant) {
+  if (walkQuery.isError || !walk) {
     return (
       <Screen edges={SCREEN_EDGES}>
         <Text style={styles.statusText}>산책 기록을 불러오지 못했어요.</Text>
@@ -52,7 +50,7 @@ export function WalkDetailScreen({ route }: WalkDetailScreenProps) {
         <WalkBingoCard
           size={walk.bingoSize}
           cells={walk.bingoCells}
-          myMemberId={participant.memberId}
+          participants={walk.participants}
         />
 
         {/* 카드 오프셋 그림자가 스크롤 끝에서 잘리지 않게. */}
