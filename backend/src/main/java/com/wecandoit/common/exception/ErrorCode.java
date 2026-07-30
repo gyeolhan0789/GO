@@ -35,6 +35,7 @@ public enum ErrorCode {
 
     // Game Room
     ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "게임방을 찾을 수 없습니다."),
+    ROOM_UPDATE_FORBIDDEN(HttpStatus.FORBIDDEN, "게임방 수정 권한이 없습니다."),
     ROOM_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "게임방 삭제 권한이 없습니다."),
     ROOM_MEMBER_FORBIDDEN(HttpStatus.FORBIDDEN, "게임방 참여자만 접근할 수 있습니다."),
     ROOM_CLOSED(HttpStatus.CONFLICT, "종료된 게임방은 처리할 수 없습니다."),
@@ -47,6 +48,7 @@ public enum ErrorCode {
     ROOM_TARGET_STEP_COUNT_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "대결 모드에서는 목표 걸음 수를 설정할 수 없습니다."),
     GAME_NOT_FOUND(HttpStatus.NOT_FOUND, "게임을 찾을 수 없습니다."),
     GAME_NOT_COMPLETED(HttpStatus.CONFLICT, "완료되지 않은 게임입니다."),
+    GAME_RESULT_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 생성된 게임 결과입니다."),
 
     // Mission
     INVALID_MISSION_TYPE(HttpStatus.BAD_REQUEST, "미션 타입은 OBJECT, ATTRIBUTE, RELATION, ORDINARY 중 하나여야 합니다."),
@@ -69,6 +71,7 @@ public enum ErrorCode {
     BINGO_BOARD_NOT_FOUND(HttpStatus.NOT_FOUND, "활성화된 빙고판이 없습니다."),
     BINGO_BOARD_RENEWAL_FORBIDDEN(HttpStatus.FORBIDDEN, "빙고판 갱신 권한이 없습니다."),
     BINGO_BOARD_NOT_COMPLETED(HttpStatus.CONFLICT, "빙고판이 아직 100% 완료되지 않았습니다."),
+    BINGO_BOARD_RENEWAL_REQUIRED(HttpStatus.CONFLICT, "빙고판 갱신이 필요합니다."),
     BINGO_CELL_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 칸을 찾을 수 없습니다."),
     BINGO_CELL_VERIFICATION_IN_PROGRESS(HttpStatus.CONFLICT, "이미 검증 중인 빙고 칸입니다."),
     BINGO_CELL_ALREADY_APPROVED(HttpStatus.CONFLICT, "이미 승인된 빙고 칸입니다."),

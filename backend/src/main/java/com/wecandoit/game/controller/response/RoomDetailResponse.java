@@ -13,6 +13,8 @@ public record RoomDetailResponse(
         GameRoomStatus status,
         Integer targetBingoCount,
         Integer targetStepCount,
+        int totalMissionCount,
+        int completedMissionCount,
         Long hostId,
         LocalDateTime startedAt,
         List<RoomMemberResponse> members
@@ -20,6 +22,8 @@ public record RoomDetailResponse(
 
     public static RoomDetailResponse from(
             Room room,
+            int totalMissionCount,
+            int completedMissionCount,
             List<RoomMemberResponse> members
     ) {
         return new RoomDetailResponse(
@@ -29,6 +33,8 @@ public record RoomDetailResponse(
                 room.getStatus(),
                 room.getTargetBingoCount(),
                 room.getTargetStepCount(),
+                totalMissionCount,
+                completedMissionCount,
                 room.getHostId(),
                 room.getStartedAt(),
                 members

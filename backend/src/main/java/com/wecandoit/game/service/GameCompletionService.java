@@ -65,23 +65,19 @@ public class GameCompletionService {
         if (room.getStatus() != GameRoomStatus.IN_PROGRESS) {
             return;
         }
-
-        List<BingoCell> cells = bingoCellRepository.findAllByBoardId(completedBoardId);
-        if (room.getMode() != GameMode.BATTLE
-                && cells.stream().anyMatch(cell -> cell.getCompletedAt() == null)) {
+        if (room.getMode() != GameMode.BATTLE) {
             return;
         }
 
+        List<BingoCell> cells = bingoCellRepository.findAllByBoardId(completedBoardId);
         int lineCount = BingoLineCounter.countCompletedLines(room.getBoardSize(), cells);
-        if (room.getMode() == GameMode.BATTLE && lineCount < room.getTargetBingoCount()) {
+        if (lineCount < room.getTargetBingoCount()) {
             return;
         }
 
         BingoBoard completedBoard = findBoardForCompletion(gameId, completedBoardId);
-        List<BingoBoard> boards = room.getMode() == GameMode.BATTLE
-                ? bingoBoardRepository.findAllByGameIdOrderByIdAsc(gameId)
-                : List.of(completedBoard);
-        if (room.getMode() == GameMode.BATTLE && boards.size() != GameMode.BATTLE.getMaximumParticipants()) {
+        List<BingoBoard> boards = bingoBoardRepository.findAllByGameIdOrderByIdAsc(gameId);
+        if (boards.size() != GameMode.BATTLE.getMaximumParticipants()) {
             throw new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND);
         }
 
@@ -89,19 +85,10 @@ public class GameCompletionService {
                 .filter(cell -> cell.getCompletedAt() != null)
                 .count();
 
-        Map<Long, Integer> completedCountByMember = room.getMode() == GameMode.BATTLE
-                ? countBattleCompletedMissions(boards)
-                : cells.stream()
-                        .filter(cell -> cell.getCompletedAt() != null)
-                        .collect(Collectors.groupingBy(
-                                BingoCell::getMemberId,
-                                Collectors.collectingAndThen(Collectors.counting(), Long::intValue)
-                        ));
+        Map<Long, Integer> completedCountByMember = countBattleCompletedMissions(boards);
 
         List<RoomMember> members = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId);
-        Long winnerMemberId = room.getMode() == GameMode.BATTLE
-                ? getBoardOwnerMemberId(completedBoard)
-                : null;
+        Long winnerMemberId = getBoardOwnerMemberId(completedBoard);
 
         game.complete();
         boards.forEach(BingoBoard::complete);

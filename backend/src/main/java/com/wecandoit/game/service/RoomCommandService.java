@@ -5,6 +5,7 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.controller.request.CreateRoomRequest;
+import com.wecandoit.game.controller.request.UpdateRoomNameRequest;
 import com.wecandoit.game.controller.response.CreateRoomResponse;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameRoomStatus;
@@ -15,7 +16,6 @@ import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.notification.event.NotificationMessageFactory;
-import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -97,6 +97,16 @@ public class RoomCommandService {
         }
     }
 
+    public void updateRoomName(Long memberId, Long roomId, UpdateRoomNameRequest request) {
+        Room room = findRoom(roomId);
+        validateRoomOpen(room);
+        if (!room.isHost(memberId)) {
+            throw new CustomException(ErrorCode.ROOM_UPDATE_FORBIDDEN);
+        }
+
+        room.updateName(request.name());
+    }
+
     public void deleteRoom(Long memberId, Long roomId) {
         Room room = findRoom(roomId);
         if (!room.isHost(memberId)) {
@@ -110,18 +120,6 @@ public class RoomCommandService {
 
         closeRoom(roomId, room);
         // TODO: Connect game requests, bingo boards, and mission policies after deletion is confirmed.
-    }
-
-    public void expireSingleRoom(Long roomId, LocalDateTime expirationTime) {
-        Room room = findRoom(roomId);
-        if (room.getMode() != GameMode.SINGLE
-                || room.getStatus() != GameRoomStatus.IN_PROGRESS
-                || room.getStartedAt() == null
-                || room.getStartedAt().isAfter(expirationTime)) {
-            return;
-        }
-
-        room.close();
     }
 
     public void startGame(Long memberId, Long roomId) {

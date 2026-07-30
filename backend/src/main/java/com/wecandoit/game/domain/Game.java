@@ -48,7 +48,11 @@ public class Game extends BaseEntity {
     }
 
     public void complete() {
+        completeAt(LocalDateTime.now());
+    }
+
+    public void completeAt(LocalDateTime completedAt) {
         this.status = GameStatus.COMPLETED;
-        this.completedAt = LocalDateTime.now();
+        this.completedAt = completedAt;
     }
 }
