@@ -1,13 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import {
-  Alert,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { LayoutChangeEvent } from 'react-native';
 import { launchCamera } from 'react-native-image-picker';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -16,37 +8,26 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
+import type { VerificationResult } from '../../features/bingo/api/bingoApi';
+import { submitMissionPhoto } from '../../features/bingo/api/bingoApi';
 import type {
   BingoBoardCell,
   BingoBoardSize,
 } from '../../features/bingo/components/BingoBoard/BingoBoard';
 import { BingoBoard } from '../../features/bingo/components/BingoBoard/BingoBoard';
 import { MemberProgressBar } from '../../features/bingo/components/MemberProgressBar/MemberProgressBar';
+import { MissionVerificationModal } from '../../features/bingo/components/MissionVerificationModal/MissionVerificationModal';
+import type { MissionType } from '../../features/bingo/model/missionType';
+import {
+  MISSION_TYPE_LABELS,
+  MISSION_TYPE_POINTS,
+} from '../../features/bingo/model/missionType';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { colors, participantColors } from '../../shared/constants/colors';
 import { radius } from '../../shared/constants/radius';
 import { spacing } from '../../shared/constants/spacing';
 import { fontFamily } from '../../shared/constants/typography';
 import { useMeasuredWidth } from '../../shared/hooks/useMeasuredWidth';
-
-// 백엔드 MissionType(backend/.../mission/domain/MissionType.java)과 동일하다.
-type MissionType = 'OBJECT' | 'ATTRIBUTE' | 'RELATION' | 'ORDINARY';
-
-// 백엔드 CashRewardPolicy의 BINGO_CELL_* 보상 포인트와 맞춘 값. 실제 포인트는
-// 인증 제출 응답에서만 내려오므로, 목록에서 미리 보여주는 용도로만 쓴다.
-const MISSION_TYPE_POINTS: Record<MissionType, number> = {
-  OBJECT: 30,
-  ATTRIBUTE: 50,
-  RELATION: 70,
-  ORDINARY: 30,
-};
-
-const MISSION_TYPE_LABELS: Record<MissionType, string> = {
-  OBJECT: '사물',
-  ATTRIBUTE: '상태',
-  RELATION: '관계',
-  ORDINARY: '일상',
-};
 
 type Mission = {
   title: string;
@@ -99,7 +80,7 @@ const MOCK_MISSIONS: Mission[] = [
 // 눈으로 확인하려고 값만 바꿔가며 테스트한다.
 const MOCK_BOARD_SIZE: BingoBoardSize = 3;
 
-const MOCK_CELLS: SessionCell[] = MOCK_MISSIONS.slice(
+const INITIAL_CELLS: SessionCell[] = MOCK_MISSIONS.slice(
   0,
   MOCK_BOARD_SIZE * MOCK_BOARD_SIZE,
 ).map((mission, index) => {
@@ -123,23 +104,28 @@ type BingoBoardNavigation = NativeStackNavigationProp<
 
 export function BingoBoardScreen() {
   const navigation = useNavigation<BingoBoardNavigation>();
-  const [selectedCell, setSelectedCell] = useState<SessionCell | null>(null);
+  const [cells, setCells] = useState<SessionCell[]>(INITIAL_CELLS);
+  const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
   const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
+  const [isSubmitting, setSubmitting] = useState(false);
+  const [verificationResult, setVerificationResult] =
+    useState<VerificationResult | null>(null);
   // 빙고판 컨테이너의 퍼센트 width가 잘못 계산돼 3열이 아니라 2열로 보이는
   // 문제가 있었다. 실측한 너비를 고정 픽셀로 내려준다.
   const { width: boardWidth, onLayout: onBoardLayout } = useMeasuredWidth();
   const scrollRef = useRef<ScrollView>(null);
   const detailY = useRef(0);
 
-  const completedCount = MOCK_CELLS.filter(cell => cell.completed).length;
+  const selectedCell = cells.find(cell => cell.id === selectedCellId) ?? null;
+  const completedCount = cells.filter(cell => cell.completed).length;
 
   // 인원별 완료 칸 수를 세서 진행바 색 구간을 만든다.
   const progressSegments = MOCK_MEMBERS.map(member => ({
-    count: MOCK_CELLS.filter(cell => cell.completedByMemberId === member.id).length,
+    count: cells.filter(cell => cell.completedByMemberId === member.id).length,
     color: member.color,
   }));
 
-  const cellsWithIcons = MOCK_CELLS.map(cell => {
+  const cellsWithIcons = cells.map(cell => {
     const member = MOCK_MEMBERS.find(item => item.id === cell.completedByMemberId);
     return {
       ...cell,
@@ -156,7 +142,8 @@ export function BingoBoardScreen() {
 
   const handleSelectCell = useCallback((cell: SessionCell) => {
     setCapturedPhotoUri(null);
-    setSelectedCell(cell);
+    setVerificationResult(null);
+    setSelectedCellId(cell.id);
     // 빙고판 아래에 상세가 나타나자마자 바로 보이도록, 레이아웃이 잡힌
     // 다음 프레임에 그 위치로 스크롤한다.
     requestAnimationFrame(() => {
@@ -179,15 +166,34 @@ export function BingoBoardScreen() {
     }
     const uri = result.assets?.[0]?.uri;
     if (uri) {
+      setVerificationResult(null);
       setCapturedPhotoUri(uri);
     }
   }, []);
 
-  const handleSubmitMission = useCallback(() => {
-    // TODO: 실제 제출(POST /rooms/{roomId}/bingo-boards/cells/{cellId}/submit)은
-    // 사진 업로드 API가 생기면 연동한다. 지금은 촬영한 사진을 로컬에서
-    // 미리보기만 할 수 있다.
-    Alert.alert('준비 중', '사진 업로드 기능은 곧 지원될 예정이에요.');
+  const handleSubmitMission = useCallback(async () => {
+    if (!selectedCell) {
+      return;
+    }
+    setSubmitting(true);
+    const result = await submitMissionPhoto(selectedCell.mission.type);
+    setSubmitting(false);
+    setVerificationResult(result);
+    if (result.status === 'APPROVED') {
+      const cellId = selectedCell.id;
+      setCells(previous =>
+        previous.map(cell =>
+          cell.id === cellId
+            ? { ...cell, completed: true, completedByMemberId: 'me' }
+            : cell,
+        ),
+      );
+    }
+  }, [selectedCell]);
+
+  const handleCloseVerification = useCallback(() => {
+    setCapturedPhotoUri(null);
+    setVerificationResult(null);
   }, []);
 
   return (
@@ -214,13 +220,10 @@ export function BingoBoardScreen() {
           <View style={styles.progressHeaderRow}>
             <Text style={styles.progressLabel}>빙고 진행 상황</Text>
             <Text style={styles.progressCount}>
-              {completedCount}/{MOCK_CELLS.length}
+              {completedCount}/{cells.length}
             </Text>
           </View>
-          <MemberProgressBar
-            segments={progressSegments}
-            total={MOCK_CELLS.length}
-          />
+          <MemberProgressBar segments={progressSegments} total={cells.length} />
           <View style={styles.legendRow}>
             {MOCK_MEMBERS.map(member => (
               <View key={member.id} style={styles.legendItem}>
@@ -240,9 +243,7 @@ export function BingoBoardScreen() {
                 size={MOCK_BOARD_SIZE}
                 cells={cellsWithIcons}
                 onCellPress={cell => {
-                  const sessionCell = MOCK_CELLS.find(
-                    item => item.id === cell.id,
-                  );
+                  const sessionCell = cells.find(item => item.id === cell.id);
                   if (sessionCell) {
                     handleSelectCell(sessionCell);
                   }
@@ -281,31 +282,6 @@ export function BingoBoardScreen() {
                 />
                 <Text style={styles.completedText}>인증 완료</Text>
               </View>
-            ) : capturedPhotoUri ? (
-              <>
-                <Image
-                  source={{ uri: capturedPhotoUri }}
-                  style={styles.photoPreview}
-                />
-                <View style={styles.photoActionsRow}>
-                  <Pressable
-                    style={styles.retakeButton}
-                    onPress={handleCapturePhoto}
-                    accessibilityRole="button"
-                    accessibilityLabel="사진 다시 찍기"
-                  >
-                    <Text style={styles.retakeButtonText}>다시 찍기</Text>
-                  </Pressable>
-                  <Pressable
-                    style={styles.submitButton}
-                    onPress={handleSubmitMission}
-                    accessibilityRole="button"
-                    accessibilityLabel="미션 제출하기"
-                  >
-                    <Text style={styles.submitButtonText}>제출하기</Text>
-                  </Pressable>
-                </View>
-              </>
             ) : (
               <Pressable
                 style={styles.captureButton}
@@ -314,12 +290,24 @@ export function BingoBoardScreen() {
                 accessibilityLabel="사진으로 인증하기"
               >
                 <Ionicons name="camera" size={18} color={colors.surface} />
-                <Text style={styles.submitButtonText}>사진으로 인증하기</Text>
+                <Text style={styles.captureButtonText}>사진으로 인증하기</Text>
               </Pressable>
             )}
           </View>
         ) : null}
       </ScrollView>
+
+      <MissionVerificationModal
+        visible={capturedPhotoUri !== null}
+        onClose={handleCloseVerification}
+        photoUri={capturedPhotoUri}
+        missionTitle={selectedCell?.mission.title ?? ''}
+        isSubmitting={isSubmitting}
+        result={verificationResult}
+        onRetake={handleCapturePhoto}
+        onSubmit={handleSubmitMission}
+        onConfirm={handleCloseVerification}
+      />
     </Screen>
   );
 }
@@ -452,34 +440,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.successText,
   },
-  photoPreview: {
-    width: '100%',
-    aspectRatio: 1,
-    borderRadius: radius.md,
-    borderWidth: 2,
-    borderColor: colors.ink,
-    backgroundColor: colors.neutralBg,
-    marginBottom: spacing.lg,
-  },
-  photoActionsRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  retakeButton: {
-    flex: 1,
-    height: 52,
-    borderRadius: radius.md,
-    borderWidth: 2,
-    borderColor: colors.ink,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  retakeButtonText: {
-    fontFamily: fontFamily.bold,
-    fontSize: 16,
-    color: colors.ink,
-  },
   captureButton: {
     height: 52,
     borderRadius: radius.md,
@@ -489,15 +449,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
   },
-  submitButton: {
-    flex: 1,
-    height: 52,
-    borderRadius: radius.md,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitButtonText: {
+  captureButtonText: {
     fontFamily: fontFamily.bold,
     fontSize: 16,
     color: colors.surface,
