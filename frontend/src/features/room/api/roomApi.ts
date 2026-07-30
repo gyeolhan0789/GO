@@ -27,9 +27,11 @@ export type RoomDetailResponse = {
 };
 
 export type CreateRoomRequest = {
+  name: string;
   mode: GameMode;
   boardSize: 3 | 4 | 5;
-  targetBingoCount?: number;
+  targetBingoCount: number;
+  targetStepCount?: number;
 };
 
 export function createRoom(body: CreateRoomRequest) {
