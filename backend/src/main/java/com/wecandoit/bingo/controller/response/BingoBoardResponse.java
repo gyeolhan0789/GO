@@ -20,19 +20,23 @@ public record BingoBoardResponse(
         List<BingoCellResponse> cells,
         boolean completed,
         boolean canRenew,
+        boolean renewalRequired,
+        String renewalMessage,
         BattleProgressResponse battleProgress
 ) {
+
+    private static final String RENEWAL_REQUIRED_MESSAGE = "빙고판 갱신이 필요합니다.";
 
     public static BingoBoardResponse of(
             BingoBoard board,
             Long roomId,
             List<BingoCellResponse> cells,
             Integer targetBingoCount,
-            Integer targetStepCount,
             int completedBingoCount,
             int approvedCellCount,
             boolean completed,
-            boolean canRenew
+            boolean canRenew,
+            boolean renewalRequired
     ) {
         return new BingoBoardResponse(
                 board.getId(),
@@ -40,7 +44,7 @@ public record BingoBoardResponse(
                 roomId,
                 board.getBoardSize(),
                 targetBingoCount,
-                targetStepCount,
+                board.getTargetStepCount(),
                 completedBingoCount,
                 cells.size(),
                 approvedCellCount,
@@ -48,6 +52,8 @@ public record BingoBoardResponse(
                 cells,
                 completed,
                 canRenew,
+                renewalRequired,
+                renewalRequired ? RENEWAL_REQUIRED_MESSAGE : null,
                 null
         );
     }
@@ -57,7 +63,6 @@ public record BingoBoardResponse(
             Long roomId,
             List<BingoCellResponse> cells,
             Integer targetBingoCount,
-            Integer targetStepCount,
             int completedBingoCount,
             int approvedCellCount,
             boolean completed,
@@ -69,7 +74,7 @@ public record BingoBoardResponse(
                 roomId,
                 board.getBoardSize(),
                 targetBingoCount,
-                targetStepCount,
+                board.getTargetStepCount(),
                 completedBingoCount,
                 cells.size(),
                 approvedCellCount,
@@ -77,6 +82,8 @@ public record BingoBoardResponse(
                 cells,
                 completed,
                 false,
+                false,
+                null,
                 battleProgress
         );
     }

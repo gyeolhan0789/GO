@@ -10,7 +10,10 @@ from fastapi import (
 )
 
 from app.prompts.prompt_builder import PromptBuilder
-from app.services.gemini_service import GeminiService
+from app.services.vision.gemini_service import GeminiService
+from app.services.vision.image_quality_service import ImageQualityService
+from app.validators.mission_validator import MissionValidator
+from app.mappers.reason_mapper import ReasonMapper
 
 
 router = APIRouter(
@@ -19,6 +22,7 @@ router = APIRouter(
 )
 
 service = GeminiService()
+image_quality_service = ImageQualityService()
 
 ALLOWED_EXTENSIONS = {
     "jpg",
@@ -78,6 +82,20 @@ async def verify_mission(
         )
 
     # -----------------------------
+    # 이미지 품질 검사
+    # -----------------------------
+
+    image_quality = image_quality_service.check(
+        image_bytes
+    )
+
+    if image_quality is not None:
+
+        return MissionValidator.validate_image_quality(
+            image_quality
+        )
+
+    # -----------------------------
     # mission_type 검증
     # -----------------------------
 
@@ -114,22 +132,42 @@ async def verify_mission(
         )
 
     # -----------------------------
-    # Prompt 생성
+    # AI 판정
     # -----------------------------
 
     try:
 
         prompt = PromptBuilder.build(
+
             mission_type=mission_type,
+
             decision_condition=decision_condition
+
         )
 
-        result = service.verify_mission(
+        ai_result = service.verify_mission(
+
             image_bytes=image_bytes,
+
             prompt=prompt
+
         )
 
-        return result
+        # -----------------------------
+        # ReasonCode 매핑
+        # -----------------------------
+
+        ai_result = ReasonMapper.map(
+
+            ai_result=ai_result,
+
+            mission_type=mission_type
+
+        )
+
+        return MissionValidator.validate(
+            ai_result
+        )
 
     except ValueError as e:
 
@@ -145,7 +183,7 @@ async def verify_mission(
             detail=str(e)
         )
 
-    except Exception as e:
+    except Exception:
 
         traceback.print_exc()
 

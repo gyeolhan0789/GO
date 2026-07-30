@@ -3,14 +3,12 @@ import type { Environment } from './environment'
 import {
   clearRefreshToken,
   getAccessToken,
-  readEnvironment,
   readRefreshToken,
   saveRefreshToken,
-  saveEnvironment,
   setAccessToken,
 } from './session'
 
-let environment: Environment = readEnvironment() ?? defaultEnvironment
+let environment: Environment = defaultEnvironment
 let generation = 0
 const refreshFlights = new Map<number, Promise<void>>()
 
@@ -52,6 +50,12 @@ export type ItemInput = {
 
 export function getEnvironment() {
   return environment
+}
+
+export function resolveImageUrl(imageUrl: string | undefined) {
+  if (!imageUrl || /^https?:\/\//i.test(imageUrl)) return imageUrl
+  const normalizedPath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
+  return `${environments[environment].apiBaseUrl}${normalizedPath}`
 }
 
 class HttpError extends Error {
@@ -105,7 +109,7 @@ async function refresh(targetEnvironment: Environment, targetGeneration: number)
     if (environment !== targetEnvironment || generation !== targetGeneration) {
       throw new Error('환경이 변경되어 이전 인증 응답을 무시했습니다.')
     }
-    setAccessToken(tokens.accessToken)
+    setAccessToken(targetEnvironment, tokens.accessToken)
     saveRefreshToken(targetEnvironment, tokens.refreshToken)
   })().finally(() => { refreshFlights.delete(targetGeneration) })
   refreshFlights.set(targetGeneration, flight)
@@ -116,14 +120,14 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
   const targetEnvironment = environment
   const targetGeneration = generation
   try {
-    return await fetchJson<T>(path, init, targetEnvironment, getAccessToken())
+    return await fetchJson<T>(path, init, targetEnvironment, getAccessToken(targetEnvironment))
   } catch (cause) {
     if (!(cause instanceof HttpError) || cause.status !== 401 || !retry || environment !== targetEnvironment || generation !== targetGeneration) throw cause
     try {
       await refresh(targetEnvironment, targetGeneration)
     } catch (refreshCause) {
       if (environment === targetEnvironment && generation === targetGeneration) {
-        setAccessToken(null)
+        setAccessToken(targetEnvironment, null)
         clearRefreshToken(targetEnvironment)
       }
       throw refreshCause
@@ -133,33 +137,8 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
 }
 
 export async function loginWithEnvironmentFallback(email: string, password: string) {
-  const targetGeneration = generation
-
-  const targetEnvironments: Environment[] = environment === 'local' ? ['local'] : ['prod', 'dev']
-
-  for (const targetEnvironment of targetEnvironments) {
-    try {
-      const tokens = await fetchJson<AuthTokens>(
-        '/auth/login',
-        { method: 'POST', body: JSON.stringify({ email, password }) },
-        targetEnvironment,
-        null,
-      )
-      if (!tokens.accessToken || !tokens.refreshToken) throw new Error('Login response is invalid.')
-      if (generation !== targetGeneration) throw new Error('The session changed during login.')
-
-      environment = targetEnvironment
-      saveEnvironment(targetEnvironment)
-      setAccessToken(tokens.accessToken)
-      saveRefreshToken(targetEnvironment, tokens.refreshToken)
-      return targetEnvironment
-    } catch (cause) {
-      if (targetEnvironment === 'prod' && cause instanceof HttpError && cause.status === 401) continue
-      throw cause
-    }
-  }
-
-  throw new Error('Login failed.')
+  await login(email, password)
+  return environment
 }
 
 export async function login(email: string, password: string) {
@@ -173,7 +152,7 @@ export async function login(email: string, password: string) {
   )
   if (!tokens.accessToken || !tokens.refreshToken) throw new Error('로그인 응답이 올바르지 않습니다.')
   if (environment !== targetEnvironment || generation !== targetGeneration) throw new Error('환경이 변경되어 로그인 응답을 무시했습니다.')
-  setAccessToken(tokens.accessToken)
+  setAccessToken(targetEnvironment, tokens.accessToken)
   saveRefreshToken(targetEnvironment, tokens.refreshToken)
 }
 
@@ -185,7 +164,7 @@ export async function logoutCurrentEnvironment() {
   const targetEnvironment = environment
   const targetGeneration = generation
   const refreshToken = readRefreshToken(targetEnvironment)
-  const accessToken = getAccessToken()
+  const accessToken = getAccessToken(targetEnvironment)
   if (refreshToken) {
     try {
       await fetchJson<void>(
@@ -204,7 +183,7 @@ export async function logoutCurrentEnvironment() {
               '/auth/logout',
               { method: 'POST', body: JSON.stringify({ refreshToken: rotatedRefreshToken }) },
               targetEnvironment,
-              getAccessToken(),
+              getAccessToken(targetEnvironment),
             )
           }
         } catch {
@@ -216,7 +195,7 @@ export async function logoutCurrentEnvironment() {
   }
   if (environment === targetEnvironment && generation === targetGeneration) {
     generation += 1
-    setAccessToken(null)
+    setAccessToken(targetEnvironment, null)
     clearRefreshToken(targetEnvironment)
   }
 }

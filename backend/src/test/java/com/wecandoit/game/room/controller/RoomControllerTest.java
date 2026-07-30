@@ -22,6 +22,7 @@ import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.game.controller.request.CreateRoomRequest;
+import com.wecandoit.game.controller.request.UpdateRoomNameRequest;
 import com.wecandoit.game.controller.RoomController;
 import com.wecandoit.game.controller.response.CreateRoomResponse;
 import com.wecandoit.game.controller.response.MyRoomMemberResponse;
@@ -106,6 +107,8 @@ class RoomControllerTest {
                 GameRoomStatus.WAITING,
                 3,
                 null,
+                9,
+                0,
                 1L,
                 null,
                 List.of()
@@ -134,7 +137,7 @@ class RoomControllerTest {
                         requestFields(
                                 fieldWithPath("name").description("게임방 이름 (1~20자, 앞뒤 공백 제거)"),
                                 fieldWithPath("mode").description("게임 모드"),
-                                fieldWithPath("targetBingoCount").description("대결 모드 목표 빙고 수 (그 외 null)"),
+                                fieldWithPath("targetBingoCount").description("목표 빙고 수"),
                                 fieldWithPath("targetStepCount").description("싱글·협동 모드 공동 목표 걸음 수 (대결 null)"),
                                 fieldWithPath("boardSize").description("빙고판 크기 (3~5)")
                         ),
@@ -169,7 +172,7 @@ class RoomControllerTest {
                 .apply(document("room-create-invalid-name",
                         requestFields(
                                 fieldWithPath("mode").description("게임 모드"),
-                                fieldWithPath("targetBingoCount").description("대결 모드 목표 빙고 수"),
+                                fieldWithPath("targetBingoCount").description("목표 빙고 수"),
                                 fieldWithPath("targetStepCount").description("공동 목표 걸음 수"),
                                 fieldWithPath("boardSize").description("빙고판 크기")
                         ),
@@ -244,7 +247,7 @@ class RoomControllerTest {
                 .apply(document("room-create-invalid-mode",
                         requestFields(
                                 fieldWithPath("name").description("게임방 이름"),
-                                fieldWithPath("targetBingoCount").description("대결 모드 목표 빙고 수 (그 외 null)")
+                                fieldWithPath("targetBingoCount").description("목표 빙고 수")
                         ),
                         responseFields(
                                 fieldWithPath("status").description("HTTP 상태 코드"),
@@ -307,8 +310,10 @@ class RoomControllerTest {
                         "테스트 방",
                         GameMode.COOPERATE,
                         GameRoomStatus.WAITING,
-                        null,
+                        3,
                         10_000,
+                        9,
+                        2,
                         1L,
                         joinedAt,
                         List.of(
@@ -327,8 +332,10 @@ class RoomControllerTest {
                 .body("[0].name", equalTo("테스트 방"))
                 .body("[0].mode", equalTo("COOPERATE"))
                 .body("[0].status", equalTo("WAITING"))
-                .body("[0].targetBingoCount", nullValue())
+                .body("[0].targetBingoCount", equalTo(3))
                 .body("[0].targetStepCount", equalTo(10_000))
+                .body("[0].totalMissionCount", equalTo(9))
+                .body("[0].completedMissionCount", equalTo(2))
                 .body("[0].hostId", equalTo(1))
                 .body("[0].joinedAt", equalTo("2026-07-22T10:00:00"))
                 .body("[0].members[0].memberId", equalTo(1))
@@ -343,9 +350,11 @@ class RoomControllerTest {
                                 fieldWithPath("[].name").description("게임방 이름 (기존 방은 null 가능)"),
                                 fieldWithPath("[].mode").description("게임 모드"),
                                 fieldWithPath("[].status").description("게임방 상태"),
-                                fieldWithPath("[].targetBingoCount").description("대결 모드 목표 빙고 수 (그 외 null)"),
+                                fieldWithPath("[].targetBingoCount").description("목표 빙고 수"),
                                 fieldWithPath("[].targetStepCount")
                                         .description("싱글·협동 모드 공동 목표 걸음 수 (대결 null)"),
+                                fieldWithPath("[].totalMissionCount").description("방 전체 미션 총 개수"),
+                                fieldWithPath("[].completedMissionCount").description("방 전체 완료 미션 수"),
                                 fieldWithPath("[].hostId").description("방장 회원 ID"),
                                 fieldWithPath("[].joinedAt").description("로그인 회원의 게임방 참여 시각"),
                                 fieldWithPath("[].members[].memberId").description("참여자 회원 ID"),
@@ -390,8 +399,10 @@ class RoomControllerTest {
                         "테스트 방",
                         GameMode.COOPERATE,
                         GameRoomStatus.WAITING,
-                        null,
+                        3,
                         10_000,
+                        9,
+                        2,
                         1L,
                         startedAt,
                         List.of(new RoomMemberResponse(
@@ -414,8 +425,10 @@ class RoomControllerTest {
                 .body("name", equalTo("테스트 방"))
                 .body("mode", equalTo("COOPERATE"))
                 .body("status", equalTo("WAITING"))
-                .body("targetBingoCount", nullValue())
+                .body("targetBingoCount", equalTo(3))
                 .body("targetStepCount", equalTo(10_000))
+                .body("totalMissionCount", equalTo(9))
+                .body("completedMissionCount", equalTo(2))
                 .body("hostId", equalTo(1))
                 .body("startedAt", equalTo("2026-07-22T09:50:00"))
                 .body("members[0].memberId", equalTo(1))
@@ -432,9 +445,11 @@ class RoomControllerTest {
                                 fieldWithPath("name").description("게임방 이름 (기존 방은 null 가능)"),
                                 fieldWithPath("mode").description("게임 모드"),
                                 fieldWithPath("status").description("게임방 상태"),
-                                fieldWithPath("targetBingoCount").description("대결 모드 목표 빙고 수 (그 외 null)"),
+                                fieldWithPath("targetBingoCount").description("목표 빙고 수"),
                                 fieldWithPath("targetStepCount")
                                         .description("싱글·협동 모드 공동 목표 걸음 수 (대결 null)"),
+                                fieldWithPath("totalMissionCount").description("방 전체 미션 총 개수"),
+                                fieldWithPath("completedMissionCount").description("방 전체 완료 미션 수"),
                                 fieldWithPath("hostId").description("방장 회원 ID"),
                                 fieldWithPath("startedAt").description("게임 시작 시각"),
                                 fieldWithPath("members[].memberId").description("참여자 회원 ID"),
@@ -626,6 +641,8 @@ class RoomControllerTest {
                         GameRoomStatus.IN_PROGRESS,
                         3,
                         null,
+                        18,
+                        0,
                         1L,
                         startedAt,
                         List.of(
@@ -646,6 +663,8 @@ class RoomControllerTest {
                 .body("status", equalTo("IN_PROGRESS"))
                 .body("targetBingoCount", equalTo(3))
                 .body("targetStepCount", nullValue())
+                .body("totalMissionCount", equalTo(18))
+                .body("completedMissionCount", equalTo(0))
                 .body("startedAt", equalTo("2026-07-22T09:50:00"))
                 .body("members[0].bingoBoardId", equalTo(201))
                 .body("members[1].bingoBoardId", equalTo(202))
@@ -658,9 +677,11 @@ class RoomControllerTest {
                                 fieldWithPath("name").description("게임방 이름 (기존 방은 null 가능)"),
                                 fieldWithPath("mode").description("게임 모드"),
                                 fieldWithPath("status").description("게임방 상태"),
-                                fieldWithPath("targetBingoCount").description("대결 모드 목표 빙고 수 (그 외 null)"),
+                                fieldWithPath("targetBingoCount").description("목표 빙고 수"),
                                 fieldWithPath("targetStepCount")
                                         .description("싱글·협동 모드 공동 목표 걸음 수 (대결 null)"),
+                                fieldWithPath("totalMissionCount").description("방 전체 미션 총 개수"),
+                                fieldWithPath("completedMissionCount").description("방 전체 완료 미션 수"),
                                 fieldWithPath("hostId").description("방장 회원 ID"),
                                 fieldWithPath("startedAt").description("게임 시작 시각"),
                                 fieldWithPath("members[].memberId").description("참여자 회원 ID"),
@@ -721,6 +742,105 @@ class RoomControllerTest {
 
         // when & then
         assertStartGameErrorResponse(HttpStatus.CONFLICT, "room-start-insufficient-participants");
+    }
+
+    @Test
+    @DisplayName("방장이 게임방 이름을 변경하면 204 상태를 반환한다")
+    void updateRoomNameReturnsNoContent() {
+        // given
+        UpdateRoomNameRequest request = new UpdateRoomNameRequest("변경된 방");
+
+        // when & then
+        given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                          "name": "  변경된 방  "
+                        }
+                        """)
+                .when()
+                .patch("/rooms/{roomId}", 10L)
+                .then()
+                .statusCode(HttpStatus.NO_CONTENT.value())
+                .apply(document("room-update-name",
+                        pathParameters(
+                                parameterWithName("roomId").description("이름을 변경할 게임방 ID")
+                        ),
+                        requestFields(
+                                fieldWithPath("name").description("변경할 게임방 이름 (1~20자, 앞뒤 공백 제거)")
+                        )
+                ));
+        then(roomCommandService).should().updateRoomName(1L, 10L, request);
+    }
+
+    @Test
+    @DisplayName("게임방 이름이 공백이면 이름 변경에 실패한다")
+    void updateRoomNameRejectsBlankName() {
+        // when & then
+        given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                          "name": "   "
+                        }
+                        """)
+                .when()
+                .patch("/rooms/{roomId}", 10L)
+                .then()
+                .statusCode(HttpStatus.BAD_REQUEST.value());
+        then(roomCommandService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("게임방 이름이 20자를 초과하면 이름 변경에 실패한다")
+    void updateRoomNameRejectsTooLongName() {
+        // when & then
+        given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                          "name": "123456789012345678901"
+                        }
+                        """)
+                .when()
+                .patch("/rooms/{roomId}", 10L)
+                .then()
+                .statusCode(HttpStatus.BAD_REQUEST.value());
+        then(roomCommandService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("방장이 아닌 회원이 게임방 이름을 변경하면 403 상태를 반환한다")
+    void updateRoomNameRejectsNonHost() {
+        // given
+        willThrow(new CustomException(ErrorCode.ROOM_UPDATE_FORBIDDEN))
+                .given(roomCommandService)
+                .updateRoomName(Mockito.eq(1L), Mockito.eq(10L), Mockito.any(UpdateRoomNameRequest.class));
+
+        // when & then
+        given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                          "name": "변경된 방"
+                        }
+                        """)
+                .when()
+                .patch("/rooms/{roomId}", 10L)
+                .then()
+                .statusCode(HttpStatus.FORBIDDEN.value())
+                .apply(document("room-update-name-forbidden",
+                        pathParameters(
+                                parameterWithName("roomId").description("이름을 변경할 게임방 ID")
+                        ),
+                        requestFields(
+                                fieldWithPath("name").description("변경할 게임방 이름")
+                        ),
+                        responseFields(
+                                fieldWithPath("status").description("HTTP 상태 코드"),
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
     }
 
     @Test

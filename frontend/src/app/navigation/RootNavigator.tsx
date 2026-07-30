@@ -8,6 +8,8 @@ import { BingoBoardScreen } from '../../screens/BingoBoardScreen/BingoBoardScree
 import { LoginScreen } from '../../screens/LoginScreen/LoginScreen';
 import { OnboardingScreen } from '../../screens/OnboardingScreen/OnboardingScreen';
 import { PermissionsScreen } from '../../screens/PermissionsScreen/PermissionsScreen';
+import { CharacterCustomizeScreen } from '../../screens/CharacterCustomizeScreen/CharacterCustomizeScreen';
+import { MyPageScreen } from '../../screens/MyPageScreen/MyPageScreen';
 import { SignupScreen } from '../../screens/SignupScreen/SignupScreen';
 import { WalkDetailScreen } from '../../screens/WalkDetailScreen/WalkDetailScreen';
 import { WalkListScreen } from '../../screens/WalkListScreen/WalkListScreen';
@@ -29,6 +31,8 @@ export type RootStackParamList = {
   WalkSession: undefined;
   // TODO: roomId 연동되면 필수 파라미터로 받는다.
   BingoBoard: undefined;
+  MyPage: undefined;
+  CharacterCustomize: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -101,6 +105,16 @@ export function RootNavigator() {
           <Stack.Screen name="WalkSession" component={WalkSessionScreen} />
           {/* 보드/미션 상세 2단계를 자체 상단바로 전환하므로 네이티브 헤더를 끈다. */}
           <Stack.Screen name="BingoBoard" component={BingoBoardScreen} />
+          <Stack.Screen
+            name="MyPage"
+            component={MyPageScreen}
+            options={{ ...DETAIL_HEADER_OPTIONS, title: '프로필 설정' }}
+          />
+          <Stack.Screen
+            name="CharacterCustomize"
+            component={CharacterCustomizeScreen}
+            options={{ ...DETAIL_HEADER_OPTIONS, title: '캐릭터 꾸미기' }}
+          />
         </>
       ) : (
         <>

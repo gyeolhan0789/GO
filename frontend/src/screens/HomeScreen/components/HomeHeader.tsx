@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { colors } from '../../../shared/constants/colors';
@@ -8,9 +8,11 @@ import { fontFamily } from '../../../shared/constants/typography';
 
 type HomeHeaderProps = {
   points: number;
+  /** 프로필 사진을 누르면 마이페이지로 간다. */
+  onProfilePress: () => void;
 };
 
-export function HomeHeader({ points }: HomeHeaderProps) {
+export function HomeHeader({ points, onProfilePress }: HomeHeaderProps) {
   return (
     <View style={styles.container}>
       <View style={styles.pointsBadge}>
@@ -19,9 +21,14 @@ export function HomeHeader({ points }: HomeHeaderProps) {
       </View>
       <View style={styles.actions}>
         <Ionicons name="notifications-outline" size={24} color={colors.ink} />
-        <View style={styles.avatar}>
+        <Pressable
+          onPress={onProfilePress}
+          style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="프로필 설정"
+        >
           <Ionicons name="person" size={20} color={colors.muted} />
-        </View>
+        </Pressable>
       </View>
     </View>
   );
@@ -63,6 +70,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
+  },
+  pressed: {
+    opacity: 0.7,
   },
   avatar: {
     width: 32,

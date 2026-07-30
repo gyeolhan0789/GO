@@ -112,7 +112,10 @@ export function HomeScreen() {
   return (
     <Screen>
       <View style={styles.content}>
-        <HomeHeader points={points} />
+        <HomeHeader
+          points={points}
+          onProfilePress={() => navigation.navigate('MyPage')}
+        />
         <HomeCarousel
           style={styles.carousel}
           steps={todaySteps}

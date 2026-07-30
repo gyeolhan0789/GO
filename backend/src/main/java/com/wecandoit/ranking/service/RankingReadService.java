@@ -5,6 +5,7 @@ import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.PageResponse;
 import com.wecandoit.history.repository.MemberHistoryRepository;
 import com.wecandoit.history.repository.RankedWeeklyRankingSummary;
+import com.wecandoit.item.controller.response.CharacterResponse;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.domain.Region;
 import com.wecandoit.member.repository.MemberRepository;
@@ -12,6 +13,7 @@ import com.wecandoit.ranking.controller.response.RankingItemResponse;
 import com.wecandoit.ranking.controller.response.RankingResponse;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -28,6 +30,7 @@ public class RankingReadService {
 
     private final MemberRepository memberRepository;
     private final MemberHistoryRepository memberHistoryRepository;
+    private final RankingCharacterReadService rankingCharacterReadService;
 
     public RankingResponse getRankings(Long memberId, Pageable pageable) {
         Member loginMember = memberRepository.findById(memberId)
@@ -54,23 +57,38 @@ public class RankingReadService {
                                 weekRange.endDate()
                         )
                         .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+        Map<Long, CharacterResponse> charactersByMemberId =
+                rankingCharacterReadService.getCharactersByMemberIds(
+                        summaries.stream()
+                                .map(RankedWeeklyRankingSummary::getMemberId)
+                                .toList()
+                );
 
         return new RankingResponse(
                 region,
                 myRanking.getRanking(),
                 myRanking.getWeeklySteps(),
-                PageResponse.from(summaries.map(RankingReadService::toRankingItemResponse))
+                PageResponse.from(summaries.map(summary ->
+                        toRankingItemResponse(summary, charactersByMemberId)))
         );
     }
 
     private static RankingItemResponse toRankingItemResponse(
-            RankedWeeklyRankingSummary summary
+            RankedWeeklyRankingSummary summary,
+            Map<Long, CharacterResponse> charactersByMemberId
     ) {
+        CharacterResponse character = charactersByMemberId.get(summary.getMemberId());
+        if (character == null) {
+            throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
+        }
         return new RankingItemResponse(
                 summary.getRanking(),
                 summary.getMemberId(),
                 summary.getNickname(),
-                summary.getWeeklySteps()
+                summary.getWeeklySteps(),
+                character.gender(),
+                character.defaultImageUrl(),
+                character.equippedItems()
         );
     }
 }

@@ -89,7 +89,7 @@ class BingoStepGoalRewardConcurrencyTest {
         roomMemberRepository.saveAndFlush(RoomMember.create(roomId, firstMemberId));
         roomMemberRepository.saveAndFlush(RoomMember.create(roomId, secondMemberId));
         Game game = gameRepository.saveAndFlush(Game.start(roomId));
-        bingoBoardRepository.saveAndFlush(BingoBoard.create(game.getId(), 3));
+        bingoBoardRepository.saveAndFlush(BingoBoard.create(game.getId(), 3, 1_000));
     }
 
     @Test

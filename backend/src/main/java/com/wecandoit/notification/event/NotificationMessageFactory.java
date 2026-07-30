@@ -46,8 +46,8 @@ public class NotificationMessageFactory {
         return new NotificationRequestedEvent(
                 recipientMemberId,
                 NotificationType.WEEKLY_BINGO_RENEWAL,
-                "새로운 빙고판이 도착했어요",
-                "이번 주 빙고판이 새로 갱신됐어요."
+                "빙고판 갱신이 필요해요",
+                "목표 걸음 수를 설정하고 새 빙고판을 발급해 주세요."
         );
     }
 

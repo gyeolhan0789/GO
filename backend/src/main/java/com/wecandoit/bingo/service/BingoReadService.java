@@ -21,8 +21,10 @@ import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.GameResultParticipantRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
+import com.wecandoit.game.service.GameCycleCommandService;
 import com.wecandoit.mission.domain.Mission;
 import com.wecandoit.mission.repository.MissionRepository;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -64,17 +66,18 @@ public class BingoReadService {
         int approvedCellCount = countApprovedCells(cells);
         int completedBingoCount = BingoLineCounter.countCompletedLines(room.getBoardSize(), cells);
         boolean completed = !cells.isEmpty() && approvedCellCount == cells.size();
-        boolean canRenew = completed && room.isHost(memberId);
+        boolean renewalRequired = isRenewalRequired(room, game);
+        boolean canRenew = (completed || renewalRequired) && room.isHost(memberId);
         return BingoBoardResponse.of(
                 board,
                 roomId,
                 cellResponses,
                 room.getTargetBingoCount(),
-                room.getTargetStepCount(),
                 completedBingoCount,
                 approvedCellCount,
                 completed,
-                canRenew
+                canRenew,
+                renewalRequired
         );
     }
 
@@ -122,7 +125,6 @@ public class BingoReadService {
                 room.getId(),
                 myCellResponses,
                 room.getTargetBingoCount(),
-                room.getTargetStepCount(),
                 myProgress.completedBingoCount(),
                 myProgress.approvedCellCount(),
                 myProgress.targetReached(),
@@ -151,6 +153,11 @@ public class BingoReadService {
         return gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(roomId, GameStatus.IN_PROGRESS)
                 .or(() -> gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(roomId, GameStatus.COMPLETED))
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_IN_PROGRESS));
+    }
+
+    private boolean isRenewalRequired(Room room, Game game) {
+        return room.getMode() != GameMode.BATTLE
+                && GameCycleCommandService.isRenewalPeriodPassed(game, LocalDateTime.now());
     }
 
     private BingoBoard findActiveBoard(Long gameId) {
