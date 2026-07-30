@@ -15,13 +15,13 @@ import type {
   BingoBoardSize,
 } from '../../features/bingo/components/BingoBoard/BingoBoard';
 import { BingoBoard } from '../../features/bingo/components/BingoBoard/BingoBoard';
-import { MemberProgressBar } from '../../features/bingo/components/MemberProgressBar/MemberProgressBar';
 import { MissionVerificationModal } from '../../features/bingo/components/MissionVerificationModal/MissionVerificationModal';
 import type { MissionType } from '../../features/bingo/model/missionType';
 import {
   MISSION_TYPE_LABELS,
   MISSION_TYPE_POINTS,
 } from '../../features/bingo/model/missionType';
+import { MemberProgressBar } from '../../shared/components/MemberProgressBar/MemberProgressBar';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { colors, participantColors } from '../../shared/constants/colors';
 import { radius } from '../../shared/constants/radius';
@@ -121,7 +121,7 @@ export function BingoBoardScreen() {
 
   // 인원별 완료 칸 수를 세서 진행바 색 구간을 만든다.
   const progressSegments = MOCK_MEMBERS.map(member => ({
-    count: cells.filter(cell => cell.completedByMemberId === member.id).length,
+    value: cells.filter(cell => cell.completedByMemberId === member.id).length,
     color: member.color,
   }));
 

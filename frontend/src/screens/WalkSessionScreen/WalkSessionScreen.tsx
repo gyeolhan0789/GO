@@ -9,13 +9,13 @@ import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 import { useWalkSession } from '../../features/walk-session/hooks/useWalkSession';
 import { endWalkSession } from '../../features/walk-session/model/walkSessionStore';
 import { Button } from '../../shared/components/Button/Button';
+import { MemberProgressBar } from '../../shared/components/MemberProgressBar/MemberProgressBar';
 import { Screen } from '../../shared/components/Screen/Screen';
-import { colors } from '../../shared/constants/colors';
+import { colors, participantColors } from '../../shared/constants/colors';
 import { radius } from '../../shared/constants/radius';
 import { shadow } from '../../shared/constants/shadow';
 import { spacing } from '../../shared/constants/spacing';
 import { fontFamily } from '../../shared/constants/typography';
-import { StepsProgressBar } from '../HomeScreen/components/StepsProgressBar';
 import { WalkRouteMap } from './components/WalkRouteMap';
 import { useRouteTracking } from './hooks/useRouteTracking';
 
@@ -23,11 +23,18 @@ import { useRouteTracking } from './hooks/useRouteTracking';
 const MOCK_ROOM = {
   name: '주말 산책러들',
   targetSteps: 10000,
-  teamSteps: 5700,
-  mySteps: 3200,
   myCalories: 128,
   myDistanceKm: 2.7,
 };
+
+// 팀원별 오늘 걸음 수. 팀 목표 진행바/범례는 이 목록에서 바로 계산한다
+// (teamSteps를 따로 하드코딩하면 합계가 어긋날 수 있어서).
+const MOCK_TEAM_MEMBERS = [
+  { id: 'me', nickname: '나', steps: 3200, color: participantColors[0] },
+  { id: 'p2', nickname: '지민', steps: 1200, color: participantColors[1] },
+  { id: 'p3', nickname: '하은', steps: 800, color: participantColors[2] },
+  { id: 'p4', nickname: '준호', steps: 500, color: participantColors[3] },
+];
 
 function formatElapsed(totalSeconds: number) {
   const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
@@ -49,10 +56,13 @@ export function WalkSessionScreen() {
   // 일시정지하면 경로도 같이 멈춘다. 지금까지 찍은 좌표는 그대로 남는다.
   const route = useRouteTracking(!isPaused);
 
-  const teamPercent = Math.round(
-    (MOCK_ROOM.teamSteps / MOCK_ROOM.targetSteps) * 100,
-  );
-  const remainingSteps = Math.max(0, MOCK_ROOM.targetSteps - MOCK_ROOM.teamSteps);
+  const teamSteps = MOCK_TEAM_MEMBERS.reduce((sum, member) => sum + member.steps, 0);
+  const mySteps = MOCK_TEAM_MEMBERS.find(member => member.id === 'me')?.steps ?? 0;
+  const remainingSteps = Math.max(0, MOCK_ROOM.targetSteps - teamSteps);
+  const stepSegments = MOCK_TEAM_MEMBERS.map(member => ({
+    value: member.steps,
+    color: member.color,
+  }));
 
   const handleEndWalk = useCallback(() => {
     Alert.alert('산책 종료', '지금 산책을 종료할까요?', [
@@ -107,24 +117,38 @@ export function WalkSessionScreen() {
       <View style={styles.panel}>
         <Text style={styles.sectionLabel}>이번 산책 팀 목표</Text>
         <View style={styles.teamGoalRow}>
-          <Text style={styles.teamGoalValue}>
-            {MOCK_ROOM.teamSteps.toLocaleString()}
-          </Text>
+          <Text style={styles.teamGoalValue}>{teamSteps.toLocaleString()}</Text>
           <Text style={styles.teamGoalTarget}>
             {' '}
             / {MOCK_ROOM.targetSteps.toLocaleString()}보
           </Text>
         </View>
-        <StepsProgressBar percent={teamPercent} />
+        <MemberProgressBar segments={stepSegments} total={MOCK_ROOM.targetSteps} />
         <Text style={styles.remainingText}>
           {remainingSteps.toLocaleString()}보 남았어요
         </Text>
+
+        <View style={styles.memberStepsList}>
+          {MOCK_TEAM_MEMBERS.map(member => (
+            <View key={member.id} style={styles.memberStepsRow}>
+              <View style={styles.memberNameRow}>
+                <View
+                  style={[styles.memberDot, { backgroundColor: member.color }]}
+                />
+                <Text style={styles.memberName}>{member.nickname}</Text>
+              </View>
+              <Text style={styles.memberSteps}>
+                {member.steps.toLocaleString()}보
+              </Text>
+            </View>
+          ))}
+        </View>
 
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>오늘 걸음</Text>
             <Text style={[styles.statValue, styles.statValueAccent]}>
-              {MOCK_ROOM.mySteps.toLocaleString()}
+              {mySteps.toLocaleString()}
             </Text>
           </View>
           <View style={styles.statDivider} />
@@ -274,7 +298,39 @@ const styles = StyleSheet.create({
     color: colors.ink,
     opacity: 0.6,
     marginTop: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  memberStepsList: {
+    gap: spacing.xs,
     marginBottom: spacing.lg,
+  },
+  memberStepsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  memberNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  memberDot: {
+    width: 10,
+    height: 10,
+    borderRadius: radius.xs,
+    borderWidth: 1,
+    borderColor: colors.ink,
+  },
+  memberName: {
+    fontFamily: fontFamily.regular,
+    fontSize: 13,
+    color: colors.ink,
+    opacity: 0.7,
+  },
+  memberSteps: {
+    fontFamily: fontFamily.bold,
+    fontSize: 13,
+    color: colors.ink,
   },
   statsRow: {
     flexDirection: 'row',
