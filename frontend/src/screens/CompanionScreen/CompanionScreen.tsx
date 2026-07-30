@@ -10,6 +10,10 @@ import { useDeleteFriendMutation } from '../../features/friend/hooks/useDeleteFr
 import { useFriendsQuery } from '../../features/friend/hooks/useFriendsQuery';
 import { useReceivedRequestsQuery } from '../../features/friend/hooks/useReceivedRequestsQuery';
 import { useRejectFriendRequestMutation } from '../../features/friend/hooks/useRejectFriendRequestMutation';
+import type { ReceivedRoomInvite } from '../../features/room/api/roomApi';
+import { useAcceptRoomInviteMutation } from '../../features/room/hooks/useAcceptRoomInviteMutation';
+import { useReceivedRoomInvitesQuery } from '../../features/room/hooks/useReceivedRoomInvitesQuery';
+import { useRejectRoomInviteMutation } from '../../features/room/hooks/useRejectRoomInviteMutation';
 import { Fab } from '../../shared/components/Fab/Fab';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { SegmentedControl } from '../../shared/components/SegmentedControl/SegmentedControl';
@@ -20,6 +24,7 @@ import { AddFriendSheet } from './components/AddFriendSheet';
 import { CreateWalkRoomScreen } from './components/CreateWalkRoomScreen';
 import { FriendCard } from './components/FriendCard';
 import { ReceivedRequestRow } from './components/ReceivedRequestRow';
+import { ReceivedRoomInviteRow } from './components/ReceivedRoomInviteRow';
 import { WalkRoomCard } from './components/WalkRoomCard';
 import type { MyWalkRoom } from './types';
 
@@ -118,6 +123,9 @@ export function CompanionScreen() {
   const [isAddFriendVisible, setAddFriendVisible] = useState(false);
   const [isCreateRoomVisible, setCreateRoomVisible] = useState(false);
   const [pendingRequestId, setPendingRequestId] = useState<number | null>(null);
+  const [pendingInviteRequestId, setPendingInviteRequestId] = useState<
+    number | null
+  >(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const friendsQuery = useFriendsQuery();
   const friends = friendsQuery.data?.content ?? [];
@@ -126,6 +134,10 @@ export function CompanionScreen() {
   const acceptRequestMutation = useAcceptFriendRequestMutation();
   const rejectRequestMutation = useRejectFriendRequestMutation();
   const deleteFriendMutation = useDeleteFriendMutation();
+  const receivedInvitesQuery = useReceivedRoomInvitesQuery();
+  const receivedInvites = receivedInvitesQuery.data ?? [];
+  const acceptInviteMutation = useAcceptRoomInviteMutation();
+  const rejectInviteMutation = useRejectRoomInviteMutation();
 
   const handleDeleteFriend = (friend: FriendResponse) => {
     Alert.alert(
@@ -201,6 +213,57 @@ export function CompanionScreen() {
     );
   };
 
+  const handleAcceptInvite = (invite: ReceivedRoomInvite) => {
+    setPendingInviteRequestId(invite.requestId);
+    acceptInviteMutation.mutate(
+      { roomId: invite.roomId, requestId: invite.requestId },
+      {
+        onSuccess: () => setToastMessage('산책방 초대를 수락했어요.'),
+        onError: error => {
+          Alert.alert(
+            '초대 수락 실패',
+            error instanceof Error ? error.message : '잠시 후 다시 시도해주세요.',
+          );
+          receivedInvitesQuery.refetch();
+        },
+        onSettled: () => setPendingInviteRequestId(null),
+      },
+    );
+  };
+
+  const handleRejectInvite = (invite: ReceivedRoomInvite) => {
+    Alert.alert(
+      '산책방 초대 거절',
+      `${invite.inviterNickname}님의 산책방 초대를 거절할까요?`,
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '거절',
+          style: 'destructive',
+          onPress: () => {
+            setPendingInviteRequestId(invite.requestId);
+            rejectInviteMutation.mutate(
+              { roomId: invite.roomId, requestId: invite.requestId },
+              {
+                onSuccess: () => setToastMessage('산책방 초대를 거절했어요.'),
+                onError: error => {
+                  Alert.alert(
+                    '초대 거절 실패',
+                    error instanceof Error
+                      ? error.message
+                      : '잠시 후 다시 시도해주세요.',
+                  );
+                  receivedInvitesQuery.refetch();
+                },
+                onSettled: () => setPendingInviteRequestId(null),
+              },
+            );
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <Screen>
       <View style={styles.content}>
@@ -220,9 +283,27 @@ export function CompanionScreen() {
             data={MOCK_WALK_ROOMS}
             keyExtractor={room => room.id}
             ListHeaderComponent={
-              <Text style={styles.countLabel}>
-                참여 중인 산책방 {MOCK_WALK_ROOMS.length}
-              </Text>
+              <>
+                {receivedInvites.length > 0 ? (
+                  <View style={styles.receivedRequests}>
+                    <Text style={styles.countLabel}>
+                      받은 산책방 초대 {receivedInvites.length}
+                    </Text>
+                    {receivedInvites.map(invite => (
+                      <ReceivedRoomInviteRow
+                        key={invite.requestId}
+                        invite={invite}
+                        onAccept={() => handleAcceptInvite(invite)}
+                        onReject={() => handleRejectInvite(invite)}
+                        disabled={pendingInviteRequestId === invite.requestId}
+                      />
+                    ))}
+                  </View>
+                ) : null}
+                <Text style={styles.countLabel}>
+                  참여 중인 산책방 {MOCK_WALK_ROOMS.length}
+                </Text>
+              </>
             }
             renderItem={({ item }) => (
               <WalkRoomCard room={item} onPress={() => {}} />

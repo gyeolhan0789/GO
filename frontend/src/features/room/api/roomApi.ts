@@ -51,3 +51,28 @@ export function inviteToRoom(roomId: number, inviteeId: number) {
     inviteeId,
   });
 }
+
+export type ReceivedRoomInvite = {
+  requestId: number;
+  roomId: number;
+  inviterId: number;
+  inviterNickname: string;
+  status: RoomInviteStatus;
+  createdAt: string;
+};
+
+export function getReceivedRoomInvites() {
+  return apiClient.get<ReceivedRoomInvite[]>('/rooms/requests/received');
+}
+
+export function acceptRoomInvite(roomId: number, requestId: number) {
+  return apiClient.patch<void>(
+    `/rooms/${roomId}/requests/${requestId}/accept`,
+  );
+}
+
+export function rejectRoomInvite(roomId: number, requestId: number) {
+  return apiClient.patch<void>(
+    `/rooms/${roomId}/requests/${requestId}/reject`,
+  );
+}
