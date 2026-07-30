@@ -295,9 +295,7 @@ public class RoomReadService {
 
     private boolean isStepGoalRewardTarget(Room room) {
         return room.getStatus() == GameRoomStatus.IN_PROGRESS
-                && room.getMode() != GameMode.BATTLE
-                && room.getTargetStepCount() != null
-                && room.getTargetStepCount() > 0;
+                && room.getMode() != GameMode.BATTLE;
     }
 
     private StepGoalRewardTarget toStepGoalRewardTarget(
@@ -311,14 +309,17 @@ public class RoomReadService {
         }
         BingoBoard bingoBoard = activeBoardsByGameId.get(game.getId());
         List<RoomMember> roomMembers = roomMembersByRoomId.getOrDefault(room.getId(), List.of());
-        if (bingoBoard == null || roomMembers.isEmpty()) {
+        if (bingoBoard == null
+                || bingoBoard.getTargetStepCount() == null
+                || bingoBoard.getTargetStepCount() < 1
+                || roomMembers.isEmpty()) {
             return null;
         }
         return new StepGoalRewardTarget(
                 room.getId(),
                 bingoBoard.getId(),
                 bingoBoard.getCreatedAt().toLocalDate(),
-                room.getTargetStepCount(),
+                bingoBoard.getTargetStepCount(),
                 roomMembers.stream()
                         .map(roomMember -> new StepGoalRewardMember(
                                 roomMember.getMemberId(),

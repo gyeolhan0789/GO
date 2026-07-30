@@ -1,5 +1,6 @@
 package com.wecandoit.bingo.controller;
 
+import com.wecandoit.bingo.controller.request.RenewBingoBoardRequest;
 import com.wecandoit.bingo.controller.request.SubmitBingoCellRequest;
 import com.wecandoit.bingo.controller.response.BingoBoardResponse;
 import com.wecandoit.bingo.controller.response.BingoCellSubmitResponse;
@@ -51,9 +52,10 @@ public class BingoController {
     @PostMapping("/{roomId}/bingo-boards/renewal")
     public ResponseEntity<BingoBoardResponse> renewBoard(
             @LoginMemberId Long memberId,
-            @PathVariable Long roomId
+            @PathVariable Long roomId,
+            @Valid @RequestBody RenewBingoBoardRequest request
     ) {
-        BingoBoardResponse response = bingoCommandService.renewBoard(memberId, roomId);
+        BingoBoardResponse response = bingoCommandService.renewBoard(memberId, roomId, request.targetStepCount());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

@@ -628,7 +628,7 @@ class RoomReadServiceTest {
         RoomMember guestMember = roomMember(10L, 2L, 0, LocalDateTime.of(2026, 7, 22, 9, 0));
         Game game = Game.start(10L);
         ReflectionTestUtils.setField(game, "id", 20L);
-        BingoBoard bingoBoard = BingoBoard.create(20L, 3);
+        BingoBoard bingoBoard = BingoBoard.create(20L, 3, 12_000);
         ReflectionTestUtils.setField(bingoBoard, "id", 30L);
         ReflectionTestUtils.setField(bingoBoard, "createdAt", boardCreatedAt);
         given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
@@ -652,7 +652,7 @@ class RoomReadServiceTest {
         assertThat(target.roomId()).isEqualTo(10L);
         assertThat(target.bingoBoardId()).isEqualTo(30L);
         assertThat(target.boardStartedDate()).isEqualTo(boardCreatedAt.toLocalDate());
-        assertThat(target.targetStepCount()).isEqualTo(10_000);
+        assertThat(target.targetStepCount()).isEqualTo(12_000);
         assertThat(target.members())
                 .extracting(
                         RoomReadService.StepGoalRewardMember::memberId,
@@ -665,24 +665,35 @@ class RoomReadServiceTest {
     }
 
     @Test
-    @DisplayName("목표 걸음 수가 없는 기존 방은 공동 걸음 보상 대상에서 제외한다")
-    void getStepGoalRewardTargetsSkipsRoomWithoutTargetStepCount() {
+    @DisplayName("목표 걸음 수가 없는 활성 보드는 공동 걸음 보상 대상에서 제외한다")
+    void getStepGoalRewardTargetsSkipsBoardWithoutTargetStepCount() {
         // given
-        Room room = Room.create(1L, "테스트 방", GameMode.COOPERATE, null, 3);
+        Room room = Room.create(1L, "테스트 방", GameMode.COOPERATE, null, 10_000, 3);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         RoomMember roomMember = roomMember(10L, 1L, 0, LocalDateTime.of(2026, 7, 20, 9, 0));
+        Game game = Game.start(10L);
+        ReflectionTestUtils.setField(game, "id", 20L);
+        BingoBoard bingoBoard = BingoBoard.create(20L, 3);
+        ReflectionTestUtils.setField(bingoBoard, "id", 30L);
+        ReflectionTestUtils.setField(bingoBoard, "createdAt", LocalDateTime.of(2026, 7, 20, 10, 0));
         given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
                 .willReturn(List.of(roomMember));
         given(roomRepository.findAllById(List.of(10L))).willReturn(List.of(room));
+        given(gameRepository.findAllByRoomIdInAndStatus(List.of(10L), GameStatus.IN_PROGRESS))
+                .willReturn(List.of(game));
+        given(bingoBoardRepository.findAllByGameIdInAndStatusNotInOrderByIdAsc(
+                List.of(20L),
+                List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED)
+        )).willReturn(List.of(bingoBoard));
+        given(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(10L)))
+                .willReturn(List.of(roomMember));
 
         // when
         List<StepGoalRewardTarget> targets = roomReadService.getStepGoalRewardTargets(1L);
 
         // then
         assertThat(targets).isEmpty();
-        then(gameRepository).shouldHaveNoInteractions();
-        then(bingoBoardRepository).shouldHaveNoInteractions();
     }
 
     private Room room(Long roomId, Long hostId) {
