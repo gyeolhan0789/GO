@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -6,11 +6,14 @@ import {
   Text,
   View,
 } from 'react-native';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 import { WalkCard } from '../../features/history/components/WalkCard/WalkCard';
 import { useWalksInfiniteQuery } from '../../features/history/hooks/useWalksInfiniteQuery';
+import type { WalkRecord } from '../../features/history/types';
+import { Fab } from '../../shared/components/Fab/Fab';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { colors } from '../../shared/constants/colors';
 import { spacing } from '../../shared/constants/spacing';
@@ -22,9 +25,13 @@ type WalkListScreenProps = NativeStackScreenProps<
 
 // 화면 끝에서 반 화면 남았을 때 다음 페이지를 부른다.
 const END_REACHED_THRESHOLD = 0.5;
+// 한 화면쯤 내려갔을 때부터 맨 위로 버튼을 띄운다. 조금만 스크롤해도 뜨면 거슬린다.
+const SCROLL_TO_TOP_OFFSET = 600;
 
 export function WalkListScreen({ navigation }: WalkListScreenProps) {
   const walksQuery = useWalksInfiniteQuery();
+  const listRef = useRef<FlatList<WalkRecord>>(null);
+  const [isScrolledDown, setScrolledDown] = useState(false);
 
   const walks = useMemo(
     () => walksQuery.data?.pages.flatMap(page => page.content) ?? [],
@@ -38,6 +45,14 @@ export function WalkListScreen({ navigation }: WalkListScreenProps) {
     }
   };
 
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    setScrolledDown(event.nativeEvent.contentOffset.y > SCROLL_TO_TOP_OFFSET);
+  };
+
+  const scrollToTop = () => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  };
+
   return (
     <Screen edges={SCREEN_EDGES}>
       <View style={styles.container}>
@@ -47,6 +62,8 @@ export function WalkListScreen({ navigation }: WalkListScreenProps) {
           <Text style={styles.statusText}>산책 기록을 불러오지 못했어요.</Text>
         ) : (
           <FlatList
+            ref={listRef}
+            onScroll={handleScroll}
             data={walks}
             keyExtractor={walk => String(walk.roomId)}
             renderItem={({ item }) => (
@@ -80,6 +97,16 @@ export function WalkListScreen({ navigation }: WalkListScreenProps) {
             showsVerticalScrollIndicator={false}
           />
         )}
+
+        {isScrolledDown ? (
+          <View style={styles.scrollToTop}>
+            <Fab
+              icon="arrow-up"
+              onPress={scrollToTop}
+              accessibilityLabel="맨 위로"
+            />
+          </View>
+        ) : null}
       </View>
     </Screen>
   );
@@ -120,5 +147,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.ink,
     opacity: 0.4,
+  },
+  scrollToTop: {
+    position: 'absolute',
+    right: spacing.md,
+    bottom: spacing.lg,
   },
 });
