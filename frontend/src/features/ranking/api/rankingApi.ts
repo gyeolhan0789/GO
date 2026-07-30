@@ -1,4 +1,5 @@
 import { apiClient } from '../../../shared/api/client';
+import type { EquippedItem } from '../../member/api/memberApi';
 
 /** 랭킹 한 줄. 순위는 서버가 매겨 내려준다. */
 export type RankingItem = {
@@ -7,6 +8,13 @@ export type RankingItem = {
   nickname: string;
   /** Asia/Seoul 기준 이번 주 월요일부터 오늘까지의 누적 걸음 수. */
   weeklySteps: number;
+  /**
+   * 이 회원이 입고 있는 아이템. 아바타는 이걸 기본 캐릭터 위에 겹쳐 만든다.
+   *
+   * 기본 캐릭터 이미지는 내려오지 않아 번들 에셋으로 대신한다
+   * (`RANKING_BASE_CHARACTER`).
+   */
+  equippedItems: EquippedItem[];
 };
 
 export type RankingPage = {

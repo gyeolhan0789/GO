@@ -65,7 +65,8 @@ export function RankingScreen() {
   // myRank로는 나를 못 가린다 — 동점자는 순위가 같아서 걸음 수가 모두 같으면
   // 전원이 내 순위가 된다. 닉네임은 DB에서 유일하므로(member.nickname unique)
   // 회원 조회의 닉네임으로 찾는다.
-  const myNickname = useMyCharacterQuery().data?.nickname;
+  const myCharacter = useMyCharacterQuery().data;
+  const myNickname = myCharacter?.nickname;
 
   const items = useMemo(
     () => orderRanking(ranking.data?.rankings.content ?? [], myNickname),
@@ -225,6 +226,7 @@ export function RankingScreen() {
             <MyRankBar
               rank={myRank}
               weeklySteps={ranking.data?.myWeeklySteps ?? 0}
+              character={myCharacter}
             />
           </View>
         ) : null}

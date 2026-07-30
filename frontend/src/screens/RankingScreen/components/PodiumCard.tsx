@@ -1,8 +1,6 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-// TODO: 서버가 회원별 캐릭터를 내려주면 이 자리채움 에셋을 걷어낸다.
-import characterMale from '../../HomeScreen/assets/character-male.png';
 import type { RankingItem } from '../../../features/ranking/api/rankingApi';
 import { formatThousands } from '../../../features/history/model/format';
 import { Card } from '../../../shared/components/Card/Card';
@@ -10,6 +8,7 @@ import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
 import { ME_LABEL } from '../model';
+import { RankingAvatar } from './RankingAvatar';
 
 type PodiumCardProps = {
   /** 왼쪽부터 그릴 세 자리(2위 · 1위 · 3위). 빈 자리는 null. */
@@ -56,11 +55,9 @@ function Place({ place, isMe }: { place: RankingItem; isMe: boolean }) {
   return (
     <View style={styles.place}>
       <View style={styles.stand}>
-        <Image
-          source={characterMale}
+        <RankingAvatar
+          equippedItems={place.equippedItems}
           style={styles.character}
-          resizeMode="contain"
-          accessibilityIgnoresInvertColors
         />
         <View
           style={[

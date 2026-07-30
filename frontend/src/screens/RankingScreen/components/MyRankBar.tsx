@@ -2,6 +2,12 @@ import { StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { formatThousands } from '../../../features/history/model/format';
+import { CharacterLayers } from '../../../features/member/components/CharacterLayers';
+import type { Character } from '../../../features/member/model/character';
+import {
+  selectLayerItems,
+  toEquippedByCategory,
+} from '../../../features/member/model/equippedItems';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
@@ -11,10 +17,11 @@ type MyRankBarProps = {
   /** 서버가 매긴 내 순위(`myRank`). 집계에 못 들었으면 0 이하로 온다. */
   rank: number;
   weeklySteps: number;
+  /** 내 캐릭터. 회원 조회가 아직이면 없다. */
+  character?: Character;
 };
 
 const AVATAR_SIZE = 36;
-const AVATAR_ICON_SIZE = 20;
 const STEP_ICON_SIZE = 14;
 
 /** 순위가 안 잡히면 숫자 대신 이걸 둔다. 0위라고 적히는 게 더 이상하다. */
@@ -25,8 +32,12 @@ const UNRANKED_LABEL = '-';
  *
  * 목록과 달리 어두운 면으로 깔아 스크롤되는 줄과 구분한다.
  */
-export function MyRankBar({ rank, weeklySteps }: MyRankBarProps) {
+export function MyRankBar({ rank, weeklySteps, character }: MyRankBarProps) {
   const isRanked = rank > 0;
+  // 내 캐릭터는 회원 조회로 알고 있다. 랭킹 응답의 착용 아이템을 쓸 필요가 없다.
+  const layers = selectLayerItems(
+    toEquippedByCategory(character?.equippedItems ?? []),
+  );
 
   return (
     <View
@@ -39,14 +50,11 @@ export function MyRankBar({ rank, weeklySteps }: MyRankBarProps) {
     >
       <Text style={styles.rank}>{isRanked ? rank : UNRANKED_LABEL}</Text>
 
-      {/* TODO: 서버가 회원별 캐릭터 이미지를 내려주면 아바타로 바꾼다. */}
-      <View style={styles.avatar}>
-        <Ionicons
-          name="person"
-          size={AVATAR_ICON_SIZE}
-          color={colors.surface}
-        />
-      </View>
+      <CharacterLayers
+        baseImage={character?.baseImage ?? null}
+        items={layers}
+        style={styles.avatar}
+      />
 
       <Text style={styles.label}>{ME_LABEL}</Text>
 
@@ -85,8 +93,8 @@ const styles = StyleSheet.create({
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
+    // 레이어가 절대 배치라 상자를 넘는 부분을 잘라야 원형이 유지된다.
+    overflow: 'hidden',
     backgroundColor: colors.mutedStrong,
   },
   label: {

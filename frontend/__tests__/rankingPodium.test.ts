@@ -11,12 +11,19 @@ function item(rank: number): RankingItem {
     memberId: rank * 10,
     nickname: `${rank}위`,
     weeklySteps: 1000 - rank,
+    equippedItems: [],
   };
 }
 
 /** 걸음 수가 같으면 서버는 순위도 같게 준다(`rank() over`). */
 function tied(nickname: string, rank = 1, weeklySteps = 0): RankingItem {
-  return { rank, memberId: nickname.charCodeAt(0), nickname, weeklySteps };
+  return {
+    rank,
+    memberId: nickname.charCodeAt(0),
+    nickname,
+    weeklySteps,
+    equippedItems: [],
+  };
 }
 
 describe('시상대 분리', () => {

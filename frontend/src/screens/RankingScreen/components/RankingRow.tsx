@@ -7,6 +7,7 @@ import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
 import { ME_LABEL } from '../model';
+import { RankingAvatar } from './RankingAvatar';
 
 type RankingRowProps = {
   item: RankingItem;
@@ -15,7 +16,6 @@ type RankingRowProps = {
 };
 
 const AVATAR_SIZE = 44;
-const AVATAR_ICON_SIZE = 24;
 const STEP_ICON_SIZE = 14;
 
 const ACCENT_WIDTH = 4;
@@ -29,14 +29,10 @@ export function RankingRow({ item, isMe }: RankingRowProps) {
 
       <Text style={[styles.rank, isMe && styles.rankMe]}>{item.rank}</Text>
 
-      {/* TODO: 서버가 회원별 캐릭터 이미지를 내려주면 아바타로 바꾼다. */}
-      <View style={[styles.avatar, isMe && styles.avatarMe]}>
-        <Ionicons
-          name="person"
-          size={AVATAR_ICON_SIZE}
-          color={isMe ? colors.successText : colors.mutedStrong}
-        />
-      </View>
+      <RankingAvatar
+        equippedItems={item.equippedItems}
+        style={[styles.avatar, isMe && styles.avatarMe]}
+      />
 
       <Text
         style={[styles.nickname, isMe && styles.nicknameMe]}

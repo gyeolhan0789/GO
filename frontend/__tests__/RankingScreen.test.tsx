@@ -13,6 +13,7 @@ import { colors } from '../src/shared/constants/colors';
 
 import { RankingScreen } from '../src/screens/RankingScreen/RankingScreen';
 import { MyRankBar } from '../src/screens/RankingScreen/components/MyRankBar';
+import { RankingAvatar } from '../src/screens/RankingScreen/components/RankingAvatar';
 import { RankingRow } from '../src/screens/RankingScreen/components/RankingRow';
 import { installFetchMock, jsonResponse } from '../jest/fetchMock';
 import type { FetchMock } from '../jest/fetchMock';
@@ -41,7 +42,8 @@ function rankingPage(
     myRank,
     myWeeklySteps: 58720,
     rankings: {
-      content,
+      // 아바타는 착용 아이템으로 그린다. 조합 자체는 여기서 볼 게 아니라 비워둔다.
+      content: content.map(item => ({ ...item, equippedItems: [] })),
       totalElements: content.length,
       totalPages: 1,
       currentPage: 0,
@@ -391,6 +393,40 @@ describe('RankingScreen', () => {
     const texts = collectTexts(tree.root);
     expect(texts).toContain('나');
     expect(texts).toContain('58,720');
+  });
+
+  test('아바타는 서버가 준 착용 아이템으로 그린다', async () => {
+    const hat = {
+      memberItemId: 7,
+      itemId: 70,
+      name: '밀짚모자',
+      category: 'HAT',
+      imageUrl: '/items/straw.png',
+    };
+
+    fetchMock.mockImplementation(async url => {
+      if (url.includes('/members/character')) {
+        return jsonResponse(200, MY_CHARACTER as never);
+      }
+      const page = rankingPage([
+        { rank: 1, memberId: 1, nickname: '민준', weeklySteps: 71720 },
+        { rank: 2, memberId: 2, nickname: '하늘', weeklySteps: 59720 },
+        { rank: 3, memberId: 3, nickname: '태민', weeklySteps: 59520 },
+        { rank: 4, memberId: 5, nickname: '유나', weeklySteps: 52310 },
+      ]);
+      page.rankings.content[3].equippedItems = [hat] as never;
+      return jsonResponse(200, page);
+    });
+
+    const tree = await renderScreen();
+
+    const avatars = tree.root.findAllByType(RankingAvatar);
+    const withHat = avatars.find(
+      avatar => avatar.props.equippedItems?.length > 0,
+    );
+
+    expect(withHat).toBeDefined();
+    expect(withHat!.props.equippedItems).toEqual([hat]);
   });
 
   test('참여 인원은 totalElements로 보여준다', async () => {
