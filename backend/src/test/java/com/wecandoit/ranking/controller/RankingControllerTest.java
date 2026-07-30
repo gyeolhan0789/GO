@@ -20,6 +20,8 @@ import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.PageResponse;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
+import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Region;
 import com.wecandoit.ranking.controller.response.FriendRankingResponse;
 import com.wecandoit.ranking.controller.response.RankingItemResponse;
@@ -85,7 +87,19 @@ class RankingControllerTest {
                 3,
                 12_500,
                 new PageResponse<>(
-                        List.of(new RankingItemResponse(3, 1L, "me", 12_500)),
+                        List.of(new RankingItemResponse(
+                                3,
+                                1L,
+                                "me",
+                                12_500,
+                                List.of(new EquippedItemResponse(
+                                        10L,
+                                        100L,
+                                        "빨간 모자",
+                                        ItemCategory.HAT,
+                                        "https://example.com/hat.png"
+                                ))
+                        )),
                         5,
                         3,
                         1,
@@ -102,6 +116,16 @@ class RankingControllerTest {
                 .andExpect(jsonPath("$.myWeeklySteps").value(12_500))
                 .andExpect(jsonPath("$.rankings.content[0].rank").value(3))
                 .andExpect(jsonPath("$.rankings.content[0].memberId").value(1L))
+                .andExpect(jsonPath("$.rankings.content[0].equippedItems[0].memberItemId")
+                        .value(10L))
+                .andExpect(jsonPath("$.rankings.content[0].equippedItems[0].itemId")
+                        .value(100L))
+                .andExpect(jsonPath("$.rankings.content[0].equippedItems[0].name")
+                        .value("빨간 모자"))
+                .andExpect(jsonPath("$.rankings.content[0].equippedItems[0].category")
+                        .value("HAT"))
+                .andExpect(jsonPath("$.rankings.content[0].equippedItems[0].imageUrl")
+                        .value("https://example.com/hat.png"))
                 .andExpect(jsonPath("$.rankings.totalElements").value(5))
                 .andExpect(jsonPath("$.rankings.totalPages").value(3))
                 .andExpect(jsonPath("$.rankings.currentPage").value(1))
@@ -124,6 +148,18 @@ class RankingControllerTest {
                                         .description("회원 닉네임"),
                                 fieldWithPath("rankings.content[].weeklySteps")
                                         .description("이번 주 걸음 수"),
+                                fieldWithPath("rankings.content[].equippedItems")
+                                        .description("장착 아이템 목록"),
+                                fieldWithPath("rankings.content[].equippedItems[].memberItemId")
+                                        .description("회원 보유 아이템 ID"),
+                                fieldWithPath("rankings.content[].equippedItems[].itemId")
+                                        .description("원본 아이템 ID"),
+                                fieldWithPath("rankings.content[].equippedItems[].name")
+                                        .description("아이템 이름"),
+                                fieldWithPath("rankings.content[].equippedItems[].category")
+                                        .description("장착 카테고리"),
+                                fieldWithPath("rankings.content[].equippedItems[].imageUrl")
+                                        .description("아이템 이미지 URL"),
                                 fieldWithPath("rankings.totalElements")
                                         .description("전체 랭킹 대상 수"),
                                 fieldWithPath("rankings.totalPages").description("전체 페이지 수"),
@@ -145,7 +181,13 @@ class RankingControllerTest {
                         2,
                         12_500,
                         new PageResponse<>(
-                                List.of(new RankingItemResponse(1, 2L, "친구", 20_000)),
+                                List.of(new RankingItemResponse(
+                                        1,
+                                        2L,
+                                        "친구",
+                                        20_000,
+                                        List.of()
+                                )),
                                 2,
                                 1,
                                 0,
@@ -161,6 +203,8 @@ class RankingControllerTest {
                 .andExpect(jsonPath("$.myWeeklySteps").value(12_500))
                 .andExpect(jsonPath("$.rankings.content[0].rank").value(1))
                 .andExpect(jsonPath("$.rankings.content[0].memberId").value(2L))
+                .andExpect(jsonPath("$.rankings.content[0].equippedItems").isArray())
+                .andExpect(jsonPath("$.rankings.content[0].equippedItems").isEmpty())
                 .andExpect(jsonPath("$.rankings.totalElements").value(2))
                 .andExpect(jsonPath("$.rankings.totalPages").value(1))
                 .andExpect(jsonPath("$.rankings.currentPage").value(0))
@@ -182,6 +226,8 @@ class RankingControllerTest {
                                         .description("회원 닉네임"),
                                 fieldWithPath("rankings.content[].weeklySteps")
                                         .description("이번 주 걸음 수"),
+                                fieldWithPath("rankings.content[].equippedItems")
+                                        .description("장착 아이템 목록"),
                                 fieldWithPath("rankings.totalElements")
                                         .description("전체 랭킹 대상 수"),
                                 fieldWithPath("rankings.totalPages").description("전체 페이지 수"),
