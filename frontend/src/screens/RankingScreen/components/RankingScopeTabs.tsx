@@ -4,7 +4,6 @@ import type { RankingScope } from '../../../features/ranking/api/rankingApi';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
-import { fontFamily } from '../../../shared/constants/typography';
 
 type RankingScopeTabsProps = {
   value: RankingScope;
@@ -70,9 +69,10 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   label: {
-    fontFamily: fontFamily.bold,
+    fontFamily: 'NotoSansKR-Bold',
     fontSize: 15,
     color: colors.ink,
+    lineHeight: 20,
   },
   labelActive: {
     color: colors.surface,

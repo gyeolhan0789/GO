@@ -9,11 +9,13 @@ import { Card } from '../../../shared/components/Card/Card';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
-import { fontFamily } from '../../../shared/constants/typography';
+import { ME_LABEL } from '../model';
 
 type PodiumCardProps = {
   /** 왼쪽부터 그릴 세 자리(2위 · 1위 · 3위). 빈 자리는 null. */
   places: (RankingItem | null)[];
+  /** 시상대에 오른 사람이 나인지 가리는 기준. 모르면 아무도 강조하지 않는다. */
+  myNickname?: string;
 };
 
 // 메달 색은 시상대에서만 쓰고 다른 곳에 재사용할 일이 없어 여기 둔다.
@@ -30,13 +32,17 @@ const STAND_HEIGHT = 150;
 const CHARACTER_SIZE = 66;
 const STEP_ICON_SIZE = 13;
 
-export function PodiumCard({ places }: PodiumCardProps) {
+export function PodiumCard({ places, myNickname }: PodiumCardProps) {
   return (
     <Card style={styles.card}>
       <View style={styles.row}>
         {places.map((place, index) =>
           place ? (
-            <Place key={place.memberId} place={place} />
+            <Place
+              key={place.memberId}
+              place={place}
+              isMe={place.nickname === myNickname}
+            />
           ) : (
             <View key={`empty-${index}`} style={styles.place} />
           ),
@@ -46,9 +52,7 @@ export function PodiumCard({ places }: PodiumCardProps) {
   );
 }
 
-function Place({ place }: { place: RankingItem }) {
-  const isFirst = place.rank === 1;
-
+function Place({ place, isMe }: { place: RankingItem; isMe: boolean }) {
   return (
     <View style={styles.place}>
       <View style={styles.stand}>
@@ -71,17 +75,16 @@ function Place({ place }: { place: RankingItem }) {
         </View>
       </View>
 
-      <Text style={styles.nickname} numberOfLines={1}>
-        {place.nickname}
+      <Text
+        style={[styles.nickname, isMe && styles.nicknameMe]}
+        numberOfLines={1}
+      >
+        {isMe ? ME_LABEL : place.nickname}
       </Text>
 
       <View style={styles.steps}>
-        <Ionicons
-          name="footsteps"
-          size={STEP_ICON_SIZE}
-          color={colors.mutedStrong}
-        />
-        <Text style={[styles.stepsLabel, isFirst && styles.stepsLabelFirst]}>
+        <Ionicons name="footsteps" size={STEP_ICON_SIZE} color={colors.ink} />
+        <Text style={styles.stepsLabel}>
           {formatThousands(place.weeklySteps)}
         </Text>
       </View>
@@ -124,14 +127,19 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius.xs,
   },
   blockRank: {
-    fontFamily: fontFamily.bold,
+    fontFamily: 'NotoSansKR-Bold',
     fontSize: 20,
     color: colors.surface,
+    lineHeight: 20,
   },
   nickname: {
-    fontFamily: fontFamily.bold,
+    fontFamily: 'NotoSansKR-Bold',
     fontSize: 15,
     color: colors.ink,
+    lineHeight: 20,
+  },
+  nicknameMe: {
+    color: colors.primary,
   },
   steps: {
     flexDirection: 'row',
@@ -139,11 +147,9 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   stepsLabel: {
-    fontFamily: fontFamily.bold,
+    fontFamily: 'NotoSansKR-Bold',
     fontSize: 14,
     color: colors.ink,
-  },
-  stepsLabelFirst: {
-    color: colors.primary,
+    lineHeight: 20,
   },
 });
