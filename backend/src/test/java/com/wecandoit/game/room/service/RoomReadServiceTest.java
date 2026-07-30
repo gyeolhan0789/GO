@@ -385,6 +385,43 @@ class RoomReadServiceTest {
     }
 
     @Test
+    @DisplayName("내 게임방 목록은 요청한 게임 모드의 방만 반환한다")
+    void getMyRoomsReturnsRoomsFilteredByMode() {
+        // given
+        Room singleRoom = room(10L, 1L, GameMode.SINGLE);
+        Room cooperateRoom = room(20L, 1L, GameMode.COOPERATE);
+        RoomMember singleRoomMember = roomMember(
+                10L,
+                1L,
+                0,
+                LocalDateTime.of(2026, 7, 22, 10, 0)
+        );
+        RoomMember cooperateRoomMember = roomMember(
+                20L,
+                1L,
+                0,
+                LocalDateTime.of(2026, 7, 23, 10, 0)
+        );
+        given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
+                .willReturn(List.of(singleRoomMember, cooperateRoomMember));
+        given(roomRepository.findAllById(List.of(10L, 20L)))
+                .willReturn(List.of(singleRoom, cooperateRoom));
+        given(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(20L)))
+                .willReturn(List.of(cooperateRoomMember));
+        given(memberReadService.getNicknamesByIds(List.of(1L)))
+                .willReturn(Map.of(1L, "방장"));
+        given(gameRepository.findAllByRoomIdIn(List.of(20L))).willReturn(List.of());
+
+        // when
+        List<MyRoomResponse> responses = roomReadService.getMyRooms(1L, GameMode.COOPERATE);
+
+        // then
+        assertThat(responses)
+                .extracting(MyRoomResponse::roomId, MyRoomResponse::mode)
+                .containsExactly(tuple(20L, GameMode.COOPERATE));
+    }
+
+    @Test
     @DisplayName("내 게임방 목록은 여러 방의 미션 진행도를 각 방에 맞게 반환한다")
     void getMyRoomsReturnsMissionProgressByRoom() {
         // given
@@ -697,7 +734,11 @@ class RoomReadServiceTest {
     }
 
     private Room room(Long roomId, Long hostId) {
-        Room room = Room.create(hostId, "테스트 방", GameMode.SINGLE, null, 3);
+        return room(roomId, hostId, GameMode.SINGLE);
+    }
+
+    private Room room(Long roomId, Long hostId, GameMode mode) {
+        Room room = Room.create(hostId, "테스트 방", mode, null, 3);
         ReflectionTestUtils.setField(room, "id", roomId);
         return room;
     }
