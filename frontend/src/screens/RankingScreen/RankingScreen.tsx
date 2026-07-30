@@ -21,6 +21,7 @@ import {
 } from '../../features/ranking/hooks/useRankingQuery';
 import { resolveApiErrorMessage } from '../../shared/api/resolveApiErrorMessage';
 import { Card } from '../../shared/components/Card/Card';
+import { Fab } from '../../shared/components/Fab/Fab';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { colors } from '../../shared/constants/colors';
 import { spacing } from '../../shared/constants/spacing';
@@ -29,7 +30,6 @@ import { PodiumCard } from './components/PodiumCard';
 import { RankingRow } from './components/RankingRow';
 import { RankingScopeTabs } from './components/RankingScopeTabs';
 import { RankingSkeleton } from './components/RankingSkeleton';
-import { ScrollToTopButton } from './components/ScrollToTopButton';
 import { orderRanking, splitPodium } from './model';
 import { Header } from '../../shared/components/Header/Header';
 
@@ -207,7 +207,11 @@ export function RankingScreen() {
       <View style={styles.floating} pointerEvents="box-none">
         {showScrollTop ? (
           <View style={styles.scrollTop}>
-            <ScrollToTopButton onPress={scrollToTop} />
+            <Fab
+              icon="arrow-up"
+              onPress={scrollToTop}
+              accessibilityLabel="맨 위로"
+            />
           </View>
         ) : null}
 
