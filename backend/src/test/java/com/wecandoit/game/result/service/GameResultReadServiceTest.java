@@ -17,21 +17,23 @@ import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.game.controller.response.GameResultBingoBoardResponse;
 import com.wecandoit.game.controller.response.GameResultDetailResponse;
 import com.wecandoit.game.controller.response.GameResultResponse;
+import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameResult;
 import com.wecandoit.game.domain.GameResultParticipant;
 import com.wecandoit.game.domain.GameRoomStatus;
 import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomMember;
+import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.GameResultParticipantRepository;
 import com.wecandoit.game.repository.GameResultRepository;
-import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.GameResultReadService;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.Mission;
 import com.wecandoit.mission.repository.MissionRepository;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,9 +56,9 @@ class GameResultReadServiceTest {
     @Mock
     private GameResultParticipantRepository gameResultParticipantRepository;
     @Mock
-    private RoomRepository roomRepository;
+    private GameRepository gameRepository;
     @Mock
-    private RoomMemberRepository roomMemberRepository;
+    private RoomRepository roomRepository;
     @Mock
     private MemberRepository memberRepository;
     @Mock
@@ -72,8 +74,8 @@ class GameResultReadServiceTest {
         gameResultReadService = new GameResultReadService(
                 gameResultRepository,
                 gameResultParticipantRepository,
+                gameRepository,
                 roomRepository,
-                roomMemberRepository,
                 memberRepository,
                 bingoBoardRepository,
                 bingoCellRepository,
@@ -82,10 +84,11 @@ class GameResultReadServiceTest {
     }
 
     @Test
-    @DisplayName("협동 게임 결과를 조회하면 공유 빙고판과 참여자 전원을 보드 사용자로 반환한다")
+    @DisplayName("닫힌 협동 게임 결과를 조회하면 공유 빙고판과 참여자 전원을 보드 사용자로 반환한다")
     void getGameResultReturnsSharedBingoBoard() {
         // given
         Room room = completedRoom(10L, 1L, GameMode.COOPERATE);
+        room.close();
         GameResult gameResult = gameResult(100L, 10L, 1000L);
         GameResultParticipant host = participant(100L, 1L, 3);
         GameResultParticipant participant = participant(100L, 2L, 2);
@@ -107,7 +110,16 @@ class GameResultReadServiceTest {
         // then
         assertThat(response.roomId()).isEqualTo(10L);
         assertThat(response.gameId()).isEqualTo(100L);
+        assertThat(response.roomName()).isEqualTo("테스트 방");
         assertThat(response.mode()).isEqualTo(GameMode.COOPERATE);
+        assertThat(response.roomStatus()).isEqualTo(GameRoomStatus.CLOSED);
+        assertThat(response.targetStepCount()).isEqualTo(10_000);
+        assertThat(response.startedAt()).isEqualTo(LocalDateTime.of(2026, 7, 1, 10, 0));
+        assertThat(response.completedAt()).isEqualTo(LocalDateTime.of(2026, 7, 8, 10, 0));
+        assertThat(response.totalMissionCount()).isEqualTo(2);
+        assertThat(response.myCompletedMissionCount()).isEqualTo(3);
+        assertThat(response.myRewardCash()).isEqualTo(200L);
+        assertThat(response.myResult()).isTrue();
         assertThat(response.participants())
                 .extracting("memberId", "nickname", "completedMissionCount", "rewardCash")
                 .containsExactly(
@@ -116,6 +128,9 @@ class GameResultReadServiceTest {
                 );
         assertThat(response.bingoBoards()).hasSize(1);
         GameResultBingoBoardResponse bingoBoard = response.bingoBoards().get(0);
+        assertThat(bingoBoard.targetStepCount()).isEqualTo(10_000);
+        assertThat(bingoBoard.startedAt()).isEqualTo(LocalDateTime.of(2026, 7, 1, 10, 0));
+        assertThat(bingoBoard.completedAt()).isEqualTo(LocalDateTime.of(2026, 7, 8, 10, 0));
         assertThat(bingoBoard.owners())
                 .extracting("memberId", "nickname")
                 .containsExactly(
@@ -161,6 +176,7 @@ class GameResultReadServiceTest {
         GameResultDetailResponse response = gameResultReadService.getGameResult(1L, 10L);
 
         // then
+        assertThat(response.targetStepCount()).isNull();
         assertThat(response.bingoBoards()).hasSize(2);
         assertThat(response.bingoBoards().get(0).owners())
                 .extracting("memberId", "nickname")
@@ -185,8 +201,13 @@ class GameResultReadServiceTest {
     void getGameResultRejectsNonMember() {
         // given
         Room room = completedRoom(10L, 1L, GameMode.SINGLE);
+        GameResult gameResult = gameResult(100L, 10L, 1000L);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
+        given(gameResultRepository.findFirstByRoomIdOrderByCreatedAtDescIdDesc(10L))
+                .willReturn(Optional.of(gameResult));
+        given(gameRepository.findById(100L)).willReturn(Optional.of(game(100L, 10L)));
+        given(gameResultParticipantRepository.findAllByGameIdOrderByIdAsc(100L))
+                .willReturn(List.of(participant(100L, 1L, 3)));
 
         // when & then
         assertErrorCode(() -> gameResultReadService.getGameResult(2L, 10L), ErrorCode.ROOM_MEMBER_FORBIDDEN);
@@ -198,7 +219,6 @@ class GameResultReadServiceTest {
         // given
         Room room = Room.create(1L, "테스트 방", GameMode.SINGLE, null, 3);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
         given(gameResultRepository.findFirstByRoomIdOrderByCreatedAtDescIdDesc(10L)).willReturn(Optional.empty());
 
         // when & then
@@ -241,20 +261,24 @@ class GameResultReadServiceTest {
     @DisplayName("참여했던 방들의 게임 결과를 최신순으로 반환한다")
     void getMyGameResultsReturnsResultsOrderedByLatest() {
         // given
-        RoomMember firstRoomMember = RoomMember.create(10L, 1L);
-        RoomMember secondRoomMember = RoomMember.create(20L, 1L);
         GameResult latestResult = gameResult(200L, 20L, 2000L);
         GameResultParticipant participant = participant(200L, 1L, 9);
+        BingoBoard board = sharedBoard(201L, 200L, 3);
+        List<BingoCell> cells = List.of(
+                approvedCell(301L, 201L, 401L, 0, 0, 1L),
+                approvedCell(302L, 201L, 402L, 0, 1, 1L)
+        );
         Pageable pageable = PageRequest.of(0, 10);
-        given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
-                .willReturn(List.of(secondRoomMember, firstRoomMember));
-        given(gameResultRepository.findByRoomIdInOrderByCreatedAtDesc(List.of(20L, 10L), pageable))
+        given(gameResultRepository.findAllByParticipantMemberIdOrderByCreatedAtDescIdDesc(1L, pageable))
                 .willReturn(new SliceImpl<>(List.of(latestResult), pageable, false));
         given(roomRepository.findAllById(List.of(20L)))
                 .willReturn(List.of(completedRoom(20L, 1L, GameMode.SINGLE)));
+        given(gameRepository.findAllById(List.of(200L))).willReturn(List.of(game(200L, 20L)));
         given(gameResultParticipantRepository.findAllByGameIdInOrderByIdAsc(List.of(200L)))
                 .willReturn(List.of(participant));
         given(memberRepository.findAllById(List.of(1L))).willReturn(List.of(member(1L, "member1")));
+        given(bingoBoardRepository.findAllByGameIdInOrderByIdAsc(List.of(200L))).willReturn(List.of(board));
+        given(bingoCellRepository.findAllByBoardIdIn(List.of(201L))).willReturn(cells);
 
         // when
         SliceResponse<GameResultResponse> response = gameResultReadService.getMyGameResults(1L, pageable);
@@ -263,6 +287,15 @@ class GameResultReadServiceTest {
         assertThat(response.content()).hasSize(1);
         assertThat(response.content().get(0).roomId()).isEqualTo(20L);
         assertThat(response.content().get(0).boardSize()).isEqualTo(3);
+        assertThat(response.content().get(0).roomName()).isEqualTo("테스트 방");
+        assertThat(response.content().get(0).roomStatus()).isEqualTo(GameRoomStatus.COMPLETED);
+        assertThat(response.content().get(0).targetStepCount()).isEqualTo(10_000);
+        assertThat(response.content().get(0).startedAt()).isEqualTo(LocalDateTime.of(2026, 7, 1, 10, 0));
+        assertThat(response.content().get(0).completedAt()).isEqualTo(LocalDateTime.of(2026, 7, 8, 10, 0));
+        assertThat(response.content().get(0).totalMissionCount()).isEqualTo(2);
+        assertThat(response.content().get(0).myCompletedMissionCount()).isEqualTo(9);
+        assertThat(response.content().get(0).myRewardCash()).isEqualTo(200L);
+        assertThat(response.content().get(0).myResult()).isTrue();
         assertThat(response.content().get(0).participants()).hasSize(1);
         assertThat(response.hasNext()).isFalse();
     }
@@ -272,7 +305,8 @@ class GameResultReadServiceTest {
     void getMyGameResultsReturnsEmptySliceWhenNoRooms() {
         // given
         Pageable pageable = PageRequest.of(0, 10);
-        given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L)).willReturn(List.of());
+        given(gameResultRepository.findAllByParticipantMemberIdOrderByCreatedAtDescIdDesc(1L, pageable))
+                .willReturn(new SliceImpl<>(List.of(), pageable, false));
 
         // when
         SliceResponse<GameResultResponse> response = gameResultReadService.getMyGameResults(1L, pageable);
@@ -288,15 +322,22 @@ class GameResultReadServiceTest {
             List<GameResultParticipant> participants
     ) {
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
         given(gameResultRepository.findFirstByRoomIdOrderByCreatedAtDescIdDesc(10L))
                 .willReturn(Optional.of(gameResult));
+        given(gameRepository.findById(gameResult.getGameId())).willReturn(Optional.of(game(gameResult.getGameId(), 10L)));
         given(gameResultParticipantRepository.findAllByGameIdOrderByIdAsc(gameResult.getGameId()))
                 .willReturn(participants);
     }
 
     private Room completedRoom(Long roomId, Long hostId, GameMode mode) {
-        Room room = Room.create(hostId, "테스트 방", mode, mode == GameMode.SINGLE ? null : 3, 3);
+        Room room = Room.create(
+                hostId,
+                "테스트 방",
+                mode,
+                mode == GameMode.SINGLE ? null : 3,
+                mode == GameMode.BATTLE ? null : 10_000,
+                3
+        );
         ReflectionTestUtils.setField(room, "id", roomId);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.COMPLETED);
         return room;
@@ -314,19 +355,34 @@ class GameResultReadServiceTest {
         return gameResult;
     }
 
+    private Game game(Long gameId, Long roomId) {
+        Game game = Game.start(roomId);
+        ReflectionTestUtils.setField(game, "id", gameId);
+        ReflectionTestUtils.setField(game, "startedAt", LocalDateTime.of(2026, 7, 1, 10, 0));
+        game.complete();
+        ReflectionTestUtils.setField(game, "completedAt", LocalDateTime.of(2026, 7, 8, 10, 0));
+        return game;
+    }
+
     private GameResultParticipant participant(Long gameId, Long memberId, int completedMissionCount) {
         return GameResultParticipant.create(gameId, memberId, completedMissionCount, 200L, true);
     }
 
     private BingoBoard sharedBoard(Long boardId, Long gameId, int boardSize) {
-        BingoBoard board = BingoBoard.create(gameId, boardSize);
+        BingoBoard board = BingoBoard.create(gameId, boardSize, 10_000);
         ReflectionTestUtils.setField(board, "id", boardId);
+        ReflectionTestUtils.setField(board, "createdAt", LocalDateTime.of(2026, 7, 1, 10, 0));
+        board.complete();
+        ReflectionTestUtils.setField(board, "completedAt", LocalDateTime.of(2026, 7, 8, 10, 0));
         return board;
     }
 
     private BingoBoard battleBoard(Long boardId, Long gameId, RoomMember roomMember, int boardSize) {
         BingoBoard board = BingoBoard.createForBattle(gameId, roomMember, boardSize);
         ReflectionTestUtils.setField(board, "id", boardId);
+        ReflectionTestUtils.setField(board, "createdAt", LocalDateTime.of(2026, 7, 1, 10, 0));
+        board.complete();
+        ReflectionTestUtils.setField(board, "completedAt", LocalDateTime.of(2026, 7, 8, 10, 0));
         return board;
     }
 
