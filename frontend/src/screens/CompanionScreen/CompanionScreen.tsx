@@ -302,7 +302,11 @@ export function CompanionScreen() {
         }}
       />
 
-      <Toast message={toastMessage} onHide={() => setToastMessage(null)} />
+      <Toast
+        message={toastMessage}
+        onHide={() => setToastMessage(null)}
+        respectBottomInset={false}
+      />
     </Screen>
   );
 }
