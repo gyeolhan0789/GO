@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Geolocation from '@react-native-community/geolocation';
 
-import type { Coords } from '../../../shared/lib/geolocation';
+import { getCurrentCoords, type Coords } from '../../../shared/lib/geolocation';
 
 // 걷는 동안에는 5m 이상 움직였을 때만, 최소 5초 간격으로 좌표를 찍는다.
 // 너무 촘촘히 찍으면 배터리도 많이 쓰고 폴리라인도 지그재그로 떨린다.
@@ -15,11 +15,23 @@ const UPDATE_INTERVAL_MS = 5000;
  */
 export function useRouteTracking(enabled: boolean) {
   const [route, setRoute] = useState<Coords[]>([]);
+  // watchPosition의 첫 고정밀 좌표는 몇 초 걸릴 수 있어서, 그 사이 지도가
+  // 기본 위치(적도 부근)로 뜨는 걸 막으려고 대략적인 위치를 한 번 먼저
+  // 조회해둔다. 실제 이동 경로(route)에는 섞지 않고 지도 초기 중심에만 쓴다.
+  const [initialCoords, setInitialCoords] = useState<Coords | null>(null);
+  const hasFetchedInitial = useRef(false);
   const watchId = useRef<number | null>(null);
 
   useEffect(() => {
     if (!enabled) {
       return;
+    }
+
+    if (!hasFetchedInitial.current) {
+      hasFetchedInitial.current = true;
+      getCurrentCoords()
+        .then(setInitialCoords)
+        .catch(() => {});
     }
 
     watchId.current = Geolocation.watchPosition(
@@ -49,5 +61,5 @@ export function useRouteTracking(enabled: boolean) {
     };
   }, [enabled]);
 
-  return route;
+  return { route, initialCoords };
 }

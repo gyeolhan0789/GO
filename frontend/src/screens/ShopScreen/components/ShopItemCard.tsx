@@ -1,16 +1,15 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@react-native-vector-icons/ionicons';
 
+import type { ShopItem } from '../../../features/shop/model/shopItem';
 import { Badge } from '../../../shared/components/Badge/Badge';
 import { Card } from '../../../shared/components/Card/Card';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { shadow } from '../../../shared/constants/shadow';
 import { spacing } from '../../../shared/constants/spacing';
-import { sprites } from '../assets/sprites';
 import { formatPoints } from '../format';
-import type { ShopItem } from '../types';
 import { GradientFill } from './GradientFill';
-import { PixelSprite } from './PixelSprite';
 
 type ShopItemCardProps = {
   item: ShopItem;
@@ -21,7 +20,8 @@ type ShopItemCardProps = {
   onPurchase: () => void;
 };
 
-const SPRITE_SIZE = 64;
+const IMAGE_SIZE = 64;
+const FALLBACK_ICON_SIZE = 28;
 
 export function ShopItemCard({
   item,
@@ -54,8 +54,21 @@ export function ShopItemCard({
           </View>
         ) : null}
 
-        <View style={styles.spriteBox}>
-          <PixelSprite sprite={sprites[item.sprite]} size={SPRITE_SIZE} />
+        <View style={styles.imageBox}>
+          {item.image ? (
+            <Image
+              source={item.image}
+              style={styles.image}
+              resizeMode="contain"
+              accessibilityIgnoresInvertColors
+            />
+          ) : (
+            <Ionicons
+              name="image-outline"
+              size={FALLBACK_ICON_SIZE}
+              color={colors.muted}
+            />
+          )}
         </View>
 
         <Text style={styles.name} numberOfLines={1}>
@@ -117,10 +130,16 @@ const styles = StyleSheet.create({
   dohyeonText: {
     fontFamily: 'BMDOHYEON',
   },
-  spriteBox: {
-    height: SPRITE_SIZE,
+  imageBox: {
+    width: IMAGE_SIZE,
+    height: IMAGE_SIZE,
+    alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing.sm,
+  },
+  image: {
+    width: '100%',
+    height: '100%',
   },
   name: {
     fontFamily: 'BMDOHYEON',
