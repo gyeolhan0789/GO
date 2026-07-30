@@ -235,6 +235,28 @@ class JwtAuthenticationFilterTest {
         then(handlerExceptionResolver).should(never()).resolveException(any(), any(), any(), any());
     }
 
+    @Test
+    @DisplayName("업로드 이미지 경로는 JWT 인증 없이 통과한다")
+    void skipsFilteringForUploadedImagePath() throws Exception {
+        // given
+        MockHttpServletRequest request = new MockHttpServletRequest(
+                "GET",
+                "/uploads/local/items/resource-id/image.png"
+        );
+        request.setServletPath("/uploads/local/items/resource-id/image.png");
+        request.addHeader("Authorization", "Bearer invalid-token");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain filterChain = Mockito.mock(FilterChain.class);
+
+        // when
+        jwtAuthenticationFilter.doFilter(request, response, filterChain);
+
+        // then
+        then(filterChain).should().doFilter(request, response);
+        then(handlerExceptionResolver).should(never()).resolveException(any(), any(), any(), any());
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    }
+
     private JwtProperties jwtProperties(long accessTokenExpirationMillis, long refreshTokenExpirationMillis) {
         return new JwtProperties(
                 "test-only-jwt-secret-key-please-change-me-1234567890",
