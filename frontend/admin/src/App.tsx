@@ -42,7 +42,8 @@ function LoginPage({ onAuthenticated }: { onAuthenticated: (environment: Environ
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const form = new FormData(event.currentTarget)
+    const formElement = event.currentTarget
+    const form = new FormData(formElement)
     setPending(true)
     setError('')
     try {
@@ -96,7 +97,7 @@ function MissionPage({ environment, onLogout }: { environment: Environment; onLo
     setCreateSuccess('')
     try {
       await createMission({ missionImageUrl: String(form.get('missionImageUrl')), type: String(form.get('type')), title: String(form.get('title') ?? '') || null, detail: String(form.get('detail') ?? '') || null, decisionCondition: decisionCondition as string | null })
-      event.currentTarget.reset()
+      formElement.reset()
       setCreateSuccess('미션을 추가했습니다.')
       await load()
     } catch (cause) {
@@ -164,10 +165,10 @@ function ItemsPage({ environment, onLogout }: { environment: Environment; onLogo
   useEffect(() => { void load() }, [environment])
 
   async function create(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); const form = new FormData(event.currentTarget); const image = form.get('image')
+    event.preventDefault(); const formElement = event.currentTarget; const form = new FormData(formElement); const image = form.get('image')
     if (!(image instanceof File) || image.size === 0) { setError('아이템 이미지를 선택해 주세요.'); return }
     setPending(true); setError(''); setSuccess('')
-    try { await createItem({ name: String(form.get('name')).trim(), category: String(form.get('category')), price: Number(form.get('price')) }, image); event.currentTarget.reset(); setSuccess('아이템을 추가했습니다.'); await load() } catch (cause) { setError(cause instanceof Error ? cause.message : '아이템 추가에 실패했습니다.') } finally { setPending(false) }
+    try { await createItem({ name: String(form.get('name')).trim(), category: String(form.get('category')), price: Number(form.get('price')) }, image); formElement.reset(); setSuccess('아이템을 추가했습니다.'); await load() } catch (cause) { setError(cause instanceof Error ? cause.message : '아이템 추가에 실패했습니다.') } finally { setPending(false) }
   }
   async function save(item: AdminItem, event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const form = new FormData(event.currentTarget); const image = form.get('image')
