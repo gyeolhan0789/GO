@@ -11,6 +11,7 @@ import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.docu
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
+import static org.springframework.restdocs.request.RequestDocumentation.queryParameters;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.relaxedResponseFields;
@@ -304,7 +305,7 @@ class RoomControllerTest {
     void getMyRoomsReturnsRooms() {
         // given
         LocalDateTime joinedAt = LocalDateTime.of(2026, 7, 22, 10, 0);
-        given(roomReadService.getMyRooms(1L))
+        given(roomReadService.getMyRooms(1L, null))
                 .willReturn(List.of(new MyRoomResponse(
                         10L,
                         "테스트 방",
@@ -345,6 +346,11 @@ class RoomControllerTest {
                 .body("[0].members[1].nickname", equalTo("참여자"))
                 .body("[0].members[1].host", equalTo(false))
                 .apply(document("room-my-list",
+                        queryParameters(
+                                parameterWithName("mode")
+                                        .optional()
+                                        .description("조회할 게임 모드 (SINGLE, COOPERATE, BATTLE). 생략 시 전체")
+                        ),
                         responseFields(
                                 fieldWithPath("[].roomId").description("게임방 ID"),
                                 fieldWithPath("[].name").description("게임방 이름 (기존 방은 null 가능)"),
@@ -362,7 +368,24 @@ class RoomControllerTest {
                                 fieldWithPath("[].members[].host").description("방장 여부")
                         )
                 ));
-        then(roomReadService).should().getMyRooms(1L);
+        then(roomReadService).should().getMyRooms(1L, null);
+    }
+
+    @Test
+    @DisplayName("내 게임방 목록을 게임 모드로 필터링한다")
+    void getMyRoomsReturnsRoomsFilteredByMode() {
+        // given
+        given(roomReadService.getMyRooms(1L, GameMode.BATTLE)).willReturn(List.of());
+
+        // when & then
+        given()
+                .queryParam("mode", "BATTLE")
+                .when()
+                .get("/rooms")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("size()", equalTo(0));
+        then(roomReadService).should().getMyRooms(1L, GameMode.BATTLE);
     }
 
     @Test
@@ -371,7 +394,7 @@ class RoomControllerTest {
         // given
         willThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND))
                 .given(roomReadService)
-                .getMyRooms(1L);
+                .getMyRooms(1L, null);
 
         // when & then
         given()
