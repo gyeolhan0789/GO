@@ -35,7 +35,9 @@ export type Character = {
   equippedItems: CharacterItem[];
 };
 
-function toImageSource(url: string | null): ImageSourcePropType | null {
+export function toImageSource(
+  url: string | null,
+): ImageSourcePropType | null {
   const uri = resolveImageUrl(url);
 
   return uri ? { uri } : null;

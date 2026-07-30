@@ -7,15 +7,105 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Text } from 'react-native';
 import type { ReactTestInstance } from 'react-test-renderer';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { ShopScreen } from '../src/screens/ShopScreen/ShopScreen';
+import { installFetchMock, jsonResponse } from '../jest/fetchMock';
+import type { FetchMock } from '../jest/fetchMock';
+
+// 이 파일은 서버와 주고받는 계약을 확인한다. 캐릭터/보유 아이템은 목업 모드로
+// 돌고 있어(characterMocks.USE_MOCK_CHARACTER) 요청이 나가지 않으므로 스위치를 끈다.
+jest.mock('../src/features/member/mocks/characterMocks', () => ({
+  ...jest.requireActual('../src/features/member/mocks/characterMocks'),
+  USE_MOCK_CHARACTER: false,
+}));
 
 const INITIAL_METRICS = {
   frame: { x: 0, y: 0, width: 400, height: 800 },
   insets: { top: 0, left: 0, right: 0, bottom: 0 },
 };
 
+const OWNED_HAT = {
+  itemId: 1,
+  name: '밀짚모자',
+  category: 'HAT',
+  price: 200,
+  imageUrl: '/uploads/items/straw-hat.png',
+};
+const CHEAP_HAT = {
+  itemId: 2,
+  name: '리본삔',
+  category: 'HAT',
+  price: 400,
+  imageUrl: '/uploads/items/ribbon-pin.png',
+};
+const EXPENSIVE_HAT = {
+  itemId: 3,
+  name: '노을삔',
+  category: 'HAT',
+  price: 9000,
+  imageUrl: null,
+};
+const TOP = {
+  itemId: 4,
+  name: '초록 후드',
+  category: 'TOP',
+  price: 300,
+  imageUrl: '/uploads/items/green-hoodie.png',
+};
+
+const MY_HAT = {
+  memberItemId: 10,
+  itemId: OWNED_HAT.itemId,
+  name: OWNED_HAT.name,
+  category: 'HAT',
+  imageUrl: OWNED_HAT.imageUrl,
+};
+
+const CHARACTER = {
+  memberId: 1,
+  nickname: '산책이 좋아',
+  defaultImageUrl: '/uploads/characters/male.png',
+  equippedItems: [MY_HAT],
+};
+
+const CASH = 4000;
+const PURCHASE = {
+  memberItemId: 11,
+  itemId: CHEAP_HAT.itemId,
+  remainingCash: CASH - CHEAP_HAT.price,
+};
+
 let renderer: ReactTestRenderer.ReactTestRenderer | null = null;
+let queryClient: QueryClient | null = null;
+let fetchMock: FetchMock;
+
+beforeEach(() => {
+  fetchMock = installFetchMock();
+  fetchMock.mockImplementation(async url => {
+    if (url.includes('/members/character')) {
+      return jsonResponse(200, CHARACTER);
+    }
+    if (url.includes('/members/cash')) {
+      return jsonResponse(200, { cash: CASH });
+    }
+    if (url.includes('/members/items')) {
+      return jsonResponse(200, [MY_HAT] as never);
+    }
+    if (url.includes('/purchase')) {
+      return jsonResponse(201, PURCHASE);
+    }
+    if (url.includes('/shop/items')) {
+      return jsonResponse(200, [
+        OWNED_HAT,
+        CHEAP_HAT,
+        EXPENSIVE_HAT,
+        TOP,
+      ] as never);
+    }
+    throw new Error(`unexpected request: ${url}`);
+  });
+});
 
 afterEach(() => {
   if (renderer) {
@@ -24,7 +114,19 @@ afterEach(() => {
     });
     renderer = null;
   }
+  // 안 비우면 react-query gc 타이머가 살아남아 워커가 안 죽는다.
+  queryClient?.clear();
+  queryClient = null;
 });
+
+/** react-query는 알림을 setTimeout으로 모아 보내서 타이머까지 흘려보내야 한다. */
+async function flushQueries() {
+  await act(async () => {
+    await new Promise<void>(resolve => {
+      setTimeout(() => resolve(), 0);
+    });
+  });
+}
 
 function collectTexts(root: ReactTestInstance): string[] {
   return root
@@ -36,141 +138,190 @@ function collectTexts(root: ReactTestInstance): string[] {
     .filter((child): child is string => typeof child === 'string');
 }
 
+function findByAccessibilityLabel(root: ReactTestInstance, label: string) {
+  return root.find(node => node.props.accessibilityLabel === label);
+}
+
+async function press(root: ReactTestInstance, label: string) {
+  await act(async () => {
+    findByAccessibilityLabel(root, label).props.onPress();
+  });
+  await flushQueries();
+}
+
 async function renderScreen() {
+  queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      // `QueryClient.clear()`는 mutation의 gc 타이머를 정리하지 않는다. 언마운트
+      // 때 걸리는 기본 5분 타이머를 0으로 줄여 워커가 매달려 있지 않게 한다.
+      mutations: { retry: false, gcTime: 0 },
+    },
+  });
+  const client = queryClient;
+
   await act(async () => {
     renderer = ReactTestRenderer.create(
-      <SafeAreaProvider initialMetrics={INITIAL_METRICS}>
-        <ShopScreen />
-      </SafeAreaProvider>,
+      <QueryClientProvider client={client}>
+        <SafeAreaProvider initialMetrics={INITIAL_METRICS}>
+          <ShopScreen />
+        </SafeAreaProvider>
+      </QueryClientProvider>,
     );
   });
+
+  await flushQueries();
+
   if (!renderer) {
     throw new Error('renderer not initialized');
   }
   return renderer;
 }
 
-function findByAccessibilityLabel(root: ReactTestInstance, label: string) {
-  return root.find(node => node.props.accessibilityLabel === label);
+function purchaseRequests() {
+  return fetchMock.mock.calls.filter(([url]) => url.includes('/purchase'));
 }
 
 describe('ShopScreen', () => {
-  test('상의 탭이 기본으로 열리고 보유 포인트가 노출된다', async () => {
+  test('보유 포인트와 첫 카테고리의 판매 아이템이 보인다', async () => {
     const tree = await renderScreen();
     const texts = collectTexts(tree.root);
 
     expect(texts).toContain('상점');
     expect(texts).toContain('4,000P');
-    expect(texts).toContain('상의 5개');
-    expect(texts).toContain('초록 후드');
+    expect(texts).toContain('모자 3개');
+    expect(texts).toContain(CHEAP_HAT.name);
+    expect(texts).not.toContain(TOP.name);
   });
 
-  test('카테고리를 바꾸면 해당 카테고리 아이템만 보인다', async () => {
+  test('보유한 아이템은 가격 대신 보유/착용 상태로 보인다', async () => {
     const tree = await renderScreen();
 
-    const tabs = tree.root.findAll(
-      node =>
-        node.props.accessibilityRole === 'tab' &&
-        typeof node.props.onPress === 'function',
-    );
-    await act(async () => {
-      tabs[tabs.length - 1].props.onPress();
-    });
-
-    const texts = collectTexts(tree.root);
-    expect(texts).toContain('모자 6개');
-    expect(texts).toContain('리본삔');
-    expect(texts).not.toContain('초록 후드');
-  });
-
-  test('아이템을 누르면 그 아이템으로 갈아입는다', async () => {
-    const tree = await renderScreen();
-
-    // 초록 후드는 목업에서 착용 중으로 시작한다.
-    await act(async () => {
-      findByAccessibilityLabel(tree.root, '줄무늬 티 착용해보기').props.onPress();
-    });
-
-    expect(findByAccessibilityLabel(tree.root, '줄무늬 티 착용중')).toBeTruthy();
     expect(
-      findByAccessibilityLabel(tree.root, '초록 후드 착용해보기'),
+      findByAccessibilityLabel(tree.root, `${OWNED_HAT.name} 착용중`),
+    ).toBeTruthy();
+    expect(collectTexts(tree.root)).not.toContain('200P');
+    expect(
+      findByAccessibilityLabel(tree.root, `${CHEAP_HAT.name} 구매 400P`),
     ).toBeTruthy();
   });
 
-  test('착용 중인 아이템을 다시 눌러도 벗겨지지 않는다', async () => {
+  test('카테고리를 바꾸면 그 카테고리 아이템만 보인다', async () => {
     const tree = await renderScreen();
 
     await act(async () => {
-      findByAccessibilityLabel(tree.root, '초록 후드 착용중').props.onPress();
-    });
-
-    // 벗기는 '착용 아이템 초기화'가 담당한다. 슬롯이 비면 안 된다.
-    expect(findByAccessibilityLabel(tree.root, '초록 후드 착용중')).toBeTruthy();
-    expect(collectTexts(tree.root)).toContain('착용중');
-  });
-
-  test('미보유 아이템은 눌러도 구매되지 않고 입어보기만 된다', async () => {
-    const tree = await renderScreen();
-
-    await act(async () => {
-      findByAccessibilityLabel(tree.root, '크림 니트 착용해보기').props.onPress();
-    });
-
-    // 포인트는 그대로고, 가격 버튼도 그대로 남아 있어야 한다.
-    expect(collectTexts(tree.root)).toContain('4,000P');
-    expect(findByAccessibilityLabel(tree.root, '크림 니트 구매 600P')).toBeTruthy();
-    expect(findByAccessibilityLabel(tree.root, '크림 니트 착용중')).toBeTruthy();
-
-    // 다른 아이템으로 갈아입어도 미보유 아이템 버튼이 회색으로 굳지 않는다.
-    await act(async () => {
-      findByAccessibilityLabel(tree.root, '숲속 후드 착용해보기').props.onPress();
-    });
-    expect(findByAccessibilityLabel(tree.root, '크림 니트 구매 600P')).toBeTruthy();
-  });
-
-  test('가격 버튼을 누르면 구매 확인 모달이 뜨고, 확인해야 구매된다', async () => {
-    const tree = await renderScreen();
-
-    await act(async () => {
-      findByAccessibilityLabel(tree.root, '크림 니트 구매 600P').props.onPress();
-    });
-
-    // 모달만 떴을 뿐 아직 차감되지 않는다.
-    expect(collectTexts(tree.root)).toContain('크림 니트를 구매하시겠습니까?');
-    expect(collectTexts(tree.root)).toContain('4,000P');
-
-    await act(async () => {
-      findByAccessibilityLabel(tree.root, '크림 니트 구매 확인').props.onPress();
+      tree.root
+        .find(
+          node =>
+            node.props.accessibilityRole === 'tab' &&
+            node.props.children?.props?.children === '상의',
+        )
+        .props.onPress();
     });
 
     const texts = collectTexts(tree.root);
-    expect(texts).toContain('3,400P');
-    expect(texts).toContain('착용중');
-    expect(findByAccessibilityLabel(tree.root, '크림 니트 착용중')).toBeTruthy();
+    expect(texts).toContain('상의 1개');
+    expect(texts).toContain(TOP.name);
+    expect(texts).not.toContain(CHEAP_HAT.name);
   });
 
-  test('구매 확인 모달에서 취소하면 포인트가 그대로다', async () => {
+  test('미보유 아이템을 누르면 구매 없이 입어보기만 된다', async () => {
     const tree = await renderScreen();
 
-    await act(async () => {
-      findByAccessibilityLabel(tree.root, '크림 니트 구매 600P').props.onPress();
-    });
-    await act(async () => {
-      findByAccessibilityLabel(tree.root, '구매 취소').props.onPress();
-    });
+    await press(tree.root, `${CHEAP_HAT.name} 착용해보기`);
+
+    expect(purchaseRequests()).toHaveLength(0);
+    expect(collectTexts(tree.root)).toContain('4,000P');
+    expect(
+      findByAccessibilityLabel(tree.root, `${CHEAP_HAT.name} 구매 400P`),
+    ).toBeTruthy();
+    expect(
+      findByAccessibilityLabel(tree.root, `${CHEAP_HAT.name} 착용중`),
+    ).toBeTruthy();
+  });
+
+  test('가격 버튼만 눌러도 구매되지 않고, 확인해야 요청이 나간다', async () => {
+    const tree = await renderScreen();
+
+    await press(tree.root, `${CHEAP_HAT.name} 구매 400P`);
+
+    expect(purchaseRequests()).toHaveLength(0);
+    expect(collectTexts(tree.root)).toContain(
+      `${CHEAP_HAT.name}을 구매하시겠습니까?`,
+    );
+
+    await press(tree.root, `${CHEAP_HAT.name} 구매 확인`);
+
+    const [[url, options]] = purchaseRequests();
+    expect(url).toContain(`/shop/items/${CHEAP_HAT.itemId}/purchase`);
+    expect(options?.method).toBe('POST');
 
     const texts = collectTexts(tree.root);
+    expect(texts).toContain('3,600P');
+    expect(texts).not.toContain('400P');
+    expect(
+      findByAccessibilityLabel(tree.root, `${CHEAP_HAT.name} 착용중`),
+    ).toBeTruthy();
+  });
+
+  test('구매 확인에서 취소하면 요청이 나가지 않는다', async () => {
+    const tree = await renderScreen();
+
+    await press(tree.root, `${CHEAP_HAT.name} 구매 400P`);
+    await press(tree.root, '구매 취소');
+
+    expect(purchaseRequests()).toHaveLength(0);
+    expect(collectTexts(tree.root)).toContain('4,000P');
+    expect(
+      findByAccessibilityLabel(tree.root, `${CHEAP_HAT.name} 구매 400P`),
+    ).toBeTruthy();
+  });
+
+  test('포인트가 모자라면 확인 모달 없이 안내만 뜬다', async () => {
+    const tree = await renderScreen();
+
+    await press(tree.root, `${EXPENSIVE_HAT.name} 구매 9,000P`);
+
+    expect(purchaseRequests()).toHaveLength(0);
+    expect(collectTexts(tree.root)).not.toContain(
+      `${EXPENSIVE_HAT.name}을 구매하시겠습니까?`,
+    );
+    expect(collectTexts(tree.root)).toContain('포인트가 부족해요.');
+  });
+
+  test('구매가 실패하면 서버 메시지를 보여주고 포인트는 그대로다', async () => {
+    fetchMock.mockImplementation(async url => {
+      if (url.includes('/members/character')) {
+        return jsonResponse(200, CHARACTER);
+      }
+      if (url.includes('/members/cash')) {
+        return jsonResponse(200, { cash: CASH });
+      }
+      if (url.includes('/members/items')) {
+        return jsonResponse(200, [MY_HAT] as never);
+      }
+      if (url.includes('/purchase')) {
+        return jsonResponse(400, { message: '이미 보유한 아이템입니다.' });
+      }
+      return jsonResponse(200, [CHEAP_HAT] as never);
+    });
+    const tree = await renderScreen();
+
+    await press(tree.root, `${CHEAP_HAT.name} 구매 400P`);
+    await press(tree.root, `${CHEAP_HAT.name} 구매 확인`);
+
+    const texts = collectTexts(tree.root);
+    expect(texts).toContain('이미 보유한 아이템입니다.');
     expect(texts).toContain('4,000P');
-    expect(texts).not.toContain('크림 니트를 구매하시겠습니까?');
-    expect(findByAccessibilityLabel(tree.root, '크림 니트 구매 600P')).toBeTruthy();
+    expect(
+      findByAccessibilityLabel(tree.root, `${CHEAP_HAT.name} 구매 400P`),
+    ).toBeTruthy();
   });
 
   test('필터로 구매 / 미구매 아이템을 나눠 볼 수 있다', async () => {
     const tree = await renderScreen();
 
-    await act(async () => {
-      findByAccessibilityLabel(tree.root, '필터 전체').props.onPress();
-    });
+    await press(tree.root, '필터 전체');
 
     const options = tree.root.findAll(
       node =>
@@ -184,19 +335,35 @@ describe('ShopScreen', () => {
       options[1].props.onPress();
     });
 
-    // 상의 5개 중 목업에서 보유한 건 2개.
     const texts = collectTexts(tree.root);
-    expect(texts).toContain('상의 2개');
-    expect(texts).not.toContain('크림 니트');
+    expect(texts).toContain('모자 1개');
+    expect(texts).toContain(OWNED_HAT.name);
+    expect(texts).not.toContain(CHEAP_HAT.name);
   });
 
   test('착용 아이템 초기화를 누르면 모든 착용이 해제된다', async () => {
     const tree = await renderScreen();
 
-    await act(async () => {
-      findByAccessibilityLabel(tree.root, '착용 아이템 초기화').props.onPress();
-    });
+    await press(tree.root, '착용 아이템 초기화');
 
     expect(collectTexts(tree.root)).not.toContain('착용중');
+  });
+
+  test('조회가 실패하면 목록 대신 에러 문구를 보여준다', async () => {
+    fetchMock.mockImplementation(async url => {
+      if (url.includes('/shop/items')) {
+        return jsonResponse(500, { message: '상점을 불러올 수 없습니다.' });
+      }
+      if (url.includes('/members/cash')) {
+        return jsonResponse(200, { cash: CASH });
+      }
+      if (url.includes('/members/character')) {
+        return jsonResponse(200, CHARACTER);
+      }
+      return jsonResponse(200, [MY_HAT] as never);
+    });
+    const tree = await renderScreen();
+
+    expect(collectTexts(tree.root)).toContain('상점을 불러올 수 없습니다.');
   });
 });

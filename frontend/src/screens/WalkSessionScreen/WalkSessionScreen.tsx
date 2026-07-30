@@ -1,5 +1,14 @@
-import { useCallback } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  Animated,
+  type LayoutChangeEvent,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -16,7 +25,7 @@ import { radius } from '../../shared/constants/radius';
 import { shadow } from '../../shared/constants/shadow';
 import { spacing } from '../../shared/constants/spacing';
 import { fontFamily } from '../../shared/constants/typography';
-import { WalkRouteMap } from './components/WalkRouteMap';
+import { WalkRouteMap, type WalkRouteMapHandle } from './components/WalkRouteMap';
 import { useRouteTracking } from './hooks/useRouteTracking';
 
 // TODO: 방/걸음수/이동 경로 실제 API 연동 전까지의 임시 목업 데이터.
@@ -42,6 +51,14 @@ function formatElapsed(totalSeconds: number) {
   return `${minutes}:${seconds}`;
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+// 패널을 아래로 끌어내려도 손잡이만큼은 항상 남겨서, 다시 끌어올릴 자리를
+// 확보한다.
+const COLLAPSED_PANEL_HEIGHT = 40;
+
 type WalkSessionNavigation = NativeStackNavigationProp<
   RootStackParamList,
   'WalkSession'
@@ -54,7 +71,64 @@ export function WalkSessionScreen() {
   // 상태. 뒤로가기로 나갔다 들어와도 0으로 리셋되지 않는다.
   const { elapsedSeconds, isPaused, togglePause } = useWalkSession();
   // 일시정지하면 경로도 같이 멈춘다. 지금까지 찍은 좌표는 그대로 남는다.
-  const route = useRouteTracking(!isPaused);
+  const { route, initialCoords } = useRouteTracking(!isPaused);
+  const mapRef = useRef<WalkRouteMapHandle>(null);
+  // 현위치 버튼을 패널의 현재 노출 높이 바로 위에 띄우려면 패널의 실측
+  // 높이가 필요하다(콘텐츠에 따라 늘어나서 고정값을 쓸 수 없다). 패널을
+  // 끌어서 접고 펴는 동안에도 버튼이 같이 따라오도록 panelTranslateY로
+  // 보정한다.
+  const [panelHeight, setPanelHeight] = useState(0);
+  const handlePanelLayout = useCallback((event: LayoutChangeEvent) => {
+    setPanelHeight(event.nativeEvent.layout.height);
+  }, []);
+
+  // 패널을 아래로 끌어내리면 지도가 넓어지고(현위치 버튼으로 이동한 지점이
+  // 패널에 가려지지 않는다), 다시 끌어올리면 원래 정보 패널로 돌아온다.
+  // 접혔을 때 손잡이가 기기 하단 제스처 바/내비게이션 바 밑으로 숨어서
+  // 다시 못 끌어올리는 일이 없도록, 안전 영역(insets.bottom)만큼은 항상
+  // 손잡이 아래 여백으로 남겨둔다.
+  const collapsedPanelHeight = COLLAPSED_PANEL_HEIGHT + insets.bottom;
+  const panelTranslateY = useRef(new Animated.Value(0)).current;
+  const maxTranslateYRef = useRef(0);
+  useEffect(() => {
+    maxTranslateYRef.current = Math.max(panelHeight - collapsedPanelHeight, 0);
+  }, [panelHeight, collapsedPanelHeight]);
+  const dragStartValue = useRef(0);
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_event, gesture) => Math.abs(gesture.dy) > 4,
+      onPanResponderGrant: () => {
+        panelTranslateY.stopAnimation(value => {
+          dragStartValue.current = value;
+        });
+      },
+      onPanResponderMove: (_event, gesture) => {
+        panelTranslateY.setValue(
+          clamp(dragStartValue.current + gesture.dy, 0, maxTranslateYRef.current),
+        );
+      },
+      onPanResponderRelease: (_event, gesture) => {
+        const maxTranslateY = maxTranslateYRef.current;
+        const isTap = Math.abs(gesture.dx) < 4 && Math.abs(gesture.dy) < 4;
+        let shouldCollapse: boolean;
+        if (isTap) {
+          // 거의 움직이지 않았으면 탭으로 보고 현재 상태를 토글한다.
+          shouldCollapse = dragStartValue.current < maxTranslateY / 2;
+        } else {
+          const released = clamp(dragStartValue.current + gesture.dy, 0, maxTranslateY);
+          // 절반 넘게 내렸거나 빠르게 내리는 중이면 접힌 상태로, 아니면
+          // 펼쳐진 상태로 스냅한다.
+          shouldCollapse = gesture.vy > 0.5 || released > maxTranslateY / 2;
+        }
+        Animated.spring(panelTranslateY, {
+          toValue: shouldCollapse ? maxTranslateY : 0,
+          useNativeDriver: false,
+          bounciness: 4,
+        }).start();
+      },
+    }),
+  ).current;
 
   const teamSteps = MOCK_TEAM_MEMBERS.reduce((sum, member) => sum + member.steps, 0);
   const mySteps = MOCK_TEAM_MEMBERS.find(member => member.id === 'me')?.steps ?? 0;
@@ -84,8 +158,29 @@ export function WalkSessionScreen() {
     <Screen edges={['top']}>
       {/* 전체 화면 배경으로 쓰는 이동 경로 지도. */}
       <View style={styles.mapArea}>
-        <WalkRouteMap route={route} />
+        <WalkRouteMap ref={mapRef} route={route} initialCoords={initialCoords} />
       </View>
+
+      <Animated.View
+        style={[
+          styles.recenterButtonWrapper,
+          {
+            bottom: Animated.add(
+              Animated.subtract(panelHeight, panelTranslateY),
+              spacing.md,
+            ),
+          },
+        ]}
+      >
+        <Pressable
+          style={styles.recenterButton}
+          onPress={() => mapRef.current?.recenter()}
+          accessibilityRole="button"
+          accessibilityLabel="현위치로 이동"
+        >
+          <Ionicons name="locate" size={20} color={colors.ink} />
+        </Pressable>
+      </Animated.View>
 
       <View style={styles.topBar}>
         <Pressable
@@ -114,7 +209,27 @@ export function WalkSessionScreen() {
         <Text style={styles.elapsedText}>{formatElapsed(elapsedSeconds)}</Text>
       </View>
 
-      <View style={styles.panel}>
+      <Animated.View
+        style={[
+          styles.panel,
+          // transform 대신 bottom(레이아웃 속성)으로 움직인다. react-native-maps의
+          // MapView는 안드로이드에서 SurfaceView로 그려져 별도 레이어에 합성되는데,
+          // 형제 뷰에 transform을 주면 그 뷰도 별도 레이어로 승격되면서 지도보다
+          // 아래로 깔려 패널이 안 보이는 문제가 있었다(bottom은 이 문제가 없다).
+          { bottom: Animated.multiply(panelTranslateY, -1) },
+        ]}
+        onLayout={handlePanelLayout}
+      >
+        <View
+          style={styles.dragHandleArea}
+          {...panResponder.panHandlers}
+          accessibilityRole="button"
+          accessibilityLabel="정보 패널 접기/펼치기"
+          accessibilityHint="위아래로 끌거나 탭해서 지도를 더 넓게 볼 수 있어요"
+        >
+          <View style={styles.dragHandle} />
+        </View>
+
         <Text style={styles.sectionLabel}>이번 산책 팀 목표</Text>
         <View style={styles.teamGoalRow}>
           <Text style={styles.teamGoalValue}>{teamSteps.toLocaleString()}</Text>
@@ -186,7 +301,7 @@ export function WalkSessionScreen() {
             />
           </View>
         </View>
-      </View>
+      </Animated.View>
     </Screen>
   );
 }
@@ -249,6 +364,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.ink,
   },
+  recenterButtonWrapper: {
+    position: 'absolute',
+    right: spacing.lg,
+  },
+  recenterButton: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
   panel: {
     position: 'absolute',
     left: 0,
@@ -261,7 +395,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
     borderColor: colors.ink,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
+  },
+  // 펼친 상태에서도 항상 이 높이만큼만 차지한다(안전 영역 여백은 여기에
+  // 넣지 않는다 — 접힘 최대 깊이 계산에서만 쓴다. 안 그러면 펼친 상태에서도
+  // 손잡이 위아래로 불필요한 빈 공간이 생긴다).
+  dragHandleArea: {
+    height: COLLAPSED_PANEL_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dragHandle: {
+    width: 40,
+    height: 5,
+    borderRadius: radius.pill,
+    backgroundColor: colors.muted,
   },
   sectionLabel: {
     fontFamily: fontFamily.regular,
