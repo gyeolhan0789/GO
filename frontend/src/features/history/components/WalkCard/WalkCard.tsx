@@ -5,15 +5,13 @@ import { Card } from '../../../../shared/components/Card/Card';
 import { colors } from '../../../../shared/constants/colors';
 import { shadow } from '../../../../shared/constants/shadow';
 import { spacing } from '../../../../shared/constants/spacing';
-import {
-  formatDuration,
-  formatThousands,
-  formatWalkDateTime,
-} from '../../model/format';
-import type { RecentWalk } from '../../types';
+import { formatWalkDateRange } from '../../model/format';
+import { GAME_MODE_LABEL } from '../../model/gameResult';
+import type { WalkRecord } from '../../types';
+import { WalkResultBadge } from '../WalkResultBadge/WalkResultBadge';
 
 type WalkCardProps = {
-  walk: RecentWalk;
+  walk: WalkRecord;
   onPress: () => void;
 };
 
@@ -21,6 +19,11 @@ const AVATAR_SIZE = 40;
 
 /** 기록 화면의 '최근 산책'과 전체 목록 화면이 같이 쓴다. */
 export function WalkCard({ walk, onPress }: WalkCardProps) {
+  const summary = [
+    GAME_MODE_LABEL[walk.mode],
+    `미션 ${walk.myCompletedMissionCount}/${walk.boardCellCount}`,
+  ].join(' · ');
+
   return (
     <Pressable
       onPress={onPress}
@@ -31,23 +34,23 @@ export function WalkCard({ walk, onPress }: WalkCardProps) {
       <Card>
         <View style={styles.row}>
           <View style={styles.textGroup}>
-            <Text style={styles.title} numberOfLines={1}>
-              {walk.title}
+            <View style={styles.titleRow}>
+              <Text style={styles.title} numberOfLines={1}>
+                {walk.title}
+              </Text>
+              <WalkResultBadge mode={walk.mode} isWin={walk.isWin} />
+            </View>
+            <Text style={styles.meta} numberOfLines={1}>
+              {formatWalkDateRange(walk.startedAt, walk.completedAt)}
             </Text>
             <Text style={styles.meta} numberOfLines={1}>
-              {formatWalkDateTime(walk.startedAt)}
-            </Text>
-            <Text style={styles.meta} numberOfLines={1}>
-              {`${formatThousands(walk.step)} 걸음 · ${formatDuration(
-                walk.durationSeconds,
-              )}`}
+              {summary}
             </Text>
           </View>
 
           <AvatarStack
             members={walk.participants.map(participant => ({
               id: String(participant.memberId),
-              imageUri: participant.imageUrl,
             }))}
             size={AVATAR_SIZE}
           />
@@ -76,7 +79,14 @@ const styles = StyleSheet.create({
     minWidth: 0,
     gap: spacing.xs,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   title: {
+    // 배지가 밀려나지 않게 긴 방 이름은 제목 쪽에서 줄인다.
+    flexShrink: 1,
     fontFamily: 'BMDOHYEON',
     fontSize: 15,
     color: colors.ink,

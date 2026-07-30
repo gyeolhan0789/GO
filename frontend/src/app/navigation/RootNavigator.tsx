@@ -26,7 +26,7 @@ export type RootStackParamList = {
   Signup: undefined;
   Main: undefined;
   WalkList: undefined;
-  WalkDetail: { walkId: number };
+  WalkDetail: { roomId: number };
   // TODO: 방 생성/선택 API 연동되면 roomId를 필수 파라미터로 받는다.
   WalkSession: undefined;
   // TODO: roomId 연동되면 필수 파라미터로 받는다.

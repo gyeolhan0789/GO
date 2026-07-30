@@ -6,13 +6,16 @@ import { colors } from '../../constants/colors';
 type FabProps = {
   onPress: () => void;
   icon?: IoniconsIconName;
+  /** 아이콘뿐이라 이걸 안 주면 화면 낭독기가 버튼 이름을 읽지 못한다. */
+  accessibilityLabel?: string;
 };
 
-export function Fab({ onPress, icon = 'add' }: FabProps) {
+export function Fab({ onPress, icon = 'add', accessibilityLabel }: FabProps) {
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [styles.fab, pressed && styles.pressed]}
+      accessibilityLabel={accessibilityLabel}
     >
       <Ionicons name={icon} size={28} color={colors.surface} />
     </Pressable>
