@@ -6,7 +6,7 @@ argument-hint: "[diff]"
 
 # Backend convention refactoring
 
-1. Read `convention/java-convention.md`, `convention/spring-boot-convention.md`, and `convention/back-test-convention.md` before changing code. Read `convention/git-convention.md` when the task changes branch, commit, or MR behavior. Do not invent conventions absent from those documents.
+1. Read `docs/java-convention.md`, `docs/spring-boot-convention.md`, and `docs/back-test-convention.md` before changing code. Read `docs/git-convention.md` when the task changes branch, commit, or MR behavior. Do not invent conventions absent from those documents.
 2. With no argument, inspect Java files under `src/main/java`. With `diff`, obtain changed Java files using `git diff --name-only $(git merge-base HEAD origin/develop)`.
 3. Check each target against the loaded conventions.
 4. Apply only safe mechanical repairs, such as imports, Lombok, JPA annotations, and clear code-style violations. Report structural, controller-business-logic, or architectural violations for manual repair rather than guessing.

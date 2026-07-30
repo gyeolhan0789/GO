@@ -16,7 +16,6 @@ import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.notification.event.NotificationMessageFactory;
-import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -121,18 +120,6 @@ public class RoomCommandService {
 
         closeRoom(roomId, room);
         // TODO: Connect game requests, bingo boards, and mission policies after deletion is confirmed.
-    }
-
-    public void expireSingleRoom(Long roomId, LocalDateTime expirationTime) {
-        Room room = findRoom(roomId);
-        if (room.getMode() != GameMode.SINGLE
-                || room.getStatus() != GameRoomStatus.IN_PROGRESS
-                || room.getStartedAt() == null
-                || room.getStartedAt().isAfter(expirationTime)) {
-            return;
-        }
-
-        room.close();
     }
 
     public void startGame(Long memberId, Long roomId) {

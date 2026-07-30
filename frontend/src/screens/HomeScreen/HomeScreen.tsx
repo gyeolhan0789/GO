@@ -8,6 +8,10 @@ import type { BingoBoardCell } from '../../features/bingo/components/BingoBoard/
 import { useLogoutMutation } from '../../features/auth/hooks/useLogoutMutation';
 import { useMyCashQuery } from '../../features/member/hooks/useMyCashQuery';
 import { useMyCharacterQuery } from '../../features/member/hooks/useMyCharacterQuery';
+import {
+  isWalkSessionActive,
+  startWalkSession,
+} from '../../features/walk-session/model/walkSessionStore';
 import { ApiError } from '../../shared/api/ApiError';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { Button } from '../../shared/components/Button/Button';
@@ -18,6 +22,8 @@ import { HomeCarousel } from './components/HomeCarousel';
 import { WalkRoomSelectSheet } from './components/WalkRoomSelectSheet';
 import characterFemale from './assets/character-female.png';
 import characterMale from './assets/character-male.png';
+
+type HomeNavigation = NativeStackNavigationProp<RootStackParamList, 'Main'>;
 
 const CHARACTER_IMAGE_BY_GENDER = {
   male: characterMale,
@@ -53,8 +59,7 @@ const SERVER_UNREACHABLE_MESSAGE =
 
 export function HomeScreen() {
   const summary = MOCK_HOME_SUMMARY;
-  const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<HomeNavigation>();
   const [isRoomSheetVisible, setRoomSheetVisible] = useState(false);
   const logout = useLogoutMutation();
   const isLoggingOut = useRef(false);
@@ -126,7 +131,15 @@ export function HomeScreen() {
         <Button
           label="산책하기"
           size="lg"
-          onPress={() => setRoomSheetVisible(true)}
+          onPress={() => {
+            // 이미 진행 중인 산책이 있으면 방 목록을 다시 고를 필요 없이
+            // 그 세션으로 바로 이동한다.
+            if (isWalkSessionActive()) {
+              navigation.navigate('WalkSession');
+              return;
+            }
+            setRoomSheetVisible(true);
+          }}
         />
       </View>
 
@@ -134,8 +147,13 @@ export function HomeScreen() {
         visible={isRoomSheetVisible}
         onClose={() => setRoomSheetVisible(false)}
         onStart={() => {
-          // TODO: 산책 진행 화면으로 이동. 화면이 아직 없어 선택만 반영하고 닫는다.
           setRoomSheetVisible(false);
+          // 이미 진행 중인 세션이 있으면(뒤로가기 후 재진입) 건드리지 않는다.
+          // TODO: 실제로는 서버가 내려주는 방의 startedAt을 그대로 쓴다.
+          startWalkSession();
+          // TODO: 선택한 room의 roomId를 파라미터로 넘긴다. 아직 실제 방 목록
+          // API가 없어(mock) 넘길 값이 없다.
+          navigation.navigate('WalkSession');
         }}
       />
     </Screen>

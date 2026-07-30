@@ -32,8 +32,6 @@ import lombok.NoArgsConstructor;
 )
 public class BingoBoard extends BaseEntity {
 
-    private static final int RENEWAL_PERIOD_DAYS = 7;
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -88,16 +86,21 @@ public class BingoBoard extends BaseEntity {
     }
 
     public void expire() {
-        this.status = BingoBoardStatus.EXPIRED;
+        expireAt(LocalDateTime.now());
     }
 
     public void complete() {
-        this.status = BingoBoardStatus.COMPLETED;
-        this.completedAt = LocalDateTime.now();
+        completeAt(LocalDateTime.now());
     }
 
-    public boolean isRenewalPeriodPassed(LocalDateTime now) {
-        return getCreatedAt() != null
-                && !getCreatedAt().plusDays(RENEWAL_PERIOD_DAYS).isAfter(now);
+    public void completeAt(LocalDateTime completedAt) {
+        this.status = BingoBoardStatus.COMPLETED;
+        this.completedAt = completedAt;
     }
+
+    public void expireAt(LocalDateTime expiredAt) {
+        this.status = BingoBoardStatus.EXPIRED;
+        this.completedAt = expiredAt;
+    }
+
 }

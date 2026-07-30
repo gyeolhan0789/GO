@@ -747,41 +747,6 @@ class RoomCommandServiceTest {
     }
 
     @Test
-    @DisplayName("7일 이상 진행한 싱글 방은 만료되어 종료된다")
-    void expireSingleRoomClosesExpiredSingleRoom() {
-        // given
-        Room room = Room.create(1L, "테스트 방", GameMode.SINGLE, null, DEFAULT_BOARD_SIZE);
-        ReflectionTestUtils.setField(room, "id", 10L);
-        ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
-        ReflectionTestUtils.setField(room, "startedAt", LocalDateTime.of(2026, 7, 20, 12, 0));
-        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
-
-        // when
-        roomCommandService.expireSingleRoom(10L, LocalDateTime.of(2026, 7, 20, 12, 0));
-
-        // then
-        assertThat(room.getStatus()).isEqualTo(GameRoomStatus.CLOSED);
-        then(roomMemberRepository).shouldHaveNoInteractions();
-    }
-
-    @Test
-    @DisplayName("만료 기준보다 최근인 싱글 방은 유지한다")
-    void expireSingleRoomKeepsRecentSingleRoom() {
-        // given
-        Room room = Room.create(1L, "테스트 방", GameMode.SINGLE, null, DEFAULT_BOARD_SIZE);
-        ReflectionTestUtils.setField(room, "id", 10L);
-        ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
-        ReflectionTestUtils.setField(room, "startedAt", LocalDateTime.of(2026, 7, 20, 12, 1));
-        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
-
-        // when
-        roomCommandService.expireSingleRoom(10L, LocalDateTime.of(2026, 7, 20, 12, 0));
-
-        // then
-        assertThat(room.getStatus()).isEqualTo(GameRoomStatus.IN_PROGRESS);
-    }
-
-    @Test
     @DisplayName("존재하지 않는 게임방에서 게임을 시작하면 실패한다")
     void startGameRejectsMissingRoom() {
         // given

@@ -1,3 +1,4 @@
+import type { StyleProp, ViewStyle } from 'react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Ionicons, {
   type IoniconsIconName,
@@ -19,6 +20,8 @@ type ButtonProps = {
   size?: ButtonSize;
   icon?: IoniconsIconName;
   disabled?: boolean;
+  /** 바깥 래퍼(그림자 박스 포함)에 적용. flex:1 등 배치 제어용. */
+  style?: StyleProp<ViewStyle>;
 };
 
 const HEIGHT_BY_SIZE: Record<ButtonSize, number> = {
@@ -33,11 +36,12 @@ export function Button({
   size = 'md',
   icon,
   disabled = false,
+  style,
 }: ButtonProps) {
   const isPrimary = variant === 'primary';
 
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, style]}>
       <View style={styles.shadowBox} />
       <Pressable
         onPress={onPress}

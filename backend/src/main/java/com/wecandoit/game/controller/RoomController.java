@@ -7,6 +7,7 @@ import com.wecandoit.game.controller.response.CreateRoomResponse;
 import com.wecandoit.game.controller.response.MyRoomResponse;
 import com.wecandoit.game.controller.response.RoomDetailResponse;
 import com.wecandoit.game.controller.response.RoomMemberResponse;
+import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.service.RoomCommandService;
 import com.wecandoit.game.service.RoomReadService;
 import jakarta.validation.Valid;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -31,8 +33,11 @@ public class RoomController {
     private final RoomReadService roomReadService;
 
     @GetMapping
-    public ResponseEntity<List<MyRoomResponse>> getMyRooms(@LoginMemberId Long memberId) {
-        List<MyRoomResponse> responses = roomReadService.getMyRooms(memberId);
+    public ResponseEntity<List<MyRoomResponse>> getMyRooms(
+            @LoginMemberId Long memberId,
+            @RequestParam(required = false) GameMode mode
+    ) {
+        List<MyRoomResponse> responses = roomReadService.getMyRooms(memberId, mode);
         return ResponseEntity.ok(responses);
     }
 
