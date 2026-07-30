@@ -14,6 +14,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { RootStackParamList } from '../src/app/navigation/RootNavigator';
 import { WalkCard } from '../src/features/history/components/WalkCard/WalkCard';
 import { WalkListScreen } from '../src/screens/WalkListScreen/WalkListScreen';
+import { installFetchMock, jsonResponse } from '../jest/fetchMock';
+import type { FetchMock } from '../jest/fetchMock';
+import { buildGameResultSlice } from '../jest/gameResultFixtures';
 
 const INITIAL_METRICS = {
   frame: { x: 0, y: 0, width: 400, height: 800 },
@@ -24,6 +27,23 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 let renderer: ReactTestRenderer.ReactTestRenderer | null = null;
 let queryClient: QueryClient | null = null;
+let fetchMock: FetchMock;
+
+/** 서버가 가지고 있는 산책 수. 10건씩 세 페이지로 나뉜다. */
+let totalWalks = 27;
+
+beforeEach(() => {
+  totalWalks = 27;
+  fetchMock = installFetchMock();
+  fetchMock.mockImplementation(async url => {
+    if (url.includes('/game-results')) {
+      const page = Number(/page=(\d+)/.exec(url)?.[1]);
+      const size = Number(/size=(\d+)/.exec(url)?.[1]);
+      return jsonResponse(200, buildGameResultSlice(page, size, totalWalks));
+    }
+    throw new Error(`예상하지 못한 요청: ${url}`);
+  });
+});
 
 afterEach(() => {
   if (renderer) {
@@ -60,7 +80,7 @@ function collectTexts(root: ReactTestInstance): string[] {
  * 렌더된 WalkCard를 세면 안 된다 — FlatList는 initialNumToRender(기본 10)만 그리고
  * 테스트 렌더러엔 뷰포트가 없어 그 이상 늘지 않는다. data가 진실이다.
  */
-function loadedWalks(root: ReactTestInstance): { walkId: number }[] {
+function loadedWalks(root: ReactTestInstance): { roomId: number }[] {
   const [list] = root.findAll(
     node => typeof node.props.onEndReached === 'function' && !!node.props.data,
   );
@@ -96,32 +116,36 @@ async function renderScreen() {
   return renderer;
 }
 
-/** Select는 트리거와 항목에 `${name} ${label}` 형태의 접근성 라벨을 달아둔다. */
-async function selectOption(
-  root: ReactTestInstance,
-  name: string,
-  label: string,
-) {
-  const trigger = root.find(
+/** 테스트 렌더러는 실제 스크롤을 못 하므로 onScroll을 직접 쏜다. */
+async function scrollTo(root: ReactTestInstance, offsetY: number) {
+  const [list] = root.findAll(
+    node => typeof node.props.onEndReached === 'function' && !!node.props.data,
+  );
+
+  await act(async () => {
+    list.props.onScroll({ nativeEvent: { contentOffset: { y: offsetY } } });
+  });
+}
+
+/**
+ * accessibilityLabel은 Fab -> Pressable -> View로 그대로 내려가 한 버튼이 여러
+ * 노드로 잡힌다. 개수를 세면 컴포넌트 구조가 바뀔 때마다 깨지므로 유무만 본다.
+ */
+function hasScrollToTopButton(root: ReactTestInstance): boolean {
+  return root.findAll(node => node.props.accessibilityLabel === '맨 위로')
+    .length > 0;
+}
+
+async function pressScrollToTop(root: ReactTestInstance) {
+  const [button] = root.findAll(
     node =>
-      typeof node.props.accessibilityLabel === 'string' &&
-      node.props.accessibilityLabel.startsWith(`${name} `) &&
-      node.props.accessibilityRole === 'button',
+      node.props.accessibilityLabel === '맨 위로' &&
+      typeof node.props.onPress === 'function',
   );
 
   await act(async () => {
-    trigger.props.onPress();
+    button.props.onPress();
   });
-
-  const option = root.find(
-    node => node.props.accessibilityLabel === `${name} ${label} 선택`,
-  );
-
-  await act(async () => {
-    option.props.onPress();
-  });
-  await flushQueries();
-  await flushQueries();
 }
 
 /** 화면 끝까지 스크롤한 것과 같은 효과. FlatList의 onEndReached를 직접 쏜다. */
@@ -151,6 +175,14 @@ describe('WalkListScreen', () => {
     expect(collectTexts(tree.root)).toContain('민서와의 산책');
   });
 
+  test('첫 요청은 0페이지부터 정해진 크기로 나간다', async () => {
+    await renderScreen();
+
+    expect(fetchMock.mock.calls[0][0]).toContain(
+      '/game-results?page=0&size=10',
+    );
+  });
+
   test('끝까지 스크롤하면 다음 페이지가 이어 붙는다', async () => {
     const tree = await renderScreen();
 
@@ -169,9 +201,12 @@ describe('WalkListScreen', () => {
     await scrollToEnd(tree.root);
     expect(collectTexts(tree.root)).toContain('기록을 모두 봤어요');
 
-    // 끝에 닿은 뒤 더 스크롤해도 개수가 늘지 않는다.
+    const callCount = fetchMock.mock.calls.length;
+
+    // 끝에 닿은 뒤 더 스크롤해도 요청도 개수도 늘지 않는다.
     await scrollToEnd(tree.root);
     expect(loadedWalks(tree.root)).toHaveLength(27);
+    expect(fetchMock.mock.calls).toHaveLength(callCount);
   });
 
   test('이어 붙인 목록에 중복이 없다', async () => {
@@ -179,7 +214,7 @@ describe('WalkListScreen', () => {
     await scrollToEnd(tree.root);
     await scrollToEnd(tree.root);
 
-    const ids = loadedWalks(tree.root).map(walk => walk.walkId);
+    const ids = loadedWalks(tree.root).map(walk => walk.roomId);
 
     expect(ids).toHaveLength(27);
     expect(new Set(ids).size).toBe(ids.length);
@@ -191,76 +226,59 @@ describe('WalkListScreen', () => {
     expect(collectTexts(tree.root)).not.toContain('기록을 모두 봤어요');
   });
 
-  test('기간·인원·정렬 세 버튼이 기본값으로 놓여 있다', async () => {
+  test('기록이 하나도 없으면 그렇다고 알려준다', async () => {
+    totalWalks = 0;
     const tree = await renderScreen();
-    const texts = collectTexts(tree.root);
 
-    expect(texts).toContain('전체 기간');
-    expect(texts).toContain('모든 산책');
-    expect(texts).toContain('최신순');
+    expect(collectTexts(tree.root)).toContain('아직 산책 기록이 없어요.');
   });
 
-  test('기간을 고르면 실제 날짜 구간이 버튼에 뜬다', async () => {
+  test('불러오지 못하면 오류를 알린다', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse(500, null));
     const tree = await renderScreen();
 
-    // 프리셋 이름('최근 7일')이 아니라 그게 풀린 날짜를 보여줘야 한다.
-    await selectOption(tree.root, '기간', '최근 7일');
+    expect(collectTexts(tree.root)).toContain('산책 기록을 불러오지 못했어요.');
+  });
 
+  test('맨 위에서는 맨 위로 버튼을 띄우지 않는다', async () => {
+    const tree = await renderScreen();
+
+    expect(hasScrollToTopButton(tree.root)).toBe(false);
+  });
+
+  test('한참 내려가면 맨 위로 버튼이 나왔다가, 올라오면 사라진다', async () => {
+    const tree = await renderScreen();
+
+    await scrollTo(tree.root, 900);
+    expect(hasScrollToTopButton(tree.root)).toBe(true);
+
+    await scrollTo(tree.root, 0);
+    expect(hasScrollToTopButton(tree.root)).toBe(false);
+  });
+
+  test('맨 위로 버튼을 누르면 목록을 처음으로 되돌린다', async () => {
+    const tree = await renderScreen();
+    await scrollTo(tree.root, 900);
+
+    const [list] = tree.root.findAll(
+      node =>
+        typeof node.props.onEndReached === 'function' && !!node.props.data,
+    );
+    const scrollToOffset = jest.fn();
+    list.instance.scrollToOffset = scrollToOffset;
+
+    await pressScrollToTop(tree.root);
+
+    expect(scrollToOffset).toHaveBeenCalledWith({ offset: 0, animated: true });
+  });
+
+  test('서버가 조건을 받지 않으므로 거르는 손잡이를 두지 않는다', async () => {
+    const tree = await renderScreen();
+
+    // 받아온 페이지에서 걸러내면 페이지 경계에서 개수와 순서가 어긋난다.
     const texts = collectTexts(tree.root);
     expect(texts).not.toContain('전체 기간');
-    expect(
-      texts.some(text => /^\d{4}\.\d{2}\.\d{2} ~ \d{4}\.\d{2}\.\d{2}$/.test(text)),
-    ).toBe(true);
-  });
-
-  test('기간을 좁히면 목록도 줄어든다', async () => {
-    const tree = await renderScreen();
-    const allTime = loadedWalks(tree.root).length;
-
-    // 목업은 오늘 기준이 아니라 고정 날짜라, 최근 7일에는 아무것도 안 걸린다.
-    await selectOption(tree.root, '기간', '최근 7일');
-
-    expect(loadedWalks(tree.root).length).toBeLessThan(allTime);
-    expect(collectTexts(tree.root)).toContain('조건에 맞는 산책이 없어요.');
-  });
-
-  test('인원 필터를 걸면 조건에 맞는 산책만 남는다', async () => {
-    const tree = await renderScreen();
-
-    await selectOption(tree.root, '인원', '혼자 산책');
-
-    const walks = loadedWalks(tree.root);
-    // 전체 27건 중 혼자 걸은 건 9건.
-    expect(walks).toHaveLength(9);
-    expect(collectTexts(tree.root)).toContain('기록을 모두 봤어요');
-  });
-
-  test('정렬을 바꾸면 첫 항목이 달라진다', async () => {
-    const tree = await renderScreen();
-    const latestFirst = loadedWalks(tree.root)[0].walkId;
-
-    await selectOption(tree.root, '정렬', '오래된순');
-
-    expect(loadedWalks(tree.root)[0].walkId).not.toBe(latestFirst);
-  });
-
-  test('조건을 바꾸면 쌓아둔 페이지를 버리고 첫 페이지부터 다시 받는다', async () => {
-    const tree = await renderScreen();
-
-    await scrollToEnd(tree.root);
-    expect(loadedWalks(tree.root)).toHaveLength(20);
-
-    // 조건이 바뀌면 페이지 번호의 의미가 달라지므로 이어 붙이면 안 된다.
-    await selectOption(tree.root, '정렬', '오래된순');
-    expect(loadedWalks(tree.root)).toHaveLength(10);
-  });
-
-  test('조건에 맞는 산책이 없으면 그렇다고 알려준다', async () => {
-    const tree = await renderScreen();
-
-    // '혼자'로 걸러도 9건이 남으니, 빈 목록 문구는 필터가 걸린 상태의 문구여야 한다.
-    await selectOption(tree.root, '인원', '혼자 산책');
-
-    expect(collectTexts(tree.root)).not.toContain('아직 산책 기록이 없어요.');
+    expect(texts).not.toContain('모든 산책');
+    expect(texts).not.toContain('최신순');
   });
 });

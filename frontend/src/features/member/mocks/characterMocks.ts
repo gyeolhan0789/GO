@@ -133,7 +133,8 @@ export function findMockItems(memberItemIds: number[]): CharacterItem[] {
     .filter((item): item is CharacterItem => item != null);
 }
 
-export const MOCK_CHARACTER: Character = {
+// memberId는 목업으로 덮지 않는다. 본인을 가려내는 값이라 서버 것을 그대로 써야 한다.
+export const MOCK_CHARACTER: Omit<Character, 'memberId'> = {
   nickname: MOCK_NICKNAME,
   baseImage: BASE_IMAGE_BY_GENDER[MOCK_GENDER],
   equippedItems: findMockItems(MOCK_EQUIPPED_MEMBER_ITEM_IDS),
