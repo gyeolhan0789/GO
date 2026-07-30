@@ -8,6 +8,7 @@ import type { BingoBoardCell } from '../../features/bingo/components/BingoBoard/
 import { useLogoutMutation } from '../../features/auth/hooks/useLogoutMutation';
 import { useMyCashQuery } from '../../features/member/hooks/useMyCashQuery';
 import { useMyCharacterQuery } from '../../features/member/hooks/useMyCharacterQuery';
+import { startWalkSession } from '../../features/walk-session/model/walkSessionStore';
 import { ApiError } from '../../shared/api/ApiError';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { Button } from '../../shared/components/Button/Button';
@@ -133,6 +134,9 @@ export function HomeScreen() {
         onClose={() => setRoomSheetVisible(false)}
         onStart={() => {
           setRoomSheetVisible(false);
+          // 이미 진행 중인 세션이 있으면(뒤로가기 후 재진입) 건드리지 않는다.
+          // TODO: 실제로는 서버가 내려주는 방의 startedAt을 그대로 쓴다.
+          startWalkSession();
           // TODO: 선택한 room의 roomId를 파라미터로 넘긴다. 아직 실제 방 목록
           // API가 없어(mock) 넘길 값이 없다.
           navigation.navigate('WalkSession');

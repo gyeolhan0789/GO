@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -6,6 +6,8 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
+import { useWalkSession } from '../../features/walk-session/hooks/useWalkSession';
+import { endWalkSession } from '../../features/walk-session/model/walkSessionStore';
 import { Button } from '../../shared/components/Button/Button';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { colors } from '../../shared/constants/colors';
@@ -41,22 +43,11 @@ type WalkSessionNavigation = NativeStackNavigationProp<
 export function WalkSessionScreen() {
   const navigation = useNavigation<WalkSessionNavigation>();
   const insets = useSafeAreaInsets();
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [isPaused, setPaused] = useState(false);
+  // 화면 마운트와 무관하게 시작 시각 기준으로 계산되는 경과 시간/일시정지
+  // 상태. 뒤로가기로 나갔다 들어와도 0으로 리셋되지 않는다.
+  const { elapsedSeconds, isPaused, togglePause } = useWalkSession();
   // 일시정지하면 경로도 같이 멈춘다. 지금까지 찍은 좌표는 그대로 남는다.
   const route = useRouteTracking(!isPaused);
-
-  // TODO: 실제로는 서버가 내려주는 시작 시각 기준으로 계산한다. 지금은 화면
-  // 진입 시점부터 클라이언트에서만 세는 임시 타이머.
-  useEffect(() => {
-    if (isPaused) {
-      return;
-    }
-    const timer = setInterval(() => {
-      setElapsedSeconds(seconds => seconds + 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [isPaused]);
 
   const teamPercent = Math.round(
     (MOCK_ROOM.teamSteps / MOCK_ROOM.targetSteps) * 100,
@@ -71,6 +62,8 @@ export function WalkSessionScreen() {
         style: 'destructive',
         onPress: () => {
           // TODO: 실제 산책 종료/방 나가기(DELETE /rooms/{roomId}/members/me) 연동.
+          // 그때 경과 시간(useWalkSession의 elapsedSeconds)을 운동시간으로 같이 보낸다.
+          endWalkSession();
           navigation.goBack();
         },
       },
@@ -155,7 +148,7 @@ export function WalkSessionScreen() {
               <View style={styles.pauseButtonShadow} />
               <Pressable
                 style={styles.pauseButton}
-                onPress={() => setPaused(value => !value)}
+                onPress={togglePause}
                 accessibilityRole="button"
                 accessibilityLabel={isPaused ? '재개' : '일시정지'}
               >
