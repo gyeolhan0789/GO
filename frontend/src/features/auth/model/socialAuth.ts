@@ -19,11 +19,6 @@ import type { SocialProvider } from '../constants/socialProviders';
 export type SocialAccount = {
   provider: SocialProvider;
   idToken: string;
-  /**
-   * 제공자가 매기는 고정 계정 ID. 이 기기에서 소셜 가입 절차를 끝냈는지 기억할
-   * 때의 키로만 쓴다(`socialSetupStorage` 참고). 서버로는 보내지 않는다.
-   */
-  accountId: string;
   /** 소셜 계정에 등록된 이름. 가입 화면의 닉네임 기본값으로만 쓴다. */
   name: string | null;
 };
@@ -85,12 +80,7 @@ async function signInWithGoogle(): Promise<SocialAccount> {
     throw new Error('Google 계정에서 ID 토큰을 받지 못했습니다.');
   }
 
-  return {
-    provider: 'GOOGLE',
-    idToken,
-    accountId: user.id,
-    name: user.name,
-  };
+  return { provider: 'GOOGLE', idToken, name: user.name };
 }
 
 /** 카카오 SDK는 취소도 일반 에러로 던지고 코드를 구분해주지 않아 메시지로 가른다. */
@@ -116,12 +106,12 @@ async function signInWithKakao(): Promise<SocialAccount> {
     throw new Error('카카오 계정에서 ID 토큰을 받지 못했습니다.');
   }
 
+  // 서버는 idToken만 검증하므로, 프로필은 닉네임 기본값을 얻으려고만 부른다.
   const profile = await getKakaoProfile();
 
   return {
     provider: 'KAKAO',
     idToken,
-    accountId: String(profile.id),
     name: profile.nickname || profile.name || null,
   };
 }

@@ -1,5 +1,4 @@
 import { apiClient } from '../../../shared/api/client';
-import type { Gender } from '../../auth/constants/genders';
 
 export type ItemCategory =
   | 'HAT'
@@ -57,7 +56,6 @@ export function saveEquippedItems(memberItemIds: number[]) {
 
 export type ProfileUpdateRequest = {
   nickname?: string;
-  gender?: Gender;
 };
 
 /**

@@ -13,7 +13,6 @@ import { installFetchMock, jsonResponse } from '../jest/fetchMock';
 import type { FetchMock } from '../jest/fetchMock';
 import type { KeychainMock } from '../jest/keychainMock';
 import { AuthProvider } from '../src/features/auth/model/AuthContext';
-import { saveCompletedSocialSetup } from '../src/features/auth/model/socialSetupStorage';
 import { LoginScreen } from '../src/screens/LoginScreen/LoginScreen';
 import { SocialSignupScreen } from '../src/screens/SocialSignupScreen/SocialSignupScreen';
 import { setAccessToken } from '../src/shared/api/accessTokenStore';
@@ -39,6 +38,7 @@ const kakao = jest.requireMock('@react-native-seoul/kakao-login');
 
 const KAKAO_ID_TOKEN = 'kakao-id-token';
 const KAKAO_PROFILE = { id: 12345, nickname: '카카오닉', name: '카카오본명' };
+const SIGNUP_TOKEN = 'signup-token-uuid';
 
 const INITIAL_METRICS = {
   frame: { x: 0, y: 0, width: 400, height: 800 },
@@ -140,8 +140,7 @@ function renderSocialSignup() {
           name: 'SocialSignup',
           params: {
             provider: 'KAKAO',
-            accountId: String(KAKAO_PROFILE.id),
-            idToken: KAKAO_ID_TOKEN,
+            signupToken: SIGNUP_TOKEN,
             suggestedName: KAKAO_PROFILE.nickname,
           },
         } as never
@@ -159,27 +158,40 @@ async function press(root: ReactTestInstance, label: string) {
 }
 
 describe('소셜 로그인', () => {
-  test('이 기기에서 처음 보는 계정이면 닉네임·성별 입력 화면으로 보낸다', async () => {
+  test('서버가 가입이 필요하다고 하면 닉네임·성별 입력 화면으로 보낸다', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(200, {
+        status: 'SIGNUP_REQUIRED',
+        accessToken: null,
+        refreshToken: null,
+        signupToken: SIGNUP_TOKEN,
+      }),
+    );
+
     const tree = await renderLogin();
 
     await press(tree.root, '카카오로 로그인');
 
+    // 검증 요청에는 idToken만 실린다.
+    const [[, init]] = callsTo('/auth/oauth/kakao');
+    expect(parseBody(init)).toEqual({ idToken: KAKAO_ID_TOKEN });
+
     expect(navigation.navigate).toHaveBeenCalledWith('SocialSignup', {
       provider: 'KAKAO',
-      accountId: String(KAKAO_PROFILE.id),
-      idToken: KAKAO_ID_TOKEN,
+      signupToken: SIGNUP_TOKEN,
       suggestedName: KAKAO_PROFILE.nickname,
     });
-    // 입력을 받기 전에는 로그인 요청을 보내지 않는다(회원이 만들어지면 안 된다).
-    expect(callsTo('/auth/oauth/kakao')).toHaveLength(0);
+    // 아직 회원이 만들어지지 않았으므로 세션도 시작하지 않는다.
+    expect(keychain.setGenericPassword).not.toHaveBeenCalled();
   });
 
-  test('가입을 마친 계정이면 입력 화면 없이 바로 로그인한다', async () => {
-    await saveCompletedSocialSetup('KAKAO', String(KAKAO_PROFILE.id), 'FEMALE');
+  test('가입된 계정이면 입력 화면 없이 바로 로그인한다', async () => {
     fetchMock.mockResolvedValue(
       jsonResponse(200, {
+        status: 'LOGIN',
         accessToken: 'access-token',
         refreshToken: 'refresh-token',
+        signupToken: null,
       }),
     );
 
@@ -188,13 +200,6 @@ describe('소셜 로그인', () => {
     await press(tree.root, '카카오로 로그인');
 
     expect(navigation.navigate).not.toHaveBeenCalled();
-
-    const [[, init]] = callsTo('/auth/oauth/kakao');
-    expect(parseBody(init)).toEqual({
-      idToken: KAKAO_ID_TOKEN,
-      // 기기에 기록해둔 성별을 그대로 실어 보낸다(서버는 기존 회원이면 무시한다).
-      gender: 'FEMALE',
-    });
     expect(keychain.setGenericPassword).toHaveBeenCalledWith(
       'refreshToken',
       'refresh-token',
@@ -216,7 +221,7 @@ describe('소셜 로그인', () => {
 
   test('신규 가입은 고른 닉네임·성별을 반영한 뒤 세션을 시작한다', async () => {
     fetchMock.mockImplementation(async url =>
-      url.includes('/auth/oauth/')
+      url.includes('/auth/oauth/kakao/signup')
         ? jsonResponse(200, {
             accessToken: 'new-access-token',
             refreshToken: 'new-refresh-token',
@@ -236,20 +241,17 @@ describe('소셜 로그인', () => {
     await press(tree.root, '여성');
     await press(tree.root, '가입 완료');
 
-    // 성별은 회원 생성 요청에 실린다.
-    const [[, loginInit]] = callsTo('/auth/oauth/kakao');
-    expect(parseBody(loginInit)).toEqual({
-      idToken: KAKAO_ID_TOKEN,
+    // 가입 요청에는 가입 토큰과 성별만 실린다.
+    const [[, signupInit]] = callsTo('/auth/oauth/kakao/signup');
+    expect(parseBody(signupInit)).toEqual({
+      signupToken: SIGNUP_TOKEN,
       gender: 'FEMALE',
     });
 
     // 닉네임은 서버가 소셜 계정 이름으로 채우므로, 방금 받은 토큰으로 고쳐준다.
     const [[, patchInit]] = callsTo('/members/me');
     expect(patchInit?.method).toBe('PATCH');
-    expect(parseBody(patchInit)).toEqual({
-      nickname: '산책왕',
-      gender: 'FEMALE',
-    });
+    expect(parseBody(patchInit)).toEqual({ nickname: '산책왕' });
     expect(
       (patchInit?.headers as Record<string, string>).Authorization,
     ).toBe('Bearer new-access-token');

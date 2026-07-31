@@ -28,14 +28,12 @@ export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
   /**
-   * 소셜 계정으로 처음 로그인한 회원의 닉네임·성별 입력. `idToken`은 여기서
-   * 그대로 소셜 로그인 요청에 실려 나가고, `accountId`는 가입 완료 기록의
-   * 키로만 쓰인다.
+   * 소셜 계정으로 처음 로그인한 회원의 닉네임·성별 입력. `signupToken`은 검증
+   * 단계에서 서버가 준 1회용 토큰이고 5분 뒤 만료된다.
    */
   SocialSignup: {
     provider: SocialProvider;
-    accountId: string;
-    idToken: string;
+    signupToken: string;
     suggestedName: string | null;
   };
   Main: undefined;

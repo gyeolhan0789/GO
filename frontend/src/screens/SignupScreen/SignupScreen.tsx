@@ -24,7 +24,7 @@ import type { Region } from '../../features/auth/constants/regions';
 import { useRegionDetection } from '../../features/auth/hooks/useRegionDetection';
 import { useSignupMutation } from '../../features/auth/hooks/useSignupMutation';
 import { useSocialAuthFlow } from '../../features/auth/hooks/useSocialAuthFlow';
-import type { SocialAccount } from '../../features/auth/model/socialAuth';
+import type { SocialSignupHandoff } from '../../features/auth/hooks/useSocialAuthFlow';
 import {
   NICKNAME_MAX_LENGTH,
   validateSignup,
@@ -78,13 +78,8 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
   // 이 기기에서 가입을 마친 계정이 아니면 닉네임·성별부터 받는다.
   const social = useSocialAuthFlow(
     useCallback(
-      (account: SocialAccount) => {
-        navigation.navigate('SocialSignup', {
-          provider: account.provider,
-          accountId: account.accountId,
-          idToken: account.idToken,
-          suggestedName: account.name,
-        });
+      (handoff: SocialSignupHandoff) => {
+        navigation.navigate('SocialSignup', handoff);
       },
       [navigation],
     ),

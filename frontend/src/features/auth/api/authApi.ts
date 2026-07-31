@@ -31,17 +31,30 @@ export type LogoutRequest = {
   refreshToken: string;
 };
 
-export type SocialLoginRequest = {
-  /** 제공자 SDK가 발급한 OIDC ID 토큰. 서버가 서명을 검증하고 이메일을 꺼낸다. */
-  idToken: string;
+/**
+ * 소셜 계정 검증 결과.
+ *
+ * - `LOGIN`: 이미 가입된 계정이다. 토큰이 채워져 오고 `signupToken`은 비어 있다.
+ * - `SIGNUP_REQUIRED`: 아직 가입되지 않았다. 회원은 만들어지지 않았고 `signupToken`만
+ *   내려온다. 이 토큰으로 가입을 마쳐야 한다.
+ */
+export type SocialVerifyResponse = {
+  status: 'LOGIN' | 'SIGNUP_REQUIRED';
+  accessToken: string | null;
+  refreshToken: string | null;
+  signupToken: string | null;
+};
+
+export type SocialSignupRequest = {
   /**
-   * 서버가 **가입되지 않은 계정을 새로 만들 때만** 쓰는 값이다. 이미 가입된
-   * 계정이면 무시되지만 요청에서는 필수라 항상 실어 보낸다.
+   * 검증 단계에서 받은 1회용 토큰. 서버(Redis)에 이메일·닉네임과 함께 **5분**만
+   * 보관되므로, 입력 화면에서 오래 머물면 만료돼 다시 로그인해야 한다.
    */
+  signupToken: string;
   gender: Gender;
 };
 
-const SOCIAL_LOGIN_PATHS: Record<SocialProvider, string> = {
+const SOCIAL_PATHS: Record<SocialProvider, string> = {
   GOOGLE: '/auth/oauth/google',
   KAKAO: '/auth/oauth/kakao',
 };
@@ -56,15 +69,25 @@ export function signup(body: SignupRequest) {
 }
 
 /**
- * 소셜 계정으로 로그인한다. 가입되지 않은 계정이면 서버가 이 요청에서 회원을
- * 만들고 바로 토큰을 내려주므로, 응답만으로는 신규인지 기존인지 알 수 없다.
- * 신규 여부는 `socialSetupStorage`의 기기 기록으로 판단한다.
+ * 소셜 계정을 검증한다. 가입된 계정이면 바로 토큰을, 아니면 가입용 토큰을 준다.
+ * 신규 여부 판정은 서버가 하므로 앱이 따로 기억할 게 없다.
  */
-export function socialLogin(
+export function verifySocialAccount(
   provider: SocialProvider,
-  body: SocialLoginRequest,
+  body: { idToken: string },
 ) {
-  return apiClient.post<LoginResponse>(SOCIAL_LOGIN_PATHS[provider], body);
+  return apiClient.post<SocialVerifyResponse>(SOCIAL_PATHS[provider], body);
+}
+
+/** 가입용 토큰과 성별로 소셜 가입을 마치고 토큰을 받는다. 닉네임은 서버가 소셜 계정 이름으로 채운다. */
+export function completeSocialSignup(
+  provider: SocialProvider,
+  body: SocialSignupRequest,
+) {
+  return apiClient.post<LoginResponse>(
+    `${SOCIAL_PATHS[provider]}/signup`,
+    body,
+  );
 }
 
 /**

@@ -6,8 +6,6 @@ import {
   SocialAuthCancelledError,
   signInWithSocialProvider,
 } from '../model/socialAuth';
-import type { SocialAccount } from '../model/socialAuth';
-import { getCompletedSocialSetup } from '../model/socialSetupStorage';
 import { useSocialLoginMutation } from './useSocialLoginMutation';
 
 const FALLBACK_ERROR_MESSAGE =
@@ -26,13 +24,21 @@ function resolveErrorMessage(error: unknown) {
   return FALLBACK_ERROR_MESSAGE;
 }
 
+export type SocialSignupHandoff = {
+  provider: SocialProvider;
+  /** 가입 API에 그대로 실어 보낼 1회용 토큰. 5분 뒤 만료된다. */
+  signupToken: string;
+  /** 닉네임 입력의 기본값으로 쓸 소셜 계정 이름. */
+  suggestedName: string | null;
+};
+
 /**
- * 소셜 버튼을 눌렀을 때의 흐름을 담는다. 제공자 로그인 창을 띄우고, 이 기기에서
- * 가입을 마친 계정이면 바로 로그인시키고, 아니면 `onSignupRequired`로 닉네임·성별
- * 입력 화면을 요청한다.
+ * 소셜 버튼을 눌렀을 때의 흐름을 담는다. 제공자 로그인 창을 띄우고 서버에
+ * 계정을 검증한다. 가입된 계정이면 바로 로그인되고, 아니면 서버가 준
+ * `signupToken`을 `onSignupRequired`로 넘겨 닉네임·성별 입력을 요청한다.
  */
 export function useSocialAuthFlow(
-  onSignupRequired: (account: SocialAccount) => void,
+  onSignupRequired: (handoff: SocialSignupHandoff) => void,
 ) {
   const [pendingProvider, setPendingProvider] = useState<SocialProvider | null>(
     null,
@@ -47,21 +53,19 @@ export function useSocialAuthFlow(
 
       try {
         const account = await signInWithSocialProvider(provider);
-        const completedGender = await getCompletedSocialSetup(
-          account.provider,
-          account.accountId,
-        );
-
-        if (completedGender === null) {
-          onSignupRequired(account);
-          return;
-        }
-
-        await login({
+        const verified = await login({
           provider: account.provider,
           idToken: account.idToken,
-          gender: completedGender,
         });
+
+        // 가입된 계정이면 위 mutation이 이미 세션을 시작했다.
+        if (verified.status === 'SIGNUP_REQUIRED' && verified.signupToken) {
+          onSignupRequired({
+            provider: account.provider,
+            signupToken: verified.signupToken,
+            suggestedName: account.name,
+          });
+        }
       } catch (error) {
         // 사용자가 로그인 창을 닫은 것은 실패가 아니므로 조용히 지나간다.
         if (!(error instanceof SocialAuthCancelledError)) {

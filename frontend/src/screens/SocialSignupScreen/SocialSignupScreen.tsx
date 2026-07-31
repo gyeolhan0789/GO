@@ -63,7 +63,7 @@ export function SocialSignupScreen({
   navigation,
   route,
 }: SocialSignupScreenProps) {
-  const { provider, accountId, idToken, suggestedName } = route.params;
+  const { provider, signupToken, suggestedName } = route.params;
 
   const [nickname, setNickname] = useState(() =>
     toInitialNickname(suggestedName),
@@ -91,8 +91,7 @@ export function SocialSignupScreen({
     // 스택에서 빠지고 Main만 남는다.
     mutation.mutate({
       provider,
-      accountId,
-      idToken,
+      signupToken,
       nickname: nickname.trim(),
       gender,
     });
