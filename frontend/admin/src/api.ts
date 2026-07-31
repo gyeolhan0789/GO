@@ -5,12 +5,14 @@ import {
   getAccessToken,
   readEnvironment,
   readRefreshToken,
-  saveRefreshToken,
   saveEnvironment,
+  saveRefreshToken,
   setAccessToken,
 } from './session'
 
-let environment: Environment = readEnvironment() ?? defaultEnvironment
+let environment: Environment = import.meta.env.DEV
+  ? defaultEnvironment
+  : readEnvironment() ?? defaultEnvironment
 let generation = 0
 const refreshFlights = new Map<number, Promise<void>>()
 
@@ -140,7 +142,6 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
 
 export async function loginWithEnvironmentFallback(email: string, password: string) {
   const targetGeneration = generation
-
   const targetEnvironments: Environment[] = environment === 'local' ? ['local'] : ['prod', 'dev']
 
   for (const targetEnvironment of targetEnvironments) {
@@ -151,8 +152,8 @@ export async function loginWithEnvironmentFallback(email: string, password: stri
         targetEnvironment,
         null,
       )
-      if (!tokens.accessToken || !tokens.refreshToken) throw new Error('Login response is invalid.')
-      if (generation !== targetGeneration) throw new Error('The session changed during login.')
+      if (!tokens.accessToken || !tokens.refreshToken) throw new Error('로그인 응답이 올바르지 않습니다.')
+      if (generation !== targetGeneration) throw new Error('세션이 변경되어 로그인 응답을 무시했습니다.')
 
       environment = targetEnvironment
       saveEnvironment(targetEnvironment)
@@ -165,7 +166,7 @@ export async function loginWithEnvironmentFallback(email: string, password: stri
     }
   }
 
-  throw new Error('Login failed.')
+  throw new Error('로그인에 실패했습니다.')
 }
 
 export async function login(email: string, password: string) {

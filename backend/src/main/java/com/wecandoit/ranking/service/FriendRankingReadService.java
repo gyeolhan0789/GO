@@ -5,12 +5,11 @@ import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.PageResponse;
 import com.wecandoit.history.repository.MemberHistoryRepository;
 import com.wecandoit.history.repository.RankedWeeklyRankingSummary;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.item.controller.response.CharacterResponse;
 import com.wecandoit.ranking.controller.response.FriendRankingResponse;
 import com.wecandoit.ranking.controller.response.RankingItemResponse;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -46,8 +45,8 @@ public class FriendRankingReadService {
                                 weekRange.endDate()
                         )
                         .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
-        Map<Long, List<EquippedItemResponse>> equippedItemsByMemberId =
-                rankingCharacterReadService.getEquippedItemsByMemberIds(
+        Map<Long, CharacterResponse> charactersByMemberId =
+                rankingCharacterReadService.getCharactersByMemberIds(
                         summaries.stream()
                                 .map(RankedWeeklyRankingSummary::getMemberId)
                                 .toList()
@@ -57,20 +56,26 @@ public class FriendRankingReadService {
                 myRanking.getRanking(),
                 myRanking.getWeeklySteps(),
                 PageResponse.from(summaries.map(summary ->
-                        toRankingItemResponse(summary, equippedItemsByMemberId)))
+                        toRankingItemResponse(summary, charactersByMemberId)))
         );
     }
 
     private static RankingItemResponse toRankingItemResponse(
             RankedWeeklyRankingSummary summary,
-            Map<Long, List<EquippedItemResponse>> equippedItemsByMemberId
+            Map<Long, CharacterResponse> charactersByMemberId
     ) {
+        CharacterResponse character = charactersByMemberId.get(summary.getMemberId());
+        if (character == null) {
+            throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
+        }
         return new RankingItemResponse(
                 summary.getRanking(),
                 summary.getMemberId(),
                 summary.getNickname(),
                 summary.getWeeklySteps(),
-                equippedItemsByMemberId.getOrDefault(summary.getMemberId(), List.of())
+                character.gender(),
+                character.defaultImageUrl(),
+                character.equippedItems()
         );
     }
 }

@@ -5,3 +5,4 @@ python-dotenv
 pillow
 pydantic-settings
 python-multipart
+opencv-python

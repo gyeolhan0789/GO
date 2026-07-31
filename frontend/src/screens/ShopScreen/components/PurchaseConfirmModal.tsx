@@ -1,28 +1,29 @@
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import type { ShopItem } from '../../../features/shop/model/shopItem';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { shadow } from '../../../shared/constants/shadow';
 import { spacing } from '../../../shared/constants/spacing';
-import { sprites } from '../assets/sprites';
 import { formatPoints, withObjectParticle } from '../format';
-import type { ShopItem } from '../types';
 import { GradientFill } from './GradientFill';
-import { PixelSprite } from './PixelSprite';
 
 type PurchaseConfirmModalProps = {
   /** null이면 닫힌 상태. 확인 중인 아이템을 그대로 받는다. */
   item: ShopItem | null;
   points: number;
+  /** 요청 중에는 같은 아이템을 두 번 사지 않도록 확인 버튼을 잠근다. */
+  isPurchasing: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
 
-const SPRITE_SIZE = 56;
+const IMAGE_SIZE = 56;
 
 export function PurchaseConfirmModal({
   item,
   points,
+  isPurchasing,
   onConfirm,
   onCancel,
 }: PurchaseConfirmModalProps) {
@@ -44,7 +45,14 @@ export function PurchaseConfirmModal({
           <View style={styles.dialogWrapper}>
             <View style={styles.shadowBox} />
             <View style={styles.dialog}>
-              <PixelSprite sprite={sprites[item.sprite]} size={SPRITE_SIZE} />
+              {item.image ? (
+                <Image
+                  source={item.image}
+                  style={styles.image}
+                  resizeMode="contain"
+                  accessibilityIgnoresInvertColors
+                />
+              ) : null}
 
               <Text style={styles.title}>
                 {`${withObjectParticle(item.name)} 구매하시겠습니까?`}
@@ -83,13 +91,16 @@ export function PurchaseConfirmModal({
 
                 <Pressable
                   onPress={onConfirm}
+                  disabled={isPurchasing}
                   style={({ pressed }) => [
                     styles.action,
                     styles.confirmAction,
-                    pressed && styles.pressed,
+                    isPurchasing && styles.disabled,
+                    pressed && !isPurchasing && styles.pressed,
                   ]}
                   accessibilityRole="button"
                   accessibilityLabel={`${item.name} 구매 확인`}
+                  accessibilityState={{ disabled: isPurchasing }}
                 >
                   <GradientFill
                     from={colors.primarySoftLight}
@@ -97,7 +108,7 @@ export function PurchaseConfirmModal({
                     borderRadius={radius.sm}
                   />
                   <Text style={[styles.actionLabel, styles.confirmLabel]}>
-                    구매하기
+                    {isPurchasing ? '구매 중...' : '구매하기'}
                   </Text>
                 </Pressable>
               </View>
@@ -140,6 +151,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.ink,
     backgroundColor: colors.surface,
+  },
+  image: {
+    width: IMAGE_SIZE,
+    height: IMAGE_SIZE,
   },
   title: {
     fontFamily: 'BMDOHYEON',
@@ -186,6 +201,9 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.85,
+  },
+  disabled: {
+    opacity: 0.5,
   },
   cancelAction: {
     borderWidth: 1.5,

@@ -27,13 +27,17 @@ export type CharacterItem = CharacterLayer & {
 };
 
 export type Character = {
+  /** 응답에 '나'라는 표시가 없는 화면(산책 상세 등)에서 본인을 가려내는 데 쓴다. */
+  memberId: number;
   nickname: string;
   /** 성별 기본 캐릭터. 착용 아이템은 이 이미지 위에 겹친다. */
   baseImage: ImageSourcePropType | null;
   equippedItems: CharacterItem[];
 };
 
-function toImageSource(url: string | null): ImageSourcePropType | null {
+export function toImageSource(
+  url: string | null,
+): ImageSourcePropType | null {
   const uri = resolveImageUrl(url);
 
   return uri ? { uri } : null;
@@ -51,6 +55,7 @@ export function toCharacterItem(item: MemberItem): CharacterItem {
 
 export function toCharacter(response: MyCharacterResponse): Character {
   return {
+    memberId: response.memberId,
     nickname: response.nickname,
     baseImage: toImageSource(response.defaultImageUrl),
     equippedItems: response.equippedItems.map(toCharacterItem),

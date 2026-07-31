@@ -29,6 +29,12 @@
       android:theme="@style/AppTheme"
       android:usesCleartextTraffic="${usesCleartextTraffic}"
       android:supportsRtl="true">
+      <!-- TODO: android/local.properties에 MAPS_API_KEY=발급받은키 를 추가해야
+           실제 지도가 뜬다(안 넣으면 회색 화면). 키 발급: Google Cloud Console
+           > APIs & Services > Maps SDK for Android 사용 설정 후 API 키 생성. -->
+      <meta-data
+        android:name="com.google.android.geo.API_KEY"
+        android:value="${MAPS_API_KEY}" />
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"

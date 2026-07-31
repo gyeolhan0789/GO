@@ -12,6 +12,12 @@ type ToastProps = {
   message: string | null;
   onHide: () => void;
   duration?: number;
+  /**
+   * 기기 하단 세이프에어리어만큼 더 띄울지. 탭 바 안에서 렌더링되는 화면은
+   * 탭 바가 이미 그 인셋을 차지하므로 false로 꺼야 FAB 등 다른 하단 요소와
+   * 높이가 맞는다. 기본값 true는 edges={['bottom']}을 쓰는 전체 화면 기준.
+   */
+  respectBottomInset?: boolean;
 };
 
 const DEFAULT_DURATION = 2000;
@@ -21,6 +27,7 @@ export function Toast({
   message,
   onHide,
   duration = DEFAULT_DURATION,
+  respectBottomInset = true,
 }: ToastProps) {
   const insets = useSafeAreaInsets();
   const opacity = useRef(new Animated.Value(0)).current;
@@ -60,7 +67,10 @@ export function Toast({
       pointerEvents="none"
       style={[
         styles.container,
-        { bottom: insets.bottom + spacing.lg, opacity },
+        {
+          bottom: (respectBottomInset ? insets.bottom : 0) + spacing.lg,
+          opacity,
+        },
       ]}
     >
       <Text style={styles.text}>{message}</Text>

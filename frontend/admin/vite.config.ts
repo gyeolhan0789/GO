@@ -3,6 +3,6 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/admin-ui/',
+  base: process.env.VITE_API_ENV === 'dev' ? '/dev/admin-ui/' : '/admin-ui/',
   plugins: [react()],
 })
