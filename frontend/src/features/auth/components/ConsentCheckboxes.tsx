@@ -1,6 +1,9 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { Checkbox } from '../../../shared/components/Checkbox/Checkbox';
+import { colors } from '../../../shared/constants/colors';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
 
 type ConsentCheckboxesProps = {
   agreeTerms: boolean;
@@ -13,9 +16,9 @@ type ConsentCheckboxesProps = {
   ageError?: string;
 };
 
-const LABEL_COLOR = '#374151';
-const LINK_COLOR = '#2C6A47';
-const ERROR_COLOR = '#DC2626';
+const LABEL_COLOR = colors.inkSoft;
+const LINK_COLOR = colors.primaryDark;
+const ERROR_COLOR = colors.danger;
 
 export function ConsentCheckboxes({
   agreeTerms,
@@ -34,29 +37,29 @@ export function ConsentCheckboxes({
         onToggle={onToggleTerms}
         accessibilityLabel="서비스 이용약관 및 개인정보처리방침에 동의합니다."
       >
-        <Text style={styles.label}>
-          <Text
+        <AppText style={styles.label}>
+          <AppText
             style={styles.link}
             onPress={onPressTerms}
             accessibilityRole="link"
           >
             서비스 이용약관
-          </Text>
+          </AppText>
           {' 및 '}
-          <Text
+          <AppText
             style={styles.link}
             onPress={onPressPrivacy}
             accessibilityRole="link"
           >
             개인정보처리방침
-          </Text>
+          </AppText>
           에 동의합니다.
-        </Text>
+        </AppText>
       </Checkbox>
       {termsError ? (
-        <Text style={styles.error} accessibilityLiveRegion="polite">
+        <AppText style={styles.error} accessibilityLiveRegion="polite">
           {termsError}
-        </Text>
+        </AppText>
       ) : null}
 
       <Checkbox
@@ -64,12 +67,12 @@ export function ConsentCheckboxes({
         onToggle={onToggleAge}
         accessibilityLabel="만 14세 이상입니다."
       >
-        <Text style={styles.label}>만 14세 이상입니다.</Text>
+        <AppText style={styles.label}>만 14세 이상입니다.</AppText>
       </Checkbox>
       {ageError ? (
-        <Text style={styles.error} accessibilityLiveRegion="polite">
+        <AppText style={styles.error} accessibilityLiveRegion="polite">
           {ageError}
-        </Text>
+        </AppText>
       ) : null}
     </View>
   );
@@ -77,18 +80,21 @@ export function ConsentCheckboxes({
 
 const styles = StyleSheet.create({
   label: {
+    fontFamily: bodyFont.regular,
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: lineHeights[14],
     color: LABEL_COLOR,
   },
   link: {
-    fontWeight: '700',
+    fontFamily: bodyFont.bold,
     color: LINK_COLOR,
   },
   error: {
     marginTop: 2,
     marginBottom: 4,
+    fontFamily: bodyFont.regular,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: ERROR_COLOR,
   },
 });

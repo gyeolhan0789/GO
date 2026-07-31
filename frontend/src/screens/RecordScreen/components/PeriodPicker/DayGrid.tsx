@@ -1,13 +1,15 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import {
   eachDayInMonth,
   leadingBlankCount,
 } from '../../../../features/history/model/calendar';
 import { parseIsoDate } from '../../../../features/history/model/period';
+import { AppText } from '../../../../shared/components/AppText/AppText';
 import { colors } from '../../../../shared/constants/colors';
 import { radius } from '../../../../shared/constants/radius';
 import { spacing } from '../../../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../../../shared/constants/typography';
 
 type DayGridProps = {
   /** 보고 있는 달. 그 달 1일의 'yyyy-MM-dd'. */
@@ -35,9 +37,9 @@ export function DayGrid({
     <View>
       <View style={styles.weekdayRow}>
         {WEEKDAYS.map(weekday => (
-          <Text key={weekday} style={styles.weekday}>
+          <AppText key={weekday} style={styles.weekday}>
             {weekday}
-          </Text>
+          </AppText>
         ))}
       </View>
 
@@ -65,7 +67,7 @@ export function DayGrid({
                 accessibilityLabel={`${parseIsoDate(day).getDate()}일`}
                 accessibilityState={{ selected: isSelected, disabled }}
               >
-                <Text
+                <AppText
                   style={[
                     styles.dayLabel,
                     isSelected && styles.dayLabelSelected,
@@ -73,7 +75,7 @@ export function DayGrid({
                   ]}
                 >
                   {parseIsoDate(day).getDate()}
-                </Text>
+                </AppText>
               </Pressable>
             </View>
           );
@@ -92,8 +94,9 @@ const styles = StyleSheet.create({
     // 아래 날짜 칸과 같은 폭이라야 요일이 어긋나지 않는다.
     width: `${100 / 7}%`,
     textAlign: 'center',
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.regular,
     fontSize: 11,
+    lineHeight: lineHeights[11],
     color: colors.ink,
     opacity: 0.5,
   },
@@ -121,8 +124,9 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   dayLabel: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.ink,
   },
   dayLabelSelected: {

@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SvgXml } from 'react-native-svg';
-import { fontFamily } from '../../../shared/constants/typography';
+import { AppText } from '../../../shared/components/AppText/AppText';
+import { colors } from '../../../shared/constants/colors';
+import { bodyFont, fontFamily, lineHeights } from '../../../shared/constants/typography';
 
 import type { OnboardingSlideData } from '../slides';
 
@@ -12,7 +14,7 @@ type OnboardingSlideProps = {
   height: number;
 };
 
-const HIGHLIGHT_COLOR = '#27A34A';
+const HIGHLIGHT_COLOR = colors.primary;
 
 // 배경 SVG 원본 비율(viewBox 390 x 844). 높이를 기기에 맞추고 폭은 이 비율로 둔다.
 const BG_ASPECT_RATIO = 390 / 844;
@@ -38,7 +40,7 @@ function renderTitle(title: string, highlight?: string): ReactNode {
   return (
     <>
       {text.slice(0, index)}
-      <Text style={styles.titleHighlight}>{highlight}</Text>
+      <AppText style={styles.titleHighlight}>{highlight}</AppText>
       {text.slice(index + highlight.length)}
     </>
   );
@@ -64,10 +66,10 @@ export function OnboardingSlide({
         style={[styles.background, { left: (width - backgroundWidth) / 2 }]}
       />
       <View style={[styles.textOverlay, { paddingTop: insets.top + 80 }]}>
-        <Text style={styles.title}>
+        <AppText style={styles.title}>
           {renderTitle(slide.title, slide.highlight)}
-        </Text>
-        <Text style={styles.description}>{toMultiline(slide.description)}</Text>
+        </AppText>
+        <AppText style={styles.description}>{toMultiline(slide.description)}</AppText>
       </View>
     </View>
   );
@@ -86,23 +88,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: fontFamily.bold,
     fontSize: 26,
-    color: '#111827',
+    color: colors.ink,
     textAlign: 'center',
-    lineHeight: 36,
+    lineHeight: lineHeights[26],
     marginTop: 12,
   },
   titleHighlight: {
     color: HIGHLIGHT_COLOR,
   },
   description: {
-    fontFamily: fontFamily.regular,
-    // fontFamily: 'NotoSansKR-Regular',
+    fontFamily: bodyFont.regular,
     marginTop: 11,
     fontSize: 12,
-    lineHeight: 22,
-    color: '#4B5563',
+    lineHeight: lineHeights[12],
+    color: colors.inkMuted,
     textAlign: 'center',
   },
 });

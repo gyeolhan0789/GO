@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import type { HistoryPeriod } from '../../../../features/history/api/historyApi';
@@ -11,9 +11,11 @@ import {
   parseIsoDate,
   shiftPeriod,
 } from '../../../../features/history/model/period';
+import { AppText } from '../../../../shared/components/AppText/AppText';
 import { BottomSheet } from '../../../../shared/components/BottomSheet/BottomSheet';
 import { colors } from '../../../../shared/constants/colors';
 import { spacing } from '../../../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../../../shared/constants/typography';
 import { DayGrid } from './DayGrid';
 import { MonthGrid } from './MonthGrid';
 import { WeekList } from './WeekList';
@@ -96,7 +98,7 @@ export function PeriodPicker({
           <Ionicons name="chevron-back" size={ARROW_SIZE} color={colors.ink} />
         </Pressable>
 
-        <Text style={styles.headerLabel}>{headerLabel}</Text>
+        <AppText style={styles.headerLabel}>{headerLabel}</AppText>
 
         <Pressable
           onPress={goNext}
@@ -149,8 +151,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   headerLabel: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 16,
+    lineHeight: lineHeights[16],
     color: colors.ink,
   },
 });

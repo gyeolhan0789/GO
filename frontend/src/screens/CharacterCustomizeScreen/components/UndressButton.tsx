@@ -1,10 +1,12 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { AppText } from '../../../shared/components/AppText/AppText';
+import { controlHeight } from '../../../shared/constants/sizing';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
-import { fontFamily } from '../../../shared/constants/typography';
+import { fontFamily, lineHeights } from '../../../shared/constants/typography';
 
 type UndressButtonProps = {
   onPress: () => void;
@@ -29,7 +31,7 @@ export function UndressButton({
       accessibilityState={{ disabled }}
     >
       <Ionicons name="refresh" size={16} color={colors.successText} />
-      <Text style={styles.label}>모두 벗기</Text>
+      <AppText style={styles.label}>모두 벗기</AppText>
     </Pressable>
   );
 }
@@ -40,7 +42,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'center',
     gap: spacing.xs,
-    height: 40,
+    height: controlHeight.row,
     paddingHorizontal: spacing.lg,
     borderRadius: radius.sm,
     backgroundColor: colors.successBg,
@@ -54,6 +56,7 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: fontFamily.bold,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.successText,
   },
 });

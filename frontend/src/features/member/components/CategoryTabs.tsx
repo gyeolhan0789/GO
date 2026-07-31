@@ -1,18 +1,25 @@
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Pressable, ScrollView, StyleSheet } from 'react-native';
 
-import type { ItemCategory } from '../../../features/member/api/memberApi';
-import { ITEM_CATEGORIES } from '../../../features/member/constants/itemCategories';
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
-import { spacing } from '../../../shared/constants/spacing';
 import { shadow } from '../../../shared/constants/shadow';
+import { spacing } from '../../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
+import type { ItemCategory } from '../api/memberApi';
+import { ITEM_CATEGORIES } from '../constants/itemCategories';
 
 type CategoryTabsProps = {
   value: ItemCategory;
   onChange: (value: ItemCategory) => void;
 };
 
-/** 카테고리가 6종이라 좁은 화면에서는 균등 분할이 안 된다. 가로로 넘긴다. */
+/**
+ * 아이템 카테고리 탭. 상점과 캐릭터 꾸미기가 같이 쓴다 — 같은 카테고리를
+ * 화면마다 다른 모양으로 그리면 같은 분류로 안 보인다.
+ *
+ * 카테고리가 6종이라 좁은 화면에서는 균등 분할이 안 된다. 가로로 넘긴다.
+ */
 export function CategoryTabs({ value, onChange }: CategoryTabsProps) {
   return (
     <ScrollView
@@ -33,9 +40,9 @@ export function CategoryTabs({ value, onChange }: CategoryTabsProps) {
             accessibilityRole="tab"
             accessibilityState={{ selected: isActive }}
           >
-            <Text style={[styles.label, isActive && styles.labelActive]}>
+            <AppText style={[styles.label, isActive && styles.labelActive]}>
               {category.label}
-            </Text>
+            </AppText>
           </Pressable>
         );
       })}
@@ -73,8 +80,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
   },
   label: {
-    fontFamily: 'NotoSansKR-Medium',
+    fontFamily: bodyFont.bold,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
   },
   labelActive: {

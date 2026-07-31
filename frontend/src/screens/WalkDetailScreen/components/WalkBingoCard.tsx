@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { BingoBoard } from '../../../features/bingo/components/BingoBoard/BingoBoard';
@@ -11,9 +11,11 @@ import type {
   WalkBingoCell,
   WalkDetailParticipant,
 } from '../../../features/history/types';
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { Card } from '../../../shared/components/Card/Card';
 import { colors, participantColors } from '../../../shared/constants/colors';
 import { spacing } from '../../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
 
 type WalkBingoCardProps = {
   size: BingoBoardSize;
@@ -67,13 +69,13 @@ export function WalkBingoCard({
           {completedBy === null ? null : (
             <Ionicons name="checkmark" size={text.check} color={colors.ink} />
           )}
-          <Text
+          <AppText
             style={[styles.cellTitle, { fontSize: text.font }]}
             numberOfLines={text.lines}
             ellipsizeMode="tail"
           >
             {cell.missionTitle}
-          </Text>
+          </AppText>
         </View>
       ),
     };
@@ -81,9 +83,9 @@ export function WalkBingoCard({
 
   return (
     <Card>
-      <Text style={styles.heading}>
+      <AppText style={styles.heading}>
         {`진행한 빙고판 ${completedCount}/${cells.length}`}
-      </Text>
+      </AppText>
 
       {/* 누가 어느 칸을 깼는지가 이 화면의 핵심이라 범례를 늘 펼쳐 둔다. */}
       <View style={styles.legend}>
@@ -95,21 +97,21 @@ export function WalkBingoCard({
                 { backgroundColor: colorByMember.get(participant.memberId) },
               ]}
             />
-            <Text style={styles.legendLabel} numberOfLines={1}>
+            <AppText style={styles.legendLabel} numberOfLines={1}>
               {participant.isMe ? '나' : participant.nickname}
-            </Text>
-            <Text style={styles.legendCount}>
+            </AppText>
+            <AppText style={styles.legendCount}>
               {`${countsByMember.get(participant.memberId) ?? 0}칸`}
-            </Text>
+            </AppText>
           </View>
         ))}
 
         <View style={styles.legendRow}>
           <View style={[styles.legendSwatch, styles.emptySwatch]} />
-          <Text style={styles.legendLabel}>못 깬 칸</Text>
-          <Text style={styles.legendCount}>
+          <AppText style={styles.legendLabel}>못 깬 칸</AppText>
+          <AppText style={styles.legendCount}>
             {`${cells.length - completedCount}칸`}
-          </Text>
+          </AppText>
         </View>
       </View>
 
@@ -122,8 +124,9 @@ export function WalkBingoCard({
 
 const styles = StyleSheet.create({
   heading: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 15,
+    lineHeight: lineHeights[15],
     color: colors.ink,
   },
   cellContent: {
@@ -132,7 +135,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   cellTitle: {
-    fontFamily: 'NotoSansKR-Medium',
+    fontFamily: bodyFont.regular,
     color: colors.ink,
     textAlign: 'center',
   },
@@ -160,14 +163,16 @@ const styles = StyleSheet.create({
   },
   legendLabel: {
     flexShrink: 1,
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.regular,
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.ink,
     opacity: 0.7,
   },
   legendCount: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.ink,
   },
   board: {

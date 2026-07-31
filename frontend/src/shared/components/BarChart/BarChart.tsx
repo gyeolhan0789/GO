@@ -1,9 +1,10 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
+import { AppText } from '../AppText/AppText';
 import { colors } from '../../constants/colors';
 import { radius } from '../../constants/radius';
 import { spacing } from '../../constants/spacing';
-import { fontFamily } from '../../constants/typography';
+import { fontFamily, lineHeights } from '../../constants/typography';
 
 type BarChartDatum = {
   label: string;
@@ -33,9 +34,9 @@ export function BarChart({ data, height = DEFAULT_HEIGHT }: BarChartProps) {
     <View style={styles.row}>
       <View style={[styles.tickColumn, { height }]}>
         {ticks.map((tick) => (
-          <Text key={tick} style={styles.tickLabel}>
+          <AppText key={tick} style={styles.tickLabel}>
             {formatTick(tick)}
-          </Text>
+          </AppText>
         ))}
       </View>
       <View style={styles.chart}>
@@ -53,12 +54,12 @@ export function BarChart({ data, height = DEFAULT_HEIGHT }: BarChartProps) {
         </View>
         <View style={styles.labelRow}>
           {data.map((datum) => (
-            <Text
+            <AppText
               key={datum.label}
               style={[styles.dayLabel, datum.highlighted && styles.dayLabelHighlighted]}
             >
               {datum.label}
-            </Text>
+            </AppText>
           ))}
         </View>
       </View>
@@ -77,6 +78,7 @@ const styles = StyleSheet.create({
   tickLabel: {
     fontFamily: fontFamily.regular,
     fontSize: 11,
+    lineHeight: lineHeights[11],
     color: colors.ink,
     opacity: 0.5,
   },
@@ -111,6 +113,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: fontFamily.regular,
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.ink,
   },
   dayLabelHighlighted: {
