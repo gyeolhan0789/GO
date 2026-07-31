@@ -85,6 +85,18 @@ export function CreateWalkRoomScreen({
     onClose();
   };
 
+  const handleNext = () => {
+    if (!roomName.trim()) {
+      Alert.alert('산책방 이름을 입력해주세요.');
+      return;
+    }
+    if (!stepGoal || Number(stepGoal) < 1) {
+      Alert.alert('공동 목표 걸음수를 입력해주세요.');
+      return;
+    }
+    setStep(2);
+  };
+
   const handleCreate = async () => {
     try {
       const room = await createRoomMutation.mutateAsync({
@@ -229,7 +241,7 @@ export function CreateWalkRoomScreen({
         <View style={styles.footer}>
           {step === 1 ? (
             <Pressable
-              onPress={() => setStep(2)}
+              onPress={handleNext}
               style={styles.submitButton}
               accessibilityRole="button"
               accessibilityLabel="다음"

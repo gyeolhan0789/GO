@@ -4,6 +4,7 @@ import {
   getWalkSessionElapsedSeconds,
   getWalkSessionRoomId,
   getWalkSessionStartHealthSummary,
+  isWalkSessionActive,
   isWalkSessionPaused,
   isWalkSessionStarted,
   subscribeWalkSession,
@@ -21,6 +22,7 @@ export function useWalkSession() {
   );
   const [elapsedSeconds, setElapsedSeconds] = useState(getWalkSessionElapsedSeconds);
   const [isPaused, setPaused] = useState(isWalkSessionPaused);
+  const [isActive, setActive] = useState(isWalkSessionActive);
   // 시작 카운트다운이 끝나기 전까지는 false다(WalkSessionScreen이 이 값으로
   // 카운트다운 오버레이를 계속 보여줄지 판단한다).
   const [isStarted, setStarted] = useState(isWalkSessionStarted);
@@ -31,6 +33,7 @@ export function useWalkSession() {
       setStartHealthSummary(getWalkSessionStartHealthSummary());
       setElapsedSeconds(getWalkSessionElapsedSeconds());
       setPaused(isWalkSessionPaused());
+      setActive(isWalkSessionActive());
       setStarted(isWalkSessionStarted());
     };
     sync();
@@ -52,6 +55,7 @@ export function useWalkSession() {
     startHealthSummary,
     elapsedSeconds,
     isPaused,
+    isActive,
     isStarted,
     togglePause: togglePauseWalkSession,
   };

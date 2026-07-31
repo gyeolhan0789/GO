@@ -29,6 +29,9 @@ type HomeCarouselProps = {
   bingoSize: BingoBoardSize;
   bingoCells: BingoBoardCell[];
   style?: StyleProp<ViewStyle>;
+  isWalking?: boolean;
+  walkElapsedLabel?: string;
+  onPressWalkBadge?: () => void;
 };
 
 const PAGE_COUNT = 2;
@@ -44,6 +47,9 @@ export function HomeCarousel({
   bingoSize,
   bingoCells,
   style,
+  isWalking,
+  walkElapsedLabel,
+  onPressWalkBadge,
 }: HomeCarouselProps) {
   const [pageWidth, setPageWidth] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -86,6 +92,9 @@ export function HomeCarousel({
                 distanceKm={distanceKm}
                 calories={calories}
                 rewardHint={rewardHint}
+                isWalking={isWalking}
+                walkElapsedLabel={walkElapsedLabel}
+                onPressWalkBadge={onPressWalkBadge}
               />
             </View>
             <View style={{ width: pageWidth }}>
