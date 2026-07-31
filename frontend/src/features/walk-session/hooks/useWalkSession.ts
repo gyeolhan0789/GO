@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 
 import {
   getWalkSessionElapsedSeconds,
+  getWalkSessionRoomId,
+  getWalkSessionStartHealthSummary,
   isWalkSessionPaused,
   subscribeWalkSession,
   togglePauseWalkSession,
@@ -12,11 +14,17 @@ import {
  * 시작 시각 기준으로 다시 계산되므로 0부터 새로 세지 않는다.
  */
 export function useWalkSession() {
+  const [roomId, setRoomId] = useState(getWalkSessionRoomId);
+  const [startHealthSummary, setStartHealthSummary] = useState(
+    getWalkSessionStartHealthSummary,
+  );
   const [elapsedSeconds, setElapsedSeconds] = useState(getWalkSessionElapsedSeconds);
   const [isPaused, setPaused] = useState(isWalkSessionPaused);
 
   useEffect(() => {
     const sync = () => {
+      setRoomId(getWalkSessionRoomId());
+      setStartHealthSummary(getWalkSessionStartHealthSummary());
       setElapsedSeconds(getWalkSessionElapsedSeconds());
       setPaused(isWalkSessionPaused());
     };
@@ -34,5 +42,11 @@ export function useWalkSession() {
     return () => clearInterval(timer);
   }, [isPaused]);
 
-  return { elapsedSeconds, isPaused, togglePause: togglePauseWalkSession };
+  return {
+    roomId,
+    startHealthSummary,
+    elapsedSeconds,
+    isPaused,
+    togglePause: togglePauseWalkSession,
+  };
 }

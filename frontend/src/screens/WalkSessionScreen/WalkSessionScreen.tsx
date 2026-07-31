@@ -15,12 +15,16 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
+import { todayIso } from '../../features/history/model/period';
+import { useHistoriesQuery } from '../../features/history/hooks/useHistoriesQuery';
+import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
 import { useWalkSession } from '../../features/walk-session/hooks/useWalkSession';
 import { endWalkSession } from '../../features/walk-session/model/walkSessionStore';
 import { Button } from '../../shared/components/Button/Button';
 import { MemberProgressBar } from '../../shared/components/MemberProgressBar/MemberProgressBar';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { colors, participantColors } from '../../shared/constants/colors';
+import { useSamsungHealthToday } from '../../shared/hooks/useSamsungHealthToday';
 import { radius } from '../../shared/constants/radius';
 import { shadow } from '../../shared/constants/shadow';
 import { spacing } from '../../shared/constants/spacing';
@@ -28,22 +32,8 @@ import { fontFamily } from '../../shared/constants/typography';
 import { WalkRouteMap, type WalkRouteMapHandle } from './components/WalkRouteMap';
 import { useRouteTracking } from './hooks/useRouteTracking';
 
-// TODO: 방/걸음수/이동 경로 실제 API 연동 전까지의 임시 목업 데이터.
-const MOCK_ROOM = {
-  name: '주말 산책러들',
-  targetSteps: 10000,
-  myCalories: 128,
-  myDistanceKm: 2.7,
-};
-
-// 팀원별 오늘 걸음 수. 팀 목표 진행바/범례는 이 목록에서 바로 계산한다
-// (teamSteps를 따로 하드코딩하면 합계가 어긋날 수 있어서).
-const MOCK_TEAM_MEMBERS = [
-  { id: 'me', nickname: '나', steps: 3200, color: participantColors[0] },
-  { id: 'p2', nickname: '지민', steps: 1200, color: participantColors[1] },
-  { id: 'p3', nickname: '하은', steps: 800, color: participantColors[2] },
-  { id: 'p4', nickname: '준호', steps: 500, color: participantColors[3] },
-];
+/** 산책 중 걸음/거리/칼로리가 화면에서 계속 갱신되도록 다시 읽는 주기. */
+const HEALTH_POLL_INTERVAL_MS = 20000;
 
 function formatElapsed(totalSeconds: number) {
   const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
@@ -69,9 +59,49 @@ export function WalkSessionScreen() {
   const insets = useSafeAreaInsets();
   // 화면 마운트와 무관하게 시작 시각 기준으로 계산되는 경과 시간/일시정지
   // 상태. 뒤로가기로 나갔다 들어와도 0으로 리셋되지 않는다.
-  const { elapsedSeconds, isPaused, togglePause } = useWalkSession();
+  const { roomId, startHealthSummary, elapsedSeconds, isPaused, togglePause } =
+    useWalkSession();
   // 일시정지하면 경로도 같이 멈춘다. 지금까지 찍은 좌표는 그대로 남는다.
   const { route, initialCoords } = useRouteTracking(!isPaused);
+
+  const roomQuery = useRoomDetailQuery(roomId);
+  const room = roomQuery.data ?? null;
+  // 방 목표 걸음수는 "이번 주" 단위라 주간 누적으로 비교한다. 팀원별 걸음수를
+  // 내려주는 API가 없어(다른 사람 헬스 데이터라 프라이버시 이슈도 있다),
+  // 지금은 내 걸음수만 반영한다.
+  const weeklyStepsQuery = useHistoriesQuery('WEEK', todayIso());
+  const weeklySteps = weeklyStepsQuery.data?.totalStep ?? 0;
+  const targetStepCount = room?.targetStepCount ?? null;
+  const remainingSteps =
+    targetStepCount !== null ? Math.max(0, targetStepCount - weeklySteps) : 0;
+  const stepSegments = [{ value: weeklySteps, color: participantColors[0] }];
+
+  // 걷는 동안 화면에 뜬 값이 계속 갱신되도록 주기적으로 다시 읽는다.
+  const health = useSamsungHealthToday({ refetchInterval: HEALTH_POLL_INTERVAL_MS });
+  const healthSummary =
+    health.data?.status === 'ok' ? health.data.summary : null;
+  // 오늘 누적치에서 세션 시작 시점 기준값을 빼서 "이 산책에서" 걷고 쓴
+  // 양만 보여준다. 기준값을 아직 못 읽었으면(권한 문제 등) 0을 빼는 셈이라
+  // 오늘 누적치가 그대로 나온다.
+  const sessionSteps = healthSummary
+    ? Math.max(0, healthSummary.steps - (startHealthSummary?.steps ?? 0))
+    : 0;
+  const sessionDistanceKm = healthSummary
+    ? Math.round(
+        Math.max(
+          0,
+          healthSummary.distanceMeters - (startHealthSummary?.distanceMeters ?? 0),
+        ) / 100,
+      ) / 10
+    : 0;
+  const sessionCalories = healthSummary
+    ? Math.round(
+        Math.max(
+          0,
+          healthSummary.activeCalories - (startHealthSummary?.activeCalories ?? 0),
+        ),
+      )
+    : 0;
   const mapRef = useRef<WalkRouteMapHandle>(null);
   // 현위치 버튼을 패널의 현재 노출 높이 바로 위에 띄우려면 패널의 실측
   // 높이가 필요하다(콘텐츠에 따라 늘어나서 고정값을 쓸 수 없다). 패널을
@@ -130,14 +160,6 @@ export function WalkSessionScreen() {
     }),
   ).current;
 
-  const teamSteps = MOCK_TEAM_MEMBERS.reduce((sum, member) => sum + member.steps, 0);
-  const mySteps = MOCK_TEAM_MEMBERS.find(member => member.id === 'me')?.steps ?? 0;
-  const remainingSteps = Math.max(0, MOCK_ROOM.targetSteps - teamSteps);
-  const stepSegments = MOCK_TEAM_MEMBERS.map(member => ({
-    value: member.steps,
-    color: member.color,
-  }));
-
   const handleEndWalk = useCallback(() => {
     Alert.alert('산책 종료', '지금 산책을 종료할까요?', [
       { text: '취소', style: 'cancel' },
@@ -145,8 +167,8 @@ export function WalkSessionScreen() {
         text: '종료',
         style: 'destructive',
         onPress: () => {
-          // TODO: 실제 산책 종료/방 나가기(DELETE /rooms/{roomId}/members/me) 연동.
-          // 그때 경과 시간(useWalkSession의 elapsedSeconds)을 운동시간으로 같이 보낸다.
+          // 방은 이번 주 내내 유지된다(월요일 자동 초기화 전까지). 여기서는 이
+          // 화면의 로컬 세션(경과 시간 타이머)만 끝내고, 방 자체는 그대로 둔다.
           endWalkSession();
           navigation.goBack();
         },
@@ -192,14 +214,18 @@ export function WalkSessionScreen() {
           <Ionicons name="chevron-back" size={22} color={colors.ink} />
         </Pressable>
         <View style={styles.roomBadge}>
-          <Ionicons name="people" size={16} color={colors.successText} />
-          <Text style={styles.roomBadgeText}>{MOCK_ROOM.name}</Text>
+          <Ionicons
+            name={room?.mode === 'SINGLE' ? 'walk' : 'people'}
+            size={16}
+            color={colors.successText}
+          />
+          <Text style={styles.roomBadgeText}>{room?.name ?? ''}</Text>
         </View>
         <Pressable
           style={styles.iconButton}
           onPress={() => navigation.navigate('BingoBoard')}
           accessibilityRole="button"
-          accessibilityLabel="팀 빙고 보기"
+          accessibilityLabel={room?.mode === 'SINGLE' ? '빙고판 보기' : '팀 빙고 보기'}
         >
           <Ionicons name="grid-outline" size={20} color={colors.ink} />
         </Pressable>
@@ -230,47 +256,42 @@ export function WalkSessionScreen() {
           <View style={styles.dragHandle} />
         </View>
 
-        <Text style={styles.sectionLabel}>이번 산책 팀 목표</Text>
-        <View style={styles.teamGoalRow}>
-          <Text style={styles.teamGoalValue}>{teamSteps.toLocaleString()}</Text>
-          <Text style={styles.teamGoalTarget}>
-            {' '}
-            / {MOCK_ROOM.targetSteps.toLocaleString()}보
-          </Text>
-        </View>
-        <MemberProgressBar segments={stepSegments} total={MOCK_ROOM.targetSteps} />
-        <Text style={styles.remainingText}>
-          {remainingSteps.toLocaleString()}보 남았어요
-        </Text>
-
-        <View style={styles.memberLegendRow}>
-          {MOCK_TEAM_MEMBERS.map(member => (
-            <View key={member.id} style={styles.memberLegendItem}>
-              <View
-                style={[styles.memberDot, { backgroundColor: member.color }]}
-              />
-              <Text style={styles.memberName}>{member.nickname}</Text>
+        {targetStepCount !== null ? (
+          <>
+            <Text style={styles.sectionLabel}>이번 주 목표</Text>
+            <View style={styles.teamGoalRow}>
+              <Text style={styles.teamGoalValue}>
+                {weeklySteps.toLocaleString()}
+              </Text>
+              <Text style={styles.teamGoalTarget}>
+                {' '}
+                / {targetStepCount.toLocaleString()}보
+              </Text>
             </View>
-          ))}
-        </View>
+            <MemberProgressBar segments={stepSegments} total={targetStepCount} />
+            <Text style={styles.remainingText}>
+              {remainingSteps.toLocaleString()}보 남았어요
+            </Text>
+          </>
+        ) : null}
 
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>오늘 걸음</Text>
+            <Text style={styles.statLabel}>이번 산책 걸음</Text>
             <Text style={[styles.statValue, styles.statValueAccent]}>
-              {mySteps.toLocaleString()}
+              {sessionSteps.toLocaleString()}
             </Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>칼로리</Text>
-            <Text style={styles.statValue}>{MOCK_ROOM.myCalories}</Text>
+            <Text style={styles.statValue}>{sessionCalories}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>거리</Text>
             <Text style={styles.statValue}>
-              {MOCK_ROOM.myDistanceKm}
+              {sessionDistanceKm}
               <Text style={styles.statUnit}>km</Text>
             </Text>
           </View>
@@ -441,30 +462,6 @@ const styles = StyleSheet.create({
     opacity: 0.6,
     marginTop: spacing.xs,
     marginBottom: spacing.md,
-  },
-  memberLegendRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  memberLegendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  memberDot: {
-    width: 10,
-    height: 10,
-    borderRadius: radius.xs,
-    borderWidth: 1,
-    borderColor: colors.ink,
-  },
-  memberName: {
-    fontFamily: fontFamily.regular,
-    fontSize: 12,
-    color: colors.ink,
-    opacity: 0.7,
   },
   statsRow: {
     flexDirection: 'row',

@@ -14,13 +14,20 @@ export type RoomMemberResponse = {
   memberId: number;
   nickname: string;
   host: boolean;
+  completedMissionCount: number;
+  joinedAt: string;
+  bingoBoardId: number | null;
 };
 
 export type RoomDetailResponse = {
   roomId: number;
+  name: string;
   mode: GameMode;
   status: GameRoomStatus;
   targetBingoCount: number | null;
+  targetStepCount: number | null;
+  totalMissionCount: number;
+  completedMissionCount: number;
   hostId: number;
   startedAt: string | null;
   members: RoomMemberResponse[];
@@ -36,6 +43,10 @@ export type CreateRoomRequest = {
 
 export function createRoom(body: CreateRoomRequest) {
   return apiClient.post<RoomDetailResponse>('/rooms', body);
+}
+
+export function getRoomDetail(roomId: number) {
+  return apiClient.get<RoomDetailResponse>(`/rooms/${roomId}`);
 }
 
 export type MyRoomMemberResponse = {

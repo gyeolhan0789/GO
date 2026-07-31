@@ -9,15 +9,31 @@
 // 시작 시각도 지금은 화면 진입 시점을 쓰지만, 실제로는 방(room)의
 // startedAt을 그대로 써야 한다.
 
+import {
+  readSamsungHealthToday,
+  type SamsungHealthSummary,
+} from '../../../shared/lib/samsungHealth';
+
 type Listener = () => void;
 
 type WalkSessionState = {
+  roomId: number | null;
   startedAt: number | null;
   pausedAt: number | null;
   pausedMs: number;
+  /** 세션 시작 시점의 오늘 누적 걸음/거리/칼로리(기준값). 이 세션에서만
+   * 걷고 쓴 양을 보여주려면 나중 값에서 이 값을 뺀다. 조회 실패/미허용이면
+   * null로 남고, 화면 쪽이 오늘 누적치를 그대로 보여주는 걸로 대체한다. */
+  startHealthSummary: SamsungHealthSummary | null;
 };
 
-let state: WalkSessionState = { startedAt: null, pausedAt: null, pausedMs: 0 };
+let state: WalkSessionState = {
+  roomId: null,
+  startedAt: null,
+  pausedAt: null,
+  pausedMs: 0,
+  startHealthSummary: null,
+};
 const listeners = new Set<Listener>();
 
 function notify() {
@@ -25,17 +41,47 @@ function notify() {
 }
 
 /** 이미 진행 중인 세션이 있으면 건드리지 않는다(중복 시작 방지). */
-export function startWalkSession() {
+export function startWalkSession(roomId: number) {
   if (state.startedAt !== null) {
     return;
   }
-  state = { startedAt: Date.now(), pausedAt: null, pausedMs: 0 };
+  const startedAt = Date.now();
+  state = {
+    roomId,
+    startedAt,
+    pausedAt: null,
+    pausedMs: 0,
+    startHealthSummary: null,
+  };
   notify();
+
+  readSamsungHealthToday().then(summary => {
+    // 그 사이 세션이 끝났거나 다른 세션이 새로 시작됐으면 이 기준값은 버린다.
+    if (state.startedAt !== startedAt || summary === null) {
+      return;
+    }
+    state = { ...state, startHealthSummary: summary };
+    notify();
+  });
 }
 
 export function endWalkSession() {
-  state = { startedAt: null, pausedAt: null, pausedMs: 0 };
+  state = {
+    roomId: null,
+    startedAt: null,
+    pausedAt: null,
+    pausedMs: 0,
+    startHealthSummary: null,
+  };
   notify();
+}
+
+export function getWalkSessionRoomId() {
+  return state.roomId;
+}
+
+export function getWalkSessionStartHealthSummary() {
+  return state.startHealthSummary;
 }
 
 export function togglePauseWalkSession() {
