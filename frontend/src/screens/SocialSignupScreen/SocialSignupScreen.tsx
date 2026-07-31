@@ -5,7 +5,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -23,8 +22,14 @@ import {
 } from '../../features/auth/model/validation';
 import type { SocialSignupErrors } from '../../features/auth/model/validation';
 import { resolveApiErrorMessage } from '../../shared/api/resolveApiErrorMessage';
+import { AppText } from '../../shared/components/AppText/AppText';
 import { Screen } from '../../shared/components/Screen/Screen';
-import { fontFamily } from '../../shared/constants/typography';
+import { colors } from '../../shared/constants/colors';
+import {
+  bodyFont,
+  fontFamily,
+  lineHeights,
+} from '../../shared/constants/typography';
 // 상단 픽셀아트 배너는 회원가입 화면의 히어로를 그대로 재활용한다.
 import { SignupHero } from '../SignupScreen/components/SignupHero';
 
@@ -33,11 +38,11 @@ type SocialSignupScreenProps = NativeStackScreenProps<
   'SocialSignup'
 >;
 
-const LABEL_COLOR = '#374151';
-const ERROR_COLOR = '#DC2626';
-const TITLE_COLOR = '#111827';
-const SUBTITLE_COLOR = '#4B5563';
-const PRIMARY_COLOR = '#27A34A';
+const LABEL_COLOR = colors.inkSoft;
+const ERROR_COLOR = colors.danger;
+const TITLE_COLOR = colors.ink;
+const SUBTITLE_COLOR = colors.inkMuted;
+const PRIMARY_COLOR = colors.primary;
 
 // 본문 view가 사진을 덮는 오버랩 높이와 상단 라운드 반경. 회원가입과 동일 규격.
 const BODY_OVERLAP = 24;
@@ -106,11 +111,11 @@ export function SocialSignupScreen({
           <SignupHero />
 
           <View style={styles.body}>
-            <Text style={styles.title}>거의 다 왔어요!</Text>
-            <Text style={styles.subtitle}>
-              <Text style={styles.subtitleAccent}>{providerLabel}</Text> 계정으로
+            <AppText style={styles.title}>거의 다 왔어요!</AppText>
+            <AppText style={styles.subtitle}>
+              <AppText style={styles.subtitleAccent}>{providerLabel}</AppText> 계정으로
               시작할게요. 닉네임과 성별만 정해주세요.
-            </Text>
+            </AppText>
 
             <AuthTextField
               label="닉네임"
@@ -130,7 +135,7 @@ export function SocialSignupScreen({
             />
 
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>성별</Text>
+              <AppText style={styles.sectionLabel}>성별</AppText>
               <GenderSelector
                 selected={gender}
                 onSelect={value => {
@@ -139,16 +144,16 @@ export function SocialSignupScreen({
                 }}
               />
               {errors.gender ? (
-                <Text style={styles.error} accessibilityLiveRegion="polite">
+                <AppText style={styles.error} accessibilityLiveRegion="polite">
                   {errors.gender}
-                </Text>
+                </AppText>
               ) : null}
             </View>
 
             {mutation.error ? (
-              <Text style={styles.error} accessibilityLiveRegion="polite">
+              <AppText style={styles.error} accessibilityLiveRegion="polite">
                 {resolveApiErrorMessage(mutation.error)}
-              </Text>
+              </AppText>
             ) : null}
 
             <AuthSubmitButton
@@ -164,7 +169,7 @@ export function SocialSignupScreen({
               accessibilityRole="button"
               accessibilityState={{ disabled: mutation.isPending }}
             >
-              <Text style={styles.cancelText}>다른 방법으로 로그인</Text>
+              <AppText style={styles.cancelText}>다른 방법으로 로그인</AppText>
             </Pressable>
           </View>
         </ScrollView>
@@ -180,33 +185,33 @@ const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
     paddingBottom: 32,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   body: {
     marginTop: -BODY_OVERLAP + 8,
     borderTopLeftRadius: BODY_CORNER_RADIUS,
     borderTopRightRadius: BODY_CORNER_RADIUS,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     paddingHorizontal: 24,
     paddingTop: BODY_OVERLAP + 20,
   },
   title: {
     fontFamily: fontFamily.bold,
     fontSize: 26,
-    lineHeight: 34,
+    lineHeight: lineHeights[26],
     color: TITLE_COLOR,
     textAlign: 'center',
   },
   subtitle: {
     marginTop: 8,
     marginBottom: 28,
+    fontFamily: bodyFont.regular,
     fontSize: 15,
-    lineHeight: 22,
     color: SUBTITLE_COLOR,
     textAlign: 'center',
   },
   subtitleAccent: {
-    fontWeight: '700',
+    fontFamily: bodyFont.bold,
     color: PRIMARY_COLOR,
   },
   section: {
@@ -214,14 +219,17 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     marginBottom: 8,
+    fontFamily: bodyFont.medium,
     fontSize: 14,
-    fontWeight: '600',
+    lineHeight: lineHeights[14],
     color: LABEL_COLOR,
   },
   error: {
     marginTop: 4,
     marginBottom: 12,
+    fontFamily: bodyFont.regular,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: ERROR_COLOR,
   },
   cancelLink: {
@@ -229,7 +237,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelText: {
+    fontFamily: bodyFont.regular,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: SUBTITLE_COLOR,
   },
 });

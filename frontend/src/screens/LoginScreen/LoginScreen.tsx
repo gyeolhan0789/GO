@@ -189,9 +189,12 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
             </View>
 
             {social.errorMessage ? (
-              <Text style={styles.serverError} accessibilityLiveRegion="polite">
+              <AppText
+                style={styles.serverError}
+                accessibilityLiveRegion="polite"
+              >
                 {social.errorMessage}
-              </Text>
+              </AppText>
             ) : null}
 
             <SocialAuthButtons

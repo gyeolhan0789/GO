@@ -358,9 +358,9 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
             </View>
 
             {social.errorMessage ? (
-              <Text style={styles.error} accessibilityLiveRegion="polite">
+              <AppText style={styles.error} accessibilityLiveRegion="polite">
                 {social.errorMessage}
-              </Text>
+              </AppText>
             ) : null}
 
             <SocialAuthButtons
