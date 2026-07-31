@@ -134,7 +134,15 @@ export function BingoBoardScreen({
   };
 
   const handleCapturePhoto = useCallback(async () => {
-    const result = await launchCamera({ mediaType: 'photo', saveToPhotos: false });
+    // 백엔드 업로드 제한(application.yml, 5MB)을 넘지 않도록 촬영 단계에서
+    // 미리 리사이즈·압축한다 — 원본 해상도는 사물 인식에 필요하지도 않다.
+    const result = await launchCamera({
+      mediaType: 'photo',
+      saveToPhotos: false,
+      maxWidth: 1280,
+      maxHeight: 1280,
+      quality: 0.7,
+    });
     if (result.didCancel) {
       return;
     }
