@@ -2,6 +2,9 @@ package com.wecandoit.bingo.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
@@ -13,6 +16,7 @@ import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
+import com.wecandoit.common.storage.ImageUploadService;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameStatus;
@@ -34,7 +38,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("빙고판 명령 서비스")
@@ -42,6 +48,7 @@ class BingoCommandServiceTest {
 
     private static final List<BingoBoardStatus> INACTIVE_STATUSES =
             List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED);
+    private static final String STORED_SUBMIT_URL = "/uploads/test/bingo-cells/1000/stored.png";
 
     @Mock
     private RoomRepository roomRepository;
@@ -58,6 +65,8 @@ class BingoCommandServiceTest {
     @Mock
     private NotificationRepository notificationRepository;
     @Mock
+    private ImageUploadService imageUploadService;
+    @Mock
     private GameCycleCommandService gameCycleCommandService;
     @Mock
     private ApplicationEventPublisher eventPublisher;
@@ -65,6 +74,10 @@ class BingoCommandServiceTest {
     private NotificationMessageFactory notificationMessageFactory;
     @InjectMocks
     private BingoCommandService bingoCommandService;
+
+    private MultipartFile image() {
+        return new MockMultipartFile("image", "proof.png", "image/png", new byte[]{1, 2, 3});
+    }
 
     @Test
     @DisplayName("활성 공유 회차의 셀을 제출하면 제출자와 제출 시각을 기록한다")
@@ -84,12 +97,43 @@ class BingoCommandServiceTest {
                 .willReturn(Optional.of(board));
         given(bingoCellRepository.findByIdForUpdate(50L)).willReturn(Optional.of(cell));
         given(bingoCellRepository.save(cell)).willReturn(cell);
+        given(imageUploadService.upload(any(MultipartFile.class), eq("bingo-cells"), anyString()))
+                .willReturn(STORED_SUBMIT_URL);
 
-        BingoCell result = bingoCommandService.submitCell(1L, 10L, 50L, "https://submit.test/image");
+        BingoCell result = bingoCommandService.submitCell(1L, 10L, 50L, image());
 
         assertThat(result.getMemberId()).isEqualTo(1L);
         assertThat(result.getSubmittedAt()).isNotNull();
-        assertThat(result.getSubmitUrl()).isEqualTo("https://submit.test/image");
+        assertThat(result.getSubmitUrl()).isEqualTo(STORED_SUBMIT_URL);
+    }
+
+    @Test
+    @DisplayName("거절된 칸을 재제출하면 이전 인증 이미지가 삭제된다")
+    void submitCellDeletesPreviousImageOnResubmit() {
+        Room room = room(10L);
+        Game game = game(20L, LocalDateTime.now());
+        BingoBoard board = board(30L, game.getId());
+        BingoCell cell = BingoCell.create(board.getId(), 40L, 0, 0);
+        ReflectionTestUtils.setField(cell, "id", 50L);
+        String previousSubmitUrl = "/uploads/test/bingo-cells/1000/previous.png";
+        cell.submit(1L, previousSubmitUrl);
+        cell.reject("인증 이미지가 조건과 다릅니다.");
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(
+                10L,
+                GameStatus.ACTIVE
+        )).willReturn(Optional.of(game));
+        given(bingoBoardRepository.findActiveBoardForUpdate(game.getId(), INACTIVE_STATUSES))
+                .willReturn(Optional.of(board));
+        given(bingoCellRepository.findByIdForUpdate(50L)).willReturn(Optional.of(cell));
+        given(bingoCellRepository.save(cell)).willReturn(cell);
+        given(imageUploadService.upload(any(MultipartFile.class), eq("bingo-cells"), anyString()))
+                .willReturn(STORED_SUBMIT_URL);
+
+        bingoCommandService.submitCell(1L, 10L, 50L, image());
+
+        then(imageUploadService).should().delete(previousSubmitUrl);
     }
 
     @Test
@@ -108,7 +152,7 @@ class BingoCommandServiceTest {
                 1L,
                 10L,
                 50L,
-                "https://submit.test/image"
+                image()
         ))
                 .isInstanceOf(CustomException.class)
                 .extracting(exception -> ((CustomException) exception).getErrorCode())
