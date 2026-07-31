@@ -17,18 +17,10 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
 
     List<Room> findAllByModeAndStatus(GameMode mode, RoomStatus status);
 
-    @Query("""
-            select r from Room r
-            join RoomMember rm on rm.roomId = r.id
-            where rm.memberId = :memberId
-              and r.mode = :mode
-              and r.status = :status
-            order by r.id desc
-            """)
-    Optional<Room> findFirstByMemberIdAndModeAndStatus(
-            @Param("memberId") Long memberId,
-            @Param("mode") GameMode mode,
-            @Param("status") RoomStatus status
+    Optional<Room> findFirstByHostIdAndModeAndStatusOrderByIdDesc(
+            Long hostId,
+            GameMode mode,
+            RoomStatus status
     );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

@@ -3,12 +3,12 @@ package com.wecandoit.game.controller;
 import com.wecandoit.common.security.LoginMemberId;
 import com.wecandoit.game.controller.request.CreateRoomRequest;
 import com.wecandoit.game.controller.request.UpdateRoomNameRequest;
-import com.wecandoit.game.controller.response.CreateRoomResponse;
 import com.wecandoit.game.controller.response.MyRoomResponse;
 import com.wecandoit.game.controller.response.RoomDetailResponse;
 import com.wecandoit.game.controller.response.RoomMemberResponse;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.service.RoomCommandService;
+import com.wecandoit.game.service.RoomCreateFacade;
 import com.wecandoit.game.service.RoomReadService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -31,6 +31,7 @@ public class RoomController {
 
     private final RoomCommandService roomCommandService;
     private final RoomReadService roomReadService;
+    private final RoomCreateFacade roomCreateFacade;
 
     @GetMapping
     public ResponseEntity<List<MyRoomResponse>> getMyRooms(
@@ -55,8 +56,7 @@ public class RoomController {
             @LoginMemberId Long memberId,
             @Valid @RequestBody CreateRoomRequest request
     ) {
-        CreateRoomResponse response = roomCommandService.createRoom(memberId, request);
-        RoomDetailResponse roomDetail = roomReadService.getRoomDetail(memberId, response.roomId());
+        RoomDetailResponse roomDetail = roomCreateFacade.createRoom(memberId, request);
         return ResponseEntity.ok(roomDetail);
     }
 
