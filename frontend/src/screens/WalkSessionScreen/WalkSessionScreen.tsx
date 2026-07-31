@@ -20,9 +20,8 @@ import { useHistoriesQuery } from '../../features/history/hooks/useHistoriesQuer
 import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
 import { useWalkSession } from '../../features/walk-session/hooks/useWalkSession';
 import {
+  confirmWalkSessionStart,
   endWalkSession,
-  getWalkSessionHasShownCountdown,
-  markWalkSessionCountdownShown,
 } from '../../features/walk-session/model/walkSessionStore';
 import { Button } from '../../shared/components/Button/Button';
 import { MemberProgressBar } from '../../shared/components/MemberProgressBar/MemberProgressBar';
@@ -62,23 +61,16 @@ type WalkSessionNavigation = NativeStackNavigationProp<
 export function WalkSessionScreen() {
   const navigation = useNavigation<WalkSessionNavigation>();
   const insets = useSafeAreaInsets();
-  // 화면에 들어오자마자 지도가 바로 보이면 어색해서, 짧게 카운트다운을
-  // 보여준 뒤 나머지 UI를 그대로 노출한다(탭하면 건너뜀). 화면 마운트가
-  // 아니라 세션 단위로 한 번만 보여줘야, 뒤로가기 후 재진입했을 때
-  // 이미 진행 중인 세션에 또 뜨지 않는다.
-  const [showCountdown, setShowCountdown] = useState(
-    () => !getWalkSessionHasShownCountdown(),
-  );
-  const handleCountdownFinish = useCallback(() => {
-    markWalkSessionCountdownShown();
-    setShowCountdown(false);
-  }, []);
   // 화면 마운트와 무관하게 시작 시각 기준으로 계산되는 경과 시간/일시정지
-  // 상태. 뒤로가기로 나갔다 들어와도 0으로 리셋되지 않는다.
-  const { roomId, startHealthSummary, elapsedSeconds, isPaused, togglePause } =
+  // 상태. 뒤로가기로 나갔다 들어와도 0으로 리셋되지 않는다. isStarted가
+  // false인 동안은 카운트다운이 아직 안 끝난 것이라 경과 시간이 0으로
+  // 고정된다.
+  const { roomId, startHealthSummary, elapsedSeconds, isPaused, isStarted, togglePause } =
     useWalkSession();
+  // 카운트다운이 끝나야 진짜 시작이므로, 그 전까지는 경로도 기록하지 않는다.
+  const showCountdown = !isStarted;
   // 일시정지하면 경로도 같이 멈춘다. 지금까지 찍은 좌표는 그대로 남는다.
-  const { route, initialCoords } = useRouteTracking(!isPaused);
+  const { route, initialCoords } = useRouteTracking(isStarted && !isPaused);
 
   const roomQuery = useRoomDetailQuery(roomId);
   const room = roomQuery.data ?? null;
@@ -342,7 +334,7 @@ export function WalkSessionScreen() {
       </Animated.View>
 
       {showCountdown ? (
-        <WalkCountdownOverlay onFinish={handleCountdownFinish} />
+        <WalkCountdownOverlay onFinish={confirmWalkSessionStart} />
       ) : null}
     </Screen>
   );

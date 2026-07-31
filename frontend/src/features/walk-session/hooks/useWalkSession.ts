@@ -5,6 +5,7 @@ import {
   getWalkSessionRoomId,
   getWalkSessionStartHealthSummary,
   isWalkSessionPaused,
+  isWalkSessionStarted,
   subscribeWalkSession,
   togglePauseWalkSession,
 } from '../model/walkSessionStore';
@@ -20,6 +21,9 @@ export function useWalkSession() {
   );
   const [elapsedSeconds, setElapsedSeconds] = useState(getWalkSessionElapsedSeconds);
   const [isPaused, setPaused] = useState(isWalkSessionPaused);
+  // 시작 카운트다운이 끝나기 전까지는 false다(WalkSessionScreen이 이 값으로
+  // 카운트다운 오버레이를 계속 보여줄지 판단한다).
+  const [isStarted, setStarted] = useState(isWalkSessionStarted);
 
   useEffect(() => {
     const sync = () => {
@@ -27,26 +31,28 @@ export function useWalkSession() {
       setStartHealthSummary(getWalkSessionStartHealthSummary());
       setElapsedSeconds(getWalkSessionElapsedSeconds());
       setPaused(isWalkSessionPaused());
+      setStarted(isWalkSessionStarted());
     };
     sync();
     return subscribeWalkSession(sync);
   }, []);
 
   useEffect(() => {
-    if (isPaused) {
+    if (isPaused || !isStarted) {
       return;
     }
     const timer = setInterval(() => {
       setElapsedSeconds(getWalkSessionElapsedSeconds());
     }, 1000);
     return () => clearInterval(timer);
-  }, [isPaused]);
+  }, [isPaused, isStarted]);
 
   return {
     roomId,
     startHealthSummary,
     elapsedSeconds,
     isPaused,
+    isStarted,
     togglePause: togglePauseWalkSession,
   };
 }
