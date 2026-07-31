@@ -70,6 +70,10 @@ public class RoomReadService {
     }
 
     public List<MyRoomResponse> getMyRooms(Long memberId) {
+        return getMyRooms(memberId, null);
+    }
+
+    public List<MyRoomResponse> getMyRooms(Long memberId, GameMode mode) {
         List<RoomMember> myRoomMembers = roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(memberId);
         if (myRoomMembers.isEmpty()) {
             return List.of();
@@ -81,7 +85,7 @@ public class RoomReadService {
                 .toList();
         Map<Long, Room> roomsById = getRoomsById(roomIds);
         List<RoomMember> activeRoomMembers = myRoomMembers.stream()
-                .filter(roomMember -> roomsById.get(roomMember.getRoomId()).getStatus() != GameRoomStatus.CLOSED)
+                .filter(roomMember -> isActiveRoomWithMode(roomsById.get(roomMember.getRoomId()), mode))
                 .toList();
         if (activeRoomMembers.isEmpty()) {
             return List.of();
@@ -113,6 +117,11 @@ public class RoomReadService {
                     );
                 })
                 .toList();
+    }
+
+    private boolean isActiveRoomWithMode(Room room, GameMode mode) {
+        return room.getStatus() != GameRoomStatus.CLOSED
+                && (mode == null || room.getMode() == mode);
     }
 
     public List<RoomMemberResponse> getRoomMembers(Long memberId, Long roomId) {

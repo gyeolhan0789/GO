@@ -12,6 +12,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import type { RootStackParamList } from '../src/app/navigation/RootNavigator';
+import { AuthProvider } from '../src/features/auth/model/AuthContext';
 import { CHARACTER_QUERY_KEY } from '../src/features/member/hooks/useMyCharacterQuery';
 import {
   MOCK_CHARACTER,
@@ -40,6 +41,12 @@ const INITIAL_METRICS = {
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+// 마이페이지의 로그아웃 버튼이 useAuth를 타므로 AuthProvider가 필요하다. 저장된
+// 리프레시 토큰이 없는 기기라 세션 복구는 요청 없이 끝난다.
+jest.mock('react-native-keychain', () =>
+  require('../jest/keychainMock').createKeychainMock(),
+);
 
 function findMockItem(name: string) {
   const item = MOCK_OWNED_ITEMS.find(candidate => candidate.name === name);
@@ -153,9 +160,11 @@ async function render(element: React.ReactElement, client: QueryClient) {
   await act(async () => {
     renderer = ReactTestRenderer.create(
       <QueryClientProvider client={client}>
-        <SafeAreaProvider initialMetrics={INITIAL_METRICS}>
-          {element}
-        </SafeAreaProvider>
+        <AuthProvider>
+          <SafeAreaProvider initialMetrics={INITIAL_METRICS}>
+            {element}
+          </SafeAreaProvider>
+        </AuthProvider>
       </QueryClientProvider>,
     );
   });

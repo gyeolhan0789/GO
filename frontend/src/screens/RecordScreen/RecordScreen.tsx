@@ -66,7 +66,7 @@ export function RecordScreen() {
 
         <FlatList
           data={recentWalks}
-          keyExtractor={walk => String(walk.walkId)}
+          keyExtractor={walk => String(walk.roomId)}
           ListHeaderComponent={
             <View style={styles.listHeader}>
               <View style={styles.periodRow}>
@@ -109,6 +109,8 @@ export function RecordScreen() {
             <Text style={styles.statusText}>
               {recentWalksQuery.isLoading
                 ? LOADING_TEXT
+                : recentWalksQuery.isError
+                ? '산책 기록을 불러오지 못했어요.'
                 : '아직 산책 기록이 없어요.'}
             </Text>
           }
@@ -116,7 +118,7 @@ export function RecordScreen() {
             <WalkCard
               walk={item}
               onPress={() =>
-                navigation.navigate('WalkDetail', { walkId: item.walkId })
+                navigation.navigate('WalkDetail', { roomId: item.roomId })
               }
             />
           )}

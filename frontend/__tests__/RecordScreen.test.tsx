@@ -13,6 +13,9 @@ import { BarChart, ProgressChart } from 'react-native-chart-kit';
 import { WalkCard } from '../src/features/history/components/WalkCard/WalkCard';
 import { RECENT_WALK_LIMIT } from '../src/features/history/hooks/useRecentWalksQuery';
 import { RecordScreen } from '../src/screens/RecordScreen/RecordScreen';
+import { installFetchMock, jsonResponse } from '../jest/fetchMock';
+import type { FetchMock } from '../jest/fetchMock';
+import { buildGameResultSlice } from '../jest/gameResultFixtures';
 
 // jest에는 네이티브 모듈이 없어서 권한 통과 + 기록 있는 기기를 흉내낸다.
 jest.mock('../src/shared/lib/samsungHealth', () => ({
@@ -38,8 +41,21 @@ const { navigateMock } = jest.requireMock('@react-navigation/native') as {
   navigateMock: jest.Mock;
 };
 
+/** 목록에 세울 산책 수. 최근 산책은 첫 페이지만 쓴다. */
+const TOTAL_WALKS = 27;
+
+let fetchMock: FetchMock;
+
 beforeEach(() => {
   navigateMock.mockClear();
+  fetchMock = installFetchMock();
+  fetchMock.mockImplementation(async url => {
+    if (url.includes('/game-results')) {
+      const size = Number(/size=(\d+)/.exec(url)?.[1]);
+      return jsonResponse(200, buildGameResultSlice(0, size, TOTAL_WALKS));
+    }
+    throw new Error(`예상하지 못한 요청: ${url}`);
+  });
 });
 
 const INITIAL_METRICS = {
@@ -159,8 +175,11 @@ describe('RecordScreen', () => {
     expect(texts).toContain('이번 주 걸음');
     expect(texts).toContain('최근 산책');
     expect(texts).toContain('민서와의 산책');
-    expect(texts).toContain('4,231 걸음 · 12분 31초');
-    expect(texts).toContain('2026.07.20 (월) 20:00');
+    // 걸음·거리·칼로리는 산책방 단위로 남는 데가 없어 게임 지표를 보여준다.
+    expect(texts).toContain('혼자 · 미션 4/9');
+    // 카드는 한 줄만 써서 요일·시각 없이 날짜만 남긴다.
+    expect(texts).toContain('2026.07.20');
+    expect(texts).toContain('성공');
     expect(texts).toContain('전체 기록 보기');
   });
 
@@ -239,7 +258,7 @@ describe('RecordScreen', () => {
       ).props.onPress();
     });
 
-    expect(navigateMock).toHaveBeenCalledWith('WalkDetail', { walkId: 1 });
+    expect(navigateMock).toHaveBeenCalledWith('WalkDetail', { roomId: 1 });
   });
 
   test('최근 산책은 3건만 보여준다', async () => {

@@ -8,9 +8,6 @@ const STALE_TIME_MS = 60 * 1000;
 
 export const CASH_QUERY_KEY = ['member', 'cash'];
 
-// TODO: 상점 구매 mutation이 생기면, 성공 콜백에서
-// queryClient.invalidateQueries({ queryKey: CASH_QUERY_KEY })로 이 캐시를
-// 즉시 무효화한다. staleTime만으로는 구매 직후에도 옛 포인트가 보일 수 있다.
 export function useMyCashQuery() {
   return useQuery({
     queryKey: CASH_QUERY_KEY,

@@ -1,3 +1,4 @@
+import type { StyleProp, ViewStyle } from 'react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Ionicons, {
   type IoniconsIconName,
@@ -19,6 +20,10 @@ type ButtonProps = {
   size?: ButtonSize;
   icon?: IoniconsIconName;
   disabled?: boolean;
+  /** label이 진행 상태에 따라 바뀌는 버튼에 고정된 이름을 주기 위한 값. */
+  accessibilityLabel?: string;
+  /** 바깥 래퍼(그림자 박스 포함)에 적용. flex:1 등 배치 제어용. */
+  style?: StyleProp<ViewStyle>;
 };
 
 const HEIGHT_BY_SIZE: Record<ButtonSize, number> = {
@@ -33,15 +38,18 @@ export function Button({
   size = 'md',
   icon,
   disabled = false,
+  accessibilityLabel,
+  style,
 }: ButtonProps) {
   const isPrimary = variant === 'primary';
 
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, style]}>
       <View style={styles.shadowBox} />
       <Pressable
         onPress={onPress}
         disabled={disabled}
+        accessibilityLabel={accessibilityLabel}
         style={({ pressed }) => [
           styles.base,
           { height: HEIGHT_BY_SIZE[size] },

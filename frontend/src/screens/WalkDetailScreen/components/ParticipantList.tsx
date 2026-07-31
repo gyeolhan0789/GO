@@ -1,4 +1,4 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import type { WalkDetailParticipant } from '../../../features/history/types';
@@ -23,23 +23,18 @@ export function ParticipantList({ participants }: ParticipantListProps) {
         {participants.map(participant => (
           <View key={participant.memberId} style={styles.participant}>
             <View style={styles.avatar}>
-              {participant.imageUrl ? (
-                <Image
-                  source={{ uri: participant.imageUrl }}
-                  style={styles.avatarImage}
-                  resizeMode="contain"
-                />
-              ) : (
-                // TODO: 백엔드가 캐릭터 이미지를 내려주면 채워진다.
-                <Ionicons
-                  name="person"
-                  size={PLACEHOLDER_ICON_SIZE}
-                  color={colors.primarySoft}
-                />
-              )}
+              {/* TODO: 백엔드가 캐릭터 이미지를 내려주면 채워진다. */}
+              <Ionicons
+                name="person"
+                size={PLACEHOLDER_ICON_SIZE}
+                color={colors.primarySoft}
+              />
             </View>
             <Text style={styles.name} numberOfLines={1}>
-              {participant.nickname}
+              {participant.isMe ? '나' : participant.nickname}
+            </Text>
+            <Text style={styles.missionCount} numberOfLines={1}>
+              {`미션 ${participant.completedMissionCount}개`}
             </Text>
           </View>
         ))}
@@ -69,14 +64,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-  },
   name: {
     fontFamily: 'BMDOHYEON',
     fontSize: 13,
     color: colors.ink,
     opacity: 0.6,
+  },
+  missionCount: {
+    fontFamily: 'BMDOHYEON',
+    fontSize: 11,
+    color: colors.ink,
+    opacity: 0.4,
   },
 });
