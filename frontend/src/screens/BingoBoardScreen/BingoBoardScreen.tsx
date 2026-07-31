@@ -1,26 +1,35 @@
 import { useCallback, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import type { LayoutChangeEvent } from 'react-native';
 import { launchCamera } from 'react-native-image-picker';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import type { IoniconsIconName } from '@react-native-vector-icons/ionicons';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
-import type { VerificationResult } from '../../features/bingo/api/bingoApi';
+import type { BingoCellResponse, VerificationResult } from '../../features/bingo/api/bingoApi';
 import { submitMissionPhoto } from '../../features/bingo/api/bingoApi';
 import type {
   BingoBoardCell,
   BingoBoardSize,
 } from '../../features/bingo/components/BingoBoard/BingoBoard';
 import { BingoBoard } from '../../features/bingo/components/BingoBoard/BingoBoard';
+import { useActiveBingoBoardQuery } from '../../features/bingo/hooks/useActiveBingoBoardQuery';
 import { MissionVerificationModal } from '../../features/bingo/components/MissionVerificationModal/MissionVerificationModal';
 import type { MissionType } from '../../features/bingo/model/missionType';
 import {
   MISSION_TYPE_LABELS,
   MISSION_TYPE_POINTS,
 } from '../../features/bingo/model/missionType';
+import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
 import { MemberProgressBar } from '../../shared/components/MemberProgressBar/MemberProgressBar';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { colors, participantColors } from '../../shared/constants/colors';
@@ -29,121 +38,99 @@ import { spacing } from '../../shared/constants/spacing';
 import { fontFamily } from '../../shared/constants/typography';
 import { useMeasuredWidth } from '../../shared/hooks/useMeasuredWidth';
 
-type Mission = {
-  title: string;
-  detail: string;
-  icon: IoniconsIconName;
-  type: MissionType;
+// 미션에 등록된 이미지가 없을 때 쓰는 유형별 기본 아이콘.
+const MISSION_TYPE_ICONS: Record<MissionType, IoniconsIconName> = {
+  OBJECT: 'cube-outline',
+  ATTRIBUTE: 'sparkles-outline',
+  RELATION: 'people-outline',
+  ORDINARY: 'walk-outline',
 };
 
-type SessionCell = BingoBoardCell & { mission: Mission; completedByMemberId?: string };
-
-// TODO: 방/빙고판 실제 API 연동 전까지의 임시 목업 데이터.
-const MOCK_MEMBERS = [
-  { id: 'me', nickname: '명듀에용', color: participantColors[0] },
-  { id: 'p2', nickname: '지민', color: participantColors[1] },
-  { id: 'p3', nickname: '하은', color: participantColors[2] },
-  { id: 'p4', nickname: '준호', color: participantColors[3] },
-];
-
-// 5x5(25칸)까지 미리보기할 수 있도록 넉넉히 채워둔다. 실제로는 방의
-// boardSize만큼만 서버가 내려주는 미션으로 잘라 쓰게 된다.
-const MOCK_MISSIONS: Mission[] = [
-  { title: '벚꽃 나무 찾기', detail: '주변에서 꽃이 핀 나무를 찾아 사진으로 인증해보세요.', icon: 'leaf-outline', type: 'OBJECT' },
-  { title: '고양이 만나기', detail: '동네를 걷다 고양이를 만나면 인증해보세요.', icon: 'paw-outline', type: 'RELATION' },
-  { title: '카페 방문하기', detail: '가까운 카페에 들러 인증해보세요.', icon: 'cafe-outline', type: 'ORDINARY' },
-  { title: '벤치에서 쉬기', detail: '공원 벤치에서 잠깐 쉬며 인증해보세요.', icon: 'bed-outline', type: 'ORDINARY' },
-  { title: '무지개 다리 건너기', detail: '동네의 다리를 하나 건너보세요.', icon: 'trail-sign-outline', type: 'OBJECT' },
-  { title: '분수대 찾기', detail: '주변 분수대를 찾아 인증해보세요.', icon: 'water-outline', type: 'OBJECT' },
-  { title: '강아지 만나기', detail: '산책 중인 강아지를 만나면 인증해보세요.', icon: 'paw-outline', type: 'RELATION' },
-  { title: '노을 감상하기', detail: '하늘이 붉게 물드는 순간을 담아보세요.', icon: 'sunny-outline', type: 'ATTRIBUTE' },
-  { title: '동네 한 바퀴', detail: '집 주변을 한 바퀴 돌아보세요.', icon: 'walk-outline', type: 'ORDINARY' },
-  { title: '우체통 찾기', detail: '동네 우체통을 찾아 인증해보세요.', icon: 'mail-outline', type: 'OBJECT' },
-  { title: '자전거 타는 사람', detail: '자전거 타는 사람을 만나면 인증해보세요.', icon: 'bicycle-outline', type: 'RELATION' },
-  { title: '꽃 사진 찍기', detail: '길가에 핀 꽃을 사진으로 남겨보세요.', icon: 'flower-outline', type: 'OBJECT' },
-  { title: '계단 오르기', detail: '동네 계단을 하나 올라보세요.', icon: 'trending-up-outline', type: 'ORDINARY' },
-  { title: '표지판 찾기', detail: '재미있는 표지판을 찾아 인증해보세요.', icon: 'information-circle-outline', type: 'OBJECT' },
-  { title: '놀이터 지나기', detail: '동네 놀이터를 지나가보세요.', icon: 'happy-outline', type: 'ORDINARY' },
-  { title: '새 소리 듣기', detail: '새 소리가 들리는 곳에서 인증해보세요.', icon: 'musical-notes-outline', type: 'ATTRIBUTE' },
-  { title: '가로수길 걷기', detail: '가로수가 늘어선 길을 걸어보세요.', icon: 'leaf-outline', type: 'ORDINARY' },
-  { title: '편의점 들르기', detail: '가까운 편의점에 들러보세요.', icon: 'storefront-outline', type: 'ORDINARY' },
-  { title: '버스 정류장 지나기', detail: '버스 정류장을 지나가보세요.', icon: 'bus-outline', type: 'ORDINARY' },
-  { title: '강아지 산책러 만나기', detail: '강아지와 산책하는 사람을 만나면 인증해보세요.', icon: 'paw-outline', type: 'RELATION' },
-  { title: '하늘 사진 찍기', detail: '오늘의 하늘을 사진으로 남겨보세요.', icon: 'cloud-outline', type: 'ATTRIBUTE' },
-  { title: '벽화 찾기', detail: '동네 벽화를 찾아 인증해보세요.', icon: 'image-outline', type: 'OBJECT' },
-  { title: '공원 벤치 앉기', detail: '공원 벤치에 앉아보세요.', icon: 'bed-outline', type: 'ORDINARY' },
-  { title: '물웅덩이 피하기', detail: '물웅덩이를 만나면 인증해보세요.', icon: 'water-outline', type: 'ATTRIBUTE' },
-  { title: '동네 지도 그리기', detail: '오늘 걸은 길을 떠올려보세요.', icon: 'map-outline', type: 'ORDINARY' },
-];
-
-// TODO: 실제로는 방의 boardSize를 그대로 쓴다. 지금은 3/4/5 렌더링을
-// 눈으로 확인하려고 값만 바꿔가며 테스트한다.
-const MOCK_BOARD_SIZE: BingoBoardSize = 3;
-
-const INITIAL_CELLS: SessionCell[] = MOCK_MISSIONS.slice(
-  0,
-  MOCK_BOARD_SIZE * MOCK_BOARD_SIZE,
-).map((mission, index) => {
-  const completed = index < 5;
-  return {
-    id: String(index),
-    completed,
-    mission,
-    // 완료한 칸을 인원별로 돌아가며 배정한 임시 데이터. 실제로는 서버가
-    // 어떤 멤버가 완료했는지 함께 내려준다.
-    completedByMemberId: completed
-      ? MOCK_MEMBERS[index % MOCK_MEMBERS.length].id
-      : undefined,
-  };
-});
-
-type BingoBoardNavigation = NativeStackNavigationProp<
+type BingoBoardScreenProps = NativeStackScreenProps<
   RootStackParamList,
   'BingoBoard'
 >;
 
-export function BingoBoardScreen() {
-  const navigation = useNavigation<BingoBoardNavigation>();
-  const [cells, setCells] = useState<SessionCell[]>(INITIAL_CELLS);
-  const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
+export function BingoBoardScreen({
+  route,
+  navigation,
+}: BingoBoardScreenProps) {
+  const { roomId } = route.params;
+  const boardQuery = useActiveBingoBoardQuery(roomId);
+  const board = boardQuery.data ?? null;
+  const roomQuery = useRoomDetailQuery(roomId);
+  const room = roomQuery.data ?? null;
+  const members = room?.members ?? [];
+
+  const [selectedCellId, setSelectedCellId] = useState<number | null>(null);
   const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
   const [isSubmitting, setSubmitting] = useState(false);
   const [verificationResult, setVerificationResult] =
     useState<VerificationResult | null>(null);
+  // 사진 인증 API가 아직 없어(TODO, bingoApi.ts 참고) 실제 서버에는 반영되지
+  // 않는다. 승인된 칸을 화면에서만 채워진 것처럼 보여주는 로컬 오버레이다.
+  const [locallyApprovedCellIds, setLocallyApprovedCellIds] = useState<
+    Set<number>
+  >(new Set());
   // 빙고판 컨테이너의 퍼센트 width가 잘못 계산돼 3열이 아니라 2열로 보이는
   // 문제가 있었다. 실측한 너비를 고정 픽셀로 내려준다.
   const { width: boardWidth, onLayout: onBoardLayout } = useMeasuredWidth();
   const scrollRef = useRef<ScrollView>(null);
   const detailY = useRef(0);
 
-  const selectedCell = cells.find(cell => cell.id === selectedCellId) ?? null;
-  const completedCount = cells.filter(cell => cell.completed).length;
+  const sortedCells = [...(board?.cells ?? [])].sort(
+    (a, b) => a.row - b.row || a.col - b.col,
+  );
+  const isCellCompleted = (cell: BingoCellResponse) =>
+    cell.verificationStatus === 'APPROVED' ||
+    locallyApprovedCellIds.has(cell.cellId);
+  const selectedCell =
+    sortedCells.find(cell => cell.cellId === selectedCellId) ?? null;
 
-  // 인원별 완료 칸 수를 세서 진행바 색 구간을 만든다.
-  const progressSegments = MOCK_MEMBERS.map(member => ({
-    value: cells.filter(cell => cell.completedByMemberId === member.id).length,
-    color: member.color,
+  const memberColor = (memberId: number) => {
+    const index = members.findIndex(member => member.memberId === memberId);
+    return index >= 0 ? participantColors[index % participantColors.length] : undefined;
+  };
+
+  // 인원별 완료 칸 수를 세서 진행바 색 구간을 만든다. 로컬로만 승인된 칸은
+  // 누가 했는지 서버가 모르니(실제 제출이 아니다) 구간에 넣지 않는다.
+  const progressSegments = members.map(member => ({
+    value: sortedCells.filter(
+      cell =>
+        cell.verificationStatus === 'APPROVED' &&
+        cell.submittedByMemberId === member.memberId,
+    ).length,
+    color: memberColor(member.memberId) ?? colors.primary,
   }));
 
-  const cellsWithIcons = cells.map(cell => {
-    const member = MOCK_MEMBERS.find(item => item.id === cell.completedByMemberId);
+  const cellsWithIcons: BingoBoardCell[] = sortedCells.map(cell => {
+    const completed = isCellCompleted(cell);
     return {
-      ...cell,
-      color: member?.color,
-      icon: (
+      id: String(cell.cellId),
+      completed,
+      color:
+        cell.verificationStatus === 'APPROVED' && cell.submittedByMemberId !== null
+          ? memberColor(cell.submittedByMemberId)
+          : undefined,
+      icon: cell.mission.missionImageUrl ? (
+        <Image
+          source={{ uri: cell.mission.missionImageUrl }}
+          style={styles.missionThumbnail}
+        />
+      ) : (
         <Ionicons
-          name={cell.mission.icon}
+          name={MISSION_TYPE_ICONS[cell.mission.type]}
           size={20}
-          color={cell.completed ? colors.surface : colors.ink}
+          color={completed ? colors.surface : colors.ink}
         />
       ),
     };
   });
 
-  const handleSelectCell = useCallback((cell: SessionCell) => {
+  const handleSelectCell = useCallback((cellId: number) => {
     setCapturedPhotoUri(null);
     setVerificationResult(null);
-    setSelectedCellId(cell.id);
+    setSelectedCellId(cellId);
     // 빙고판 아래에 상세가 나타나자마자 바로 보이도록, 레이아웃이 잡힌
     // 다음 프레임에 그 위치로 스크롤한다.
     requestAnimationFrame(() => {
@@ -180,14 +167,8 @@ export function BingoBoardScreen() {
     setSubmitting(false);
     setVerificationResult(result);
     if (result.status === 'APPROVED') {
-      const cellId = selectedCell.id;
-      setCells(previous =>
-        previous.map(cell =>
-          cell.id === cellId
-            ? { ...cell, completed: true, completedByMemberId: 'me' }
-            : cell,
-        ),
-      );
+      const cellId = selectedCell.cellId;
+      setLocallyApprovedCellIds(previous => new Set(previous).add(cellId));
     }
   }, [selectedCell]);
 
@@ -195,6 +176,22 @@ export function BingoBoardScreen() {
     setCapturedPhotoUri(null);
     setVerificationResult(null);
   }, []);
+
+  if (boardQuery.isLoading) {
+    return (
+      <Screen edges={['top', 'bottom']}>
+        <Text style={styles.statusText}>불러오는 중...</Text>
+      </Screen>
+    );
+  }
+
+  if (boardQuery.isError || !board) {
+    return (
+      <Screen edges={['top', 'bottom']}>
+        <Text style={styles.statusText}>빙고판을 불러오지 못했어요.</Text>
+      </Screen>
+    );
+  }
 
   return (
     <Screen edges={['top', 'bottom']}>
@@ -207,7 +204,9 @@ export function BingoBoardScreen() {
         >
           <Ionicons name="chevron-back" size={24} color={colors.ink} />
         </Pressable>
-        <Text style={styles.headerTitle}>팀 빙고</Text>
+        <Text style={styles.headerTitle}>
+          {room?.mode === 'SINGLE' ? '내 빙고' : '팀 빙고'}
+        </Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -216,38 +215,47 @@ export function BingoBoardScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {board.renewalRequired ? (
+          <Text style={styles.renewalBanner}>
+            {board.renewalMessage ?? '빙고판 갱신이 필요합니다.'}
+          </Text>
+        ) : null}
+
         <View style={styles.progressCard}>
           <View style={styles.progressHeaderRow}>
             <Text style={styles.progressLabel}>빙고 진행 상황</Text>
             <Text style={styles.progressCount}>
-              {completedCount}/{cells.length}
+              {board.approvedCellCount}/{board.totalCellCount}
             </Text>
           </View>
-          <MemberProgressBar segments={progressSegments} total={cells.length} />
-          <View style={styles.legendRow}>
-            {MOCK_MEMBERS.map(member => (
-              <View key={member.id} style={styles.legendItem}>
-                <View
-                  style={[styles.legendDot, { backgroundColor: member.color }]}
-                />
-                <Text style={styles.legendText}>{member.nickname}</Text>
-              </View>
-            ))}
-          </View>
+          <MemberProgressBar
+            segments={progressSegments}
+            total={board.totalCellCount}
+          />
+          {members.length > 1 ? (
+            <View style={styles.legendRow}>
+              {members.map(member => (
+                <View key={member.memberId} style={styles.legendItem}>
+                  <View
+                    style={[
+                      styles.legendDot,
+                      { backgroundColor: memberColor(member.memberId) ?? colors.primary },
+                    ]}
+                  />
+                  <Text style={styles.legendText}>{member.nickname}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.board} onLayout={onBoardLayout}>
           {boardWidth > 0 ? (
             <View style={{ width: boardWidth }}>
               <BingoBoard
-                size={MOCK_BOARD_SIZE}
+                size={board.boardSize as BingoBoardSize}
                 cells={cellsWithIcons}
-                onCellPress={cell => {
-                  const sessionCell = cells.find(item => item.id === cell.id);
-                  if (sessionCell) {
-                    handleSelectCell(sessionCell);
-                  }
-                }}
+                onCellPress={cell => handleSelectCell(Number(cell.id))}
               />
             </View>
           ) : null}
@@ -257,7 +265,7 @@ export function BingoBoardScreen() {
           <View style={styles.detailCard} onLayout={handleDetailLayout}>
             <View style={styles.detailHeaderRow}>
               <Ionicons
-                name={selectedCell.mission.icon}
+                name={MISSION_TYPE_ICONS[selectedCell.mission.type]}
                 size={20}
                 color={colors.ink}
               />
@@ -273,7 +281,7 @@ export function BingoBoardScreen() {
             </Text>
             <Text style={styles.missionDetail}>{selectedCell.mission.detail}</Text>
 
-            {selectedCell.completed ? (
+            {isCellCompleted(selectedCell) ? (
               <View style={styles.completedRow}>
                 <Ionicons
                   name="checkmark-circle"
@@ -333,6 +341,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
   },
+  statusText: {
+    fontFamily: fontFamily.regular,
+    fontSize: 14,
+    color: colors.ink,
+    opacity: 0.6,
+    textAlign: 'center',
+    marginTop: spacing.xl,
+  },
+  renewalBanner: {
+    fontFamily: fontFamily.bold,
+    fontSize: 13,
+    color: colors.ink,
+    backgroundColor: colors.highlightSoftBg,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
   progressCard: {
     borderWidth: 2,
     borderColor: colors.ink,
@@ -383,6 +410,11 @@ const styles = StyleSheet.create({
   },
   board: {
     width: '100%',
+  },
+  missionThumbnail: {
+    width: 20,
+    height: 20,
+    borderRadius: radius.xs,
   },
   detailCard: {
     marginTop: spacing.lg,

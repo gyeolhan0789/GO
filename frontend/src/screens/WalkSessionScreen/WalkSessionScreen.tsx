@@ -167,8 +167,9 @@ export function WalkSessionScreen() {
         text: '종료',
         style: 'destructive',
         onPress: () => {
-          // 방은 이번 주 내내 유지된다(월요일 자동 초기화 전까지). 여기서는 이
-          // 화면의 로컬 세션(경과 시간 타이머)만 끝내고, 방 자체는 그대로 둔다.
+          // 방은 파괴하지 않는 한 계속 유지된다. 빙고판 갱신은 다 채웠거나
+          // 일주일이 지났을 때 방장이 직접 트리거해야 한다(자동 초기화 없음).
+          // 여기서는 이 화면의 로컬 세션(경과 시간 타이머)만 끝낸다.
           endWalkSession();
           navigation.goBack();
         },
@@ -223,7 +224,7 @@ export function WalkSessionScreen() {
         </View>
         <Pressable
           style={styles.iconButton}
-          onPress={() => navigation.navigate('BingoBoard')}
+          onPress={() => roomId !== null && navigation.navigate('BingoBoard', { roomId })}
           accessibilityRole="button"
           accessibilityLabel={room?.mode === 'SINGLE' ? '빙고판 보기' : '팀 빙고 보기'}
         >
