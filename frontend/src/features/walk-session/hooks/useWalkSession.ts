@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import {
   getWalkSessionElapsedSeconds,
+  isWalkSessionActive,
   isWalkSessionPaused,
   subscribeWalkSession,
   togglePauseWalkSession,
@@ -14,11 +15,13 @@ import {
 export function useWalkSession() {
   const [elapsedSeconds, setElapsedSeconds] = useState(getWalkSessionElapsedSeconds);
   const [isPaused, setPaused] = useState(isWalkSessionPaused);
+  const [isActive, setActive] = useState(isWalkSessionActive);
 
   useEffect(() => {
     const sync = () => {
       setElapsedSeconds(getWalkSessionElapsedSeconds());
       setPaused(isWalkSessionPaused());
+      setActive(isWalkSessionActive());
     };
     sync();
     return subscribeWalkSession(sync);
@@ -34,5 +37,5 @@ export function useWalkSession() {
     return () => clearInterval(timer);
   }, [isPaused]);
 
-  return { elapsedSeconds, isPaused, togglePause: togglePauseWalkSession };
+  return { elapsedSeconds, isPaused, isActive, togglePause: togglePauseWalkSession };
 }

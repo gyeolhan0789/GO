@@ -16,6 +16,9 @@ type HomeSummaryPageProps = {
   distanceKm: number;
   calories: number;
   rewardHint: string;
+  isWalking?: boolean;
+  walkElapsedLabel?: string;
+  onPressWalkBadge?: () => void;
 };
 
 export function HomeSummaryPage({
@@ -26,6 +29,9 @@ export function HomeSummaryPage({
   distanceKm,
   calories,
   rewardHint,
+  isWalking,
+  walkElapsedLabel,
+  onPressWalkBadge,
 }: HomeSummaryPageProps) {
   return (
     <View style={styles.page}>
@@ -34,6 +40,9 @@ export function HomeSummaryPage({
         style={styles.character}
         name={characterName}
         characterImageSource={characterImageSource}
+        isWalking={isWalking}
+        walkElapsedLabel={walkElapsedLabel}
+        onPressWalkBadge={onPressWalkBadge}
       />
       <StatsBoxes distanceKm={distanceKm} calories={calories} />
       <Text style={styles.rewardHint}>{rewardHint}</Text>

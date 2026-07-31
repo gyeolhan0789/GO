@@ -11,6 +11,7 @@ import { useActiveBingoBoardQuery } from '../../features/bingo/hooks/useActiveBi
 import { useMyCashQuery } from '../../features/member/hooks/useMyCashQuery';
 import { useMyCharacterQuery } from '../../features/member/hooks/useMyCharacterQuery';
 import { useMyRoomsQuery } from '../../features/room/hooks/useMyRoomsQuery';
+import { useWalkSession } from '../../features/walk-session/hooks/useWalkSession';
 import {
   isWalkSessionActive,
   startWalkSession,
@@ -55,6 +56,12 @@ const MOCK_BINGO_CELLS: BingoBoardCell[] = MOCK_BINGO_COMPLETED.map(
   (completed, index) => ({ id: String(index), completed }),
 );
 
+function formatElapsed(totalSeconds: number) {
+  const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+  const seconds = String(totalSeconds % 60).padStart(2, '0');
+  return `${minutes}:${seconds}`;
+}
+
 // 어느 쪽이든 로그아웃은 끝났으므로 그 사실을 먼저 알린다.
 const LOGOUT_ALERT_TITLE = '로그아웃했어요';
 const SESSION_ALREADY_GONE_MESSAGE = '세션이 이미 만료되어 있었어요.';
@@ -80,6 +87,10 @@ export function HomeScreen() {
   const points = cash.data?.cash ?? 0;
   const character = useMyCharacterQuery();
   const characterName = character.data?.nickname ?? '';
+
+  // 홈 화면에서도 진행 중인 산책을 놓치지 않도록, 캐릭터 카드에 뱃지로
+  // 살짝 보여준다.
+  const walkSession = useWalkSession();
 
   // 진행 중인 솔로 방이 이미 있으면(빙고를 다 못 채웠거나 일주일이 안
   // 지났으면 방은 그대로 유지된다) 목표를 다시 입력받지 않고 그 방으로
@@ -158,6 +169,9 @@ export function HomeScreen() {
           rewardHint={summary.canRewardHint}
           bingoSize={5}
           bingoCells={MOCK_BINGO_CELLS}
+          isWalking={walkSession.isActive}
+          walkElapsedLabel={formatElapsed(walkSession.elapsedSeconds)}
+          onPressWalkBadge={() => navigation.navigate('WalkSession')}
         />
         <View style={styles.startButtons}>
           <Button
