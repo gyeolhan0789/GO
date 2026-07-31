@@ -85,8 +85,13 @@ export function WalkSessionScreen() {
     targetStepCount !== null ? Math.max(0, targetStepCount - weeklySteps) : 0;
   const stepSegments = [{ value: weeklySteps, color: participantColors[0] }];
 
-  // 걷는 동안 화면에 뜬 값이 계속 갱신되도록 주기적으로 다시 읽는다.
-  const health = useSamsungHealthToday({ refetchInterval: HEALTH_POLL_INTERVAL_MS });
+  // 걷는 동안 화면에 뜬 값이 계속 갱신되도록 주기적으로 다시 읽는다. 일시정지
+  // 중에는(경로 추적도 같이 멈추는 것과 동일하게) 다시 읽지 않고 멈춘
+  // 시점 값을 그대로 보여준다.
+  const health = useSamsungHealthToday({
+    refetchInterval: HEALTH_POLL_INTERVAL_MS,
+    enabled: !isPaused,
+  });
   const healthSummary =
     health.data?.status === 'ok' ? health.data.summary : null;
   // 오늘 누적치에서 세션 시작 시점 기준값을 빼서 "이 산책에서" 걷고 쓴
