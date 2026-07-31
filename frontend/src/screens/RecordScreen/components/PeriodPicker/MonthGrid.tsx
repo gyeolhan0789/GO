@@ -1,10 +1,14 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { monthOfYear } from '../../../../features/history/model/calendar';
 import { parseIsoDate } from '../../../../features/history/model/period';
+import { AppText } from '../../../../shared/components/AppText/AppText';
+import { controlHeight } from '../../../../shared/constants/sizing';
 import { colors } from '../../../../shared/constants/colors';
 import { radius } from '../../../../shared/constants/radius';
 import { spacing } from '../../../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../../../shared/constants/typography';
+import { useMeasuredWidth } from '../../../../shared/hooks/useMeasuredWidth';
 
 type MonthGridProps = {
   /** 보고 있는 해. 그 해 아무 날짜의 'yyyy-MM-dd'. */
@@ -28,9 +32,18 @@ export function MonthGrid({
 }: MonthGridProps) {
   const selected = parseIsoDate(selectedDate);
   const year = parseIsoDate(visibleYear).getFullYear();
+  const { width, onLayout } = useMeasuredWidth();
+  // 퍼센트로는 "칸 너비 = (전체 - 간격들) / 4"를 표현할 수 없다. 실측 폭에서
+  // 간격을 먼저 빼고 나눈 뒤 내림해서, 어떤 기기 폭에서도 정확히 4개씩 앉게 한다.
+  const monthWidth =
+    width > 0
+      ? Math.floor(
+          (width - spacing.sm * (MONTHS_PER_ROW - 1)) / MONTHS_PER_ROW,
+        )
+      : 0;
 
   return (
-    <View style={styles.grid}>
+    <View style={styles.grid} onLayout={onLayout}>
       {Array.from({ length: MONTHS_PER_YEAR }, (_, monthIndex) => {
         const monthStart = monthOfYear(visibleYear, monthIndex);
         const isSelected =
@@ -44,6 +57,7 @@ export function MonthGrid({
             disabled={disabled}
             style={({ pressed }) => [
               styles.month,
+              { width: monthWidth },
               isSelected && styles.monthSelected,
               pressed && styles.pressed,
             ]}
@@ -51,7 +65,7 @@ export function MonthGrid({
             accessibilityLabel={`${year}년 ${monthIndex + 1}월`}
             accessibilityState={{ selected: isSelected, disabled }}
           >
-            <Text
+            <AppText
               style={[
                 styles.monthLabel,
                 isSelected && styles.monthLabelSelected,
@@ -59,7 +73,7 @@ export function MonthGrid({
               ]}
             >
               {`${monthIndex + 1}월`}
-            </Text>
+            </AppText>
           </Pressable>
         );
       })}
@@ -74,10 +88,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   month: {
-    // 한 줄에 4개.
-    flexGrow: 1,
-    flexBasis: `${100 / MONTHS_PER_ROW - spacing.sm}%`,
-    height: 44,
+    height: controlHeight.row,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.sm,
@@ -93,8 +104,9 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   monthLabel: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
   },
   monthLabelSelected: {

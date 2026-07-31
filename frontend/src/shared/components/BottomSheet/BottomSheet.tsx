@@ -2,18 +2,18 @@ import type { PropsWithChildren } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
-  Dimensions,
   KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
   StyleSheet,
-  Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { AppText } from '../AppText/AppText';
 import { colors } from '../../constants/colors';
 import { radius } from '../../constants/radius';
 import { spacing } from '../../constants/spacing';
@@ -30,7 +30,6 @@ const ANIMATION_DURATION = 220;
 // which briefly reveals that window's opaque (black) background before the
 // transparent RN content finishes compositing. Driving the slide ourselves
 // with animationType="none" avoids that flash.
-const SHEET_OFFSCREEN_Y = Dimensions.get('window').height;
 
 export function BottomSheet({
   visible,
@@ -39,8 +38,12 @@ export function BottomSheet({
   children,
 }: BottomSheetProps) {
   const insets = useSafeAreaInsets();
+  // 숨김 위치는 화면 높이만큼 아래다. 모듈 로드 시점에 Dimensions.get으로 한 번만
+  // 읽으면 그 값이 고정돼, 회전이나 화면 분할로 화면이 더 길어졌을 때 시트가
+  // 아래에 걸쳐 남는다. 매 렌더 현재 높이를 받아 쓴다.
+  const { height: offscreenY } = useWindowDimensions();
   const [isMounted, setIsMounted] = useState(visible);
-  const translateY = useRef(new Animated.Value(SHEET_OFFSCREEN_Y)).current;
+  const translateY = useRef(new Animated.Value(offscreenY)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -63,7 +66,7 @@ export function BottomSheet({
 
     Animated.parallel([
       Animated.timing(translateY, {
-        toValue: SHEET_OFFSCREEN_Y,
+        toValue: offscreenY,
         duration: ANIMATION_DURATION,
         useNativeDriver: true,
       }),
@@ -77,7 +80,7 @@ export function BottomSheet({
         setIsMounted(false);
       }
     });
-  }, [visible, translateY, backdropOpacity]);
+  }, [visible, translateY, backdropOpacity, offscreenY]);
 
   if (!isMounted) {
     return null;
@@ -114,7 +117,7 @@ export function BottomSheet({
           <View style={styles.handle} />
           {title ? (
             <View style={styles.header}>
-              <Text style={textStyles.heading2}>{title}</Text>
+              <AppText style={textStyles.heading2}>{title}</AppText>
               <Pressable onPress={onClose} hitSlop={8}>
                 <Ionicons name="close" size={24} color={colors.ink} />
               </Pressable>
