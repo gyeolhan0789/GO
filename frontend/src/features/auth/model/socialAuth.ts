@@ -56,6 +56,11 @@ async function signInWithGoogle(): Promise<SocialAccount> {
   // Play 서비스가 없거나 업데이트가 필요한 기기면 여기서 먼저 걸러진다.
   await GoogleSignin.hasPlayServices();
 
+  // SDK는 한 번 고른 계정을 캐시해서 다음 signIn()부터 계정 선택 창을 건너뛴다.
+  // 로그인 화면에서는 기기에 있는 다른 계정도 고를 수 있어야 하므로 먼저 비운다
+  // (계정 연결 자체를 끊는 revokeAccess와 달리 이 기기의 선택만 지운다).
+  await GoogleSignin.signOut().catch(() => {});
+
   let response;
   try {
     response = await GoogleSignin.signIn();

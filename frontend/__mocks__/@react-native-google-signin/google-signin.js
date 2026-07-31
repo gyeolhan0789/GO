@@ -12,8 +12,9 @@ const GoogleSignin = {
   hasPlayServices: jest.fn(() => Promise.resolve(true)),
   signIn: jest.fn(),
   signInSilently: jest.fn(),
-  signOut: jest.fn(),
-  revokeAccess: jest.fn(),
+  // 실제 SDK와 같이 Promise를 돌려준다(호출부가 await/catch 한다).
+  signOut: jest.fn(() => Promise.resolve(null)),
+  revokeAccess: jest.fn(() => Promise.resolve(null)),
   getCurrentUser: jest.fn(() => null),
   getTokens: jest.fn(),
 };
