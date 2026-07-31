@@ -25,6 +25,9 @@ type WalkSessionState = {
    * 걷고 쓴 양을 보여주려면 나중 값에서 이 값을 뺀다. 조회 실패/미허용이면
    * null로 남고, 화면 쪽이 오늘 누적치를 그대로 보여주는 걸로 대체한다. */
   startHealthSummary: SamsungHealthSummary | null;
+  /** 시작 카운트다운을 이미 보여줬는지. 화면 마운트 기준으로 두면 뒤로가기
+   * 후 재진입할 때마다 다시 떠서, 세션 단위(이 상태)로 한 번만 보여준다. */
+  hasShownCountdown: boolean;
 };
 
 let state: WalkSessionState = {
@@ -33,6 +36,7 @@ let state: WalkSessionState = {
   pausedAt: null,
   pausedMs: 0,
   startHealthSummary: null,
+  hasShownCountdown: false,
 };
 const listeners = new Set<Listener>();
 
@@ -52,6 +56,7 @@ export function startWalkSession(roomId: number) {
     pausedAt: null,
     pausedMs: 0,
     startHealthSummary: null,
+    hasShownCountdown: false,
   };
   notify();
 
@@ -72,6 +77,7 @@ export function endWalkSession() {
     pausedAt: null,
     pausedMs: 0,
     startHealthSummary: null,
+    hasShownCountdown: false,
   };
   notify();
 }
@@ -82,6 +88,19 @@ export function getWalkSessionRoomId() {
 
 export function getWalkSessionStartHealthSummary() {
   return state.startHealthSummary;
+}
+
+export function getWalkSessionHasShownCountdown() {
+  return state.hasShownCountdown;
+}
+
+/** 시작 카운트다운을 다 보여줬거나 건너뛰었을 때 한 번만 호출한다. */
+export function markWalkSessionCountdownShown() {
+  if (state.hasShownCountdown) {
+    return;
+  }
+  state = { ...state, hasShownCountdown: true };
+  notify();
 }
 
 export function togglePauseWalkSession() {

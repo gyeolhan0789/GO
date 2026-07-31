@@ -19,7 +19,11 @@ import { todayIso } from '../../features/history/model/period';
 import { useHistoriesQuery } from '../../features/history/hooks/useHistoriesQuery';
 import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
 import { useWalkSession } from '../../features/walk-session/hooks/useWalkSession';
-import { endWalkSession } from '../../features/walk-session/model/walkSessionStore';
+import {
+  endWalkSession,
+  getWalkSessionHasShownCountdown,
+  markWalkSessionCountdownShown,
+} from '../../features/walk-session/model/walkSessionStore';
 import { Button } from '../../shared/components/Button/Button';
 import { MemberProgressBar } from '../../shared/components/MemberProgressBar/MemberProgressBar';
 import { Screen } from '../../shared/components/Screen/Screen';
@@ -59,8 +63,16 @@ export function WalkSessionScreen() {
   const navigation = useNavigation<WalkSessionNavigation>();
   const insets = useSafeAreaInsets();
   // 화면에 들어오자마자 지도가 바로 보이면 어색해서, 짧게 카운트다운을
-  // 보여준 뒤 나머지 UI를 그대로 노출한다(탭하면 건너뜀).
-  const [showCountdown, setShowCountdown] = useState(true);
+  // 보여준 뒤 나머지 UI를 그대로 노출한다(탭하면 건너뜀). 화면 마운트가
+  // 아니라 세션 단위로 한 번만 보여줘야, 뒤로가기 후 재진입했을 때
+  // 이미 진행 중인 세션에 또 뜨지 않는다.
+  const [showCountdown, setShowCountdown] = useState(
+    () => !getWalkSessionHasShownCountdown(),
+  );
+  const handleCountdownFinish = useCallback(() => {
+    markWalkSessionCountdownShown();
+    setShowCountdown(false);
+  }, []);
   // 화면 마운트와 무관하게 시작 시각 기준으로 계산되는 경과 시간/일시정지
   // 상태. 뒤로가기로 나갔다 들어와도 0으로 리셋되지 않는다.
   const { roomId, startHealthSummary, elapsedSeconds, isPaused, togglePause } =
@@ -330,7 +342,7 @@ export function WalkSessionScreen() {
       </Animated.View>
 
       {showCountdown ? (
-        <WalkCountdownOverlay onFinish={() => setShowCountdown(false)} />
+        <WalkCountdownOverlay onFinish={handleCountdownFinish} />
       ) : null}
     </Screen>
   );
