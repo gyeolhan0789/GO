@@ -9,6 +9,7 @@ import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
+import com.wecandoit.common.storage.ImageUploadService;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameParticipant;
@@ -30,6 +31,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -39,6 +41,7 @@ public class BingoCommandService {
     private static final List<BingoBoardStatus> INACTIVE_BOARD_STATUSES =
             List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED);
     private static final ZoneId SERVICE_ZONE_ID = ZoneId.of("Asia/Seoul");
+    private static final String BINGO_CELL_IMAGE_DOMAIN = "bingo-cells";
 
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
@@ -47,11 +50,15 @@ public class BingoCommandService {
     private final BingoBoardRepository bingoBoardRepository;
     private final BingoCellRepository bingoCellRepository;
     private final NotificationRepository notificationRepository;
+    private final ImageUploadService imageUploadService;
     private final GameCycleCommandService gameCycleCommandService;
     private final ApplicationEventPublisher eventPublisher;
     private final NotificationMessageFactory notificationMessageFactory;
 
-    public BingoCell submitCell(Long memberId, Long roomId, Long cellId, String submitUrl) {
+    /**
+     * 파일시스템은 트랜잭션에 참여하지 않으므로, 모든 제출 검증을 통과한 뒤에만 이미지를 저장해 고아 파일이 남지 않게 한다.
+     */
+    public BingoCell submitCell(Long memberId, Long roomId, Long cellId, MultipartFile image) {
         Room room = roomRepository.findByIdForUpdate(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
         validateMember(memberId, roomId);
@@ -64,8 +71,12 @@ public class BingoCommandService {
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND));
 
         validateCellSubmittable(cell);
+        String previousSubmitUrl = cell.getSubmitUrl();
+        String submitUrl = imageUploadService.upload(image, BINGO_CELL_IMAGE_DOMAIN, String.valueOf(cellId));
         cell.submit(memberId, submitUrl);
-        return bingoCellRepository.save(cell);
+        BingoCell savedCell = bingoCellRepository.save(cell);
+        imageUploadService.delete(previousSubmitUrl);
+        return savedCell;
     }
 
     public BingoBoardResponse renewBoard(

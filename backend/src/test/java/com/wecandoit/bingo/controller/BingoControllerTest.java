@@ -3,13 +3,17 @@ package com.wecandoit.bingo.controller;
 import static io.restassured.module.mockmvc.RestAssuredMockMvc.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willReturn;
 import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.partWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
+import static org.springframework.restdocs.request.RequestDocumentation.requestParts;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
 import static org.springframework.restdocs.payload.PayloadDocumentation.relaxedResponseFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
@@ -53,6 +57,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.multipart.MultipartFile;
 
 @DisplayName("빙고판 API")
 @ExtendWith({RestDocumentationExtension.class, MockitoExtension.class})
@@ -294,12 +299,11 @@ class BingoControllerTest {
         );
         willReturn(response)
                 .given(missionVerificationFacade)
-                .submitAndVerify(1L, 10L, 1000L, "https://example.com/proof.png");
+                .submitAndVerify(eq(1L), eq(10L), eq(1000L), any(MultipartFile.class));
 
         // when & then
         given()
-                .contentType(ContentType.JSON)
-                .body("{\"submitUrl\":\"https://example.com/proof.png\"}")
+                .multiPart("image", "proof.png", new byte[]{1, 2, 3}, "image/png")
                 .when()
                 .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/submit", 10L, 1000L)
                 .then()
@@ -314,6 +318,9 @@ class BingoControllerTest {
                         pathParameters(
                                 parameterWithName("roomId").description("칸을 제출할 게임방 ID"),
                                 parameterWithName("cellId").description("제출할 빙고 칸 ID")
+                        ),
+                        requestParts(
+                                partWithName("image").description("제출할 미션 인증 사진 (JPEG/PNG, 최대 5MB)")
                         ),
                         responseFields(
                                 fieldWithPath("cellId").description("빙고 셀 ID"),
@@ -340,12 +347,11 @@ class BingoControllerTest {
         // given
         willThrow(new CustomException(ErrorCode.AI_VERIFICATION_FAILED))
                 .given(missionVerificationFacade)
-                .submitAndVerify(1L, 10L, 1000L, "https://example.com/proof.png");
+                .submitAndVerify(eq(1L), eq(10L), eq(1000L), any(MultipartFile.class));
 
         // when & then
         given()
-                .contentType(ContentType.JSON)
-                .body("{\"submitUrl\":\"https://example.com/proof.png\"}")
+                .multiPart("image", "proof.png", new byte[]{1, 2, 3}, "image/png")
                 .when()
                 .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/submit", 10L, 1000L)
                 .then()
@@ -358,12 +364,11 @@ class BingoControllerTest {
         // given
         willThrow(new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND))
                 .given(missionVerificationFacade)
-                .submitAndVerify(1L, 10L, 1000L, "https://example.com/proof.png");
+                .submitAndVerify(eq(1L), eq(10L), eq(1000L), any(MultipartFile.class));
 
         // when & then
         given()
-                .contentType(ContentType.JSON)
-                .body("{\"submitUrl\":\"https://example.com/proof.png\"}")
+                .multiPart("image", "proof.png", new byte[]{1, 2, 3}, "image/png")
                 .when()
                 .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/submit", 10L, 1000L)
                 .then()
@@ -376,12 +381,11 @@ class BingoControllerTest {
         // given
         willThrow(new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN))
                 .given(missionVerificationFacade)
-                .submitAndVerify(1L, 10L, 1000L, "https://example.com/proof.png");
+                .submitAndVerify(eq(1L), eq(10L), eq(1000L), any(MultipartFile.class));
 
         // when & then
         given()
-                .contentType(ContentType.JSON)
-                .body("{\"submitUrl\":\"https://example.com/proof.png\"}")
+                .multiPart("image", "proof.png", new byte[]{1, 2, 3}, "image/png")
                 .when()
                 .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/submit", 10L, 1000L)
                 .then()
@@ -389,12 +393,11 @@ class BingoControllerTest {
     }
 
     @Test
-    @DisplayName("submitUrl이 비어있으면 제출에 실패한다")
-    void submitCellRejectsBlankSubmitUrl() {
+    @DisplayName("image 파트가 없으면 제출에 실패한다")
+    void submitCellRejectsMissingImagePart() {
         // given & when & then
         given()
-                .contentType(ContentType.JSON)
-                .body("{\"submitUrl\":\"\"}")
+                .multiPart("photo", "proof.png", new byte[]{1, 2, 3}, "image/png")
                 .when()
                 .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/submit", 10L, 1000L)
                 .then()

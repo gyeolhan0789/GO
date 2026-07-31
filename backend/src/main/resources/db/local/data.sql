@@ -80,14 +80,14 @@ INSERT INTO bingo_cells (
     submit_url
 )
 VALUES
-    (551, 501, 301, 0, 0, NULL, '2026-07-27 09:10:00', 'PENDING', NULL, 101, 'https://example.com/submissions/pending.jpg'),
-    (552, 501, 302, 0, 1, '2026-07-27 09:20:00', '2026-07-27 09:15:00', 'APPROVED', NULL, 101, 'https://example.com/submissions/approved.jpg'),
-    (553, 501, 303, 1, 0, NULL, '2026-07-27 09:25:00', 'REJECTED', 'Image does not show the mission condition.', 101, 'https://example.com/submissions/rejected.jpg'),
+    (551, 501, 301, 0, 0, NULL, '2026-07-27 09:10:00', 'PENDING', NULL, 101, '/uploads/local/bingo-cells/551/pending.jpg'),
+    (552, 501, 302, 0, 1, '2026-07-27 09:20:00', '2026-07-27 09:15:00', 'APPROVED', NULL, 101, '/uploads/local/bingo-cells/552/approved.jpg'),
+    (553, 501, 303, 1, 0, NULL, '2026-07-27 09:25:00', 'REJECTED', 'Image does not show the mission condition.', 101, '/uploads/local/bingo-cells/553/rejected.jpg'),
     (554, 501, 304, 1, 1, NULL, NULL, NULL, NULL, NULL, NULL),
-    (555, 502, 301, 0, 0, '2026-07-26 10:20:00', '2026-07-26 10:15:00', 'APPROVED', NULL, 101, 'https://example.com/submissions/completed-1.jpg'),
-    (556, 502, 302, 0, 1, '2026-07-26 10:30:00', '2026-07-26 10:25:00', 'APPROVED', NULL, 101, 'https://example.com/submissions/completed-2.jpg'),
-    (557, 502, 303, 1, 0, '2026-07-26 10:40:00', '2026-07-26 10:35:00', 'APPROVED', NULL, 103, 'https://example.com/submissions/completed-3.jpg'),
-    (558, 502, 304, 1, 1, '2026-07-26 10:50:00', '2026-07-26 10:45:00', 'APPROVED', NULL, 103, 'https://example.com/submissions/completed-4.jpg');
+    (555, 502, 301, 0, 0, '2026-07-26 10:20:00', '2026-07-26 10:15:00', 'APPROVED', NULL, 101, '/uploads/local/bingo-cells/555/completed-1.jpg'),
+    (556, 502, 302, 0, 1, '2026-07-26 10:30:00', '2026-07-26 10:25:00', 'APPROVED', NULL, 101, '/uploads/local/bingo-cells/556/completed-2.jpg'),
+    (557, 502, 303, 1, 0, '2026-07-26 10:40:00', '2026-07-26 10:35:00', 'APPROVED', NULL, 103, '/uploads/local/bingo-cells/557/completed-3.jpg'),
+    (558, 502, 304, 1, 1, '2026-07-26 10:50:00', '2026-07-26 10:45:00', 'APPROVED', NULL, 103, '/uploads/local/bingo-cells/558/completed-4.jpg');
 
 INSERT INTO game_requests (id, room_id, inviter_id, invitee_id, status)
 VALUES

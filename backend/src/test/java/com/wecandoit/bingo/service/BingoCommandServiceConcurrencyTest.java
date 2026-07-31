@@ -28,6 +28,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
@@ -79,9 +80,9 @@ class BingoCommandServiceConcurrencyTest {
 
         try {
             Future<ErrorCode> first = executor.submit(
-                    () -> submitAfterSignal(1L, "https://example.com/first.png", readyLatch, startLatch));
+                    () -> submitAfterSignal(1L, "first.png", readyLatch, startLatch));
             Future<ErrorCode> second = executor.submit(
-                    () -> submitAfterSignal(2L, "https://example.com/second.png", readyLatch, startLatch));
+                    () -> submitAfterSignal(2L, "second.png", readyLatch, startLatch));
             readyLatch.await();
 
             // when
@@ -98,7 +99,8 @@ class BingoCommandServiceConcurrencyTest {
             assertThat(claimedCell.getVerificationStatus()).isEqualTo(BingoCellVerificationStatus.PENDING);
             assertThat(claimedCell.getMemberId()).isIn(1L, 2L);
             assertThat(claimedCell.getSubmitUrl())
-                    .isIn("https://example.com/first.png", "https://example.com/second.png");
+                    .startsWith("/uploads/test/bingo-cells/" + cellId + "/")
+                    .endsWith(".png");
         } finally {
             executor.shutdownNow();
         }
@@ -106,14 +108,19 @@ class BingoCommandServiceConcurrencyTest {
 
     private ErrorCode submitAfterSignal(
             Long memberId,
-            String submitUrl,
+            String fileName,
             CountDownLatch readyLatch,
             CountDownLatch startLatch
     ) throws InterruptedException {
         readyLatch.countDown();
         startLatch.await();
         try {
-            bingoCommandService.submitCell(memberId, roomId, cellId, submitUrl);
+            bingoCommandService.submitCell(
+                    memberId,
+                    roomId,
+                    cellId,
+                    new MockMultipartFile("image", fileName, "image/png", new byte[]{1, 2, 3})
+            );
             return null;
         } catch (CustomException e) {
             return e.getErrorCode();
