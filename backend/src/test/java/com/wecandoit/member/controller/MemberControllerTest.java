@@ -16,10 +16,12 @@ import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Region;
 import com.wecandoit.member.dto.MemberProfileUpdateRequest;
 import com.wecandoit.member.dto.MemberRelationshipStatus;
 import com.wecandoit.member.dto.MemberSearchResponse;
+import com.wecandoit.member.dto.MyPageResponse;
 import com.wecandoit.member.dto.PasswordChangeRequest;
 import com.wecandoit.member.service.MemberReadService;
 import com.wecandoit.member.service.MemberService;
@@ -66,6 +68,43 @@ class MemberControllerTest {
     @AfterEach
     void tearDown() {
         SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    @DisplayName("로그인한 회원의 마이페이지 정보를 반환한다")
+    void getMyPageReturnsMemberInfo() throws Exception {
+        // given
+        given(memberReadService.getMyPage(1L)).willReturn(new MyPageResponse(
+                1L,
+                "member@example.com",
+                "산책러",
+                Gender.MALE,
+                Region.SEOUL,
+                100L
+        ));
+
+        // when & then
+        mockMvc.perform(get("/members/me"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.email").value("member@example.com"))
+                .andExpect(jsonPath("$.nickname").value("산책러"))
+                .andExpect(jsonPath("$.gender").value("MALE"))
+                .andExpect(jsonPath("$.region").value("SEOUL"))
+                .andExpect(jsonPath("$.cash").value(100L));
+        then(memberReadService).should().getMyPage(1L);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 회원이면 마이페이지 조회에 실패한다")
+    void getMyPageRejectsMissingMember() throws Exception {
+        // given
+        willThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND))
+                .given(memberReadService).getMyPage(1L);
+
+        // when & then
+        mockMvc.perform(get("/members/me"))
+                .andExpect(status().isNotFound());
     }
 
     @Test

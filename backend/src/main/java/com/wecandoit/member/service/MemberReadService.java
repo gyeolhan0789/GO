@@ -9,6 +9,7 @@ import com.wecandoit.friend.repository.FriendRequestRepository;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.dto.MemberRelationshipStatus;
 import com.wecandoit.member.dto.MemberSearchResponse;
+import com.wecandoit.member.dto.MyPageResponse;
 import com.wecandoit.member.repository.MemberRepository;
 import java.util.Collection;
 import java.util.HashMap;
@@ -70,6 +71,12 @@ public class MemberReadService {
                         getRelationshipStatus(member.getId(), friendIds, requestStatuses)
                 ));
         return SliceResponse.from(responses);
+    }
+
+    public MyPageResponse getMyPage(Long memberId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+        return MyPageResponse.of(member);
     }
 
     public Map<Long, String> getNicknamesByIds(Collection<Long> memberIds) {
