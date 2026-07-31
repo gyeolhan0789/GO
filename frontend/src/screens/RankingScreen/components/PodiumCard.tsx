@@ -1,12 +1,14 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import type { RankingItem } from '../../../features/ranking/api/rankingApi';
 import { formatThousands } from '../../../features/history/model/format';
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { Card } from '../../../shared/components/Card/Card';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
 import { ME_LABEL } from '../model';
 import { RankingAvatar } from './RankingAvatar';
 
@@ -78,22 +80,22 @@ function Place({ place, isMe }: { place: RankingItem; isMe: boolean }) {
             },
           ]}
         >
-          <Text style={styles.blockRank}>{place.rank}</Text>
+          <AppText style={styles.blockRank}>{place.rank}</AppText>
         </View>
       </View>
 
-      <Text
+      <AppText
         style={[styles.nickname, isMe && styles.nicknameMe]}
         numberOfLines={1}
       >
         {isMe ? ME_LABEL : place.nickname}
-      </Text>
+      </AppText>
 
       <View style={styles.steps}>
         <Ionicons name="footsteps" size={STEP_ICON_SIZE} color={colors.ink} />
-        <Text style={styles.stepsLabel}>
+        <AppText style={styles.stepsLabel}>
           {formatThousands(place.weeklySteps)}
-        </Text>
+        </AppText>
       </View>
     </View>
   );
@@ -136,13 +138,13 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius.xs,
   },
   blockRank: {
-    fontFamily: 'NotoSansKR-Bold',
+    fontFamily: bodyFont.bold,
     fontSize: 20,
     color: colors.surface,
-    lineHeight: 20,
+    lineHeight: lineHeights[20],
   },
   nickname: {
-    fontFamily: 'NotoSansKR-Bold',
+    fontFamily: bodyFont.bold,
     fontSize: 15,
     color: colors.ink,
     lineHeight: 20,
@@ -156,9 +158,9 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   stepsLabel: {
-    fontFamily: 'NotoSansKR-Bold',
+    fontFamily: bodyFont.bold,
     fontSize: 14,
     color: colors.ink,
-    lineHeight: 20,
+    lineHeight: lineHeights[14],
   },
 });

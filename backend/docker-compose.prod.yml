@@ -1,5 +1,25 @@
 name: wecandoit-backend-prod
 
+x-backend-environment: &backend-environment
+  SPRING_PROFILES_ACTIVE: prod
+  SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/wecandoit?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+  SPRING_DATASOURCE_USERNAME: wecandoit
+  SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+  SPRING_DATA_REDIS_HOST: redis
+  SPRING_DATA_REDIS_PORT: 6379
+  STORAGE_ROOT_PATH: /app/uploads
+  JWT_SECRET: ${JWT_SECRET}
+
+x-backend-common: &backend-common
+  restart: always
+  depends_on:
+    mysql:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  volumes:
+    - ./uploads:/app/uploads
+
 services:
   mysql:
     image: mysql:8.0
@@ -34,30 +54,27 @@ services:
       timeout: 5s
       retries: 10
 
-  backend:
-    build:
-      context: .
-    image: wecandoit-backend-prod
-    container_name: wecandoit-backend-prod
-    restart: always
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+  backend-stable:
+    <<: *backend-common
+    image: ${STABLE_IMAGE:-wecandoit-backend-prod:stable}
+    container_name: wecandoit-backend-stable
     environment:
-      SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/wecandoit?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-      SPRING_DATASOURCE_USERNAME: wecandoit
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-      STORAGE_ROOT_PATH: /app/uploads
-      JWT_SECRET: ${JWT_SECRET}
-    volumes:
-      - ./uploads:/app/uploads
+      <<: *backend-environment
+      SCHEDULING_ENABLED: "true"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
     ports:
       - "127.0.0.1:8080:8080"
+
+  backend-canary:
+    <<: *backend-common
+    image: ${CANARY_IMAGE:-wecandoit-backend-prod:canary}
+    container_name: wecandoit-backend-canary
+    environment:
+      <<: *backend-environment
+      SCHEDULING_ENABLED: "false"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+    ports:
+      - "127.0.0.1:8082:8080"
 
 volumes:
   mysql-data:

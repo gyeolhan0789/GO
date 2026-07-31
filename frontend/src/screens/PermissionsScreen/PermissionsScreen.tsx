@@ -4,7 +4,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,6 +28,10 @@ import {
 // 개발 단계: 권한 완료 저장 비활성화로 잠시 미사용.
 import { usePermissionsStatus } from '../../shared/hooks/usePermissionsStatus';
 import { PermissionCard } from './components/PermissionCard';
+import { AppText } from '../../shared/components/AppText/AppText';
+import { controlHeight } from '../../shared/constants/sizing';
+import { colors } from '../../shared/constants/colors';
+import { bodyFont, fontFamily, lineHeights } from '../../shared/constants/typography';
 
 type PermissionsNavigation = NativeStackNavigationProp<
   RootStackParamList,
@@ -145,12 +148,12 @@ export function PermissionsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>
+        <AppText style={styles.title}>
           원활한 이용을 위해{'\n'}권한을 허용해 주세요
-        </Text>
-        <Text style={styles.subtitle}>
+        </AppText>
+        <AppText style={styles.subtitle}>
           아래 권한은 서비스 이용에 꼭 필요해요.
-        </Text>
+        </AppText>
 
         <View style={styles.cards}>
           {PERMISSION_CARDS.map(card => (
@@ -177,15 +180,15 @@ export function PermissionsScreen() {
         </View>
 
         {requested && !allGranted ? (
-          <Text style={styles.blockedNotice}>
+          <AppText style={styles.blockedNotice}>
             {anyBlocked
               ? '권한에 동의하지 않으면 서비스를 이용할 수 없어요. 기기 설정에서 권한을 허용해 주세요.'
               : '권한에 동의하지 않으면 서비스를 이용할 수 없어요. 모든 권한을 허용해 주세요.'}
-          </Text>
+          </AppText>
         ) : (
-          <Text style={styles.requiredNote}>
+          <AppText style={styles.requiredNote}>
             * 모든 권한에 동의해야 Go! 서비스를 이용할 수 있어요.
-          </Text>
+          </AppText>
         )}
       </ScrollView>
 
@@ -197,7 +200,7 @@ export function PermissionsScreen() {
             accessibilityLabel="시작하기"
             style={styles.primaryButton}
           >
-            <Text style={styles.primaryText}>시작하기</Text>
+            <AppText style={styles.primaryText}>시작하기</AppText>
           </Pressable>
         ) : anyBlocked ? (
           <Pressable
@@ -206,7 +209,7 @@ export function PermissionsScreen() {
             accessibilityLabel="설정에서 권한 허용"
             style={styles.primaryButton}
           >
-            <Text style={styles.primaryText}>설정에서 권한 허용</Text>
+            <AppText style={styles.primaryText}>설정에서 권한 허용</AppText>
           </Pressable>
         ) : (
           <Pressable
@@ -215,7 +218,7 @@ export function PermissionsScreen() {
             accessibilityLabel="권한 허용하기"
             style={styles.primaryButton}
           >
-            <Text style={styles.primaryText}>권한 허용하기</Text>
+            <AppText style={styles.primaryText}>권한 허용하기</AppText>
           </Pressable>
         )}
       </View>
@@ -226,23 +229,23 @@ export function PermissionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
   },
   content: {
     padding: 24,
     paddingTop: 40,
   },
   title: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: fontFamily.bold,
     fontSize: 24,
-    color: '#111827',
-    lineHeight: 32,
+    color: colors.ink,
+    lineHeight: lineHeights[24],
   },
   subtitle: {
-    fontFamily: 'NotoSansKR-Regular',
+    fontFamily: bodyFont.regular,
     fontSize: 14,
     lineHeight: 20,
-    color: '#6B7280',
+    color: colors.mutedStrong,
     marginTop: 12,
     marginBottom: 28,
   },
@@ -250,17 +253,17 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   requiredNote: {
-    fontFamily: 'NotoSansKR-Regular',
+    fontFamily: bodyFont.regular,
     fontSize: 13,
-    lineHeight: 18,
-    color: '#6B7280',
+    lineHeight: lineHeights[13],
+    color: colors.mutedStrong,
     marginTop: 4,
   },
   blockedNotice: {
-    fontFamily: 'NotoSansKR-Regular',
+    fontFamily: bodyFont.regular,
     fontSize: 13,
     lineHeight: 18,
-    color: '#DC2626',
+    color: colors.danger,
     marginTop: 4,
   },
   footer: {
@@ -269,15 +272,16 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   primaryButton: {
-    height: 56,
+    height: controlHeight.lg,
     borderRadius: 16,
-    backgroundColor: '#2C6A47',
+    backgroundColor: colors.primaryDark,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryText: {
-    fontFamily: 'NotoSansKR-Bold',
+    fontFamily: bodyFont.bold,
     fontSize: 17,
-    color: '#ffffff',
+    lineHeight: lineHeights[17],
+    color: colors.surface,
   },
 });

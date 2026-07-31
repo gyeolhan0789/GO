@@ -1,10 +1,11 @@
 import type { ImageSourcePropType, StyleProp, ViewStyle } from 'react-native';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { colors } from '../../../shared/constants/colors';
 import { spacing } from '../../../shared/constants/spacing';
-import { fontFamily } from '../../../shared/constants/typography';
+import { fontFamily, lineHeights } from '../../../shared/constants/typography';
 
 type CharacterCardProps = {
   /** 캐릭터 이름. 이미지 아래에 표시. */
@@ -33,7 +34,7 @@ export function CharacterCard({
           <Ionicons name="person" size={48} color={colors.muted} />
         </View>
       )}
-      <Text style={styles.name}>{name}</Text>
+      <AppText style={styles.name}>{name}</AppText>
     </View>
   );
 }
@@ -58,6 +59,7 @@ const styles = StyleSheet.create({
   name: {
     fontFamily: fontFamily.bold,
     fontSize: 20,
+    lineHeight: lineHeights[20],
     color: colors.ink,
   },
 });

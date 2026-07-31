@@ -6,7 +6,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import type { TextInput } from 'react-native';
@@ -22,22 +21,24 @@ import type { SocialAccount } from '../../features/auth/model/socialAuth';
 import { validateLogin } from '../../features/auth/model/validation';
 import type { LoginErrors } from '../../features/auth/model/validation';
 import { resolveApiErrorMessage } from '../../shared/api/resolveApiErrorMessage';
+import { AppText } from '../../shared/components/AppText/AppText';
 import { Screen } from '../../shared/components/Screen/Screen';
-import { fontFamily } from '../../shared/constants/typography';
+import { colors } from '../../shared/constants/colors';
+import { bodyFont, fontFamily, lineHeights } from '../../shared/constants/typography';
 import { useHasLoggedInBefore } from '../../shared/hooks/useHasLoggedInBefore';
 // 상단 픽셀아트 배너는 회원가입 화면의 히어로를 그대로 재활용한다.
 import { SignupHero } from '../SignupScreen/components/SignupHero';
 
 type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
-const TITLE_COLOR = '#111827';
-const SUBTITLE_COLOR = '#4B5563';
-const ERROR_COLOR = '#DC2626';
-const HINT_COLOR = '#6B7280';
-const PRIMARY_COLOR = '#27A34A';
-const DIVIDER_COLOR = '#E5E7EB';
-const TIP_BG_COLOR = '#EAF4EC';
-const TIP_TITLE_COLOR = '#374151';
+const TITLE_COLOR = colors.ink;
+const SUBTITLE_COLOR = colors.inkMuted;
+const ERROR_COLOR = colors.danger;
+const HINT_COLOR = colors.mutedStrong;
+const PRIMARY_COLOR = colors.primary;
+const DIVIDER_COLOR = colors.borderSoft;
+const TIP_BG_COLOR = colors.successBg;
+const TIP_TITLE_COLOR = colors.inkSoft;
 
 // 본문 view가 사진을 덮는 오버랩 높이와 상단 라운드 반경. 회원가입과 동일 규격.
 const BODY_OVERLAP = 24;
@@ -104,12 +105,12 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
           <SignupHero />
 
           <View style={styles.body}>
-            <Text style={styles.title}>
+            <AppText style={styles.title}>
               {hasLoggedInBefore ? '다시 만나서 반가워요!' : '만나서 반가워요!'}
-            </Text>
-            <Text style={styles.subtitle}>
+            </AppText>
+            <AppText style={styles.subtitle}>
               계정으로 로그인하고 산책을 기록해보세요.
-            </Text>
+            </AppText>
 
             <AuthTextField
               label="이메일 주소"
@@ -155,13 +156,13 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
               onPress={notReady}
               accessibilityRole="button"
             >
-              <Text style={styles.forgotText}>비밀번호 찾기</Text>
+              <AppText style={styles.forgotText}>비밀번호 찾기</AppText>
             </Pressable>
 
             {mutation.error ? (
-              <Text style={styles.serverError} accessibilityLiveRegion="polite">
+              <AppText style={styles.serverError} accessibilityLiveRegion="polite">
                 {resolveApiErrorMessage(mutation.error)}
-              </Text>
+              </AppText>
             ) : null}
 
             <AuthSubmitButton
@@ -175,15 +176,15 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
               onPress={() => navigation.navigate('Signup')}
               accessibilityRole="button"
             >
-              <Text style={styles.signupText}>
+              <AppText style={styles.signupText}>
                 계정이 없으신가요?{' '}
-                <Text style={styles.signupAccent}>회원가입</Text>
-              </Text>
+                <AppText style={styles.signupAccent}>회원가입</AppText>
+              </AppText>
             </Pressable>
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>또는</Text>
+              <AppText style={styles.dividerText}>또는</AppText>
               <View style={styles.dividerLine} />
             </View>
 
@@ -201,12 +202,12 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
             />
 
             <View style={styles.tip}>
-              <Text style={styles.tipTitle}>
+              <AppText style={styles.tipTitle}>
                 작은 습관이 변화를 만들어 낼 수 있습니다!
-              </Text>
-              <Text style={styles.tipBody}>
+              </AppText>
+              <AppText style={styles.tipBody}>
                 오늘도 함께 걸으며 건강한 습관을 만들어봐요!
-              </Text>
+              </AppText>
             </View>
           </View>
         </ScrollView>
@@ -222,25 +223,26 @@ const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
     paddingBottom: 32,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   body: {
     marginTop: -BODY_OVERLAP + 8,
     borderTopLeftRadius: BODY_CORNER_RADIUS,
     borderTopRightRadius: BODY_CORNER_RADIUS,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     paddingHorizontal: 24,
     paddingTop: BODY_OVERLAP + 20,
   },
   title: {
     fontFamily: fontFamily.bold,
     fontSize: 26,
-    lineHeight: 34,
+    lineHeight: lineHeights[26],
     color: TITLE_COLOR,
   },
   subtitle: {
     marginTop: 8,
     marginBottom: 24,
+    fontFamily: bodyFont.regular,
     fontSize: 15,
     color: SUBTITLE_COLOR,
   },
@@ -250,12 +252,16 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   forgotText: {
+    fontFamily: bodyFont.regular,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: HINT_COLOR,
   },
   serverError: {
     marginBottom: 12,
+    fontFamily: bodyFont.regular,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: ERROR_COLOR,
   },
   signupLink: {
@@ -263,11 +269,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   signupText: {
+    fontFamily: bodyFont.regular,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: SUBTITLE_COLOR,
   },
   signupAccent: {
-    fontWeight: '700',
+    fontFamily: bodyFont.bold,
     color: PRIMARY_COLOR,
   },
   divider: {
@@ -282,7 +290,9 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     marginHorizontal: 12,
+    fontFamily: bodyFont.regular,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: HINT_COLOR,
   },
   tip: {
@@ -296,12 +306,15 @@ const styles = StyleSheet.create({
   tipTitle: {
     fontFamily: fontFamily.bold,
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: TIP_TITLE_COLOR,
     textAlign: 'center',
   },
   tipBody: {
     marginTop: 6,
+    fontFamily: bodyFont.regular,
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: HINT_COLOR,
     textAlign: 'center',
   },

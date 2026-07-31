@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import type {
   HistoryPeriod,
@@ -16,9 +16,11 @@ import {
   stepSummaryTitle,
 } from '../../../features/history/model/histories';
 import type { HourlyStep } from '../../../features/history/types';
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { Card } from '../../../shared/components/Card/Card';
 import { colors } from '../../../shared/constants/colors';
 import { spacing } from '../../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
 import { HourlyStepChart } from './HourlyStepChart';
 import { StepBarChart } from './StepBarChart';
 
@@ -58,14 +60,14 @@ export function StepSummaryCard({
 
   return (
     <Card>
-      <Text style={styles.title}>
+      <AppText style={styles.title}>
         {stepSummaryTitle(period, isCurrentPeriod)}
-      </Text>
+      </AppText>
       <View style={styles.totalRow}>
-        <Text style={styles.totalValue}>
+        <AppText style={styles.totalValue}>
           {formatThousands(history.totalStep)}
-        </Text>
-        <Text style={styles.totalUnit}>걸음</Text>
+        </AppText>
+        <AppText style={styles.totalUnit}>걸음</AppText>
       </View>
 
       {hasChart ? (
@@ -96,7 +98,7 @@ export function StepSummaryCard({
           ) : null}
         </View>
       ) : (
-        <Text style={styles.emptyText}>이 기간에는 걸음 기록이 없어요.</Text>
+        <AppText style={styles.emptyText}>이 기간에는 걸음 기록이 없어요.</AppText>
       )}
     </Card>
   );
@@ -104,8 +106,9 @@ export function StepSummaryCard({
 
 const styles = StyleSheet.create({
   title: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
     opacity: 0.7,
   },
@@ -116,21 +119,24 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   totalValue: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 28,
+    lineHeight: lineHeights[28],
     color: colors.primary,
   },
   totalUnit: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.regular,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
   },
   chart: {
     marginTop: spacing.md,
   },
   emptyText: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.regular,
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.ink,
     opacity: 0.5,
     textAlign: 'center',

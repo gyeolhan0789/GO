@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { SocialProvider } from '../../features/auth/constants/socialProviders';
 import { useAuth } from '../../features/auth/model/AuthContext';
 import { colors } from '../../shared/constants/colors';
+import { fontFamily } from '../../shared/constants/typography';
 import { useOnboardingStatus } from '../../shared/hooks/useOnboardingStatus';
 import { usePermissionsStatus } from '../../shared/hooks/usePermissionsStatus';
 import { BingoBoardScreen } from '../../screens/BingoBoardScreen/BingoBoardScreen';
@@ -54,7 +55,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const DETAIL_HEADER_OPTIONS = {
   headerShown: true,
   headerTitleAlign: 'center',
-  headerTitleStyle: { fontFamily: 'BMDOHYEON', fontSize: 18 },
+  headerTitleStyle: { fontFamily: fontFamily.bold, fontSize: 18 },
   headerTintColor: colors.ink,
   headerShadowVisible: false,
   headerStyle: { backgroundColor: colors.surface },

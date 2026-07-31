@@ -1,9 +1,17 @@
+// primary(#27A34A) 위의 흰 글씨는 대비 3.3:1이라 18px 이상 굵은 글씨(AA Large)
+// 에서만 쓸 수 있다. 초록 글씨·포커스 테두리처럼 작은 글씨나 얇은 선에는 대비
+// 6.5:1인 이 어두운 짝을 쓴다. 로그인·회원가입·권한·온보딩 화면의 CTA가 이걸
+// 쓰고 있어서 primary와 합치면 대비가 무너진다.
+const primaryDark = '#2C6A47';
+
 export const colors = {
   primary: '#27A34A',
+  primaryDark,
   ink: '#111827',
   surface: '#FFFEFB',
   successBg: '#E8F5E9',
-  successText: '#2C6A47',
+  // 성공 상태 글씨도 같은 어두운 초록을 공유한다.
+  successText: primaryDark,
   // Eyeballed from screenshots; swap for the exact hex once designer confirms.
   highlightBg: '#FBC02D',
   neutralBg: '#EFEAD9',
@@ -25,6 +33,13 @@ export const colors = {
   primarySoft: '#7FC46E',
   primarySoftLight: '#9BD68C',
   primarySoftDark: '#63AC55',
+  // 회색 계열. ink(#111827) → inkSoft → inkMuted → mutedStrong → muted 순으로
+  // 옅어진다. 폼 라벨은 inkSoft, 부제목·보조 설명은 inkMuted를 쓴다.
+  inkSoft: '#374151',
+  inkMuted: '#4B5563',
+  // 입력 필드 테두리(border)와 구분선·비활성 테두리(borderSoft).
+  border: '#D1D5DB',
+  borderSoft: '#E5E7EB',
 } as const;
 
 // Per-member identity colors for shared bingo boards (who completed which

@@ -1,10 +1,12 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import type { WalkDetailParticipant } from '../../../features/history/types';
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { Card } from '../../../shared/components/Card/Card';
 import { colors } from '../../../shared/constants/colors';
 import { spacing } from '../../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
 
 type ParticipantListProps = {
   participants: WalkDetailParticipant[];
@@ -17,7 +19,7 @@ const PLACEHOLDER_ICON_SIZE = 32;
 export function ParticipantList({ participants }: ParticipantListProps) {
   return (
     <Card>
-      <Text style={styles.heading}>함께한 친구</Text>
+      <AppText style={styles.heading}>함께한 친구</AppText>
 
       <View style={styles.row}>
         {participants.map(participant => (
@@ -30,12 +32,9 @@ export function ParticipantList({ participants }: ParticipantListProps) {
                 color={colors.primarySoft}
               />
             </View>
-            <Text style={styles.name} numberOfLines={1}>
+            <AppText style={styles.name} numberOfLines={1}>
               {participant.isMe ? '나' : participant.nickname}
-            </Text>
-            <Text style={styles.missionCount} numberOfLines={1}>
-              {`미션 ${participant.completedMissionCount}개`}
-            </Text>
+            </AppText>
           </View>
         ))}
       </View>
@@ -45,8 +44,9 @@ export function ParticipantList({ participants }: ParticipantListProps) {
 
 const styles = StyleSheet.create({
   heading: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 15,
+    lineHeight: lineHeights[15],
     color: colors.ink,
   },
   row: {
@@ -65,14 +65,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   name: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.ink,
     opacity: 0.6,
   },
   missionCount: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.regular,
     fontSize: 11,
+    lineHeight: lineHeights[11],
     color: colors.ink,
     opacity: 0.4,
   },

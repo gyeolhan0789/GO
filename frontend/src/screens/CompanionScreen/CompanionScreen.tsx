@@ -1,12 +1,5 @@
 import { useState } from 'react';
-import {
-  Alert,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 import type {
   FriendResponse,
@@ -25,7 +18,9 @@ import { useAcceptRoomInviteMutation } from '../../features/room/hooks/useAccept
 import { useMyRoomsQuery } from '../../features/room/hooks/useMyRoomsQuery';
 import { useReceivedRoomInvitesQuery } from '../../features/room/hooks/useReceivedRoomInvitesQuery';
 import { useRejectRoomInviteMutation } from '../../features/room/hooks/useRejectRoomInviteMutation';
+import { AppText } from '../../shared/components/AppText/AppText';
 import { Fab } from '../../shared/components/Fab/Fab';
+import { Header } from '../../shared/components/Header/Header';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { SegmentedControl } from '../../shared/components/SegmentedControl/SegmentedControl';
 import { Toast } from '../../shared/components/Toast/Toast';
@@ -38,6 +33,7 @@ import { ReceivedRequestRow } from './components/ReceivedRequestRow';
 import { ReceivedRoomInviteRow } from './components/ReceivedRoomInviteRow';
 import { WalkRoomCard } from './components/WalkRoomCard';
 import type { MyWalkRoom } from './types';
+import { lineHeights } from '../../shared/constants/typography';
 
 type CompanionTab = 'walkRooms' | 'friends';
 
@@ -207,7 +203,10 @@ export function CompanionScreen() {
   return (
     <Screen>
       <View style={styles.content}>
-        <Text style={styles.pageTitle}>동행</Text>
+        <Header
+          title="동행"
+          subtitle="친구와 산책방을 만들어 함께 걸어보세요"
+        />
         <SegmentedControl
           options={[
             { label: '내 산책방', value: 'walkRooms' },
@@ -220,7 +219,7 @@ export function CompanionScreen() {
 
         {tab === 'walkRooms' ? (
           myRoomsQuery.isLoading ? (
-            <Text style={styles.statusText}>불러오는 중...</Text>
+            <AppText style={styles.statusText}>불러오는 중...</AppText>
           ) : (
             <FlatList
               data={myWalkRooms}
@@ -229,9 +228,9 @@ export function CompanionScreen() {
                 <>
                   {receivedInvites.length > 0 ? (
                     <View style={styles.receivedRequests}>
-                      <Text style={styles.countLabel}>
+                      <AppText style={styles.countLabel}>
                         받은 산책방 초대 {receivedInvites.length}
-                      </Text>
+                      </AppText>
                       {receivedInvites.map(invite => (
                         <ReceivedRoomInviteRow
                           key={invite.requestId}
@@ -244,23 +243,23 @@ export function CompanionScreen() {
                     </View>
                   ) : null}
                   {myRoomsQuery.isError ? null : (
-                    <Text style={styles.countLabel}>
+                    <AppText style={styles.countLabel}>
                       참여 중인 산책방 {myWalkRooms.length}
-                    </Text>
+                    </AppText>
                   )}
                 </>
               }
               ListEmptyComponent={
                 myRoomsQuery.isError ? (
                   <Pressable onPress={() => myRoomsQuery.refetch()}>
-                    <Text style={styles.statusText}>
+                    <AppText style={styles.statusText}>
                       산책방 목록을 불러오지 못했어요.{'\n'}눌러서 다시 시도
-                    </Text>
+                    </AppText>
                   </Pressable>
                 ) : (
-                  <Text style={styles.statusText}>
+                  <AppText style={styles.statusText}>
                     아직 참여 중인 산책방이 없어요.
-                  </Text>
+                  </AppText>
                 )
               }
               renderItem={({ item }) => (
@@ -274,9 +273,9 @@ export function CompanionScreen() {
             />
           )
         ) : friendsQuery.isLoading ? (
-          <Text style={styles.statusText}>불러오는 중...</Text>
+          <AppText style={styles.statusText}>불러오는 중...</AppText>
         ) : friendsQuery.isError ? (
-          <Text style={styles.statusText}>친구 목록을 불러오지 못했어요.</Text>
+          <AppText style={styles.statusText}>친구 목록을 불러오지 못했어요.</AppText>
         ) : (
           <FlatList
             data={friends}
@@ -285,9 +284,9 @@ export function CompanionScreen() {
               <>
                 {receivedRequests.length > 0 ? (
                   <View style={styles.receivedRequests}>
-                    <Text style={styles.countLabel}>
+                    <AppText style={styles.countLabel}>
                       받은 친구 요청 {receivedRequests.length}
-                    </Text>
+                    </AppText>
                     {receivedRequests.map(request => (
                       <ReceivedRequestRow
                         key={request.requestId}
@@ -299,7 +298,7 @@ export function CompanionScreen() {
                     ))}
                   </View>
                 ) : null}
-                <Text style={styles.countLabel}>내 친구 {friends.length}</Text>
+                <AppText style={styles.countLabel}>내 친구 {friends.length}</AppText>
               </>
             }
             renderItem={({ item }) => (
@@ -363,14 +362,10 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     gap: spacing.lg,
   },
-  pageTitle: {
-    fontFamily: 'BMDOHYEON',
-    fontSize: 28,
-    color: colors.ink,
-  },
   countLabel: {
     fontFamily: 'BMDOHYEON',
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
   },
   receivedRequests: {
@@ -380,6 +375,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontFamily: 'BMDOHYEON',
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
     opacity: 0.6,
     textAlign: 'center',

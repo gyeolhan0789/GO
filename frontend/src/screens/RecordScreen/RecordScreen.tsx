@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 import type { HistoryPeriod } from '../../features/history/api/historyApi';
 import { WalkCard } from '../../features/history/components/WalkCard/WalkCard';
+import { AppText } from '../../shared/components/AppText/AppText';
 import { PERIOD_OPTIONS } from '../../features/history/constants/periods';
 import { useHistoriesQuery } from '../../features/history/hooks/useHistoriesQuery';
 import { useHourlyStepsQuery } from '../../features/history/hooks/useHourlyStepsQuery';
@@ -17,10 +18,12 @@ import {
   shiftPeriod,
   todayIso,
 } from '../../features/history/model/period';
+import { Header } from '../../shared/components/Header/Header';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { Select } from '../../shared/components/Select/Select';
 import { colors } from '../../shared/constants/colors';
 import { spacing } from '../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../shared/constants/typography';
 import { PeriodPicker } from './components/PeriodPicker/PeriodPicker';
 import { PeriodRangeNavigator } from './components/PeriodRangeNavigator';
 import { StepSummaryCard } from './components/StepSummaryCard';
@@ -57,12 +60,10 @@ export function RecordScreen() {
   return (
     <Screen>
       <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.pageTitle}>기록</Text>
-          <Text style={styles.pageSubtitle}>
-            지금까지 진행한 기록을 확인해보세요
-          </Text>
-        </View>
+        <Header
+          title="기록"
+          subtitle="지금까지 진행한 기록을 확인해보세요"
+        />
 
         <FlatList
           data={recentWalks}
@@ -86,13 +87,13 @@ export function RecordScreen() {
               </View>
 
               {historiesQuery.isLoading ? (
-                <Text style={styles.statusText}>{LOADING_TEXT}</Text>
+                <AppText style={styles.statusText}>{LOADING_TEXT}</AppText>
               ) : historiesQuery.isError || !historiesQuery.data ? (
-                <Text style={styles.statusText}>
+                <AppText style={styles.statusText}>
                   {historiesQuery.error instanceof Error
                     ? historiesQuery.error.message
                     : '활동 기록을 불러오지 못했어요.'}
-                </Text>
+                </AppText>
               ) : (
                 <StepSummaryCard
                   history={historiesQuery.data}
@@ -102,17 +103,17 @@ export function RecordScreen() {
                 />
               )}
 
-              <Text style={styles.sectionTitle}>최근 산책</Text>
+              <AppText style={styles.sectionTitle}>최근 산책</AppText>
             </View>
           }
           ListEmptyComponent={
-            <Text style={styles.statusText}>
+            <AppText style={styles.statusText}>
               {recentWalksQuery.isLoading
                 ? LOADING_TEXT
                 : recentWalksQuery.isError
                 ? '산책 기록을 불러오지 못했어요.'
                 : '아직 산책 기록이 없어요.'}
-            </Text>
+            </AppText>
           }
           renderItem={({ item }) => (
             <WalkCard
@@ -156,20 +157,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     gap: spacing.md,
   },
-  header: {
-    gap: spacing.xs,
-  },
-  pageTitle: {
-    fontFamily: 'BMDOHYEON',
-    fontSize: 28,
-    color: colors.ink,
-  },
-  pageSubtitle: {
-    fontFamily: 'BMDOHYEON',
-    fontSize: 12,
-    color: colors.ink,
-    opacity: 0.5,
-  },
   list: {
     flex: 1,
   },
@@ -182,13 +169,15 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   sectionTitle: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 16,
+    lineHeight: lineHeights[16],
     color: colors.ink,
   },
   statusText: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.regular,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.ink,
     opacity: 0.6,
     textAlign: 'center',

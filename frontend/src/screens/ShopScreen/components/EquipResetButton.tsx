@@ -1,9 +1,12 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { AppText } from '../../../shared/components/AppText/AppText';
+import { controlHeight } from '../../../shared/constants/sizing';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
 
 type EquipResetButtonProps = {
   onPress: () => void;
@@ -28,7 +31,7 @@ export function EquipResetButton({
       accessibilityState={{ disabled }}
     >
       <Ionicons name="refresh" size={16} color={colors.successText} />
-      <Text style={styles.label}>착용 아이템 초기화</Text>
+      <AppText style={styles.label}>착용 아이템 초기화</AppText>
     </Pressable>
   );
 }
@@ -39,7 +42,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'center',
     gap: spacing.xs,
-    height: 40,
+    height: controlHeight.row,
     paddingHorizontal: spacing.lg,
     borderRadius: radius.sm,
     backgroundColor: colors.successBg,
@@ -51,8 +54,9 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   label: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.successText,
   },
 });

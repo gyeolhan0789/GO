@@ -1,8 +1,11 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import type { SocialProvider } from '../constants/socialProviders';
 import { GoogleLogo } from './GoogleLogo';
+import { AppText } from '../../../shared/components/AppText/AppText';
+import { colors } from '../../../shared/constants/colors';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
 
 type SocialAuthButtonsProps = {
   onKakaoPress: () => void;
@@ -21,8 +24,8 @@ const PENDING_LABEL = '연결 중…';
 const KAKAO_BG = '#FEE500';
 const KAKAO_LABEL = '#191600';
 const GOOGLE_BG = '#FFFFFF';
-const GOOGLE_BORDER = '#D1D5DB';
-const GOOGLE_LABEL = '#374151';
+const GOOGLE_BORDER = colors.border;
+const GOOGLE_LABEL = colors.inkSoft;
 
 const BUTTON_HEIGHT = 52;
 const PRESSED_OPACITY = 0.85;
@@ -56,7 +59,7 @@ export function SocialAuthButtons({
         accessibilityState={{ disabled: isBusy }}
       >
         <Ionicons name="chatbubble-sharp" size={18} color={KAKAO_LABEL} />
-        <Text style={[styles.label, styles.kakaoLabel]}>{kakaoLabel}</Text>
+        <AppText style={[styles.label, styles.kakaoLabel]}>{kakaoLabel}</AppText>
       </Pressable>
 
       <Pressable
@@ -73,7 +76,7 @@ export function SocialAuthButtons({
         accessibilityState={{ disabled: isBusy }}
       >
         <GoogleLogo size={20} />
-        <Text style={[styles.label, styles.googleLabel]}>{googleLabel}</Text>
+        <AppText style={[styles.label, styles.googleLabel]}>{googleLabel}</AppText>
       </Pressable>
     </View>
   );
@@ -106,8 +109,9 @@ const styles = StyleSheet.create({
     borderColor: GOOGLE_BORDER,
   },
   label: {
+    fontFamily: bodyFont.bold,
     fontSize: 16,
-    fontWeight: '700',
+    lineHeight: lineHeights[16],
   },
   kakaoLabel: {
     color: KAKAO_LABEL,

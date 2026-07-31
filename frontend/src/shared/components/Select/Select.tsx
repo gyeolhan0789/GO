@@ -3,15 +3,17 @@ import {
   Modal,
   Pressable,
   StyleSheet,
-  Text,
   useWindowDimensions,
   View,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { AppText } from '../AppText/AppText';
+import { controlHeight } from '../../constants/sizing';
 import { colors } from '../../constants/colors';
 import { radius } from '../../constants/radius';
 import { spacing } from '../../constants/spacing';
+import { bodyFont, lineHeights } from '../../constants/typography';
 import { resolveMenuLeft } from './resolveMenuLeft';
 
 export type SelectOption<T extends string> = {
@@ -95,9 +97,9 @@ export function Select<T extends string>({
         accessibilityRole="button"
         accessibilityLabel={`${name} ${selectedLabel}`}
       >
-        <Text style={styles.triggerLabel} numberOfLines={1}>
+        <AppText style={styles.triggerLabel} numberOfLines={1}>
           {triggerLabel ?? selectedLabel}
-        </Text>
+        </AppText>
         <Ionicons name="chevron-down" size={ICON_SIZE} color={colors.ink} />
       </Pressable>
 
@@ -131,14 +133,14 @@ export function Select<T extends string>({
                   accessibilityState={{ selected: isSelected }}
                   accessibilityLabel={`${name} ${option.label} 선택`}
                 >
-                  <Text
+                  <AppText
                     style={[
                       styles.optionLabel,
                       isSelected && styles.optionLabelSelected,
                     ]}
                   >
                     {option.label}
-                  </Text>
+                  </AppText>
                   {isSelected ? (
                     <Ionicons
                       name="checkmark"
@@ -162,7 +164,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.xs,
-    height: 36,
+    height: controlHeight.compact,
     backgroundColor: colors.surface,
   },
   triggerBoxed: {
@@ -182,9 +184,10 @@ const styles = StyleSheet.create({
   },
   triggerLabel: {
     flexShrink: 1,
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 13,
     color: colors.ink,
+    lineHeight: lineHeights[13],
   },
   overlay: {
     flex: 1,
@@ -207,12 +210,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 40,
+    height: controlHeight.row,
     paddingHorizontal: spacing.md,
   },
   optionLabel: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.ink,
     opacity: 0.7,
   },

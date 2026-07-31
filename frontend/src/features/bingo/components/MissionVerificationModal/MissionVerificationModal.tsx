@@ -1,12 +1,14 @@
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import type { VerificationResult } from '../../api/bingoApi';
+import { AppText } from '../../../../shared/components/AppText/AppText';
 import { BottomSheet } from '../../../../shared/components/BottomSheet/BottomSheet';
+import { controlHeight } from '../../../../shared/constants/sizing';
 import { colors } from '../../../../shared/constants/colors';
 import { radius } from '../../../../shared/constants/radius';
 import { spacing } from '../../../../shared/constants/spacing';
-import { fontFamily } from '../../../../shared/constants/typography';
+import { fontFamily, lineHeights } from '../../../../shared/constants/typography';
 
 type MissionVerificationModalProps = {
   visible: boolean;
@@ -44,7 +46,7 @@ export function MissionVerificationModal({
       {isSubmitting ? (
         <View style={styles.pendingWrap}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.pendingText}>AI가 사진을 분석하고 있어요...</Text>
+          <AppText style={styles.pendingText}>AI가 사진을 분석하고 있어요...</AppText>
         </View>
       ) : result?.status === 'APPROVED' ? (
         <View style={styles.resultWrap}>
@@ -54,15 +56,15 @@ export function MissionVerificationModal({
               <Ionicons name="ribbon-outline" size={36} color={colors.ink} />
             </View>
           </View>
-          <Text style={styles.resultTitle}>미션 성공!</Text>
-          <Text style={styles.resultSubtitle}>
+          <AppText style={styles.resultTitle}>미션 성공!</AppText>
+          <AppText style={styles.resultSubtitle}>
             '{missionTitle}' 미션을 완료했어요{'\n'}빙고 한 칸을 채웠어요!
-          </Text>
+          </AppText>
           <View style={styles.rewardBadge}>
             <View style={styles.rewardDot} />
-            <Text style={styles.rewardBadgeText}>
+            <AppText style={styles.rewardBadgeText}>
               +{result.rewardCash} 포인트 획득
-            </Text>
+            </AppText>
           </View>
           <Pressable
             style={styles.primaryButton}
@@ -70,16 +72,16 @@ export function MissionVerificationModal({
             accessibilityRole="button"
             accessibilityLabel="확인"
           >
-            <Text style={styles.primaryButtonText}>확인</Text>
+            <AppText style={styles.primaryButtonText}>확인</AppText>
           </Pressable>
         </View>
       ) : result?.status === 'REJECTED' ? (
         <View style={styles.resultWrap}>
           <Ionicons name="close-circle" size={56} color={colors.danger} />
-          <Text style={[styles.resultTitle, styles.resultTitleFailure]}>
+          <AppText style={[styles.resultTitle, styles.resultTitleFailure]}>
             미션 실패
-          </Text>
-          <Text style={styles.resultSubtitle}>{result.rejectionReason}</Text>
+          </AppText>
+          <AppText style={styles.resultSubtitle}>{result.rejectionReason}</AppText>
           <Pressable
             style={styles.primaryButtonRow}
             onPress={onRetake}
@@ -87,7 +89,7 @@ export function MissionVerificationModal({
             accessibilityLabel="다시 촬영하기"
           >
             <Ionicons name="camera" size={18} color={colors.surface} />
-            <Text style={styles.primaryButtonText}>다시 촬영하기</Text>
+            <AppText style={styles.primaryButtonText}>다시 촬영하기</AppText>
           </Pressable>
         </View>
       ) : (
@@ -102,7 +104,7 @@ export function MissionVerificationModal({
               accessibilityRole="button"
               accessibilityLabel="사진 다시 찍기"
             >
-              <Text style={styles.retakeButtonText}>다시 찍기</Text>
+              <AppText style={styles.retakeButtonText}>다시 찍기</AppText>
             </Pressable>
             <Pressable
               style={styles.submitButton}
@@ -110,7 +112,7 @@ export function MissionVerificationModal({
               accessibilityRole="button"
               accessibilityLabel="미션 제출하기"
             >
-              <Text style={styles.primaryButtonText}>제출하기</Text>
+              <AppText style={styles.primaryButtonText}>제출하기</AppText>
             </Pressable>
           </View>
         </>
@@ -129,6 +131,7 @@ const styles = StyleSheet.create({
   pendingText: {
     fontFamily: fontFamily.regular,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
     opacity: 0.7,
   },
@@ -163,6 +166,7 @@ const styles = StyleSheet.create({
   resultTitle: {
     fontFamily: fontFamily.bold,
     fontSize: 20,
+    lineHeight: lineHeights[20],
     color: colors.ink,
     marginBottom: spacing.sm,
   },
@@ -173,7 +177,7 @@ const styles = StyleSheet.create({
   resultSubtitle: {
     fontFamily: fontFamily.regular,
     fontSize: 14,
-    lineHeight: 21,
+    lineHeight: lineHeights[14],
     color: colors.ink,
     opacity: 0.7,
     textAlign: 'center',
@@ -202,6 +206,7 @@ const styles = StyleSheet.create({
   rewardBadgeText: {
     fontFamily: fontFamily.bold,
     fontSize: 15,
+    lineHeight: lineHeights[15],
     color: colors.ink,
   },
   photoPreview: {
@@ -219,7 +224,7 @@ const styles = StyleSheet.create({
   },
   retakeButton: {
     flex: 1,
-    height: 52,
+    height: controlHeight.lg,
     borderRadius: radius.md,
     borderWidth: 2,
     borderColor: colors.ink,
@@ -230,18 +235,19 @@ const styles = StyleSheet.create({
   retakeButtonText: {
     fontFamily: fontFamily.bold,
     fontSize: 16,
+    lineHeight: lineHeights[16],
     color: colors.ink,
   },
   submitButton: {
     flex: 1,
-    height: 52,
+    height: controlHeight.lg,
     borderRadius: radius.md,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryButton: {
-    height: 52,
+    height: controlHeight.lg,
     width: '100%',
     borderRadius: radius.md,
     backgroundColor: colors.primary,
@@ -249,7 +255,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   primaryButtonRow: {
-    height: 52,
+    height: controlHeight.lg,
     width: '100%',
     borderRadius: radius.md,
     backgroundColor: colors.primary,
@@ -261,6 +267,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontFamily: fontFamily.bold,
     fontSize: 16,
+    lineHeight: lineHeights[16],
     color: colors.surface,
   },
 });

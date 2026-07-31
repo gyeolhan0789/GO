@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   FlatList,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
@@ -13,10 +12,12 @@ import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 import { WalkCard } from '../../features/history/components/WalkCard/WalkCard';
 import { useWalksInfiniteQuery } from '../../features/history/hooks/useWalksInfiniteQuery';
 import type { WalkRecord } from '../../features/history/types';
+import { AppText } from '../../shared/components/AppText/AppText';
 import { Fab } from '../../shared/components/Fab/Fab';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { colors } from '../../shared/constants/colors';
 import { spacing } from '../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../shared/constants/typography';
 
 type WalkListScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -57,9 +58,9 @@ export function WalkListScreen({ navigation }: WalkListScreenProps) {
     <Screen edges={SCREEN_EDGES}>
       <View style={styles.container}>
         {walksQuery.isLoading ? (
-          <Text style={styles.statusText}>불러오는 중...</Text>
+          <AppText style={styles.statusText}>불러오는 중...</AppText>
         ) : walksQuery.isError ? (
-          <Text style={styles.statusText}>산책 기록을 불러오지 못했어요.</Text>
+          <AppText style={styles.statusText}>산책 기록을 불러오지 못했어요.</AppText>
         ) : (
           <FlatList
             ref={listRef}
@@ -77,14 +78,14 @@ export function WalkListScreen({ navigation }: WalkListScreenProps) {
             onEndReached={loadNextPage}
             onEndReachedThreshold={END_REACHED_THRESHOLD}
             ListEmptyComponent={
-              <Text style={styles.statusText}>아직 산책 기록이 없어요.</Text>
+              <AppText style={styles.statusText}>아직 산책 기록이 없어요.</AppText>
             }
             ListFooterComponent={
               <View style={styles.footer}>
                 {walksQuery.isFetchingNextPage ? (
                   <ActivityIndicator color={colors.primary} />
                 ) : walks.length > 0 && !walksQuery.hasNextPage ? (
-                  <Text style={styles.footerText}>기록을 모두 봤어요</Text>
+                  <AppText style={styles.footerText}>기록을 모두 봤어요</AppText>
                 ) : null}
               </View>
             }
@@ -129,8 +130,9 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
   },
   statusText: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.regular,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
     opacity: 0.6,
     textAlign: 'center',
@@ -143,8 +145,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   footerText: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.regular,
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.ink,
     opacity: 0.4,
   },

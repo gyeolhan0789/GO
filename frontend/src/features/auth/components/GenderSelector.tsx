@@ -1,18 +1,21 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { GENDERS } from '../constants/genders';
 import type { Gender } from '../constants/genders';
+import { colors } from '../../../shared/constants/colors';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
 
 type GenderSelectorProps = {
   selected: Gender | null;
   onSelect: (gender: Gender) => void;
 };
 
-const BORDER_COLOR = '#D1D5DB';
-const SELECTED_BORDER_COLOR = '#2C6A47';
-const SELECTED_BACKGROUND_COLOR = '#E8F5E9';
-const LABEL_COLOR = '#374151';
-const SELECTED_LABEL_COLOR = '#2C6A47';
+const BORDER_COLOR = colors.border;
+const SELECTED_BORDER_COLOR = colors.primaryDark;
+const SELECTED_BACKGROUND_COLOR = colors.successBg;
+const LABEL_COLOR = colors.inkSoft;
+const SELECTED_LABEL_COLOR = colors.primaryDark;
 
 const MIN_TOUCH_SIZE = 44;
 const OPTION_GAP = 8;
@@ -31,10 +34,10 @@ export function GenderSelector({ selected, onSelect }: GenderSelectorProps) {
             accessibilityRole="button"
             accessibilityLabel={label}
             accessibilityState={{ selected: isSelected }}>
-            <Text
+            <AppText
               style={[styles.label, isSelected ? styles.labelSelected : null]}>
               {label}
-            </Text>
+            </AppText>
           </Pressable>
         );
       })}
@@ -62,11 +65,13 @@ const styles = StyleSheet.create({
     backgroundColor: SELECTED_BACKGROUND_COLOR,
   },
   label: {
+    fontFamily: bodyFont.regular,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: LABEL_COLOR,
   },
   labelSelected: {
-    fontWeight: '700',
+    fontFamily: bodyFont.bold,
     color: SELECTED_LABEL_COLOR,
   },
 });

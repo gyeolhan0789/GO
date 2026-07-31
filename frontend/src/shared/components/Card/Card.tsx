@@ -10,12 +10,19 @@ type CardProps = PropsWithChildren<{
   style?: StyleProp<ViewStyle>;
   /** Sizing (flex, width, height) for the outer box — the shadow/border box that's the actual layout item in the parent. */
   wrapperStyle?: StyleProp<ViewStyle>;
+  /** 오프셋 그림자. 상점 그리드처럼 작은 카드가 빽빽한 곳에서는 끈다. */
+  shadow?: boolean;
 }>;
 
-export function Card({ children, style, wrapperStyle }: CardProps) {
+export function Card({
+  children,
+  style,
+  wrapperStyle,
+  shadow: hasShadow = true,
+}: CardProps) {
   return (
     <View style={[styles.wrapper, wrapperStyle]}>
-      <View style={styles.shadowBox} />
+      {hasShadow ? <View style={styles.shadowBox} /> : null}
       <View style={[styles.card, style]}>{children}</View>
     </View>
   );
