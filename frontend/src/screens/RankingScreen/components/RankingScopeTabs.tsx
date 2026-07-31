@@ -1,9 +1,11 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { RankingScope } from '../../../features/ranking/api/rankingApi';
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
 
 type RankingScopeTabsProps = {
   value: RankingScope;
@@ -36,9 +38,9 @@ export function RankingScopeTabs({ value, onChange }: RankingScopeTabsProps) {
             accessibilityRole="tab"
             accessibilityState={{ selected: isActive }}
           >
-            <Text style={[styles.label, isActive && styles.labelActive]}>
+            <AppText style={[styles.label, isActive && styles.labelActive]}>
               {scope.label}
-            </Text>
+            </AppText>
           </Pressable>
         );
       })}
@@ -69,10 +71,10 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   label: {
-    fontFamily: 'NotoSansKR-Bold',
+    fontFamily: bodyFont.bold,
     fontSize: 15,
     color: colors.ink,
-    lineHeight: 20,
+    lineHeight: lineHeights[15],
   },
   labelActive: {
     color: colors.surface,

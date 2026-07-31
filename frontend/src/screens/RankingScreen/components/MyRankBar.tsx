@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { formatThousands } from '../../../features/history/model/format';
@@ -8,9 +8,11 @@ import {
   selectLayerItems,
   toEquippedByCategory,
 } from '../../../features/member/model/equippedItems';
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
 import { ME_LABEL } from '../model';
 
 type MyRankBarProps = {
@@ -48,7 +50,7 @@ export function MyRankBar({ rank, weeklySteps, character }: MyRankBarProps) {
           : `순위 밖, ${formatThousands(weeklySteps)}보`
       }
     >
-      <Text style={styles.rank}>{isRanked ? rank : UNRANKED_LABEL}</Text>
+      <AppText style={styles.rank}>{isRanked ? rank : UNRANKED_LABEL}</AppText>
 
       <CharacterBust
         baseImage={character?.baseImage ?? null}
@@ -56,7 +58,7 @@ export function MyRankBar({ rank, weeklySteps, character }: MyRankBarProps) {
         style={styles.avatar}
       />
 
-      <Text style={styles.label}>{ME_LABEL}</Text>
+      <AppText style={styles.label}>{ME_LABEL}</AppText>
 
       <View style={styles.steps}>
         <Ionicons
@@ -64,7 +66,7 @@ export function MyRankBar({ rank, weeklySteps, character }: MyRankBarProps) {
           size={STEP_ICON_SIZE}
           color={colors.surface}
         />
-        <Text style={styles.stepsLabel}>{formatThousands(weeklySteps)}</Text>
+        <AppText style={styles.stepsLabel}>{formatThousands(weeklySteps)}</AppText>
       </View>
     </View>
   );
@@ -85,8 +87,9 @@ const styles = StyleSheet.create({
   rank: {
     minWidth: 20,
     textAlign: 'center',
-    fontFamily: 'NotoSansKR-Bold',
+    fontFamily: bodyFont.bold,
     fontSize: 15,
+    lineHeight: lineHeights[15],
     color: colors.surface,
   },
   avatar: {
@@ -97,8 +100,9 @@ const styles = StyleSheet.create({
   },
   label: {
     flex: 1,
-    fontFamily: 'NotoSansKR-Bold',
+    fontFamily: bodyFont.bold,
     fontSize: 16,
+    lineHeight: lineHeights[16],
     color: colors.surface,
   },
   steps: {
@@ -107,8 +111,9 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   stepsLabel: {
-    fontFamily: 'NotoSansKR-Bold',
+    fontFamily: bodyFont.bold,
     fontSize: 16,
+    lineHeight: lineHeights[16],
     color: colors.primarySoftLight,
   },
 });

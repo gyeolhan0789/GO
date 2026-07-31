@@ -10,14 +10,19 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 
+import com.wecandoit.auth.dto.AuthTokens;
+import com.wecandoit.auth.dto.OAuthLoginStatus;
+import com.wecandoit.auth.dto.OAuthSignupState;
+import com.wecandoit.auth.dto.OAuthUserInfo;
+import com.wecandoit.auth.dto.OAuthVerifyResponse;
+import com.wecandoit.auth.repository.OAuthSignupStateRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.jwt.JwtProperties;
 import com.wecandoit.common.jwt.JwtProvider;
 import com.wecandoit.common.jwt.TokenRepository;
-import com.wecandoit.auth.dto.AuthTokens;
-import com.wecandoit.auth.dto.OAuthUserInfo;
 import com.wecandoit.member.domain.AuthProvider;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import java.util.Optional;
@@ -45,6 +50,8 @@ class OAuthServiceTest {
     private MemberRepository memberRepository;
     @Mock
     private TokenRepository tokenRepository;
+    @Mock
+    private OAuthSignupStateRepository oAuthSignupStateRepository;
     private TokenIssuer tokenIssuer;
     private OAuthService oAuthService;
 
@@ -54,35 +61,35 @@ class OAuthServiceTest {
         oAuthService = new OAuthService(
                 oAuthApiClient,
                 memberRepository,
-                tokenIssuer
+                tokenIssuer,
+                oAuthSignupStateRepository
         );
     }
 
     @Test
-    @DisplayName("신규 소셜 사용자는 Member를 생성하고 토큰을 발급한다")
-    void oauthLoginCreatesMemberAndIssuesTokensForNewUser() {
+    @DisplayName("신규 소셜 사용자는 가입 토큰을 발급받고 Member는 생성되지 않는다")
+    void verifyIssuesSignupTokenForNewUser() {
         // given
         given(oAuthApiClient.verifyAndExtract(AuthProvider.GOOGLE, "valid-id-token"))
                 .willReturn(new OAuthUserInfo("new@gmail.com", "신규유저"));
         given(memberRepository.findByEmail("new@gmail.com")).willReturn(Optional.empty());
-
-        Member savedMember = Member.createSocial("new@gmail.com", "신규유저", AuthProvider.GOOGLE);
-        ReflectionTestUtils.setField(savedMember, "id", 1L);
-        given(memberRepository.save(any(Member.class))).willReturn(savedMember);
+        given(oAuthSignupStateRepository.save("new@gmail.com", AuthProvider.GOOGLE, "신규유저"))
+                .willReturn("signup-token-1");
 
         // when
-        AuthTokens tokens = oAuthService.oauthLogin(AuthProvider.GOOGLE, "valid-id-token");
+        OAuthVerifyResponse response = oAuthService.verify(AuthProvider.GOOGLE, "valid-id-token");
 
         // then
-        assertThat(tokens.accessToken()).isNotBlank();
-        assertThat(tokens.refreshToken()).isNotBlank();
-        then(memberRepository).should().save(any(Member.class));
-        then(tokenRepository).should().saveRefreshToken(eq(1L), eq(tokens.refreshToken()), anyLong());
+        assertThat(response.status()).isEqualTo(OAuthLoginStatus.SIGNUP_REQUIRED);
+        assertThat(response.signupToken()).isEqualTo("signup-token-1");
+        assertThat(response.accessToken()).isNull();
+        assertThat(response.refreshToken()).isNull();
+        then(memberRepository).should(never()).save(any(Member.class));
     }
 
     @Test
-    @DisplayName("기존 소셜 사용자는 Member를 새로 생성하지 않고 토큰을 발급한다")
-    void oauthLoginIssuesTokensForExistingUserWithoutCreatingMember() {
+    @DisplayName("기존 소셜 사용자는 로그인 상태로 토큰을 발급받는다")
+    void verifyLogsInExistingUser() {
         // given
         Member existingMember = Member.createSocial("existing@gmail.com", "기존유저", AuthProvider.GOOGLE);
         ReflectionTestUtils.setField(existingMember, "id", 2L);
@@ -92,17 +99,20 @@ class OAuthServiceTest {
         given(memberRepository.findByEmail("existing@gmail.com")).willReturn(Optional.of(existingMember));
 
         // when
-        AuthTokens tokens = oAuthService.oauthLogin(AuthProvider.GOOGLE, "valid-id-token");
+        OAuthVerifyResponse response = oAuthService.verify(AuthProvider.GOOGLE, "valid-id-token");
 
         // then
-        assertThat(tokens.accessToken()).isNotBlank();
+        assertThat(response.status()).isEqualTo(OAuthLoginStatus.LOGIN);
+        assertThat(response.accessToken()).isNotBlank();
+        assertThat(response.refreshToken()).isNotBlank();
         then(memberRepository).should(never()).save(any(Member.class));
-        then(tokenRepository).should().saveRefreshToken(eq(2L), eq(tokens.refreshToken()), anyLong());
+        then(tokenRepository).should().saveRefreshToken(eq(2L), eq(response.refreshToken()), anyLong());
+        then(oAuthSignupStateRepository).should(never()).save(any(), any(), any());
     }
 
     @Test
     @DisplayName("동일 이메일이 다른 provider로 가입되어 있으면 OAUTH_PROVIDER_MISMATCH 오류를 반환한다")
-    void oauthLoginRejectsProviderMismatchForSameEmail() {
+    void verifyRejectsProviderMismatchForSameEmail() {
         // given
         Member localMember = Member.create("user@gmail.com", "encoded-password", "로컬유저");
         ReflectionTestUtils.setField(localMember, "id", 3L);
@@ -112,7 +122,7 @@ class OAuthServiceTest {
         given(memberRepository.findByEmail("user@gmail.com")).willReturn(Optional.of(localMember));
 
         // when & then
-        assertThatThrownBy(() -> oAuthService.oauthLogin(AuthProvider.GOOGLE, "valid-id-token"))
+        assertThatThrownBy(() -> oAuthService.verify(AuthProvider.GOOGLE, "valid-id-token"))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.OAUTH_PROVIDER_MISMATCH);
@@ -122,13 +132,13 @@ class OAuthServiceTest {
 
     @Test
     @DisplayName("idToken 검증 실패 시 OAuthApiClient의 오류가 그대로 전파된다")
-    void oauthLoginPropagatesTokenInvalidErrorFromApiClient() {
+    void verifyPropagatesTokenInvalidErrorFromApiClient() {
         // given
         willThrow(new CustomException(ErrorCode.OAUTH_TOKEN_INVALID))
                 .given(oAuthApiClient).verifyAndExtract(AuthProvider.KAKAO, "invalid-id-token");
 
         // when & then
-        assertThatThrownBy(() -> oAuthService.oauthLogin(AuthProvider.KAKAO, "invalid-id-token"))
+        assertThatThrownBy(() -> oAuthService.verify(AuthProvider.KAKAO, "invalid-id-token"))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.OAUTH_TOKEN_INVALID);
@@ -137,20 +147,73 @@ class OAuthServiceTest {
     }
 
     @Test
-    @DisplayName("소셜 로그인 성공 시 Refresh Token을 회원 기준으로 저장한다")
-    void oauthLoginStoresRefreshTokenForMember() {
+    @DisplayName("유효한 가입 토큰과 성별로 회원가입을 완료하고 토큰을 소모한다")
+    void completeSignupCreatesMemberAndConsumesToken() {
         // given
-        Member member = Member.createSocial("kakao@kakao.com", "카카오유저", AuthProvider.KAKAO);
-        ReflectionTestUtils.setField(member, "id", 4L);
+        given(oAuthSignupStateRepository.find("signup-token-1"))
+                .willReturn(Optional.of(new OAuthSignupState("new@gmail.com", AuthProvider.GOOGLE, "신규유저")));
+        given(memberRepository.findByEmail("new@gmail.com")).willReturn(Optional.empty());
 
-        given(oAuthApiClient.verifyAndExtract(AuthProvider.KAKAO, "valid-kakao-token"))
-                .willReturn(new OAuthUserInfo("kakao@kakao.com", "카카오유저"));
-        given(memberRepository.findByEmail("kakao@kakao.com")).willReturn(Optional.of(member));
+        Member savedMember = Member.createSocial("new@gmail.com", "신규유저", AuthProvider.GOOGLE, Gender.FEMALE);
+        ReflectionTestUtils.setField(savedMember, "id", 10L);
+        given(memberRepository.save(any(Member.class))).willReturn(savedMember);
 
         // when
-        AuthTokens tokens = oAuthService.oauthLogin(AuthProvider.KAKAO, "valid-kakao-token");
+        AuthTokens tokens = oAuthService.completeSignup(AuthProvider.GOOGLE, "signup-token-1", Gender.FEMALE);
 
         // then
-        then(tokenRepository).should().saveRefreshToken(4L, tokens.refreshToken(), 1_209_600_000L);
+        assertThat(tokens.accessToken()).isNotBlank();
+        then(memberRepository).should().save(any(Member.class));
+        then(oAuthSignupStateRepository).should().delete("signup-token-1");
+        then(tokenRepository).should().saveRefreshToken(eq(10L), eq(tokens.refreshToken()), anyLong());
+    }
+
+    @Test
+    @DisplayName("존재하지 않거나 만료된 가입 토큰이면 OAUTH_SIGNUP_TOKEN_INVALID 오류를 반환한다")
+    void completeSignupRejectsMissingToken() {
+        // given
+        given(oAuthSignupStateRepository.find("missing-token")).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> oAuthService.completeSignup(AuthProvider.GOOGLE, "missing-token", Gender.MALE))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.OAUTH_SIGNUP_TOKEN_INVALID);
+        then(memberRepository).should(never()).save(any());
+        then(oAuthSignupStateRepository).should(never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("가입 토큰의 provider와 요청 provider가 다르면 OAUTH_SIGNUP_TOKEN_INVALID 오류를 반환한다")
+    void completeSignupRejectsProviderMismatch() {
+        // given
+        given(oAuthSignupStateRepository.find("signup-token-1"))
+                .willReturn(Optional.of(new OAuthSignupState("new@gmail.com", AuthProvider.GOOGLE, "신규유저")));
+
+        // when & then
+        assertThatThrownBy(() -> oAuthService.completeSignup(AuthProvider.KAKAO, "signup-token-1", Gender.MALE))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.OAUTH_SIGNUP_TOKEN_INVALID);
+        then(memberRepository).should(never()).save(any());
+        then(oAuthSignupStateRepository).should(never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("가입 토큰은 유효하지만 그 사이 이미 가입된 이메일이면 OAUTH_ALREADY_REGISTERED 오류를 반환한다")
+    void completeSignupRejectsAlreadyRegisteredEmail() {
+        // given
+        given(oAuthSignupStateRepository.find("signup-token-1"))
+                .willReturn(Optional.of(new OAuthSignupState("existing@gmail.com", AuthProvider.GOOGLE, "이미가입유저")));
+        Member alreadyRegistered = Member.createSocial("existing@gmail.com", "이미가입유저", AuthProvider.GOOGLE);
+        given(memberRepository.findByEmail("existing@gmail.com")).willReturn(Optional.of(alreadyRegistered));
+
+        // when & then
+        assertThatThrownBy(() -> oAuthService.completeSignup(AuthProvider.GOOGLE, "signup-token-1", Gender.MALE))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.OAUTH_ALREADY_REGISTERED);
+        then(memberRepository).should(never()).save(any());
+        then(oAuthSignupStateRepository).should(never()).delete(any());
     }
 }

@@ -2,8 +2,8 @@ package com.wecandoit.bingo.controller.response;
 
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.domain.BingoBoardStatus;
-import com.wecandoit.game.domain.GameRoomStatus;
 import com.wecandoit.game.domain.GameStatus;
+import com.wecandoit.game.domain.RoomStatus;
 import java.util.List;
 
 public record BingoBoardResponse(
@@ -31,7 +31,6 @@ public record BingoBoardResponse(
             BingoBoard board,
             Long roomId,
             List<BingoCellResponse> cells,
-            Integer targetBingoCount,
             int completedBingoCount,
             int approvedCellCount,
             boolean completed,
@@ -43,7 +42,7 @@ public record BingoBoardResponse(
                 board.getGameId(),
                 roomId,
                 board.getBoardSize(),
-                targetBingoCount,
+                board.getTargetBingoCount(),
                 board.getTargetStepCount(),
                 completedBingoCount,
                 cells.size(),
@@ -62,7 +61,6 @@ public record BingoBoardResponse(
             BingoBoard board,
             Long roomId,
             List<BingoCellResponse> cells,
-            Integer targetBingoCount,
             int completedBingoCount,
             int approvedCellCount,
             boolean completed,
@@ -73,7 +71,7 @@ public record BingoBoardResponse(
                 board.getGameId(),
                 roomId,
                 board.getBoardSize(),
-                targetBingoCount,
+                board.getTargetBingoCount(),
                 board.getTargetStepCount(),
                 completedBingoCount,
                 cells.size(),
@@ -89,7 +87,7 @@ public record BingoBoardResponse(
     }
 
     public record BattleProgressResponse(
-            GameRoomStatus roomStatus,
+            RoomStatus roomStatus,
             GameStatus gameStatus,
             BattleParticipantProgressResponse me,
             BattleParticipantProgressResponse opponent,

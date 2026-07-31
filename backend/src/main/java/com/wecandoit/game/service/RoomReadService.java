@@ -13,15 +13,19 @@ import com.wecandoit.game.controller.response.RoomDetailResponse;
 import com.wecandoit.game.controller.response.RoomMemberResponse;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
-import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.domain.GameParticipant;
 import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomMember;
+import com.wecandoit.game.domain.RoomStatus;
+import com.wecandoit.game.repository.GameParticipantRepository;
 import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.member.service.MemberReadService;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -41,31 +45,27 @@ public class RoomReadService {
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
     private final GameRepository gameRepository;
+    private final GameParticipantRepository gameParticipantRepository;
     private final MemberReadService memberReadService;
     private final BingoBoardRepository bingoBoardRepository;
     private final BingoCellRepository bingoCellRepository;
 
     public RoomDetailResponse getRoomDetail(Long memberId, Long roomId) {
-        Room room = roomRepository.findById(roomId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
-        if (!roomMemberRepository.existsByRoomIdAndMemberId(roomId, memberId)) {
-            throw new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN);
-        }
-        if (room.getStatus() == GameRoomStatus.CLOSED) {
-            throw new CustomException(ErrorCode.ROOM_CLOSED);
-        }
+        Room room = findRoom(roomId);
+        validateRoomMember(memberId, roomId);
+        validateRoomOpen(room);
 
         List<RoomMember> roomMembers = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId);
-        MissionProgress missionProgress = getMissionProgress(room);
+        RoomCycleSnapshot snapshot = getRoomCycleSnapshot(room);
         return RoomDetailResponse.from(
                 room,
-                missionProgress.totalMissionCount(),
-                missionProgress.completedMissionCount(),
-                getRoomMemberResponses(
-                        room,
-                        roomMembers,
-                        getBingoBoardIdsByRoomMemberId(room)
-                )
+                snapshot.boardSize(),
+                snapshot.targetBingoCount(),
+                snapshot.targetStepCount(),
+                snapshot.missionProgress().totalMissionCount(),
+                snapshot.missionProgress().completedMissionCount(),
+                snapshot.startedAt(),
+                getRoomMemberResponses(room, roomMembers, snapshot)
         );
     }
 
@@ -79,10 +79,7 @@ public class RoomReadService {
             return List.of();
         }
 
-        List<Long> roomIds = myRoomMembers.stream()
-                .map(RoomMember::getRoomId)
-                .distinct()
-                .toList();
+        List<Long> roomIds = myRoomMembers.stream().map(RoomMember::getRoomId).distinct().toList();
         Map<Long, Room> roomsById = getRoomsById(roomIds);
         List<RoomMember> activeRoomMembers = myRoomMembers.stream()
                 .filter(roomMember -> isActiveRoomWithMode(roomsById.get(roomMember.getRoomId()), mode))
@@ -91,155 +88,37 @@ public class RoomReadService {
             return List.of();
         }
 
-        List<Long> activeRoomIds = activeRoomMembers.stream()
-                .map(RoomMember::getRoomId)
-                .distinct()
-                .toList();
+        List<Long> activeRoomIds = activeRoomMembers.stream().map(RoomMember::getRoomId).distinct().toList();
         List<RoomMember> allRoomMembers = roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(activeRoomIds);
         Map<Long, String> nicknamesByMemberId = getNicknamesByMemberId(allRoomMembers);
-        Map<Long, List<MyRoomMemberResponse>> membersByRoomId = getMembersByRoomId(
-                roomsById,
-                allRoomMembers,
-                nicknamesByMemberId
-        );
-        Map<Long, MissionProgress> missionProgressByRoomId = getMissionProgressByRoomId(activeRoomIds, roomsById);
+        Map<Long, List<MyRoomMemberResponse>> membersByRoomId =
+                getMembersByRoomId(roomsById, allRoomMembers, nicknamesByMemberId);
+        Map<Long, RoomCycleSnapshot> snapshotsByRoomId = getRoomCycleSnapshots(activeRoomIds, roomsById);
 
         return activeRoomMembers.stream()
                 .map(roomMember -> {
                     Long roomId = roomMember.getRoomId();
-                    MissionProgress missionProgress = missionProgressByRoomId.get(roomId);
+                    Room room = roomsById.get(roomId);
+                    RoomCycleSnapshot snapshot = snapshotsByRoomId.get(roomId);
                     return MyRoomResponse.from(
-                            roomsById.get(roomId),
+                            room,
                             roomMember,
-                            missionProgress.totalMissionCount(),
-                            missionProgress.completedMissionCount(),
+                            snapshot.boardSize(),
+                            snapshot.targetBingoCount(),
+                            snapshot.targetStepCount(),
+                            snapshot.missionProgress().totalMissionCount(),
+                            snapshot.missionProgress().completedMissionCount(),
                             membersByRoomId.getOrDefault(roomId, List.of())
                     );
                 })
                 .toList();
     }
 
-    private boolean isActiveRoomWithMode(Room room, GameMode mode) {
-        return room.getStatus() != GameRoomStatus.CLOSED
-                && (mode == null || room.getMode() == mode);
-    }
-
     public List<RoomMemberResponse> getRoomMembers(Long memberId, Long roomId) {
-        Room room = roomRepository.findById(roomId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
-        if (!roomMemberRepository.existsByRoomIdAndMemberId(roomId, memberId)) {
-            throw new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN);
-        }
-
+        Room room = findRoom(roomId);
+        validateRoomMember(memberId, roomId);
         List<RoomMember> roomMembers = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId);
-        return getRoomMemberResponses(room, roomMembers, getBingoBoardIdsByRoomMemberId(room));
-    }
-
-    private MissionProgress getMissionProgress(Room room) {
-        return gameRepository.findFirstByRoomIdOrderByIdDesc(room.getId())
-                .map(game -> getMissionProgress(
-                        room,
-                        bingoBoardRepository.findAllByGameIdOrderByIdAsc(game.getId())
-                ))
-                .orElseGet(() -> MissionProgress.initial(room));
-    }
-
-    private Map<Long, MissionProgress> getMissionProgressByRoomId(
-            List<Long> roomIds,
-            Map<Long, Room> roomsById
-    ) {
-        Map<Long, Game> latestGamesByRoomId = gameRepository.findAllByRoomIdIn(roomIds).stream()
-                .collect(Collectors.toMap(
-                        Game::getRoomId,
-                        Function.identity(),
-                        (first, second) -> first.getId() > second.getId() ? first : second
-                ));
-        if (latestGamesByRoomId.isEmpty()) {
-            return getInitialMissionProgressByRoomId(roomIds, roomsById);
-        }
-
-        List<BingoBoard> boards = bingoBoardRepository
-                .findAllByGameIdInOrderByIdAsc(latestGamesByRoomId.values().stream()
-                        .map(Game::getId)
-                        .sorted()
-                        .toList());
-        Map<Long, List<BingoBoard>> boardsByGameId = boards.stream()
-                .collect(Collectors.groupingBy(BingoBoard::getGameId));
-        Map<Long, List<BingoCell>> cellsByBoardId = getCellsByBoardId(boards.stream()
-                .map(BingoBoard::getId)
-                .toList());
-
-        return roomIds.stream()
-                .collect(Collectors.toMap(
-                        Function.identity(),
-                        roomId -> getMissionProgress(
-                                roomsById.get(roomId),
-                                latestGamesByRoomId.get(roomId),
-                                boardsByGameId,
-                                cellsByBoardId
-                        )
-                ));
-    }
-
-    private Map<Long, MissionProgress> getInitialMissionProgressByRoomId(
-            List<Long> roomIds,
-            Map<Long, Room> roomsById
-    ) {
-        return roomIds.stream()
-                .collect(Collectors.toMap(
-                        Function.identity(),
-                        roomId -> MissionProgress.initial(roomsById.get(roomId))
-                ));
-    }
-
-    private MissionProgress getMissionProgress(
-            Room room,
-            Game game,
-            Map<Long, List<BingoBoard>> boardsByGameId,
-            Map<Long, List<BingoCell>> cellsByBoardId
-    ) {
-        if (game == null) {
-            return MissionProgress.initial(room);
-        }
-        return getMissionProgress(room, boardsByGameId.getOrDefault(game.getId(), List.of()), cellsByBoardId);
-    }
-
-    private MissionProgress getMissionProgress(Room room, List<BingoBoard> boards) {
-        return getMissionProgress(room, boards, getCellsByBoardId(boards.stream()
-                .map(BingoBoard::getId)
-                .toList()));
-    }
-
-    private MissionProgress getMissionProgress(
-            Room room,
-            List<BingoBoard> boards,
-            Map<Long, List<BingoCell>> cellsByBoardId
-    ) {
-        if (boards.isEmpty()) {
-            return MissionProgress.initial(room);
-        }
-
-        int totalMissionCount = 0;
-        int completedMissionCount = 0;
-        for (BingoBoard board : boards) {
-            List<BingoCell> cells = cellsByBoardId.getOrDefault(board.getId(), List.of());
-            totalMissionCount += cells.size();
-            completedMissionCount += (int) cells.stream()
-                    .filter(cell -> cell.getCompletedAt() != null)
-                    .count();
-        }
-        if (totalMissionCount == 0) {
-            return MissionProgress.initial(room);
-        }
-        return new MissionProgress(totalMissionCount, completedMissionCount);
-    }
-
-    private Map<Long, List<BingoCell>> getCellsByBoardId(List<Long> boardIds) {
-        if (boardIds.isEmpty()) {
-            return Map.of();
-        }
-        return bingoCellRepository.findAllByBoardIdIn(boardIds).stream()
-                .collect(Collectors.groupingBy(BingoCell::getBoardId));
+        return getRoomMemberResponses(room, roomMembers, getRoomCycleSnapshot(room));
     }
 
     public List<StepGoalRewardTarget> getStepGoalRewardTargets(Long memberId) {
@@ -252,34 +131,28 @@ public class RoomReadService {
         }
 
         List<Room> targetRooms = roomRepository.findAllById(participatingRoomIds).stream()
-                .filter(this::isStepGoalRewardTarget)
+                .filter(room -> room.getStatus() == RoomStatus.ACTIVE && room.getMode() != GameMode.BATTLE)
                 .toList();
         if (targetRooms.isEmpty()) {
             return List.of();
         }
 
-        List<Long> targetRoomIds = targetRooms.stream()
-                .map(Room::getId)
-                .toList();
+        List<Long> targetRoomIds = targetRooms.stream().map(Room::getId).toList();
         Map<Long, Game> activeGamesByRoomId = gameRepository
-                .findAllByRoomIdInAndStatus(targetRoomIds, GameStatus.IN_PROGRESS)
+                .findAllByRoomIdInAndStatus(targetRoomIds, GameStatus.ACTIVE)
                 .stream()
                 .collect(Collectors.toMap(
                         Game::getRoomId,
                         Function.identity(),
                         (first, second) -> first.getId() > second.getId() ? first : second
                 ));
-        if (activeGamesByRoomId.isEmpty()) {
-            return List.of();
-        }
-
         Map<Long, BingoBoard> activeBoardsByGameId = bingoBoardRepository
                 .findAllByGameIdInAndStatusNotInOrderByIdAsc(
                         activeGamesByRoomId.values().stream().map(Game::getId).toList(),
                         INACTIVE_BOARD_STATUSES
                 )
                 .stream()
-                .filter(bingoBoard -> bingoBoard.getRoomMember() == null)
+                .filter(BingoBoard::isShared)
                 .collect(Collectors.toMap(
                         BingoBoard::getGameId,
                         Function.identity(),
@@ -302,11 +175,6 @@ public class RoomReadService {
                 .toList();
     }
 
-    private boolean isStepGoalRewardTarget(Room room) {
-        return room.getStatus() == GameRoomStatus.IN_PROGRESS
-                && room.getMode() != GameMode.BATTLE;
-    }
-
     private StepGoalRewardTarget toStepGoalRewardTarget(
             Room room,
             Game game,
@@ -316,19 +184,16 @@ public class RoomReadService {
         if (game == null) {
             return null;
         }
-        BingoBoard bingoBoard = activeBoardsByGameId.get(game.getId());
+        BingoBoard board = activeBoardsByGameId.get(game.getId());
         List<RoomMember> roomMembers = roomMembersByRoomId.getOrDefault(room.getId(), List.of());
-        if (bingoBoard == null
-                || bingoBoard.getTargetStepCount() == null
-                || bingoBoard.getTargetStepCount() < 1
-                || roomMembers.isEmpty()) {
+        if (board == null || board.getTargetStepCount() == null || roomMembers.isEmpty()) {
             return null;
         }
         return new StepGoalRewardTarget(
                 room.getId(),
-                bingoBoard.getId(),
-                bingoBoard.getCreatedAt().toLocalDate(),
-                bingoBoard.getTargetStepCount(),
+                board.getId(),
+                board.getCreatedAt().toLocalDate(),
+                board.getTargetStepCount(),
                 roomMembers.stream()
                         .map(roomMember -> new StepGoalRewardMember(
                                 roomMember.getMemberId(),
@@ -338,50 +203,120 @@ public class RoomReadService {
         );
     }
 
+    private RoomCycleSnapshot getRoomCycleSnapshot(Room room) {
+        Game game = gameRepository.findFirstByRoomIdOrderByIdDesc(room.getId()).orElse(null);
+        if (game == null) {
+            return RoomCycleSnapshot.initial(room);
+        }
+        List<BingoBoard> boards = bingoBoardRepository.findAllByGameIdOrderByIdAsc(game.getId());
+        Map<Long, List<BingoCell>> cellsByBoardId = getCellsByBoardId(
+                boards.stream().map(BingoBoard::getId).toList()
+        );
+        Map<Long, Long> participantMemberIdsById = gameParticipantRepository
+                .findAllByGameIdOrderByJoinedAtAsc(game.getId())
+                .stream()
+                .collect(Collectors.toMap(GameParticipant::getId, GameParticipant::getMemberId));
+        return RoomCycleSnapshot.from(room, game, boards, cellsByBoardId, participantMemberIdsById);
+    }
+
+    private Map<Long, RoomCycleSnapshot> getRoomCycleSnapshots(
+            List<Long> roomIds,
+            Map<Long, Room> roomsById
+    ) {
+        Map<Long, Game> latestGamesByRoomId = gameRepository.findAllByRoomIdIn(roomIds).stream()
+                .collect(Collectors.toMap(
+                        Game::getRoomId,
+                        Function.identity(),
+                        (first, second) -> first.getId() > second.getId() ? first : second
+                ));
+        List<BingoBoard> boards = bingoBoardRepository.findAllByGameIdInOrderByIdAsc(
+                latestGamesByRoomId.values().stream().map(Game::getId).toList()
+        );
+        Map<Long, List<BingoBoard>> boardsByGameId = boards.stream()
+                .collect(Collectors.groupingBy(BingoBoard::getGameId));
+        Map<Long, List<BingoCell>> cellsByBoardId = getCellsByBoardId(
+                boards.stream().map(BingoBoard::getId).toList()
+        );
+        Map<Long, Long> participantMemberIdsById = gameParticipantRepository
+                .findAllByGameIdInOrderByJoinedAtAsc(
+                        latestGamesByRoomId.values().stream().map(Game::getId).toList()
+                )
+                .stream()
+                .collect(Collectors.toMap(GameParticipant::getId, GameParticipant::getMemberId));
+
+        return roomIds.stream().collect(Collectors.toMap(
+                Function.identity(),
+                roomId -> {
+                    Room room = roomsById.get(roomId);
+                    Game game = latestGamesByRoomId.get(roomId);
+                    if (game == null) {
+                        return RoomCycleSnapshot.initial(room);
+                    }
+                    return RoomCycleSnapshot.from(
+                            room,
+                            game,
+                            boardsByGameId.getOrDefault(game.getId(), List.of()),
+                            cellsByBoardId,
+                            participantMemberIdsById
+                    );
+                }
+        ));
+    }
+
+    private Map<Long, List<BingoCell>> getCellsByBoardId(List<Long> boardIds) {
+        if (boardIds.isEmpty()) {
+            return Map.of();
+        }
+        return bingoCellRepository.findAllByBoardIdIn(boardIds).stream()
+                .collect(Collectors.groupingBy(BingoCell::getBoardId));
+    }
+
     private List<RoomMemberResponse> getRoomMemberResponses(
             Room room,
             List<RoomMember> roomMembers,
-            Map<Long, Long> bingoBoardIdsByRoomMemberId
+            RoomCycleSnapshot snapshot
     ) {
         if (roomMembers.isEmpty()) {
             return List.of();
         }
-
         Map<Long, String> nicknamesByMemberId = getNicknamesByMemberId(roomMembers);
         return roomMembers.stream()
                 .map(roomMember -> RoomMemberResponse.from(
                         roomMember,
                         getNickname(nicknamesByMemberId, roomMember.getMemberId()),
-                        room.getHostId().equals(roomMember.getMemberId()),
-                        getBingoBoardId(bingoBoardIdsByRoomMemberId, roomMember)
+                        room.isHost(roomMember.getMemberId()),
+                        snapshot.completedCountByMemberId().getOrDefault(roomMember.getMemberId(), 0),
+                        snapshot.battleBoardIdByMemberId().get(roomMember.getMemberId())
                 ))
                 .toList();
     }
 
-    private Long getBingoBoardId(Map<Long, Long> bingoBoardIdsByRoomMemberId, RoomMember roomMember) {
-        if (bingoBoardIdsByRoomMemberId.isEmpty()) {
-            return null;
-        }
-        return bingoBoardIdsByRoomMemberId.get(roomMember.getId());
+    private boolean isActiveRoomWithMode(Room room, GameMode mode) {
+        return room != null
+                && room.getStatus() == RoomStatus.ACTIVE
+                && (mode == null || room.getMode() == mode);
     }
 
-    private Map<Long, Long> getBingoBoardIdsByRoomMemberId(Room room) {
-        if (room.getMode() != GameMode.BATTLE) {
-            return Map.of();
+    private Room findRoom(Long roomId) {
+        return roomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+    }
+
+    private void validateRoomMember(Long memberId, Long roomId) {
+        if (!roomMemberRepository.existsByRoomIdAndMemberId(roomId, memberId)) {
+            throw new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN);
         }
-        Game game = gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(room.getId(), GameStatus.IN_PROGRESS)
-                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_IN_PROGRESS));
-        return bingoBoardRepository.findAllByGameIdOrderByIdAsc(game.getId()).stream()
-                .filter(bingoBoard -> bingoBoard.getRoomMember() != null)
-                .collect(Collectors.toMap(
-                        bingoBoard -> bingoBoard.getRoomMember().getId(),
-                        BingoBoard::getId
-                ));
+    }
+
+    private void validateRoomOpen(Room room) {
+        if (room.getStatus() == RoomStatus.CLOSED) {
+            throw new CustomException(ErrorCode.ROOM_CLOSED);
+        }
     }
 
     private Map<Long, Room> getRoomsById(List<Long> roomIds) {
         Map<Long, Room> roomsById = roomRepository.findAllById(roomIds).stream()
-                .collect(Collectors.toMap(Room::getId, room -> room));
+                .collect(Collectors.toMap(Room::getId, Function.identity()));
         if (roomsById.size() != roomIds.size()) {
             throw new CustomException(ErrorCode.ROOM_NOT_FOUND);
         }
@@ -400,8 +335,7 @@ public class RoomReadService {
                                 roomMember -> MyRoomMemberResponse.from(
                                         roomMember,
                                         getNickname(nicknamesByMemberId, roomMember.getMemberId()),
-                                        roomsById.get(roomMember.getRoomId()).getHostId()
-                                                .equals(roomMember.getMemberId())
+                                        roomsById.get(roomMember.getRoomId()).isHost(roomMember.getMemberId())
                                 ),
                                 Collectors.toList()
                         )
@@ -409,11 +343,10 @@ public class RoomReadService {
     }
 
     private Map<Long, String> getNicknamesByMemberId(List<RoomMember> roomMembers) {
-        List<Long> memberIds = roomMembers.stream()
+        return memberReadService.getNicknamesByIds(roomMembers.stream()
                 .map(RoomMember::getMemberId)
                 .distinct()
-                .toList();
-        return memberReadService.getNicknamesByIds(memberIds);
+                .toList());
     }
 
     private String getNickname(Map<Long, String> nicknamesByMemberId, Long memberId) {
@@ -439,13 +372,79 @@ public class RoomReadService {
     ) {
     }
 
-    private record MissionProgress(
-            int totalMissionCount,
-            int completedMissionCount
+    private record MissionProgress(int totalMissionCount, int completedMissionCount) {
+    }
+
+    private record RoomCycleSnapshot(
+            int boardSize,
+            Integer targetBingoCount,
+            Integer targetStepCount,
+            LocalDateTime startedAt,
+            MissionProgress missionProgress,
+            Map<Long, Long> battleBoardIdByMemberId,
+            Map<Long, Integer> completedCountByMemberId
     ) {
 
-        private static MissionProgress initial(Room room) {
-            return new MissionProgress(room.getBoardSize() * room.getBoardSize(), 0);
+        private static RoomCycleSnapshot initial(Room room) {
+            int totalMissionCount = room.getBoardSize() * room.getBoardSize();
+            return new RoomCycleSnapshot(
+                    room.getBoardSize(),
+                    room.getTargetBingoCount(),
+                    room.getTargetStepCount(),
+                    null,
+                    new MissionProgress(totalMissionCount, 0),
+                    Map.of(),
+                    Map.of()
+            );
+        }
+
+        private static RoomCycleSnapshot from(
+                Room room,
+                Game game,
+                List<BingoBoard> boards,
+                Map<Long, List<BingoCell>> cellsByBoardId,
+                Map<Long, Long> participantMemberIdsById
+        ) {
+            if (boards.isEmpty()) {
+                return initial(room);
+            }
+            BingoBoard configurationBoard = boards.get(0);
+            int totalMissionCount = 0;
+            int completedMissionCount = 0;
+            Map<Long, Long> boardIdsByMemberId = new HashMap<>();
+            Map<Long, Integer> completedCountsByMemberId = new HashMap<>();
+
+            for (BingoBoard board : boards) {
+                List<BingoCell> cells = cellsByBoardId.getOrDefault(board.getId(), List.of());
+                totalMissionCount += cells.size();
+                int boardCompletedCount = (int) cells.stream()
+                        .filter(cell -> cell.getCompletedAt() != null)
+                        .count();
+                completedMissionCount += boardCompletedCount;
+
+                if (board.isPersonal()) {
+                    Long memberId = participantMemberIdsById.get(board.getGameParticipantId());
+                    if (memberId == null) {
+                        throw new CustomException(ErrorCode.GAME_PARTICIPANT_NOT_FOUND);
+                    }
+                    boardIdsByMemberId.put(memberId, board.getId());
+                    completedCountsByMemberId.put(memberId, boardCompletedCount);
+                } else {
+                    cells.stream()
+                            .filter(cell -> cell.getCompletedAt() != null && cell.getMemberId() != null)
+                            .forEach(cell -> completedCountsByMemberId.merge(cell.getMemberId(), 1, Integer::sum));
+                }
+            }
+
+            return new RoomCycleSnapshot(
+                    configurationBoard.getBoardSize(),
+                    configurationBoard.getTargetBingoCount(),
+                    configurationBoard.getTargetStepCount(),
+                    game.getStartedAt(),
+                    new MissionProgress(totalMissionCount, completedMissionCount),
+                    Map.copyOf(boardIdsByMemberId),
+                    Map.copyOf(completedCountsByMemberId)
+            );
         }
     }
 }

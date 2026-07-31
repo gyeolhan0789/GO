@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
-import { SvgXml } from 'react-native-svg';
+import { FlatList, StyleSheet, View } from 'react-native';
 
 import type { ItemCategory } from '../../features/member/api/memberApi';
+import { AppText } from '../../shared/components/AppText/AppText';
 import { ITEM_CATEGORIES } from '../../features/member/constants/itemCategories';
 import { useMyCashQuery } from '../../features/member/hooks/useMyCashQuery';
 import { useMyCharacterQuery } from '../../features/member/hooks/useMyCharacterQuery';
@@ -24,24 +24,26 @@ import { useShopItemsQuery } from '../../features/shop/hooks/useShopItemsQuery';
 import type { ShopItem } from '../../features/shop/model/shopItem';
 import { toShopItems } from '../../features/shop/model/shopItem';
 import { resolveApiErrorMessage } from '../../shared/api/resolveApiErrorMessage';
+import { Header } from '../../shared/components/Header/Header';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { Toast } from '../../shared/components/Toast/Toast';
 import { colors } from '../../shared/constants/colors';
 import { spacing } from '../../shared/constants/spacing';
-import shopIconXml from './assets/ShopIcon';
-import { CategoryTabs } from './components/CategoryTabs';
+import { bodyFont, lineHeights } from '../../shared/constants/typography';
+import { CategoryTabs } from '../../features/member/components/CategoryTabs';
 import { CharacterStage } from './components/CharacterStage';
 import { EquipResetButton } from './components/EquipResetButton';
 import { FilterSelect } from './components/FilterSelect';
-import { PointBadge } from './components/PointBadge';
+import { PointBadge } from '../../features/member/components/PointBadge';
 import { PurchaseConfirmModal } from './components/PurchaseConfirmModal';
 import { ShopItemCard } from './components/ShopItemCard';
 import { withObjectParticle } from './format';
 import { equipItem, selectVisibleItems } from './model';
 import type { ShopFilter } from './types';
 
-const SHOP_ICON_SIZE = 28;
 const NOT_ENOUGH_POINTS_MESSAGE = '포인트가 부족해요.';
+
+const SHOP_COLUMN_COUNT = 3;
 
 const EMPTY_SHOP_ITEMS: ShopItemResponse[] = [];
 const EMPTY_OWNED_ITEMS: CharacterItem[] = [];
@@ -89,12 +91,18 @@ export function ShopScreen() {
     () => selectVisibleItems(items, category, filter),
     [items, category, filter],
   );
-  // 홀수 개일 때 마지막 카드가 두 칸 폭으로 늘어나지 않도록 빈 칸을 채운다.
-  const gridItems = useMemo<(ShopItem | null)[]>(
-    () =>
-      visibleItems.length % 2 === 1 ? [...visibleItems, null] : visibleItems,
-    [visibleItems],
-  );
+  // 마지막 줄이 덜 찼을 때 남은 카드가 빈 자리를 먹고 늘어나지 않도록 빈 칸을 채운다.
+  const gridItems = useMemo<(ShopItem | null)[]>(() => {
+    const remainder = visibleItems.length % SHOP_COLUMN_COUNT;
+    if (remainder === 0) {
+      return visibleItems;
+    }
+
+    return [
+      ...visibleItems,
+      ...(Array(SHOP_COLUMN_COUNT - remainder).fill(null) as null[]),
+    ];
+  }, [visibleItems]);
   const categoryLabel =
     ITEM_CATEGORIES.find(option => option.value === category)?.label ?? '';
 
@@ -151,34 +159,22 @@ export function ShopScreen() {
 
   return (
     <Screen>
-      <View style={styles.header}>
-        <View style={styles.headerText}>
-          <View style={styles.titleRow}>
-            <SvgXml
-              xml={shopIconXml}
-              width={SHOP_ICON_SIZE}
-              height={SHOP_ICON_SIZE}
-            />
-            <Text style={styles.pageTitle}>상점</Text>
-          </View>
-          <Text style={styles.pageSubtitle}>
-            아이템으로 캐릭터를 꾸며보세요
-          </Text>
-        </View>
-        <PointBadge points={points} />
-      </View>
-
       <FlatList
         data={gridItems}
         keyExtractor={(item, index) =>
           item ? String(item.itemId) : `placeholder-${index}`
         }
-        numColumns={2}
+        numColumns={SHOP_COLUMN_COUNT}
         // 착용 상태(equipped)는 data 밖에 있어서, 이게 없으면 PureComponent인
         // FlatList가 셀을 다시 그리지 않아 버튼 상태가 옛 값에 멈춘다.
         extraData={equipped}
         ListHeaderComponent={
           <View style={styles.listHeader}>
+            <Header
+              title="상점"
+              subtitle="아이템으로 캐릭터를 꾸며보세요"
+              trailing={<PointBadge points={points} />}
+            />
             <CharacterStage
               baseImage={character.data?.baseImage ?? null}
               items={selectLayerItems(equipped)}
@@ -189,20 +185,20 @@ export function ShopScreen() {
             />
             <CategoryTabs value={category} onChange={setCategory} />
             {errorMessage ? (
-              <Text style={styles.errorText} accessibilityLiveRegion="polite">
+              <AppText style={styles.errorText} accessibilityLiveRegion="polite">
                 {errorMessage}
-              </Text>
+              </AppText>
             ) : null}
             <View style={styles.countRow}>
-              <Text style={styles.countLabel}>
+              <AppText style={styles.countLabel}>
                 {`${categoryLabel} ${visibleItems.length}개`}
-              </Text>
+              </AppText>
               <FilterSelect value={filter} onChange={setFilter} />
             </View>
           </View>
         }
         ListEmptyComponent={
-          <Text style={styles.emptyText}>
+          <AppText style={styles.emptyText}>
             {shopItems.isPending
               ? '상점 아이템을 불러오는 중이에요.'
               : filter === 'owned'
@@ -210,7 +206,7 @@ export function ShopScreen() {
               : filter === 'notOwned'
               ? '구매할 수 있는 아이템을 모두 모았어요!'
               : '이 카테고리에는 판매 중인 아이템이 없어요.'}
-          </Text>
+          </AppText>
         }
         renderItem={({ item }) =>
           item ? (
@@ -244,40 +240,12 @@ export function ShopScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
-  },
-  headerText: {
-    flexShrink: 1,
-    gap: spacing.xs,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  pageTitle: {
-    fontFamily: 'BMDOHYEON',
-    fontSize: 24,
-    color: colors.ink,
-  },
-  pageSubtitle: {
-    fontFamily: 'NotoSansKR-Medium',
-    fontSize: 12,
-    color: colors.ink,
-    opacity: 0.5,
-  },
   list: {
     flex: 1,
   },
   listHeader: {
     gap: spacing.lg,
+    paddingTop: spacing.lg,
     paddingBottom: spacing.md,
   },
   countRow: {
@@ -287,13 +255,15 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   countLabel: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 16,
+    lineHeight: lineHeights[16],
     color: colors.ink,
   },
   errorText: {
-    fontFamily: 'NotoSansKR-Medium',
+    fontFamily: bodyFont.regular,
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.danger,
   },
   column: {
@@ -303,8 +273,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   emptyText: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.regular,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
     opacity: 0.5,
     textAlign: 'center',

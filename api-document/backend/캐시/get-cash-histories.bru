@@ -1,0 +1,72 @@
+meta {
+  name: 캐시 내역 조회
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{backendBaseUrl}}/members/cash-histories
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+docs {
+  ## 캐시 내역 조회
+
+  로그인한 회원의 캐시 적립·사용 내역을 최신순으로 전체 조회한다. 페이지네이션이 없다.
+
+  ### 성공 응답 (200 OK)
+  ```json
+  [
+    {
+      "cashHistoryId": 10,
+      "type": "ITEM_PURCHASE",
+      "amount": -1000,
+      "occurredAt": "2026-07-30T12:00:00",
+      "roomId": null,
+      "gameId": null,
+      "bingoCellId": null,
+      "bingoBoardId": null,
+      "itemId": 3,
+      "itemName": "검은 모자"
+    },
+    {
+      "cashHistoryId": 9,
+      "type": "BINGO_CELL_REWARD",
+      "amount": 100,
+      "occurredAt": "2026-07-29T18:30:00",
+      "roomId": 1,
+      "gameId": null,
+      "bingoCellId": 101,
+      "bingoBoardId": null,
+      "itemId": null,
+      "itemName": null
+    }
+  ]
+  ```
+
+  ### 비즈니스 규칙
+
+  `type`(`CashHistoryType`: `GAME_GOAL_REWARD` · `BINGO_CELL_REWARD` · `DAILY_STEP_GOAL_REWARD` · `ITEM_PURCHASE`)에 따라 함께 채워지는 참조 필드가 다르며, 해당하지 않는 필드는 `null`이다.
+
+  | type | 채워지는 참조 필드 |
+  |---|---|
+  | GAME_GOAL_REWARD | roomId, gameId |
+  | BINGO_CELL_REWARD | roomId, bingoCellId |
+  | DAILY_STEP_GOAL_REWARD | roomId, bingoBoardId |
+  | ITEM_PURCHASE | itemId, itemName |
+
+  ### 에러 케이스
+
+  **Authorization 헤더 없음**
+  ```json
+  {
+    "status": 401,
+    "message": "인증이 필요합니다."
+  }
+  ```
+}

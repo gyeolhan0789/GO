@@ -1,6 +1,14 @@
 pipeline {
     agent any
 
+    parameters {
+        booleanParam(
+            name: 'RESET_DEV_DB',
+            defaultValue: false,
+            description: 'Recreate the dev database and load scenario seed data.'
+        )
+    }
+
     environment {
         COMPOSE_FILE = 'docker-compose.dev.yml'
         SERVICE_NAME = 'backend'
@@ -11,6 +19,11 @@ pipeline {
         stage('Check Backend Changes') {
             steps {
                 script {
+                    if (params.RESET_DEV_DB) {
+                        echo 'RESET_DEV_DB=true. Continue without backend change detection.'
+                        return
+                    }
+
                     def changedFiles = sh(
                         script: '''
                         if git rev-parse HEAD~1 >/dev/null 2>&1; then
@@ -55,9 +68,23 @@ pipeline {
                         string(credentialsId: 'dev-db-root-password', variable: 'DB_ROOT_PASSWORD'),
                         string(credentialsId: 'dev-jwt-secret', variable: 'JWT_SECRET')
                     ]) {
-                        sh '''
-                        docker compose -f $COMPOSE_FILE up -d --build $SERVICE_NAME
-                        '''
+                        script {
+                            if (!params.RESET_DEV_DB) {
+                                deployBackend('update', 'never', false)
+                                return
+                            }
+
+                            try {
+                                sh 'docker compose -f $COMPOSE_FILE up -d mysql redis'
+                                sh 'docker compose -f $COMPOSE_FILE stop $SERVICE_NAME'
+                                sh 'docker exec wecandoit-redis-dev redis-cli FLUSHDB'
+                                deployBackend('create', 'always', true)
+                                waitForHealth('seed initialization')
+                            } finally {
+                                deployBackend('update', 'never', true)
+                                waitForHealth('safe configuration restore')
+                            }
+                        }
                     }
                 }
             }
@@ -65,22 +92,9 @@ pipeline {
 
         stage('Check Deploy') {
             steps {
-                sh '''
-                docker ps
-                for i in $(seq 1 30); do
-                  STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 $HEALTH_CHECK_URL || echo "000")
-                  echo "Health check attempt $i/30 status: $STATUS"
-
-                  if [ "$STATUS" = "200" ]; then
-                    exit 0
-                  fi
-
-                  sleep 2
-                done
-
-                echo "Health check failed with status $STATUS"
-                exit 1
-                '''
+                script {
+                    waitForHealth('final deployment')
+                }
             }
         }
     }
@@ -93,4 +107,33 @@ pipeline {
             echo 'Backend development CD failed or skipped. Check Console Output.'
         }
     }
+}
+
+def deployBackend(String ddlAuto, String sqlInitMode, boolean forceRecreate) {
+    withEnv([
+        "DEV_DDL_AUTO=${ddlAuto}",
+        "DEV_SQL_INIT_MODE=${sqlInitMode}"
+    ]) {
+        String recreateOption = forceRecreate ? '--force-recreate' : ''
+        sh "docker compose -f ${env.COMPOSE_FILE} up -d --build ${recreateOption} ${env.SERVICE_NAME}"
+    }
+}
+
+def waitForHealth(String phase) {
+    sh """
+    docker ps
+    for i in \$(seq 1 30); do
+      STATUS=\$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 ${env.HEALTH_CHECK_URL} || echo "000")
+      echo "${phase} health check attempt \$i/30 status: \$STATUS"
+
+      if [ "\$STATUS" = "200" ]; then
+        exit 0
+      fi
+
+      sleep 2
+    done
+
+    echo "${phase} health check failed with status \$STATUS"
+    exit 1
+    """
 }

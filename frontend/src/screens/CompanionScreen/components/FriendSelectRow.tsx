@@ -1,10 +1,12 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import type { FriendResponse } from '../../../features/friend/api/friendApi';
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
+import { lineHeights } from '../../../shared/constants/typography';
 
 type FriendSelectRowProps = {
   friend: FriendResponse;
@@ -29,12 +31,12 @@ export function FriendSelectRow({
       <View style={styles.avatar} />
 
       <View style={styles.textGroup}>
-        <Text style={styles.name} numberOfLines={1}>
+        <AppText style={styles.name} numberOfLines={1}>
           {friend.nickname}
-        </Text>
-        <Text style={styles.subtitle} numberOfLines={1}>
+        </AppText>
+        <AppText style={styles.subtitle} numberOfLines={1}>
           이번 주 {friend.weeklySteps}보
-        </Text>
+        </AppText>
       </View>
 
       <View style={[styles.check, selected && styles.checkSelected]}>
@@ -73,11 +75,13 @@ const styles = StyleSheet.create({
   name: {
     fontFamily: 'BMDOHYEON',
     fontSize: 15,
+    lineHeight: lineHeights[15],
     color: colors.ink,
   },
   subtitle: {
     fontFamily: 'BMDOHYEON',
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.ink,
     opacity: 0.6,
     marginTop: 2,

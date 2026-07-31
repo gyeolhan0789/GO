@@ -153,7 +153,7 @@ describe('WalkDetailScreen', () => {
     expect(texts).not.toContain('12분 31초');
   });
 
-  test('함께한 친구를 완료한 미션 수와 함께 보여준다', async () => {
+  test('함께한 친구를 아바타와 이름으로 보여준다', async () => {
     const tree = await renderScreen();
     const texts = collectTexts(tree.root);
 
@@ -161,8 +161,8 @@ describe('WalkDetailScreen', () => {
     expect(texts).toContain('나');
     expect(texts).toContain('민서');
     expect(texts).toContain('민지');
-    expect(texts).toContain('미션 4개');
-    expect(texts).toContain('미션 1개');
+    // 칸별 완료자는 빙고판이 보여주므로 목록에서는 미션 수를 세지 않는다.
+    expect(texts).not.toContain('미션 4개');
   });
 
   test('친구 아바타는 누를 수 없다', async () => {

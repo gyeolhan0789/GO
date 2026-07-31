@@ -1,7 +1,9 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
+import { AppText } from '../../../../shared/components/AppText/AppText';
 import { colors } from '../../../../shared/constants/colors';
 import { spacing } from '../../../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../../../shared/constants/typography';
 import type { GameMode } from '../../../room/api/roomApi';
 import { formatWalkResult } from '../../model/gameResult';
 
@@ -14,9 +16,9 @@ type WalkResultBadgeProps = {
 export function WalkResultBadge({ mode, isWin }: WalkResultBadgeProps) {
   return (
     <View style={[styles.badge, isWin ? styles.winBadge : styles.loseBadge]}>
-      <Text style={[styles.label, isWin ? styles.winLabel : styles.loseLabel]}>
+      <AppText style={[styles.label, isWin ? styles.winLabel : styles.loseLabel]}>
         {formatWalkResult(mode, isWin)}
-      </Text>
+      </AppText>
     </View>
   );
 }
@@ -35,8 +37,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutralBg,
   },
   label: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 11,
+    lineHeight: lineHeights[11],
   },
   winLabel: {
     color: colors.successText,

@@ -1,11 +1,13 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { ReceivedFriendRequest } from '../../../features/friend/api/friendApi';
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { Card } from '../../../shared/components/Card/Card';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { shadow } from '../../../shared/constants/shadow';
 import { spacing } from '../../../shared/constants/spacing';
+import { lineHeights } from '../../../shared/constants/typography';
 
 type ReceivedRequestRowProps = {
   request: ReceivedFriendRequest;
@@ -23,9 +25,9 @@ export function ReceivedRequestRow({
   return (
     <Card style={styles.card} wrapperStyle={styles.wrapper}>
       <View style={styles.avatar} />
-      <Text style={styles.nickname} numberOfLines={1}>
+      <AppText style={styles.nickname} numberOfLines={1}>
         {request.inviterNickname}
-      </Text>
+      </AppText>
       <View style={styles.actions}>
         <Pressable
           onPress={onReject}
@@ -36,7 +38,7 @@ export function ReceivedRequestRow({
             disabled && styles.actionButtonDisabled,
           ]}
         >
-          <Text style={styles.rejectButtonText}>거절</Text>
+          <AppText style={styles.rejectButtonText}>거절</AppText>
         </Pressable>
         <Pressable
           onPress={onAccept}
@@ -47,7 +49,7 @@ export function ReceivedRequestRow({
             disabled && styles.actionButtonDisabled,
           ]}
         >
-          <Text style={styles.acceptButtonText}>수락</Text>
+          <AppText style={styles.acceptButtonText}>수락</AppText>
         </Pressable>
       </View>
     </Card>
@@ -77,6 +79,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     fontFamily: 'BMDOHYEON',
     fontSize: 15,
+    lineHeight: lineHeights[15],
     color: colors.ink,
   },
   actions: {
@@ -97,6 +100,7 @@ const styles = StyleSheet.create({
   rejectButtonText: {
     fontFamily: 'BMDOHYEON',
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.ink,
   },
   acceptButton: {
@@ -105,6 +109,7 @@ const styles = StyleSheet.create({
   acceptButtonText: {
     fontFamily: 'BMDOHYEON',
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.successText,
   },
 });

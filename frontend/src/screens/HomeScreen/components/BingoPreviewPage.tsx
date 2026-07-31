@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import type {
@@ -6,9 +6,10 @@ import type {
   BingoBoardSize,
 } from '../../../features/bingo/components/BingoBoard/BingoBoard';
 import { BingoBoard } from '../../../features/bingo/components/BingoBoard/BingoBoard';
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { colors } from '../../../shared/constants/colors';
 import { spacing } from '../../../shared/constants/spacing';
-import { fontFamily } from '../../../shared/constants/typography';
+import { fontFamily, lineHeights } from '../../../shared/constants/typography';
 
 type BingoPreviewPageProps = {
   size: BingoBoardSize;
@@ -25,7 +26,7 @@ export function BingoPreviewPage({ size, cells }: BingoPreviewPageProps) {
 
   return (
     <View style={styles.panel}>
-      <Text style={styles.title}>이번주 빙고 미션</Text>
+      <AppText style={styles.title}>이번주 빙고 미션</AppText>
       <View style={styles.board}>
         <BingoBoard size={size} cells={cellsWithIcons} />
       </View>
@@ -43,6 +44,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: fontFamily.bold,
     fontSize: 20,
+    lineHeight: lineHeights[20],
     color: colors.ink,
   },
   board: {

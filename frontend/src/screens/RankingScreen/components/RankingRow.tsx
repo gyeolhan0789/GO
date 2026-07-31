@@ -1,11 +1,13 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { formatThousands } from '../../../features/history/model/format';
 import type { RankingItem } from '../../../features/ranking/api/rankingApi';
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
 import { ME_LABEL } from '../model';
 import { RankingAvatar } from './RankingAvatar';
 
@@ -27,7 +29,7 @@ export function RankingRow({ item, isMe }: RankingRowProps) {
       {/* 절대 배치라 다른 줄과 내용 시작점이 어긋나지 않는다. */}
       {isMe ? <View style={styles.meAccent} /> : null}
 
-      <Text style={[styles.rank, isMe && styles.rankMe]}>{item.rank}</Text>
+      <AppText style={[styles.rank, isMe && styles.rankMe]}>{item.rank}</AppText>
 
       <RankingAvatar
         gender={item.gender}
@@ -36,12 +38,12 @@ export function RankingRow({ item, isMe }: RankingRowProps) {
         style={styles.avatar}
       />
 
-      <Text
+      <AppText
         style={[styles.nickname, isMe && styles.nicknameMe]}
         numberOfLines={1}
       >
         {isMe ? ME_LABEL : item.nickname}
-      </Text>
+      </AppText>
 
       <View style={styles.steps}>
         <Ionicons
@@ -49,9 +51,9 @@ export function RankingRow({ item, isMe }: RankingRowProps) {
           size={STEP_ICON_SIZE}
           color={isMe ? colors.successText : colors.ink}
         />
-        <Text style={[styles.stepsLabel, isMe && styles.stepsLabelMe]}>
+        <AppText style={[styles.stepsLabel, isMe && styles.stepsLabelMe]}>
           {formatThousands(item.weeklySteps)}
-        </Text>
+        </AppText>
       </View>
     </View>
   );
@@ -81,8 +83,9 @@ const styles = StyleSheet.create({
   rank: {
     minWidth: 20,
     textAlign: 'center',
-    fontFamily: 'NotoSansKR-Bold',
+    fontFamily: bodyFont.bold,
     fontSize: 15,
+    lineHeight: lineHeights[15],
     color: colors.ink,
   },
   rankMe: {
@@ -99,8 +102,9 @@ const styles = StyleSheet.create({
   },
   nickname: {
     flex: 1,
-    fontFamily: 'NotoSansKR-Bold',
+    fontFamily: bodyFont.bold,
     fontSize: 16,
+    lineHeight: lineHeights[16],
     color: colors.ink,
   },
   nicknameMe: {
@@ -112,8 +116,9 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   stepsLabel: {
-    fontFamily: 'NotoSansKR-Bold',
+    fontFamily: bodyFont.bold,
     fontSize: 16,
+    lineHeight: lineHeights[16],
     color: colors.ink,
   },
   stepsLabelMe: {

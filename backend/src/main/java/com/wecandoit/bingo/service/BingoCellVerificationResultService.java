@@ -9,9 +9,9 @@ import com.wecandoit.cash.service.CashCommandService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
-import com.wecandoit.game.domain.GameRoomStatus;
 import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.game.domain.Room;
+import com.wecandoit.game.domain.RoomStatus;
 import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.GameCompletionService;
@@ -40,12 +40,12 @@ public class BingoCellVerificationResultService {
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
         Game game = gameRepository.findByIdForUpdate(board.getGameId())
                 .orElseThrow(() -> new CustomException(ErrorCode.GAME_NOT_FOUND));
-        if (game.getStatus() != GameStatus.IN_PROGRESS) {
+        if (game.getStatus() != GameStatus.ACTIVE) {
             return 0L;
         }
         Room room = roomRepository.findByIdForUpdate(game.getRoomId())
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
-        if (room.getStatus() != GameRoomStatus.IN_PROGRESS) {
+        if (room.getStatus() != RoomStatus.ACTIVE) {
             return 0L;
         }
         if (cell.getVerificationStatus() != BingoCellVerificationStatus.PENDING) {

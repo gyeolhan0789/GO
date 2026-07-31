@@ -1,14 +1,14 @@
 import {
   Image,
   StyleSheet,
-  Text,
   View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 
+import { AppText } from '../AppText/AppText';
 import { colors } from '../../constants/colors';
-import { fontFamily } from '../../constants/typography';
+import { fontFamily, lineHeights } from '../../constants/typography';
 
 type AvatarStackMember = {
   id: string;
@@ -190,7 +190,7 @@ function OverflowBadge({
         style,
       ]}
     >
-      <Text style={styles.overflowText}>+{count}</Text>
+      <AppText style={styles.overflowText}>+{count}</AppText>
     </View>
   );
 }
@@ -221,6 +221,7 @@ const styles = StyleSheet.create({
   overflowText: {
     fontFamily: fontFamily.bold,
     fontSize: 11,
+    lineHeight: lineHeights[11],
     color: colors.surface,
   },
 });

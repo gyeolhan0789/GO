@@ -6,14 +6,16 @@ import com.wecandoit.common.status.RequestStatus;
 import com.wecandoit.friend.repository.FriendRepository;
 import com.wecandoit.game.controller.request.GameRequestCreateRequest;
 import com.wecandoit.game.controller.response.GameRequestCreateResponse;
+import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameRequest;
-import com.wecandoit.game.repository.GameRequestRepository;
-import com.wecandoit.game.domain.GameRoomStatus;
 import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomMember;
+import com.wecandoit.game.domain.RoomStatus;
+import com.wecandoit.game.repository.GameRequestRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.notification.event.NotificationMessageFactory;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ public class GameRequestCommandService {
     private final GameRequestRepository gameRequestRepository;
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
+    private final GameCycleCommandService gameCycleCommandService;
     private final FriendRepository friendRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final NotificationMessageFactory notificationMessageFactory;
@@ -69,7 +72,13 @@ public class GameRequestCommandService {
         validateRoomCapacity(room, participantCount);
         gameRequest.accept();
         roomMemberRepository.save(RoomMember.create(roomId, memberId));
-        room.updateParticipantStatus(participantCount + 1);
+        List<RoomMember> roomMembers = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId);
+        if (room.getMode() == GameMode.BATTLE
+                && roomMembers.size() == GameMode.BATTLE.getMaximumParticipants()) {
+            gameCycleCommandService.startInitialBattleCycle(room, roomMembers);
+            return;
+        }
+        gameCycleCommandService.registerCurrentCycleParticipant(room, memberId);
     }
 
     public void rejectGameRequest(Long memberId, Long roomId, Long requestId) {
@@ -97,10 +106,8 @@ public class GameRequestCommandService {
         }
     }
 
-    private void validateRoomStatus(GameRoomStatus status) {
-        if (status != GameRoomStatus.CREATED
-                && status != GameRoomStatus.WAITING
-                && status != GameRoomStatus.READY) {
+    private void validateRoomStatus(RoomStatus status) {
+        if (status != RoomStatus.ACTIVE) {
             throw new CustomException(ErrorCode.GAME_REQUEST_NOT_AVAILABLE);
         }
     }
