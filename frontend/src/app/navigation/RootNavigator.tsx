@@ -28,10 +28,10 @@ export type RootStackParamList = {
   Main: undefined;
   WalkList: undefined;
   WalkDetail: { roomId: number };
-  // TODO: 방 생성/선택 API 연동되면 roomId를 필수 파라미터로 받는다.
+  // roomId는 화면 파라미터가 아니라 walkSessionStore(전역 진행 중인 세션
+  // 상태)로 전달된다.
   WalkSession: undefined;
-  // TODO: roomId 연동되면 필수 파라미터로 받는다.
-  BingoBoard: undefined;
+  BingoBoard: { roomId: number };
   MyPage: undefined;
   CharacterCustomize: undefined;
 };

@@ -9,33 +9,100 @@
 // 시작 시각도 지금은 화면 진입 시점을 쓰지만, 실제로는 방(room)의
 // startedAt을 그대로 써야 한다.
 
+import {
+  readSamsungHealthToday,
+  type SamsungHealthSummary,
+} from '../../../shared/lib/samsungHealth';
+
 type Listener = () => void;
 
 type WalkSessionState = {
+  roomId: number | null;
+  /** null이면 방은 배정됐지만 시작 카운트다운이 아직 안 끝난 상태다.
+   * 이 동안은 경과 시간이 세지지 않고(getWalkSessionElapsedSeconds가 0을
+   * 반환) 헬스 기준값도 아직 안 읽는다 — confirmWalkSessionStart가 실제
+   * 시작 시각을 채우는 시점에 둘 다 시작된다. */
   startedAt: number | null;
   pausedAt: number | null;
   pausedMs: number;
+  /** 세션 시작 시점의 오늘 누적 걸음/거리/칼로리(기준값). 이 세션에서만
+   * 걷고 쓴 양을 보여주려면 나중 값에서 이 값을 뺀다. 조회 실패/미허용이면
+   * null로 남고, 화면 쪽이 오늘 누적치를 그대로 보여주는 걸로 대체한다. */
+  startHealthSummary: SamsungHealthSummary | null;
 };
 
-let state: WalkSessionState = { startedAt: null, pausedAt: null, pausedMs: 0 };
+let state: WalkSessionState = {
+  roomId: null,
+  startedAt: null,
+  pausedAt: null,
+  pausedMs: 0,
+  startHealthSummary: null,
+};
 const listeners = new Set<Listener>();
 
 function notify() {
   listeners.forEach(listener => listener());
 }
 
-/** 이미 진행 중인 세션이 있으면 건드리지 않는다(중복 시작 방지). */
-export function startWalkSession() {
-  if (state.startedAt !== null) {
+/** 이미 방이 배정돼 있으면(카운트다운 중이든 이미 시작했든) 건드리지
+ * 않는다(중복 시작 방지). 실제 시작 시각은 아직 안 채운다 — 화면의 시작
+ * 카운트다운이 끝나야 confirmWalkSessionStart로 채워진다. */
+export function startWalkSession(roomId: number) {
+  if (state.roomId !== null) {
     return;
   }
-  state = { startedAt: Date.now(), pausedAt: null, pausedMs: 0 };
+  state = {
+    roomId,
+    startedAt: null,
+    pausedAt: null,
+    pausedMs: 0,
+    startHealthSummary: null,
+  };
   notify();
 }
 
-export function endWalkSession() {
-  state = { startedAt: null, pausedAt: null, pausedMs: 0 };
+/** 시작 카운트다운이 끝나거나 건너뛴 시점에 호출한다. 이 순간을 진짜
+ * 시작 시각으로 기록하고, 오늘 걸음 기준값도 이때 읽는다. */
+export function confirmWalkSessionStart() {
+  if (state.roomId === null || state.startedAt !== null) {
+    return;
+  }
+  const startedAt = Date.now();
+  state = { ...state, startedAt };
   notify();
+
+  readSamsungHealthToday().then(summary => {
+    // 그 사이 세션이 끝났거나 다른 세션이 새로 시작됐으면 이 기준값은 버린다.
+    if (state.startedAt !== startedAt || summary === null) {
+      return;
+    }
+    state = { ...state, startHealthSummary: summary };
+    notify();
+  });
+}
+
+export function endWalkSession() {
+  state = {
+    roomId: null,
+    startedAt: null,
+    pausedAt: null,
+    pausedMs: 0,
+    startHealthSummary: null,
+  };
+  notify();
+}
+
+export function getWalkSessionRoomId() {
+  return state.roomId;
+}
+
+export function getWalkSessionStartHealthSummary() {
+  return state.startHealthSummary;
+}
+
+/** 시작 카운트다운이 끝나 실제로 경과 시간이 세지고 있는지. */
+export function isWalkSessionStarted() {
+  return state.startedAt !== null;
 }
 
 export function togglePauseWalkSession() {
@@ -54,8 +121,10 @@ export function togglePauseWalkSession() {
   notify();
 }
 
+/** 방이 배정돼 있으면(카운트다운 중이어도) 활성 세션으로 취급한다 —
+ * 홈 화면에서 "이미 진행 중이면 바로 이어서" 판단에 쓴다. */
 export function isWalkSessionActive() {
-  return state.startedAt !== null;
+  return state.roomId !== null;
 }
 
 export function isWalkSessionPaused() {
