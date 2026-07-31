@@ -60,7 +60,6 @@ class BingoCommandServiceConcurrencyTest {
         roomRepository.deleteAll();
 
         Room room = Room.create(1L, "테스트 방", GameMode.COOPERATE, null, 3);
-        room.start();
         roomId = roomRepository.save(room).getId();
         roomMemberRepository.save(RoomMember.create(roomId, 1L));
         roomMemberRepository.save(RoomMember.create(roomId, 2L));

@@ -17,13 +17,14 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
+import com.wecandoit.game.domain.GameParticipant;
 import com.wecandoit.game.domain.GameResult;
-import com.wecandoit.game.domain.GameResultParticipant;
-import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.domain.RoomStatus;
 import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomMember;
 import com.wecandoit.game.repository.GameRepository;
+import com.wecandoit.game.repository.GameParticipantRepository;
 import com.wecandoit.game.repository.GameResultParticipantRepository;
 import com.wecandoit.game.repository.GameResultRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
@@ -37,6 +38,7 @@ import com.wecandoit.notification.event.NotificationMessageFactory;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -60,6 +62,8 @@ class GameCycleCommandServiceTest {
     private RoomMemberRepository roomMemberRepository;
     @Mock
     private GameRepository gameRepository;
+    @Mock
+    private GameParticipantRepository gameParticipantRepository;
     @Mock
     private GameResultRepository gameResultRepository;
     @Mock
@@ -96,7 +100,8 @@ class GameCycleCommandServiceTest {
         LocalDateTime beforeRenewal = LocalDateTime.now();
 
         // when
-        BingoBoardResponse response = gameCycleCommandService.renewSharedCycle(1L, 10L, 12_000);
+        BingoBoardResponse response =
+                gameCycleCommandService.renewSharedCycle(1L, 10L, 3, 2, 12_000);
 
         // then
         LocalDateTime afterRenewal = LocalDateTime.now();
@@ -125,7 +130,7 @@ class GameCycleCommandServiceTest {
         givenRenewalContext(room, game, board, cells);
 
         // when
-        gameCycleCommandService.renewSharedCycle(1L, 10L, 12_000);
+        gameCycleCommandService.renewSharedCycle(1L, 10L, 3, 2, 12_000);
 
         // then
         ArgumentCaptor<GameResult> resultCaptor = ArgumentCaptor.forClass(GameResult.class);
@@ -153,7 +158,7 @@ class GameCycleCommandServiceTest {
         given(memberRepository.findByIdForUpdate(2L)).willReturn(Optional.of(member(2L)));
 
         // when
-        gameCycleCommandService.renewSharedCycle(1L, 10L, 12_000);
+        gameCycleCommandService.renewSharedCycle(1L, 10L, 3, 2, 12_000);
 
         // then
         ArgumentCaptor<GameResult> resultCaptor = ArgumentCaptor.forClass(GameResult.class);
@@ -172,7 +177,7 @@ class GameCycleCommandServiceTest {
         BingoBoard board = sharedBoard(100L, 200L);
         List<BingoCell> cells = cellsWithApprovedCount(100L, 4, 2, LocalDateTime.now().minusHours(1));
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
-        given(gameRepository.findActiveGameForUpdate(10L, GameStatus.IN_PROGRESS)).willReturn(Optional.of(game));
+        given(gameRepository.findActiveGameForUpdate(10L, GameStatus.ACTIVE)).willReturn(Optional.of(game));
         given(gameResultRepository.existsByGameId(200L)).willReturn(false);
         given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(board));
@@ -180,7 +185,7 @@ class GameCycleCommandServiceTest {
 
         // when & then
         assertErrorCode(
-                () -> gameCycleCommandService.renewSharedCycle(1L, 10L, 12_000),
+                () -> gameCycleCommandService.renewSharedCycle(1L, 10L, 3, 2, 12_000),
                 ErrorCode.BINGO_BOARD_NOT_COMPLETED
         );
     }
@@ -194,18 +199,23 @@ class GameCycleCommandServiceTest {
 
         // when & then
         assertErrorCode(
-                () -> gameCycleCommandService.renewSharedCycle(1L, 10L, 12_000),
+                () -> gameCycleCommandService.renewSharedCycle(1L, 10L, 3, 2, 12_000),
                 ErrorCode.BINGO_BOARD_RENEWAL_FORBIDDEN
         );
     }
 
     private void givenRenewalContext(Room room, Game game, BingoBoard board, List<BingoCell> cells) {
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
-        given(gameRepository.findActiveGameForUpdate(10L, GameStatus.IN_PROGRESS)).willReturn(Optional.of(game));
+        given(gameRepository.findActiveGameForUpdate(10L, GameStatus.ACTIVE)).willReturn(Optional.of(game));
         given(gameResultRepository.existsByGameId(200L)).willReturn(false);
         given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
                 .willReturn(Optional.of(board));
         given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
+        given(gameParticipantRepository.findAllByGameIdOrderByJoinedAtAsc(200L))
+                .willReturn(List.of(
+                        participant(1L, 200L, 1L),
+                        participant(2L, 200L, 2L)
+                ));
         given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L))
                 .willReturn(List.of(roomMember(1L, 10L, 1L), roomMember(2L, 10L, 2L)));
         given(gameRepository.save(any(Game.class))).willAnswer(invocation -> {
@@ -213,7 +223,7 @@ class GameCycleCommandServiceTest {
             ReflectionTestUtils.setField(nextGame, "id", 201L);
             return nextGame;
         });
-        given(missionRepository.findRandomMissions(4)).willReturn(missions(4));
+        given(missionRepository.findRandomMissions(9)).willReturn(missions(9));
         given(bingoBoardRepository.save(any(BingoBoard.class))).willAnswer(invocation -> {
             BingoBoard nextBoard = invocation.getArgument(0);
             ReflectionTestUtils.setField(nextBoard, "id", 101L);
@@ -225,7 +235,7 @@ class GameCycleCommandServiceTest {
     private Room inProgressRoom(GameMode mode) {
         Room room = Room.create(1L, "테스트 방", mode, mode == GameMode.BATTLE ? 3 : null, 10_000, 2);
         ReflectionTestUtils.setField(room, "id", 10L);
-        ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
+        ReflectionTestUtils.setField(room, "status", RoomStatus.ACTIVE);
         return room;
     }
 
@@ -237,7 +247,7 @@ class GameCycleCommandServiceTest {
     }
 
     private BingoBoard sharedBoard(Long boardId, Long gameId) {
-        BingoBoard board = BingoBoard.create(gameId, 2, 10_000);
+        BingoBoard board = BingoBoard.create(gameId, 2, 2, 10_000);
         ReflectionTestUtils.setField(board, "id", boardId);
         return board;
     }
@@ -252,7 +262,7 @@ class GameCycleCommandServiceTest {
             int approvedCount,
             LocalDateTime completedAt
     ) {
-        return java.util.stream.IntStream.range(0, totalCount)
+        return IntStream.range(0, totalCount)
                 .mapToObj(index -> cell(boardId, index, index < approvedCount, completedAt))
                 .toList();
     }
@@ -262,6 +272,7 @@ class GameCycleCommandServiceTest {
         ReflectionTestUtils.setField(cell, "id", (long) index + 1);
         if (approved) {
             cell.submit((long) index % 2 + 1, "https://example.com/proof.png");
+            ReflectionTestUtils.setField(cell, "submittedAt", completedAt);
             cell.approve();
             ReflectionTestUtils.setField(cell, "completedAt", completedAt);
         }
@@ -274,6 +285,12 @@ class GameCycleCommandServiceTest {
         return roomMember;
     }
 
+    private GameParticipant participant(Long id, Long gameId, Long memberId) {
+        GameParticipant participant = GameParticipant.create(gameId, memberId);
+        ReflectionTestUtils.setField(participant, "id", id);
+        return participant;
+    }
+
     private Member member(Long memberId) {
         Member member = Member.builder()
                 .email(memberId + "@example.com")
@@ -284,7 +301,7 @@ class GameCycleCommandServiceTest {
     }
 
     private List<Mission> missions(int count) {
-        return java.util.stream.IntStream.range(0, count)
+        return IntStream.range(0, count)
                 .mapToObj(index -> {
                     Mission mission = Mission.create(
                             "https://example.com/mission.png",

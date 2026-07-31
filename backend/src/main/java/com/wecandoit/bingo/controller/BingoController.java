@@ -55,7 +55,23 @@ public class BingoController {
             @PathVariable Long roomId,
             @Valid @RequestBody RenewBingoBoardRequest request
     ) {
-        BingoBoardResponse response = bingoCommandService.renewBoard(memberId, roomId, request.targetStepCount());
+        BingoBoardResponse response = bingoCommandService.renewBoard(
+                memberId,
+                roomId,
+                request.boardSize(),
+                request.targetBingoCount(),
+                request.targetStepCount()
+        );
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/{roomId}/battles/rematch")
+    public ResponseEntity<BingoBoardResponse> rematchBattle(
+            @LoginMemberId Long memberId,
+            @PathVariable Long roomId
+    ) {
+        bingoCommandService.rematchBattle(memberId, roomId);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(bingoReadService.getActiveBoard(memberId, roomId));
     }
 }

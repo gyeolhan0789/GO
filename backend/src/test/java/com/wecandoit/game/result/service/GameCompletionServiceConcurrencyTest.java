@@ -10,12 +10,14 @@ import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.bingo.service.BingoCellVerificationResultService;
 import com.wecandoit.cash.repository.CashHistoryRepository;
 import com.wecandoit.game.domain.Game;
+import com.wecandoit.game.domain.GameParticipant;
 import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.game.repository.GameRepository;
+import com.wecandoit.game.repository.GameParticipantRepository;
 import com.wecandoit.game.repository.GameResultParticipantRepository;
 import com.wecandoit.game.repository.GameResultRepository;
 import com.wecandoit.game.domain.GameMode;
-import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.domain.RoomStatus;
 import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomMember;
 import com.wecandoit.game.repository.RoomMemberRepository;
@@ -59,6 +61,8 @@ class GameCompletionServiceConcurrencyTest {
     @Autowired
     private GameRepository gameRepository;
     @Autowired
+    private GameParticipantRepository gameParticipantRepository;
+    @Autowired
     private MemberRepository memberRepository;
     @Autowired
     private CashHistoryRepository cashHistoryRepository;
@@ -80,6 +84,7 @@ class GameCompletionServiceConcurrencyTest {
         gameResultRepository.deleteAll();
         bingoCellRepository.deleteAll();
         bingoBoardRepository.deleteAll();
+        gameParticipantRepository.deleteAll();
         gameRepository.deleteAll();
         roomMemberRepository.deleteAll();
         roomRepository.deleteAll();
@@ -97,7 +102,6 @@ class GameCompletionServiceConcurrencyTest {
         )).getId();
 
         Room room = Room.create(firstMemberId, "테스트 방", GameMode.COOPERATE, null, 2);
-        room.start();
         roomId = roomRepository.save(room).getId();
         roomMemberRepository.save(RoomMember.create(roomId, firstMemberId));
         roomMemberRepository.save(RoomMember.create(roomId, secondMemberId));
@@ -148,17 +152,15 @@ class GameCompletionServiceConcurrencyTest {
             BingoBoard board = bingoBoardRepository.findById(boardId).orElseThrow();
             List<RoomMember> roomMembers = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId);
 
-            assertThat(room.getStatus()).isEqualTo(GameRoomStatus.IN_PROGRESS);
-            assertThat(board.getStatus()).isEqualTo(BingoBoardStatus.IN_PROGRESS);
-            assertThat(gameRepository.findById(gameId).orElseThrow().getStatus()).isEqualTo(GameStatus.IN_PROGRESS);
+            assertThat(room.getStatus()).isEqualTo(RoomStatus.ACTIVE);
+            assertThat(board.getStatus()).isEqualTo(BingoBoardStatus.ACTIVE);
+            assertThat(gameRepository.findById(gameId).orElseThrow().getStatus()).isEqualTo(GameStatus.ACTIVE);
             assertThat(gameResultRepository.count()).isZero();
             assertThat(gameResultParticipantRepository.count()).isZero();
             assertThat(cashHistoryRepository.count()).isEqualTo(2);
             assertThat(memberRepository.findById(firstMemberId).orElseThrow().getCash()).isEqualTo(30L);
             assertThat(memberRepository.findById(secondMemberId).orElseThrow().getCash()).isEqualTo(30L);
-            assertThat(roomMembers)
-                    .extracting(RoomMember::getCompletedMissionCount)
-                    .containsExactly(0, 0);
+            assertThat(roomMembers).hasSize(2);
         } finally {
             executor.shutdownNow();
         }
@@ -169,17 +171,20 @@ class GameCompletionServiceConcurrencyTest {
     void determinesSingleWinnerWhenBattleParticipantsCompleteConcurrently() throws Exception {
         // given
         Room battleRoom = Room.create(firstMemberId, "테스트 방", GameMode.BATTLE, 1, 2);
-        battleRoom.start();
         Long battleRoomId = roomRepository.saveAndFlush(battleRoom).getId();
         RoomMember firstRoomMember =
                 roomMemberRepository.saveAndFlush(RoomMember.create(battleRoomId, firstMemberId));
         RoomMember secondRoomMember =
                 roomMemberRepository.saveAndFlush(RoomMember.create(battleRoomId, secondMemberId));
         Game battleGame = gameRepository.saveAndFlush(Game.start(battleRoomId));
+        GameParticipant firstParticipant = gameParticipantRepository.saveAndFlush(
+                GameParticipant.create(battleGame.getId(), firstRoomMember.getMemberId()));
+        GameParticipant secondParticipant = gameParticipantRepository.saveAndFlush(
+                GameParticipant.create(battleGame.getId(), secondRoomMember.getMemberId()));
         BingoBoard firstBoard = bingoBoardRepository.saveAndFlush(
-                BingoBoard.createForBattle(battleGame.getId(), firstRoomMember, 2));
+                BingoBoard.createForBattle(battleGame.getId(), firstParticipant.getId(), 2, 1));
         BingoBoard secondBoard = bingoBoardRepository.saveAndFlush(
-                BingoBoard.createForBattle(battleGame.getId(), secondRoomMember, 2));
+                BingoBoard.createForBattle(battleGame.getId(), secondParticipant.getId(), 2, 1));
         Long firstBattleCellId = saveBattleBoardWithPendingWinningCell(firstBoard.getId(), firstMemberId, 21L);
         Long secondBattleCellId = saveBattleBoardWithPendingWinningCell(secondBoard.getId(), secondMemberId, 31L);
 
@@ -201,9 +206,9 @@ class GameCompletionServiceConcurrencyTest {
 
             // then
             assertThat(gameRepository.findById(battleGame.getId()).orElseThrow().getStatus())
-                    .isEqualTo(GameStatus.COMPLETED);
+                    .isEqualTo(GameStatus.ENDED);
             assertThat(roomRepository.findById(battleRoomId).orElseThrow().getStatus())
-                    .isEqualTo(GameRoomStatus.READY);
+                    .isEqualTo(RoomStatus.ACTIVE);
             assertThat(bingoBoardRepository.findAllByGameIdOrderByIdAsc(battleGame.getId()))
                     .extracting(BingoBoard::getStatus)
                     .containsOnly(BingoBoardStatus.COMPLETED);
@@ -214,10 +219,10 @@ class GameCompletionServiceConcurrencyTest {
             assertThat(gameResultParticipantRepository.findAllByGameIdOrderByIdAsc(battleGame.getId()))
                     .filteredOn(participant -> Boolean.FALSE.equals(participant.getResult()))
                     .hasSize(1);
-            assertThat(cashHistoryRepository.count()).isEqualTo(3);
+            assertThat(cashHistoryRepository.count()).isEqualTo(4);
             assertThat(memberRepository.findById(firstMemberId).orElseThrow().getCash()
                     + memberRepository.findById(secondMemberId).orElseThrow().getCash())
-                    .isEqualTo(380L);
+                    .isEqualTo(410L);
         } finally {
             executor.shutdownNow();
         }
@@ -228,14 +233,14 @@ class GameCompletionServiceConcurrencyTest {
         verificationResultService.applyResult(firstPendingCellId, true, null, MissionType.OBJECT);
         verificationResultService.applyResult(secondPendingCellId, true, null, MissionType.OBJECT);
 
-        assertThat(roomRepository.findById(roomId).orElseThrow().getStatus()).isEqualTo(GameRoomStatus.IN_PROGRESS);
+        assertThat(roomRepository.findById(roomId).orElseThrow().getStatus()).isEqualTo(RoomStatus.ACTIVE);
         assertThat(gameResultRepository.count()).isZero();
         assertThat(gameRepository.findAll())
                 .extracting(Game::getStatus)
-                .containsOnly(GameStatus.IN_PROGRESS);
+                .containsOnly(GameStatus.ACTIVE);
         assertThat(bingoBoardRepository.findAllByGameIdOrderByIdAsc(gameId))
                 .extracting(BingoBoard::getStatus)
-                .containsExactly(BingoBoardStatus.IN_PROGRESS);
+                .containsExactly(BingoBoardStatus.ACTIVE);
         assertThat(gameResultParticipantRepository.count()).isZero();
         assertThat(cashHistoryRepository.count()).isEqualTo(2);
         assertThat(memberRepository.findById(firstMemberId).orElseThrow().getCash()).isEqualTo(30L);

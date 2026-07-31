@@ -1,8 +1,8 @@
 package com.wecandoit.game.repository;
 
-import com.wecandoit.game.domain.GameRoomStatus;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.Room;
+import com.wecandoit.game.domain.RoomStatus;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
@@ -13,9 +13,9 @@ import org.springframework.data.repository.query.Param;
 
 public interface RoomRepository extends JpaRepository<Room, Long> {
 
-    List<Room> findAllByStatus(GameRoomStatus status);
+    List<Room> findAllByStatus(RoomStatus status);
 
-    List<Room> findAllByModeAndStatus(GameMode mode, GameRoomStatus status);
+    List<Room> findAllByModeAndStatus(GameMode mode, RoomStatus status);
 
     @Query("""
             select r from Room r
@@ -28,7 +28,7 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
     Optional<Room> findFirstByMemberIdAndModeAndStatus(
             @Param("memberId") Long memberId,
             @Param("mode") GameMode mode,
-            @Param("status") GameRoomStatus status
+            @Param("status") RoomStatus status
     );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

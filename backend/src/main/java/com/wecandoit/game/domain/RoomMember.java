@@ -28,16 +28,12 @@ public class RoomMember extends BaseEntity {
     @Column(name = "member_id", nullable = false)
     private Long memberId;
 
-    @Column(name = "completed_mission_count", nullable = false)
-    private int completedMissionCount;
-
     @Column(name = "joined_at", nullable = false)
     private LocalDateTime joinedAt;
 
     private RoomMember(Long roomId, Long memberId) {
         this.roomId = roomId;
         this.memberId = memberId;
-        this.completedMissionCount = 0;
         this.joinedAt = LocalDateTime.now();
     }
 
@@ -45,7 +41,4 @@ public class RoomMember extends BaseEntity {
         return new RoomMember(roomId, memberId);
     }
 
-    public void updateCompletedMissionCount(int count) {
-        this.completedMissionCount = count;
-    }
 }

@@ -5,6 +5,7 @@ import com.wecandoit.bingo.controller.response.BingoCellResponse;
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.domain.BingoCell;
+import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
 import com.wecandoit.bingo.domain.BingoLineCounter;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
@@ -15,12 +16,14 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
+import com.wecandoit.game.domain.GameParticipant;
 import com.wecandoit.game.domain.GameResult;
 import com.wecandoit.game.domain.GameResultParticipant;
-import com.wecandoit.game.domain.GameRoomStatus;
 import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomMember;
+import com.wecandoit.game.domain.RoomStatus;
+import com.wecandoit.game.repository.GameParticipantRepository;
 import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.GameResultParticipantRepository;
 import com.wecandoit.game.repository.GameResultRepository;
@@ -33,7 +36,6 @@ import com.wecandoit.mission.repository.MissionRepository;
 import com.wecandoit.notification.event.NotificationMessageFactory;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -47,13 +49,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class GameCycleCommandService {
 
-    private static final int RENEWAL_PERIOD_DAYS = 7;
-    private static final List<BingoBoardStatus> INACTIVE_BOARD_STATUSES =
-            List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED);
+    public static final int RENEWAL_PERIOD_DAYS = 7;
 
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
     private final GameRepository gameRepository;
+    private final GameParticipantRepository gameParticipantRepository;
     private final GameResultRepository gameResultRepository;
     private final GameResultParticipantRepository gameResultParticipantRepository;
     private final BingoBoardRepository bingoBoardRepository;
@@ -64,190 +65,405 @@ public class GameCycleCommandService {
     private final ApplicationEventPublisher eventPublisher;
     private final NotificationMessageFactory notificationMessageFactory;
 
-    public BingoBoardResponse renewSharedCycle(Long memberId, Long roomId, Integer targetStepCount) {
-        validateTargetStepCount(targetStepCount);
-        Room room = roomRepository.findByIdForUpdate(roomId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+    public BingoBoardResponse startInitialSharedCycle(Room room, List<RoomMember> roomMembers) {
+        validateSharedRoom(room);
+        Game game = startGame(room, roomMembers);
+        return generateSharedBoard(
+                room.getId(),
+                game.getId(),
+                room.getBoardSize(),
+                room.getTargetBingoCount(),
+                room.getTargetStepCount()
+        );
+    }
+
+    public void startInitialBattleCycle(Room room, List<RoomMember> roomMembers) {
+        validateBattleParticipants(room, roomMembers);
+        startBattleCycle(room, roomMembers, room.getBoardSize(), room.getTargetBingoCount());
+    }
+
+    public void registerCurrentCycleParticipant(Room room, Long memberId) {
+        if (room.getMode() == GameMode.BATTLE) {
+            return;
+        }
+        Game game = findActiveGame(room.getId());
+        if (!gameParticipantRepository.existsByGameIdAndMemberId(game.getId(), memberId)) {
+            gameParticipantRepository.save(GameParticipant.create(game.getId(), memberId));
+        }
+    }
+
+    public BingoBoardResponse renewSharedCycle(
+            Long memberId,
+            Long roomId,
+            int boardSize,
+            int targetBingoCount,
+            int targetStepCount
+    ) {
+        validateBoardSettings(boardSize, targetBingoCount, targetStepCount);
+        Room room = findActiveRoomForUpdate(roomId);
         validateRenewalRoom(memberId, room);
 
-        Game game = gameRepository.findActiveGameForUpdate(roomId, GameStatus.IN_PROGRESS)
-                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_IN_PROGRESS));
-        if (gameResultRepository.existsByGameId(game.getId())) {
-            throw new CustomException(ErrorCode.GAME_RESULT_ALREADY_EXISTS);
-        }
-
-        BingoBoard activeBoard = bingoBoardRepository.findActiveBoardForUpdate(game.getId(), INACTIVE_BOARD_STATUSES)
-                .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
+        Game game = findActiveGameForUpdate(roomId);
+        validateResultNotExists(game.getId());
+        BingoBoard activeBoard = findActiveSharedBoardForUpdate(game.getId());
         List<BingoCell> cells = bingoCellRepository.findAllByBoardId(activeBoard.getId());
+        validateNoPendingCells(cells);
+
         LocalDateTime now = LocalDateTime.now();
-        boolean boardCompleted = isBoardCompleted(cells);
         boolean renewalPeriodPassed = isRenewalPeriodPassed(game, now);
-        if (!boardCompleted && !renewalPeriodPassed) {
+        boolean targetReachedNow = countBingoLines(activeBoard, cells, now) >= activeBoard.getTargetBingoCount();
+        if (!targetReachedNow && !renewalPeriodPassed) {
             throw new CustomException(ErrorCode.BINGO_BOARD_NOT_COMPLETED);
         }
 
-        LocalDateTime completedAt = calculateCompletedAt(game, now);
-        boolean result = isBoardCompletedAt(cells, completedAt);
-        int completedMissionCount = countCompletedCells(cells, completedAt);
-        int bingoCount = BingoLineCounter.countCompletedLines(
-                room.getBoardSize(),
-                cells,
-                cell -> isCompletedAt(cell, completedAt)
-        );
+        LocalDateTime endedAt = calculateEndedAt(game, now);
+        completeSharedCycle(room, game, activeBoard, cells, endedAt);
 
-        game.completeAt(completedAt);
-        if (result) {
-            activeBoard.completeAt(completedAt);
-        } else {
-            activeBoard.expireAt(completedAt);
-        }
-        gameResultRepository.saveAndFlush(GameResult.create(
-                game.getId(),
+        List<RoomMember> currentMembers = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId);
+        Game nextGame = startGame(room, currentMembers);
+        return generateSharedBoard(
                 roomId,
-                result,
-                bingoCount,
-                completedMissionCount,
-                getGameResultRewardCash(result)
-        ));
-        gameResultParticipantRepository.saveAll(createParticipants(
-                room,
-                game.getId(),
-                cells,
-                completedAt,
-                result
-        ));
+                nextGame.getId(),
+                boardSize,
+                targetBingoCount,
+                targetStepCount
+        );
+    }
 
-        Game nextGame = gameRepository.save(Game.start(roomId));
-        return generateNewBoard(room, nextGame.getId(), targetStepCount);
+    public void closeActiveCycle(Room room, Long leavingMemberId) {
+        Game game = gameRepository.findActiveGameForUpdate(room.getId(), GameStatus.ACTIVE)
+                .orElse(null);
+        if (game == null) {
+            return;
+        }
+        validateResultNotExists(game.getId());
+
+        if (room.getMode() == GameMode.BATTLE) {
+            completeBattleByForfeit(room, game, leavingMemberId);
+            return;
+        }
+
+        BingoBoard board = findActiveSharedBoardForUpdate(game.getId());
+        List<BingoCell> cells = bingoCellRepository.findAllByBoardId(board.getId());
+        validateNoPendingCells(cells);
+        completeSharedCycle(room, game, board, cells, calculateEndedAt(game, LocalDateTime.now()));
+    }
+
+    public void completeBattleByForfeit(Room room, Long gameId, Long loserMemberId) {
+        Game game = gameRepository.findByIdForUpdate(gameId)
+                .orElseThrow(() -> new CustomException(ErrorCode.GAME_NOT_FOUND));
+        if (game.getStatus() != GameStatus.ACTIVE) {
+            return;
+        }
+        validateResultNotExists(gameId);
+        completeBattleByForfeit(room, game, loserMemberId);
+    }
+
+    public void rematchBattle(Long memberId, Long roomId) {
+        Room room = findActiveRoomForUpdate(roomId);
+        if (room.getMode() != GameMode.BATTLE || !room.isHost(memberId)) {
+            throw new CustomException(ErrorCode.BINGO_BOARD_GENERATE_FORBIDDEN);
+        }
+        if (gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(roomId, GameStatus.ACTIVE).isPresent()) {
+            throw new CustomException(ErrorCode.BINGO_BOARD_ALREADY_EXISTS);
+        }
+
+        List<RoomMember> roomMembers = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId);
+        validateBattleParticipants(room, roomMembers);
+        Game latestGame = gameRepository.findFirstByRoomIdOrderByIdDesc(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.GAME_NOT_FOUND));
+        BingoBoard latestBoard = bingoBoardRepository.findAllByGameIdOrderByIdAsc(latestGame.getId()).stream()
+                .findFirst()
+                .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
+        startBattleCycle(
+                room,
+                roomMembers,
+                latestBoard.getBoardSize(),
+                latestBoard.getTargetBingoCount()
+        );
     }
 
     public static boolean isRenewalPeriodPassed(Game game, LocalDateTime now) {
         return !game.getStartedAt().plusDays(RENEWAL_PERIOD_DAYS).isAfter(now);
     }
 
-    private void validateTargetStepCount(Integer targetStepCount) {
-        if (targetStepCount == null || targetStepCount < 1) {
-            throw new CustomException(ErrorCode.ROOM_TARGET_STEP_COUNT_REQUIRED);
+    private Room findActiveRoomForUpdate(Long roomId) {
+        Room room = roomRepository.findByIdForUpdate(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+        if (room.getStatus() != RoomStatus.ACTIVE) {
+            throw new CustomException(ErrorCode.ROOM_CLOSED);
         }
+        return room;
+    }
+
+    private Game findActiveGame(Long roomId) {
+        return gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(roomId, GameStatus.ACTIVE)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_IN_PROGRESS));
+    }
+
+    private Game findActiveGameForUpdate(Long roomId) {
+        return gameRepository.findActiveGameForUpdate(roomId, GameStatus.ACTIVE)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_IN_PROGRESS));
+    }
+
+    private BingoBoard findActiveSharedBoardForUpdate(Long gameId) {
+        return bingoBoardRepository.findActiveBoardForUpdate(
+                        gameId,
+                        List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED)
+                )
+                .filter(BingoBoard::isShared)
+                .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
     }
 
     private void validateRenewalRoom(Long memberId, Room room) {
-        if (room.getStatus() != GameRoomStatus.IN_PROGRESS) {
-            throw new CustomException(ErrorCode.ROOM_NOT_IN_PROGRESS);
-        }
-        if (room.getMode() == GameMode.BATTLE) {
-            throw new CustomException(ErrorCode.BINGO_BOARD_RENEWAL_FORBIDDEN);
-        }
+        validateSharedRoom(room);
         if (!room.isHost(memberId)) {
             throw new CustomException(ErrorCode.BINGO_BOARD_RENEWAL_FORBIDDEN);
         }
     }
 
-    private LocalDateTime calculateCompletedAt(Game game, LocalDateTime now) {
-        LocalDateTime renewalDueAt = game.getStartedAt().plusDays(RENEWAL_PERIOD_DAYS);
-        if (now.isAfter(renewalDueAt)) {
-            return renewalDueAt;
+    private void validateSharedRoom(Room room) {
+        if (room.getMode() == GameMode.BATTLE) {
+            throw new CustomException(ErrorCode.BINGO_BOARD_RENEWAL_FORBIDDEN);
         }
-        return now;
     }
 
-    private boolean isBoardCompleted(List<BingoCell> cells) {
-        return !cells.isEmpty() && cells.stream().allMatch(cell -> cell.getCompletedAt() != null);
+    private void validateBattleParticipants(Room room, List<RoomMember> roomMembers) {
+        if (room.getMode() != GameMode.BATTLE
+                || roomMembers.size() != GameMode.BATTLE.getMaximumParticipants()) {
+            throw new CustomException(ErrorCode.ROOM_MINIMUM_PARTICIPANTS_REQUIRED);
+        }
     }
 
-    private boolean isBoardCompletedAt(List<BingoCell> cells, LocalDateTime completedAt) {
-        return !cells.isEmpty() && cells.stream().allMatch(cell -> isCompletedAt(cell, completedAt));
+    private void validateBoardSettings(int boardSize, int targetBingoCount, int targetStepCount) {
+        if (boardSize < 3 || boardSize > 5) {
+            throw new CustomException(ErrorCode.BINGO_BOARD_SIZE_INVALID);
+        }
+        if (targetBingoCount < 1 || targetBingoCount > 2 * boardSize + 2) {
+            throw new CustomException(ErrorCode.BINGO_TARGET_COUNT_INVALID);
+        }
+        if (targetStepCount < 1) {
+            throw new CustomException(ErrorCode.ROOM_TARGET_STEP_COUNT_REQUIRED);
+        }
     }
 
-    private boolean isCompletedAt(BingoCell cell, LocalDateTime completedAt) {
-        return cell.getCompletedAt() != null && !cell.getCompletedAt().isAfter(completedAt);
+    private void validateResultNotExists(Long gameId) {
+        if (gameResultRepository.existsByGameId(gameId)) {
+            throw new CustomException(ErrorCode.GAME_RESULT_ALREADY_EXISTS);
+        }
     }
 
-    private int countCompletedCells(List<BingoCell> cells, LocalDateTime completedAt) {
-        return (int) cells.stream()
-                .filter(cell -> isCompletedAt(cell, completedAt))
-                .count();
+    private void validateNoPendingCells(List<BingoCell> cells) {
+        if (cells.stream().anyMatch(cell ->
+                cell.getVerificationStatus() == BingoCellVerificationStatus.PENDING)) {
+            throw new CustomException(ErrorCode.BINGO_CELL_VERIFICATION_IN_PROGRESS);
+        }
     }
 
-    private List<GameResultParticipant> createParticipants(
+    private LocalDateTime calculateEndedAt(Game game, LocalDateTime now) {
+        LocalDateTime renewalDueAt = game.getStartedAt().plusDays(RENEWAL_PERIOD_DAYS);
+        return now.isAfter(renewalDueAt) ? renewalDueAt : now;
+    }
+
+    private void completeSharedCycle(
             Room room,
-            Long gameId,
+            Game game,
+            BingoBoard board,
             List<BingoCell> cells,
-            LocalDateTime completedAt,
+            LocalDateTime endedAt
+    ) {
+        int bingoCount = countBingoLines(board, cells, endedAt);
+        boolean result = bingoCount >= board.getTargetBingoCount();
+        int completedMissionCount = countCompletedCells(cells, endedAt);
+
+        game.completeAt(endedAt);
+        if (result) {
+            board.completeAt(endedAt);
+        } else {
+            board.expireAt(endedAt);
+        }
+
+        gameResultRepository.saveAndFlush(GameResult.create(
+                game.getId(),
+                room.getId(),
+                result,
+                bingoCount,
+                completedMissionCount,
+                result ? CashRewardPolicy.GAME_GOAL.getPoint() : 0L
+        ));
+        gameResultParticipantRepository.saveAll(createSharedResultParticipants(
+                room,
+                game,
+                cells,
+                endedAt,
+                result
+        ));
+    }
+
+    private List<GameResultParticipant> createSharedResultParticipants(
+            Room room,
+            Game game,
+            List<BingoCell> cells,
+            LocalDateTime endedAt,
             boolean result
     ) {
         Map<Long, Integer> completedCountByMember = cells.stream()
-                .filter(cell -> isCompletedAt(cell, completedAt))
+                .filter(cell -> isCompletedBy(cell, endedAt))
                 .filter(cell -> cell.getMemberId() != null)
                 .collect(Collectors.groupingBy(
                         BingoCell::getMemberId,
                         Collectors.collectingAndThen(Collectors.counting(), Long::intValue)
                 ));
-        long rewardCash = getParticipantRewardCash(result);
-        return roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(room.getId()).stream()
-                .sorted(Comparator.comparing(RoomMember::getMemberId))
-                .map(roomMember -> createParticipant(
-                        roomMember,
-                        gameId,
-                        room.getId(),
-                        completedCountByMember.getOrDefault(roomMember.getMemberId(), 0),
-                        rewardCash,
-                        result
-                ))
+        long rewardCash = result ? CashRewardPolicy.GAME_GOAL.getPoint() : 0L;
+        return gameParticipantRepository.findAllByGameIdOrderByJoinedAtAsc(game.getId()).stream()
+                .map(participant -> {
+                    if (rewardCash > 0) {
+                        grantReward(participant.getMemberId(), game.getId(), room.getId(), rewardCash);
+                    }
+                    return GameResultParticipant.create(
+                            game.getId(),
+                            participant.getMemberId(),
+                            completedCountByMember.getOrDefault(participant.getMemberId(), 0),
+                            rewardCash,
+                            result
+                    );
+                })
                 .toList();
     }
 
-    private GameResultParticipant createParticipant(
-            RoomMember roomMember,
-            Long gameId,
-            Long roomId,
-            int completedMissionCount,
-            long rewardCash,
-            boolean result
-    ) {
-        if (rewardCash > 0) {
-            grantReward(roomMember.getMemberId(), gameId, roomId, rewardCash);
+    private void completeBattleByForfeit(Room room, Game game, Long loserMemberId) {
+        List<GameParticipant> participants =
+                gameParticipantRepository.findAllByGameIdOrderByJoinedAtAsc(game.getId());
+        if (participants.size() != GameMode.BATTLE.getMaximumParticipants()) {
+            throw new CustomException(ErrorCode.GAME_PARTICIPANT_NOT_FOUND);
         }
+        GameParticipant winner = participants.stream()
+                .filter(participant -> !participant.getMemberId().equals(loserMemberId))
+                .findFirst()
+                .orElseThrow(() -> new CustomException(ErrorCode.GAME_PARTICIPANT_NOT_FOUND));
+
+        List<BingoBoard> boards = bingoBoardRepository.findAllByGameIdOrderByIdAsc(game.getId());
+        List<BingoCell> cells = getCells(boards);
+        validateNoPendingCells(cells);
+        Map<Long, List<BingoCell>> cellsByBoardId = cells.stream()
+                .collect(Collectors.groupingBy(BingoCell::getBoardId));
+        LocalDateTime endedAt = LocalDateTime.now();
+        game.completeAt(endedAt);
+        boards.forEach(board -> board.completeAt(endedAt));
+
+        BingoBoard winnerBoard = boards.stream()
+                .filter(board -> winner.getId().equals(board.getGameParticipantId()))
+                .findFirst()
+                .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
+        List<BingoCell> winnerCells = cellsByBoardId.getOrDefault(winnerBoard.getId(), List.of());
+        int winnerBingoCount = countBingoLines(winnerBoard, winnerCells, endedAt);
+        int winnerCompletedCount = countCompletedCells(winnerCells, endedAt);
+        gameResultRepository.saveAndFlush(GameResult.create(
+                game.getId(),
+                room.getId(),
+                true,
+                winnerBingoCount,
+                winnerCompletedCount,
+                CashRewardPolicy.BATTLE_WINNER_GAME_GOAL.getPoint()
+        ));
+
+        List<GameResultParticipant> results = participants.stream()
+                .map(participant -> createBattleResultParticipant(
+                        room,
+                        game,
+                        participant,
+                        winner.getMemberId(),
+                        getParticipantCompletedCount(participant, boards, cellsByBoardId, endedAt)
+                ))
+                .toList();
+        gameResultParticipantRepository.saveAll(results);
+        participants.forEach(participant -> eventPublisher.publishEvent(
+                notificationMessageFactory.battleResult(participant.getMemberId())));
+    }
+
+    private GameResultParticipant createBattleResultParticipant(
+            Room room,
+            Game game,
+            GameParticipant participant,
+            Long winnerMemberId,
+            int completedMissionCount
+    ) {
+        boolean result = participant.getMemberId().equals(winnerMemberId);
+        long rewardCash = result
+                ? CashRewardPolicy.BATTLE_WINNER_GAME_GOAL.getPoint()
+                : CashRewardPolicy.BATTLE_LOSER_GAME_GOAL.getPoint();
+        grantReward(participant.getMemberId(), game.getId(), room.getId(), rewardCash);
         return GameResultParticipant.create(
-                gameId,
-                roomMember.getMemberId(),
+                game.getId(),
+                participant.getMemberId(),
                 completedMissionCount,
                 rewardCash,
                 result
         );
     }
 
-    private long getGameResultRewardCash(boolean result) {
-        return result ? CashRewardPolicy.GAME_GOAL.getPoint() : 0L;
+    private int getParticipantCompletedCount(
+            GameParticipant participant,
+            List<BingoBoard> boards,
+            Map<Long, List<BingoCell>> cellsByBoardId,
+            LocalDateTime endedAt
+    ) {
+        return boards.stream()
+                .filter(board -> participant.getId().equals(board.getGameParticipantId()))
+                .findFirst()
+                .map(board -> countCompletedCells(
+                        cellsByBoardId.getOrDefault(board.getId(), List.of()),
+                        endedAt
+                ))
+                .orElse(0);
     }
 
-    private long getParticipantRewardCash(boolean result) {
-        return result ? CashRewardPolicy.GAME_GOAL.getPoint() : 0L;
-    }
-
-    private void grantReward(Long memberId, Long gameId, Long roomId, long rewardCash) {
-        Member member = memberRepository.findByIdForUpdate(memberId)
-                .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
-        member.addCash(rewardCash);
-        cashHistoryRepository.save(CashHistory.gameGoalReward(memberId, gameId, roomId, rewardCash));
-        eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, rewardCash));
-    }
-
-    private BingoBoardResponse generateNewBoard(Room room, Long gameId, Integer targetStepCount) {
-        int boardSize = room.getBoardSize();
-        int cellCount = boardSize * boardSize;
-        List<Mission> missions = missionRepository.findRandomMissions(cellCount);
-        if (missions.size() < cellCount) {
-            throw new CustomException(ErrorCode.MISSION_POOL_INSUFFICIENT);
+    private Game startGame(Room room, List<RoomMember> roomMembers) {
+        if (roomMembers.isEmpty()) {
+            throw new CustomException(ErrorCode.ROOM_MINIMUM_PARTICIPANTS_REQUIRED);
         }
+        if (gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(room.getId(), GameStatus.ACTIVE).isPresent()) {
+            throw new CustomException(ErrorCode.BINGO_BOARD_ALREADY_EXISTS);
+        }
+        Game game = gameRepository.save(Game.start(room.getId()));
+        gameParticipantRepository.saveAll(roomMembers.stream()
+                .map(roomMember -> GameParticipant.create(game.getId(), roomMember.getMemberId()))
+                .toList());
+        return game;
+    }
 
-        BingoBoard board = bingoBoardRepository.save(BingoBoard.create(gameId, boardSize, targetStepCount));
-        List<BingoCellResponse> cellResponses = createCells(board, boardSize, missions);
+    private void startBattleCycle(
+            Room room,
+            List<RoomMember> roomMembers,
+            int boardSize,
+            int targetBingoCount
+    ) {
+        Game game = startGame(room, roomMembers);
+        List<GameParticipant> participants =
+                gameParticipantRepository.findAllByGameIdOrderByJoinedAtAsc(game.getId());
+        for (GameParticipant participant : participants) {
+            generateBattleBoard(room.getId(), game.getId(), participant, boardSize, targetBingoCount);
+        }
+    }
+
+    private BingoBoardResponse generateSharedBoard(
+            Long roomId,
+            Long gameId,
+            int boardSize,
+            int targetBingoCount,
+            int targetStepCount
+    ) {
+        List<Mission> missions = findMissions(boardSize);
+        BingoBoard board = bingoBoardRepository.save(BingoBoard.create(
+                gameId,
+                boardSize,
+                targetBingoCount,
+                targetStepCount
+        ));
         return BingoBoardResponse.of(
                 board,
-                room.getId(),
-                cellResponses,
-                room.getTargetBingoCount(),
+                roomId,
+                createCells(board, boardSize, missions),
                 0,
                 0,
                 false,
@@ -256,16 +472,84 @@ public class GameCycleCommandService {
         );
     }
 
+    private void generateBattleBoard(
+            Long roomId,
+            Long gameId,
+            GameParticipant participant,
+            int boardSize,
+            int targetBingoCount
+    ) {
+        List<Mission> missions = findMissions(boardSize);
+        BingoBoard board = bingoBoardRepository.save(BingoBoard.createForBattle(
+                gameId,
+                participant.getId(),
+                boardSize,
+                targetBingoCount
+        ));
+        createCells(board, boardSize, missions);
+    }
+
+    private List<Mission> findMissions(int boardSize) {
+        int cellCount = boardSize * boardSize;
+        List<Mission> missions = missionRepository.findRandomMissions(cellCount);
+        if (missions.size() < cellCount) {
+            throw new CustomException(ErrorCode.MISSION_POOL_INSUFFICIENT);
+        }
+        return missions;
+    }
+
     private List<BingoCellResponse> createCells(BingoBoard board, int boardSize, List<Mission> missions) {
-        List<BingoCellResponse> cellResponses = new ArrayList<>();
+        List<BingoCellResponse> responses = new ArrayList<>();
         int index = 0;
         for (int row = 0; row < boardSize; row++) {
             for (int col = 0; col < boardSize; col++) {
                 Mission mission = missions.get(index++);
-                BingoCell cell = bingoCellRepository.save(BingoCell.create(board.getId(), mission.getId(), row, col));
-                cellResponses.add(BingoCellResponse.of(cell, mission));
+                BingoCell cell = bingoCellRepository.save(BingoCell.create(
+                        board.getId(),
+                        mission.getId(),
+                        row,
+                        col
+                ));
+                responses.add(BingoCellResponse.of(cell, mission));
             }
         }
-        return cellResponses;
+        return responses;
+    }
+
+    private List<BingoCell> getCells(List<BingoBoard> boards) {
+        if (boards.isEmpty()) {
+            throw new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND);
+        }
+        return bingoCellRepository.findAllByBoardIdIn(boards.stream()
+                .map(BingoBoard::getId)
+                .toList());
+    }
+
+    private int countBingoLines(BingoBoard board, List<BingoCell> cells, LocalDateTime endedAt) {
+        return BingoLineCounter.countCompletedLines(
+                board.getBoardSize(),
+                cells,
+                cell -> isCompletedBy(cell, endedAt)
+        );
+    }
+
+    private int countCompletedCells(List<BingoCell> cells, LocalDateTime endedAt) {
+        return (int) cells.stream()
+                .filter(cell -> isCompletedBy(cell, endedAt))
+                .count();
+    }
+
+    private boolean isCompletedBy(BingoCell cell, LocalDateTime endedAt) {
+        return cell.getVerificationStatus() == BingoCellVerificationStatus.APPROVED
+                && cell.getSubmittedAt() != null
+                && !cell.getSubmittedAt().isAfter(endedAt);
+    }
+
+    private void grantReward(Long memberId, Long gameId, Long roomId, long rewardCash) {
+        Member member = memberRepository.findByIdForUpdate(memberId)
+                .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+        member.addCash(rewardCash);
+        cashHistoryRepository.save(CashHistory.gameGoalReward(memberId, gameId, roomId, rewardCash));
+        eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, rewardCash));
     }
 }
