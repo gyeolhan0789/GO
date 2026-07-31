@@ -27,12 +27,18 @@ async function fetchSamsungHealthToday(): Promise<SamsungHealthState> {
   return { status: 'ok', summary };
 }
 
+type UseSamsungHealthTodayOptions = {
+  /** 산책 세션 화면처럼 값이 계속 갱신돼야 하는 곳에서만 넘긴다(ms). */
+  refetchInterval?: number;
+};
+
 /**
  * 오늘의 삼성헬스 요약(걸음/거리/활동칼로리)을 상태와 함께 조회한다.
  */
-export function useSamsungHealthToday() {
+export function useSamsungHealthToday(options: UseSamsungHealthTodayOptions = {}) {
   return useQuery({
     queryKey: ['samsungHealth', 'today'],
     queryFn: fetchSamsungHealthToday,
+    refetchInterval: options.refetchInterval,
   });
 }
