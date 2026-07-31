@@ -14,6 +14,7 @@ import com.wecandoit.game.domain.RoomStatus;
 import com.wecandoit.game.repository.GameRequestRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
+import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.notification.event.NotificationMessageFactory;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class GameRequestCommandService {
     private final RoomMemberRepository roomMemberRepository;
     private final GameCycleCommandService gameCycleCommandService;
     private final FriendRepository friendRepository;
+    private final MemberRepository memberRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final NotificationMessageFactory notificationMessageFactory;
 
@@ -39,13 +41,12 @@ public class GameRequestCommandService {
             Long roomId,
             GameRequestCreateRequest request
     ) {
-        Room room = roomRepository.findById(roomId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+        Room room = findActiveRoomForUpdate(roomId);
         validateInviter(memberId, roomId);
-        validateRoomStatus(room.getStatus());
         validateRoomCapacity(room, roomMemberRepository.countByRoomId(roomId));
 
         Long inviteeId = request.inviteeId();
+        validateMemberExists(inviteeId);
         validateInvitee(memberId, inviteeId, roomId);
 
         return gameRequestRepository
@@ -59,11 +60,9 @@ public class GameRequestCommandService {
     }
 
     public void acceptGameRequest(Long memberId, Long roomId, Long requestId) {
-        GameRequest gameRequest = findRequest(roomId, requestId);
+        Room room = findActiveRoomForUpdate(roomId);
+        GameRequest gameRequest = findRequestForUpdate(roomId, requestId);
         validateRequestInviteeAndPending(gameRequest, memberId);
-        Room room = roomRepository.findByIdForUpdate(roomId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
-        validateRoomStatus(room.getStatus());
         if (roomMemberRepository.existsByRoomIdAndMemberId(roomId, memberId)) {
             throw new CustomException(ErrorCode.GAME_REQUEST_ALREADY_ROOM_MEMBER);
         }
@@ -82,22 +81,24 @@ public class GameRequestCommandService {
     }
 
     public void rejectGameRequest(Long memberId, Long roomId, Long requestId) {
-        GameRequest gameRequest = findRequest(roomId, requestId);
+        findActiveRoomForUpdate(roomId);
+        GameRequest gameRequest = findRequestForUpdate(roomId, requestId);
         validateRequestInviteeAndPending(gameRequest, memberId);
         gameRequest.reject();
     }
 
     public void cancelGameRequest(Long memberId, Long roomId, Long requestId) {
-        validateRoomExists(roomId);
-        GameRequest gameRequest = findRequest(roomId, requestId);
+        findActiveRoomForUpdate(roomId);
+        GameRequest gameRequest = findRequestForUpdate(roomId, requestId);
         validateRequestInviterAndPending(gameRequest, memberId);
         gameRequest.cancel();
     }
 
-    private void validateRoomExists(Long roomId) {
-        if (!roomRepository.existsById(roomId)) {
-            throw new CustomException(ErrorCode.ROOM_NOT_FOUND);
-        }
+    private Room findActiveRoomForUpdate(Long roomId) {
+        Room room = roomRepository.findByIdForUpdate(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+        validateRoomStatus(room.getStatus());
+        return room;
     }
 
     private void validateInviter(Long memberId, Long roomId) {
@@ -130,6 +131,12 @@ public class GameRequestCommandService {
         }
     }
 
+    private void validateMemberExists(Long memberId) {
+        if (!memberRepository.existsById(memberId)) {
+            throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
+        }
+    }
+
     private GameRequestCreateResponse createRequest(Long roomId, Long inviterId, Long inviteeId) {
         GameRequest gameRequest = gameRequestRepository.save(
                 GameRequest.create(roomId, inviterId, inviteeId)
@@ -139,8 +146,8 @@ public class GameRequestCommandService {
         return GameRequestCreateResponse.from(gameRequest, true);
     }
 
-    private GameRequest findRequest(Long roomId, Long requestId) {
-        GameRequest gameRequest = gameRequestRepository.findById(requestId)
+    private GameRequest findRequestForUpdate(Long roomId, Long requestId) {
+        GameRequest gameRequest = gameRequestRepository.findByIdForUpdate(requestId)
                 .orElseThrow(() -> new CustomException(ErrorCode.GAME_REQUEST_NOT_FOUND));
         if (!gameRequest.isInRoom(roomId)) {
             throw new CustomException(ErrorCode.GAME_REQUEST_NOT_FOUND);

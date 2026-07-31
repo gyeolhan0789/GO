@@ -23,6 +23,7 @@ import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.GameCycleCommandService;
 import com.wecandoit.game.service.GameRequestCommandService;
+import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.notification.domain.NotificationType;
 import com.wecandoit.notification.event.NotificationMessageFactory;
 import com.wecandoit.notification.event.NotificationRequestedEvent;
@@ -55,6 +56,8 @@ class GameRequestCommandServiceTest {
     @Mock
     private FriendRepository friendRepository;
     @Mock
+    private MemberRepository memberRepository;
+    @Mock
     private ApplicationEventPublisher eventPublisher;
     private GameRequestCommandService gameRequestCommandService;
 
@@ -66,6 +69,7 @@ class GameRequestCommandServiceTest {
                 roomMemberRepository,
                 gameCycleCommandService,
                 friendRepository,
+                memberRepository,
                 eventPublisher,
                 new NotificationMessageFactory()
         );
@@ -78,6 +82,7 @@ class GameRequestCommandServiceTest {
         givenInvitableRoom(RoomStatus.ACTIVE);
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
+        given(memberRepository.existsById(2L)).willReturn(true);
         given(friendRepository.existsBetween(1L, 2L)).willReturn(true);
         given(gameRequestRepository
                 .findFirstByRoomIdAndInviteeIdAndStatusOrderByCreatedAtDesc(
@@ -119,6 +124,7 @@ class GameRequestCommandServiceTest {
         givenInvitableRoom(RoomStatus.ACTIVE);
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
+        given(memberRepository.existsById(2L)).willReturn(true);
         given(friendRepository.existsBetween(1L, 2L)).willReturn(true);
         given(gameRequestRepository
                 .findFirstByRoomIdAndInviteeIdAndStatusOrderByCreatedAtDesc(10L, 2L, RequestStatus.PENDING))
@@ -147,6 +153,7 @@ class GameRequestCommandServiceTest {
         givenInvitableRoom(RoomStatus.ACTIVE);
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
+        given(memberRepository.existsById(2L)).willReturn(true);
         given(friendRepository.existsBetween(1L, 2L)).willReturn(true);
         GameRequest existingRequest = gameRequest(20L, 10L, 1L, 2L);
         given(gameRequestRepository
@@ -175,7 +182,7 @@ class GameRequestCommandServiceTest {
     @DisplayName("존재하지 않는 게임방에 초대를 보내면 실패한다")
     void createGameRequestRejectsMissingRoom() {
         // given
-        given(roomRepository.findById(10L)).willReturn(Optional.empty());
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.empty());
 
         // when & then
         assertErrorCode(
@@ -204,7 +211,6 @@ class GameRequestCommandServiceTest {
     void createGameRequestRejectsUnavailableRoomStatus(RoomStatus status) {
         // given
         givenInvitableRoom(status);
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
 
         // when & then
         assertErrorCode(
@@ -219,6 +225,7 @@ class GameRequestCommandServiceTest {
         // given
         givenInvitableRoom(RoomStatus.ACTIVE);
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(memberRepository.existsById(1L)).willReturn(true);
 
         // when & then
         assertErrorCode(
@@ -233,6 +240,7 @@ class GameRequestCommandServiceTest {
         // given
         givenInvitableRoom(RoomStatus.ACTIVE);
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(memberRepository.existsById(2L)).willReturn(true);
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(true);
 
         // when & then
@@ -248,6 +256,7 @@ class GameRequestCommandServiceTest {
         // given
         givenInvitableRoom(RoomStatus.ACTIVE);
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(memberRepository.existsById(2L)).willReturn(true);
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
         given(friendRepository.existsBetween(1L, 2L)).willReturn(false);
 
@@ -256,6 +265,22 @@ class GameRequestCommandServiceTest {
                 () -> createGameRequest(1L, 2L),
                 ErrorCode.GAME_REQUEST_FRIEND_REQUIRED
         );
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 회원을 게임방에 초대하면 실패한다")
+    void createGameRequestRejectsMissingInvitee() {
+        // given
+        givenInvitableRoom(RoomStatus.ACTIVE);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(memberRepository.existsById(2L)).willReturn(false);
+
+        // when & then
+        assertErrorCode(
+                () -> createGameRequest(1L, 2L),
+                ErrorCode.MEMBER_NOT_FOUND
+        );
+        then(friendRepository).shouldHaveNoInteractions();
     }
 
     @Test
@@ -280,7 +305,7 @@ class GameRequestCommandServiceTest {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
         Room room = givenAcceptableRoom(RoomStatus.ACTIVE);
-        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
+        given(gameRequestRepository.findByIdForUpdate(20L)).willReturn(Optional.of(gameRequest));
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
         given(roomMemberRepository.countByRoomId(10L)).willReturn(1L);
 
@@ -302,7 +327,8 @@ class GameRequestCommandServiceTest {
     void rejectGameRequestUpdatesStatus() {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
-        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
+        givenReadableRoom(RoomStatus.ACTIVE);
+        given(gameRequestRepository.findByIdForUpdate(20L)).willReturn(Optional.of(gameRequest));
 
         // when
         gameRequestCommandService.rejectGameRequest(2L, 10L, 20L);
@@ -317,8 +343,8 @@ class GameRequestCommandServiceTest {
     void cancelGameRequestUpdatesStatus() {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
-        given(roomRepository.existsById(10L)).willReturn(true);
-        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
+        givenReadableRoom(RoomStatus.ACTIVE);
+        given(gameRequestRepository.findByIdForUpdate(20L)).willReturn(Optional.of(gameRequest));
 
         // when
         gameRequestCommandService.cancelGameRequest(1L, 10L, 20L);
@@ -332,22 +358,22 @@ class GameRequestCommandServiceTest {
     @DisplayName("존재하지 않는 게임방의 초대 요청을 취소하면 실패한다")
     void cancelGameRequestRejectsMissingRoom() {
         // given
-        given(roomRepository.existsById(10L)).willReturn(false);
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.empty());
 
         // when & then
         assertErrorCode(
                 () -> gameRequestCommandService.cancelGameRequest(1L, 10L, 20L),
                 ErrorCode.ROOM_NOT_FOUND
         );
-        then(gameRequestRepository).should(never()).findById(20L);
+        then(gameRequestRepository).should(never()).findByIdForUpdate(20L);
     }
 
     @Test
     @DisplayName("존재하지 않는 게임방 초대 요청을 취소하면 실패한다")
     void cancelGameRequestRejectsMissingRequest() {
         // given
-        given(roomRepository.existsById(10L)).willReturn(true);
-        given(gameRequestRepository.findById(20L)).willReturn(Optional.empty());
+        givenReadableRoom(RoomStatus.ACTIVE);
+        given(gameRequestRepository.findByIdForUpdate(20L)).willReturn(Optional.empty());
 
         // when & then
         assertErrorCode(
@@ -361,8 +387,8 @@ class GameRequestCommandServiceTest {
     void cancelGameRequestRejectsDifferentRoom() {
         // given
         GameRequest gameRequest = gameRequest(20L, 11L, 1L, 2L);
-        given(roomRepository.existsById(10L)).willReturn(true);
-        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
+        givenReadableRoom(RoomStatus.ACTIVE);
+        given(gameRequestRepository.findByIdForUpdate(20L)).willReturn(Optional.of(gameRequest));
 
         // when & then
         assertErrorCode(
@@ -376,8 +402,8 @@ class GameRequestCommandServiceTest {
     void cancelGameRequestRejectsForbiddenMember() {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
-        given(roomRepository.existsById(10L)).willReturn(true);
-        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
+        givenReadableRoom(RoomStatus.ACTIVE);
+        given(gameRequestRepository.findByIdForUpdate(20L)).willReturn(Optional.of(gameRequest));
 
         // when & then
         assertErrorCode(
@@ -393,8 +419,8 @@ class GameRequestCommandServiceTest {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
         updateStatus(gameRequest, status);
-        given(roomRepository.existsById(10L)).willReturn(true);
-        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
+        givenReadableRoom(RoomStatus.ACTIVE);
+        given(gameRequestRepository.findByIdForUpdate(20L)).willReturn(Optional.of(gameRequest));
 
         // when & then
         assertErrorCode(
@@ -407,7 +433,8 @@ class GameRequestCommandServiceTest {
     @DisplayName("존재하지 않는 게임방 초대 요청을 처리하면 실패한다")
     void processGameRequestRejectsMissingRequest() {
         // given
-        given(gameRequestRepository.findById(20L)).willReturn(Optional.empty());
+        givenAcceptableRoom(RoomStatus.ACTIVE);
+        given(gameRequestRepository.findByIdForUpdate(20L)).willReturn(Optional.empty());
 
         // when & then
         assertErrorCode(
@@ -421,7 +448,8 @@ class GameRequestCommandServiceTest {
     void processGameRequestRejectsDifferentRoom() {
         // given
         GameRequest gameRequest = gameRequest(20L, 11L, 1L, 2L);
-        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
+        givenAcceptableRoom(RoomStatus.ACTIVE);
+        given(gameRequestRepository.findByIdForUpdate(20L)).willReturn(Optional.of(gameRequest));
 
         // when & then
         assertErrorCode(
@@ -435,7 +463,8 @@ class GameRequestCommandServiceTest {
     void processGameRequestRejectsForbiddenMember() {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
-        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
+        givenAcceptableRoom(RoomStatus.ACTIVE);
+        given(gameRequestRepository.findByIdForUpdate(20L)).willReturn(Optional.of(gameRequest));
 
         // when & then
         assertErrorCode(
@@ -450,7 +479,8 @@ class GameRequestCommandServiceTest {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
         gameRequest.accept();
-        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
+        givenReadableRoom(RoomStatus.ACTIVE);
+        given(gameRequestRepository.findByIdForUpdate(20L)).willReturn(Optional.of(gameRequest));
 
         // when & then
         assertErrorCode(
@@ -464,7 +494,7 @@ class GameRequestCommandServiceTest {
     void acceptGameRequestRejectsExistingRoomMember() {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
-        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
+        given(gameRequestRepository.findByIdForUpdate(20L)).willReturn(Optional.of(gameRequest));
         givenAcceptableRoom(RoomStatus.ACTIVE);
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(true);
 
@@ -481,7 +511,7 @@ class GameRequestCommandServiceTest {
     @DisplayName("게임이 시작된 방의 초대 요청은 수락할 수 없다")
     void acceptGameRequestRejectsInProgressRoom() {
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
-        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
+        given(gameRequestRepository.findByIdForUpdate(20L)).willReturn(Optional.of(gameRequest));
         Room room = givenAcceptableRoom(RoomStatus.ACTIVE);
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
         given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L))
@@ -498,7 +528,7 @@ class GameRequestCommandServiceTest {
     void acceptGameRequestRejectsFullRoom() {
         // given
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
-        given(gameRequestRepository.findById(20L)).willReturn(Optional.of(gameRequest));
+        given(gameRequestRepository.findByIdForUpdate(20L)).willReturn(Optional.of(gameRequest));
         givenAcceptableRoom(RoomStatus.ACTIVE);
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
         given(roomMemberRepository.countByRoomId(10L)).willReturn(4L);
@@ -516,7 +546,11 @@ class GameRequestCommandServiceTest {
         Room room = Room.create(1L, "테스트 방", GameMode.COOPERATE, null, 3);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", status);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
+    }
+
+    private void givenReadableRoom(RoomStatus status) {
+        givenAcceptableRoom(status);
     }
 
     private Room givenAcceptableRoom(RoomStatus status) {

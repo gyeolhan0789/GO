@@ -18,6 +18,8 @@ public interface BingoBoardRepository extends JpaRepository<BingoBoard, Long> {
 
     boolean existsByGameParticipantId(Long gameParticipantId);
 
+    boolean existsByGameIdAndStatus(Long gameId, BingoBoardStatus status);
+
     Optional<BingoBoard> findFirstByGameIdAndStatusNotInOrderByIdDesc(
             Long gameId,
             List<BingoBoardStatus> excludedStatuses

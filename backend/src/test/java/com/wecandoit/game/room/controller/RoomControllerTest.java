@@ -19,7 +19,6 @@ import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.game.controller.RoomController;
 import com.wecandoit.game.controller.request.CreateRoomRequest;
 import com.wecandoit.game.controller.request.UpdateRoomNameRequest;
-import com.wecandoit.game.controller.response.CreateRoomResponse;
 import com.wecandoit.game.controller.response.MyRoomMemberResponse;
 import com.wecandoit.game.controller.response.MyRoomResponse;
 import com.wecandoit.game.controller.response.RoomDetailResponse;
@@ -27,6 +26,7 @@ import com.wecandoit.game.controller.response.RoomMemberResponse;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.RoomStatus;
 import com.wecandoit.game.service.RoomCommandService;
+import com.wecandoit.game.service.RoomCreateFacade;
 import com.wecandoit.game.service.RoomReadService;
 import io.restassured.http.ContentType;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
@@ -60,13 +60,16 @@ class RoomControllerTest {
     @Mock
     private RoomReadService roomReadService;
 
+    @Mock
+    private RoomCreateFacade roomCreateFacade;
+
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
         SecurityContextHolder.getContext().setAuthentication(
                 UsernamePasswordAuthenticationToken.authenticated(1L, null, List.of())
         );
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(
-                        new RoomController(roomCommandService, roomReadService))
+                        new RoomController(roomCommandService, roomReadService, roomCreateFacade))
                 .setControllerAdvice(new CustomExceptionHandler())
                 .setCustomArgumentResolvers(new LoginMemberIdArgumentResolver())
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(
@@ -91,9 +94,7 @@ class RoomControllerTest {
         CreateRoomRequest request =
                 new CreateRoomRequest("주간 운동", GameMode.COOPERATE, 3, 12_000, 4);
         RoomDetailResponse response = roomDetailResponse();
-        given(roomCommandService.createRoom(1L, request))
-                .willReturn(new CreateRoomResponse(10L, RoomStatus.ACTIVE));
-        given(roomReadService.getRoomDetail(1L, 10L)).willReturn(response);
+        given(roomCreateFacade.createRoom(1L, request)).willReturn(response);
 
         given()
                 .contentType(ContentType.JSON)
@@ -125,8 +126,7 @@ class RoomControllerTest {
                         responseFields(roomDetailFields())
                 ));
 
-        then(roomCommandService).should().createRoom(1L, request);
-        then(roomReadService).should().getRoomDetail(1L, 10L);
+        then(roomCreateFacade).should().createRoom(1L, request);
     }
 
     @Test

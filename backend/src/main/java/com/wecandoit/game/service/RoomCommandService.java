@@ -1,10 +1,13 @@
 package com.wecandoit.game.service;
 
+import com.wecandoit.bingo.domain.BingoBoardStatus;
+import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.controller.request.CreateRoomRequest;
 import com.wecandoit.game.controller.request.UpdateRoomNameRequest;
 import com.wecandoit.game.controller.response.CreateRoomResponse;
+import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.game.domain.Room;
@@ -15,6 +18,8 @@ import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,9 +28,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class RoomCommandService {
 
+    private static final String ACTIVE_GAME_RESOURCE = "active game";
+    private static final String ACTIVE_BINGO_BOARD_RESOURCE = "active bingo board";
+    private static final Logger log = LoggerFactory.getLogger(RoomCommandService.class);
+
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
     private final GameRepository gameRepository;
+    private final BingoBoardRepository bingoBoardRepository;
     private final GameCycleCommandService gameCycleCommandService;
     private final MemberRepository memberRepository;
 
@@ -35,6 +45,7 @@ public class RoomCommandService {
             return createSingleRoom(memberId, request);
         }
 
+        validateMemberExists(memberId);
         Room room = createNewRoom(memberId, request);
         if (request.mode() == GameMode.COOPERATE) {
             gameCycleCommandService.startInitialSharedCycle(
@@ -49,17 +60,51 @@ public class RoomCommandService {
         memberRepository.findByIdForUpdate(memberId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
-        return roomRepository.findFirstByMemberIdAndModeAndStatus(
+        return roomRepository.findFirstByHostIdAndModeAndStatusOrderByIdDesc(
                         memberId,
                         GameMode.SINGLE,
                         RoomStatus.ACTIVE
                 )
-                .filter(room -> gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(
+                .map(room -> {
+                    validateSingleRoomCycle(room);
+                    return CreateRoomResponse.from(room);
+                })
+                .orElseGet(() -> createAndStartSharedRoom(memberId, request));
+    }
+
+    private void validateMemberExists(Long memberId) {
+        if (!memberRepository.existsById(memberId)) {
+            throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
+        }
+    }
+
+    private void validateSingleRoomCycle(Room room) {
+        Game game = gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(
                         room.getId(),
                         GameStatus.ACTIVE
-                ).isPresent())
-                .map(CreateRoomResponse::from)
-                .orElseGet(() -> createAndStartSharedRoom(memberId, request));
+                )
+                .orElseThrow(() -> invalidRoomCycle(
+                        room.getHostId(),
+                        room.getId(),
+                        ACTIVE_GAME_RESOURCE
+                ));
+        if (!bingoBoardRepository.existsByGameIdAndStatus(game.getId(), BingoBoardStatus.ACTIVE)) {
+            throw invalidRoomCycle(
+                    room.getHostId(),
+                    room.getId(),
+                    ACTIVE_BINGO_BOARD_RESOURCE
+            );
+        }
+    }
+
+    private CustomException invalidRoomCycle(Long memberId, Long roomId, String missingResource) {
+        log.error(
+                "Invalid active SINGLE room cycle: memberId={}, roomId={}, missing={}",
+                memberId,
+                roomId,
+                missingResource
+        );
+        return new CustomException(ErrorCode.ROOM_CYCLE_INVALID);
     }
 
     private CreateRoomResponse createAndStartSharedRoom(Long memberId, CreateRoomRequest request) {
