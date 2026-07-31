@@ -32,7 +32,7 @@ import { radius } from '../../shared/constants/radius';
 import { shadow } from '../../shared/constants/shadow';
 import { spacing } from '../../shared/constants/spacing';
 import { fontFamily } from '../../shared/constants/typography';
-import { WalkCountdownOverlay } from './components/WalkCountdownOverlay';
+import { WalkCountdownScreen } from './components/WalkCountdownScreen';
 import { WalkRouteMap, type WalkRouteMapHandle } from './components/WalkRouteMap';
 import { useRouteTracking } from './hooks/useRouteTracking';
 
@@ -185,6 +185,16 @@ export function WalkSessionScreen() {
     ]);
   }, [navigation]);
 
+  // 카운트다운이 끝나기 전까지는 지도를 아예 안 띄운다(지도가 살짝
+  // 비치는 오버레이보다 완전히 가려진 화면이 낫다는 판단).
+  if (showCountdown) {
+    return (
+      <Screen edges={['top', 'bottom']}>
+        <WalkCountdownScreen onFinish={confirmWalkSessionStart} />
+      </Screen>
+    );
+  }
+
   return (
     <Screen edges={['top']}>
       {/* 전체 화면 배경으로 쓰는 이동 경로 지도. */}
@@ -332,10 +342,6 @@ export function WalkSessionScreen() {
           </View>
         </View>
       </Animated.View>
-
-      {showCountdown ? (
-        <WalkCountdownOverlay onFinish={confirmWalkSessionStart} />
-      ) : null}
     </Screen>
   );
 }
