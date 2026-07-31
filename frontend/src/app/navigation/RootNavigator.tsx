@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { useAuth } from '../../features/auth/model/AuthContext';
 import { colors } from '../../shared/constants/colors';
+import { fontFamily } from '../../shared/constants/typography';
 import { useOnboardingStatus } from '../../shared/hooks/useOnboardingStatus';
 import { usePermissionsStatus } from '../../shared/hooks/usePermissionsStatus';
 import { BingoBoardScreen } from '../../screens/BingoBoardScreen/BingoBoardScreen';
@@ -26,7 +27,7 @@ export type RootStackParamList = {
   Signup: undefined;
   Main: undefined;
   WalkList: undefined;
-  WalkDetail: { walkId: number };
+  WalkDetail: { roomId: number };
   // TODO: 방 생성/선택 API 연동되면 roomId를 필수 파라미터로 받는다.
   WalkSession: undefined;
   // TODO: roomId 연동되면 필수 파라미터로 받는다.
@@ -41,7 +42,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const DETAIL_HEADER_OPTIONS = {
   headerShown: true,
   headerTitleAlign: 'center',
-  headerTitleStyle: { fontFamily: 'BMDOHYEON', fontSize: 18 },
+  headerTitleStyle: { fontFamily: fontFamily.bold, fontSize: 18 },
   headerTintColor: colors.ink,
   headerShadowVisible: false,
   headerStyle: { backgroundColor: colors.surface },

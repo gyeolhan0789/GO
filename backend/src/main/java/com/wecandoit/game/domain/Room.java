@@ -9,7 +9,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -38,7 +37,7 @@ public class Room extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
-    private GameRoomStatus status;
+    private RoomStatus status;
 
     @Column(name = "target_bingo_count")
     private Integer targetBingoCount;
@@ -48,9 +47,6 @@ public class Room extends BaseEntity {
 
     @Column(name = "board_size", nullable = false)
     private int boardSize;
-
-    @Column(name = "started_at")
-    private LocalDateTime startedAt;
 
     private Room(
             Long hostId,
@@ -63,7 +59,7 @@ public class Room extends BaseEntity {
         this.hostId = hostId;
         this.name = name.strip();
         this.mode = mode;
-        this.status = GameRoomStatus.CREATED;
+        this.status = RoomStatus.ACTIVE;
         this.targetBingoCount = targetBingoCount;
         this.targetStepCount = targetStepCount;
         this.boardSize = boardSize;
@@ -95,57 +91,14 @@ public class Room extends BaseEntity {
     }
 
     public boolean isClosed() {
-        return status == GameRoomStatus.CLOSED;
-    }
-
-    public boolean isReady() {
-        return status == GameRoomStatus.READY;
-    }
-
-    public boolean isCompleted() {
-        return status == GameRoomStatus.COMPLETED;
+        return status == RoomStatus.CLOSED;
     }
 
     public void updateName(String name) {
         this.name = name;
     }
 
-    public void updateParticipantStatus(long participantCount) {
-        if (mode == GameMode.SINGLE
-                || status == GameRoomStatus.IN_PROGRESS
-                || status == GameRoomStatus.COMPLETED
-                || status == GameRoomStatus.CLOSED) {
-            return;
-        }
-
-        if (participantCount >= mode.getMinimumParticipants()) {
-            this.status = GameRoomStatus.READY;
-            return;
-        }
-
-        this.status = GameRoomStatus.WAITING;
-    }
-
-    public void start() {
-        this.status = GameRoomStatus.IN_PROGRESS;
-        this.startedAt = LocalDateTime.now();
-    }
-
     public void close() {
-        this.status = GameRoomStatus.CLOSED;
-    }
-
-    public void complete() {
-        this.status = GameRoomStatus.COMPLETED;
-    }
-
-    public void finishGame(long participantCount) {
-        if (mode == GameMode.SINGLE) {
-            complete();
-            return;
-        }
-        this.status = participantCount >= mode.getMinimumParticipants()
-                ? GameRoomStatus.READY
-                : GameRoomStatus.WAITING;
+        this.status = RoomStatus.CLOSED;
     }
 }

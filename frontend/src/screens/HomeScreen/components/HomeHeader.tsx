@@ -1,10 +1,10 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { PointBadge } from '../../../features/member/components/PointBadge';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
-import { fontFamily } from '../../../shared/constants/typography';
 
 type HomeHeaderProps = {
   points: number;
@@ -15,10 +15,7 @@ type HomeHeaderProps = {
 export function HomeHeader({ points, onProfilePress }: HomeHeaderProps) {
   return (
     <View style={styles.container}>
-      <View style={styles.pointsBadge}>
-        <View style={styles.coinDot} />
-        <Text style={styles.pointsText}>{points}</Text>
-      </View>
+      <PointBadge points={points} />
       <View style={styles.actions}>
         <Ionicons name="notifications-outline" size={24} color={colors.ink} />
         <Pressable
@@ -34,37 +31,11 @@ export function HomeHeader({ points, onProfilePress }: HomeHeaderProps) {
   );
 }
 
-const COIN_COLOR = colors.highlightBg;
-
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  pointsBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.ink,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    gap: spacing.xs,
-  },
-  coinDot: {
-    width: 16,
-    height: 16,
-    borderRadius: radius.pill,
-    backgroundColor: COIN_COLOR,
-    borderWidth: 1,
-    borderColor: colors.ink,
-  },
-  pointsText: {
-    fontFamily: fontFamily.bold,
-    fontSize: 15,
-    color: colors.ink,
   },
   actions: {
     flexDirection: 'row',

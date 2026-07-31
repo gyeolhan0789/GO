@@ -3,12 +3,19 @@ package com.wecandoit.bingo.controller;
 import static io.restassured.module.mockmvc.RestAssuredMockMvc.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willReturn;
 import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.partWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
+import static org.springframework.restdocs.request.RequestDocumentation.requestParts;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
+import static org.springframework.restdocs.payload.PayloadDocumentation.relaxedResponseFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 
@@ -27,8 +34,8 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
-import com.wecandoit.game.domain.GameRoomStatus;
 import com.wecandoit.game.domain.GameStatus;
+import com.wecandoit.game.domain.RoomStatus;
 import com.wecandoit.mission.controller.response.MissionResponse;
 import io.restassured.http.ContentType;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
@@ -39,7 +46,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.BDDMockito;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
@@ -51,6 +57,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.multipart.MultipartFile;
 
 @DisplayName("빙고판 API")
 @ExtendWith({RestDocumentationExtension.class, MockitoExtension.class})
@@ -115,7 +122,7 @@ class BingoControllerTest {
                 1,
                 9,
                 3,
-                BingoBoardStatus.IN_PROGRESS,
+                BingoBoardStatus.ACTIVE,
                 List.of(new BingoCellResponse(
                         1000L,
                         0,
@@ -131,7 +138,7 @@ class BingoControllerTest {
                 null,
                 null
         );
-        BDDMockito.given(bingoReadService.getActiveBoard(1L, 10L)).willReturn(response);
+        willReturn(response).given(bingoReadService).getActiveBoard(1L, 10L);
 
         // when & then
         given()
@@ -214,7 +221,7 @@ class BingoControllerTest {
                 1,
                 9,
                 2,
-                BingoBoardStatus.IN_PROGRESS,
+                BingoBoardStatus.ACTIVE,
                 List.of(new BingoCellResponse(
                         1001L,
                         0,
@@ -229,14 +236,14 @@ class BingoControllerTest {
                 false,
                 null,
                 new BattleProgressResponse(
-                        GameRoomStatus.IN_PROGRESS,
-                        GameStatus.IN_PROGRESS,
+                        RoomStatus.ACTIVE,
+                        GameStatus.ACTIVE,
                         new BattleParticipantProgressResponse(1L, 201L, 9, 2, 1, false),
                         new BattleParticipantProgressResponse(2L, 202L, 9, 4, 2, false),
                         null
                 )
         );
-        BDDMockito.given(bingoReadService.getActiveBoard(1L, 10L)).willReturn(response);
+        willReturn(response).given(bingoReadService).getActiveBoard(1L, 10L);
 
         // when & then
         given()
@@ -246,8 +253,8 @@ class BingoControllerTest {
                 .statusCode(HttpStatus.OK.value())
                 .body("bingoBoardId", equalTo(201))
                 .body("cells[0].submittedByMemberId", equalTo(1))
-                .body("battleProgress.roomStatus", equalTo("IN_PROGRESS"))
-                .body("battleProgress.gameStatus", equalTo("IN_PROGRESS"))
+                .body("battleProgress.roomStatus", equalTo("ACTIVE"))
+                .body("battleProgress.gameStatus", equalTo("ACTIVE"))
                 .body("battleProgress.me.memberId", equalTo(1))
                 .body("battleProgress.me.bingoBoardId", equalTo(201))
                 .body("battleProgress.opponent.memberId", equalTo(2))
@@ -290,13 +297,13 @@ class BingoControllerTest {
         BingoCellSubmitResponse response = new BingoCellSubmitResponse(
                 1000L, 0, 0, mission, BingoCellVerificationStatus.APPROVED, 1L, null, 30L
         );
-        BDDMockito.given(missionVerificationFacade.submitAndVerify(1L, 10L, 1000L, "https://example.com/proof.png"))
-                .willReturn(response);
+        willReturn(response)
+                .given(missionVerificationFacade)
+                .submitAndVerify(eq(1L), eq(10L), eq(1000L), any(MultipartFile.class));
 
         // when & then
         given()
-                .contentType(ContentType.JSON)
-                .body("{\"submitUrl\":\"https://example.com/proof.png\"}")
+                .multiPart("image", "proof.png", new byte[]{1, 2, 3}, "image/png")
                 .when()
                 .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/submit", 10L, 1000L)
                 .then()
@@ -311,6 +318,9 @@ class BingoControllerTest {
                         pathParameters(
                                 parameterWithName("roomId").description("칸을 제출할 게임방 ID"),
                                 parameterWithName("cellId").description("제출할 빙고 칸 ID")
+                        ),
+                        requestParts(
+                                partWithName("image").description("제출할 미션 인증 사진 (JPEG/PNG, 최대 5MB)")
                         ),
                         responseFields(
                                 fieldWithPath("cellId").description("빙고 셀 ID"),
@@ -337,12 +347,11 @@ class BingoControllerTest {
         // given
         willThrow(new CustomException(ErrorCode.AI_VERIFICATION_FAILED))
                 .given(missionVerificationFacade)
-                .submitAndVerify(1L, 10L, 1000L, "https://example.com/proof.png");
+                .submitAndVerify(eq(1L), eq(10L), eq(1000L), any(MultipartFile.class));
 
         // when & then
         given()
-                .contentType(ContentType.JSON)
-                .body("{\"submitUrl\":\"https://example.com/proof.png\"}")
+                .multiPart("image", "proof.png", new byte[]{1, 2, 3}, "image/png")
                 .when()
                 .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/submit", 10L, 1000L)
                 .then()
@@ -355,12 +364,11 @@ class BingoControllerTest {
         // given
         willThrow(new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND))
                 .given(missionVerificationFacade)
-                .submitAndVerify(1L, 10L, 1000L, "https://example.com/proof.png");
+                .submitAndVerify(eq(1L), eq(10L), eq(1000L), any(MultipartFile.class));
 
         // when & then
         given()
-                .contentType(ContentType.JSON)
-                .body("{\"submitUrl\":\"https://example.com/proof.png\"}")
+                .multiPart("image", "proof.png", new byte[]{1, 2, 3}, "image/png")
                 .when()
                 .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/submit", 10L, 1000L)
                 .then()
@@ -373,12 +381,11 @@ class BingoControllerTest {
         // given
         willThrow(new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN))
                 .given(missionVerificationFacade)
-                .submitAndVerify(1L, 10L, 1000L, "https://example.com/proof.png");
+                .submitAndVerify(eq(1L), eq(10L), eq(1000L), any(MultipartFile.class));
 
         // when & then
         given()
-                .contentType(ContentType.JSON)
-                .body("{\"submitUrl\":\"https://example.com/proof.png\"}")
+                .multiPart("image", "proof.png", new byte[]{1, 2, 3}, "image/png")
                 .when()
                 .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/submit", 10L, 1000L)
                 .then()
@@ -386,12 +393,11 @@ class BingoControllerTest {
     }
 
     @Test
-    @DisplayName("submitUrl이 비어있으면 제출에 실패한다")
-    void submitCellRejectsBlankSubmitUrl() {
+    @DisplayName("image 파트가 없으면 제출에 실패한다")
+    void submitCellRejectsMissingImagePart() {
         // given & when & then
         given()
-                .contentType(ContentType.JSON)
-                .body("{\"submitUrl\":\"\"}")
+                .multiPart("photo", "proof.png", new byte[]{1, 2, 3}, "image/png")
                 .when()
                 .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/submit", 10L, 1000L)
                 .then()
@@ -421,7 +427,7 @@ class BingoControllerTest {
                 0,
                 1,
                 0,
-                BingoBoardStatus.IN_PROGRESS,
+                BingoBoardStatus.ACTIVE,
                 List.of(new BingoCellResponse(1001L, 0, 0, mission, null, null, null)),
                 false,
                 false,
@@ -429,12 +435,20 @@ class BingoControllerTest {
                 null,
                 null
         );
-        BDDMockito.given(bingoCommandService.renewBoard(1L, 10L, 12_000)).willReturn(response);
+        willReturn(response)
+                .given(bingoCommandService)
+                .renewBoard(1L, 10L, 3, 2, 12_000);
 
         // when & then
         given()
                 .contentType(ContentType.JSON)
-                .body("{\"targetStepCount\":12000}")
+                .body("""
+                        {
+                          "boardSize": 3,
+                          "targetBingoCount": 2,
+                          "targetStepCount": 12000
+                        }
+                        """)
                 .when()
                 .post("/rooms/{roomId}/bingo-boards/renewal", 10L)
                 .then()
@@ -442,12 +456,14 @@ class BingoControllerTest {
                 .body("bingoBoardId", equalTo(101))
                 .body("gameId", equalTo(200))
                 .body("targetStepCount", equalTo(12_000))
-                .body("status", equalTo("IN_PROGRESS"))
+                .body("status", equalTo("ACTIVE"))
                 .apply(document("bingo-boards-renewal",
                         pathParameters(
                                 parameterWithName("roomId").description("빙고판을 갱신할 게임방 ID")
                         ),
                         requestFields(
+                                fieldWithPath("boardSize").description("새 빙고판 한 변의 크기"),
+                                fieldWithPath("targetBingoCount").description("새 회차의 목표 빙고 수"),
                                 fieldWithPath("targetStepCount").description("새 빙고판에 설정할 목표 걸음 수")
                         ),
                         responseFields(
@@ -489,12 +505,18 @@ class BingoControllerTest {
         // given
         willThrow(new CustomException(ErrorCode.BINGO_BOARD_NOT_COMPLETED))
                 .given(bingoCommandService)
-                .renewBoard(1L, 10L, 12_000);
+                .renewBoard(1L, 10L, 3, 2, 12_000);
 
         // when & then
         given()
                 .contentType(ContentType.JSON)
-                .body("{\"targetStepCount\":12000}")
+                .body("""
+                        {
+                          "boardSize": 3,
+                          "targetBingoCount": 2,
+                          "targetStepCount": 12000
+                        }
+                        """)
                 .when()
                 .post("/rooms/{roomId}/bingo-boards/renewal", 10L)
                 .then()
@@ -507,12 +529,18 @@ class BingoControllerTest {
         // given
         willThrow(new CustomException(ErrorCode.BINGO_BOARD_RENEWAL_FORBIDDEN))
                 .given(bingoCommandService)
-                .renewBoard(1L, 10L, 12_000);
+                .renewBoard(1L, 10L, 3, 2, 12_000);
 
         // when & then
         given()
                 .contentType(ContentType.JSON)
-                .body("{\"targetStepCount\":12000}")
+                .body("""
+                        {
+                          "boardSize": 3,
+                          "targetBingoCount": 2,
+                          "targetStepCount": 12000
+                        }
+                        """)
                 .when()
                 .post("/rooms/{roomId}/bingo-boards/renewal", 10L)
                 .then()
@@ -530,5 +558,61 @@ class BingoControllerTest {
                 .post("/rooms/{roomId}/bingo-boards/renewal", 10L)
                 .then()
                 .statusCode(HttpStatus.BAD_REQUEST.value());
+    }
+
+    @Test
+    @DisplayName("방장이 종료된 대결방에서 재대결 회차를 생성한다")
+    void rematchBattleReturnsNewActiveBoard() {
+        BingoBoardResponse response = new BingoBoardResponse(
+                301L,
+                401L,
+                10L,
+                3,
+                2,
+                null,
+                0,
+                9,
+                0,
+                BingoBoardStatus.ACTIVE,
+                List.of(),
+                false,
+                false,
+                false,
+                null,
+                new BattleProgressResponse(
+                        RoomStatus.ACTIVE,
+                        GameStatus.ACTIVE,
+                        new BattleParticipantProgressResponse(1L, 301L, 9, 0, 0, false),
+                        new BattleParticipantProgressResponse(2L, 302L, 9, 0, 0, false),
+                        null
+                )
+        );
+        willReturn(response).given(bingoReadService).getActiveBoard(1L, 10L);
+
+        given()
+                .when()
+                .post("/rooms/{roomId}/battles/rematch", 10L)
+                .then()
+                .statusCode(HttpStatus.CREATED.value())
+                .body("gameId", equalTo(401))
+                .body("status", equalTo("ACTIVE"))
+                .body("battleProgress.gameStatus", equalTo("ACTIVE"))
+                .apply(document("battle-rematch",
+                        pathParameters(
+                                parameterWithName("roomId").description("재대결할 게임방 ID")
+                        ),
+                        relaxedResponseFields(
+                                fieldWithPath("bingoBoardId").description("호출자의 새 개인 빙고판 ID"),
+                                fieldWithPath("gameId").description("새 게임 회차 ID"),
+                                fieldWithPath("roomId").description("게임방 ID"),
+                                fieldWithPath("boardSize").description("재사용된 빙고판 크기"),
+                                fieldWithPath("targetBingoCount").description("재사용된 목표 빙고 수"),
+                                fieldWithPath("status").description("새 빙고판 상태"),
+                                fieldWithPath("battleProgress.gameStatus").description("새 게임 회차 상태")
+                        )
+                ));
+
+        then(bingoCommandService).should().rematchBattle(1L, 10L);
+        then(bingoReadService).should().getActiveBoard(1L, 10L);
     }
 }

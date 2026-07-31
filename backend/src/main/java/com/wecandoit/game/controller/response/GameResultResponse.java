@@ -3,8 +3,8 @@ package com.wecandoit.game.controller.response;
 import com.wecandoit.game.domain.GameResult;
 import com.wecandoit.game.domain.GameResultParticipant;
 import com.wecandoit.game.domain.GameMode;
-import com.wecandoit.game.domain.GameRoomStatus;
 import com.wecandoit.game.domain.Room;
+import com.wecandoit.game.domain.RoomStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -13,7 +13,7 @@ public record GameResultResponse(
         Long roomId,
         String roomName,
         GameMode mode,
-        GameRoomStatus roomStatus,
+        RoomStatus roomStatus,
         boolean result,
         int boardSize,
         Integer targetBingoCount,
@@ -33,6 +33,8 @@ public record GameResultResponse(
     public static GameResultResponse of(
             GameResult gameResult,
             Room room,
+            int boardSize,
+            int targetBingoCount,
             Integer targetStepCount,
             LocalDateTime startedAt,
             LocalDateTime completedAt,
@@ -47,8 +49,8 @@ public record GameResultResponse(
                 room.getMode(),
                 room.getStatus(),
                 gameResult.isResult(),
-                room.getBoardSize(),
-                room.getTargetBingoCount(),
+                boardSize,
+                targetBingoCount,
                 targetStepCount,
                 gameResult.getBingoCount(),
                 gameResult.getCompletedMissionCount(),

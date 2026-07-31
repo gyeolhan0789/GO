@@ -1,4 +1,5 @@
 import { StyleSheet, View } from 'react-native';
+import { colors } from '../../../shared/constants/colors';
 
 type PaginationProps = {
   count: number;
@@ -34,10 +35,10 @@ const styles = StyleSheet.create({
   },
   dotActive: {
     width: 20,
-    backgroundColor: '#2C6A47',
+    backgroundColor: colors.primaryDark,
   },
   dotInactive: {
     width: 8,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
   },
 });

@@ -1,8 +1,11 @@
 package com.wecandoit.game.repository;
 
 import com.wecandoit.game.domain.Game;
+import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameStatus;
+import com.wecandoit.game.domain.RoomStatus;
 import jakarta.persistence.LockModeType;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -33,6 +36,23 @@ public interface GameRepository extends JpaRepository<Game, Long> {
     List<Game> findAllByRoomIdIn(List<Long> roomIds);
 
     List<Game> findAllByRoomIdInAndStatus(List<Long> roomIds, GameStatus status);
+
+    @Query("""
+            select g
+            from Game g
+            join Room r on r.id = g.roomId
+            where g.status = :status
+              and r.status = :roomStatus
+              and r.mode in :modes
+              and g.startedAt <= :startedAt
+            order by g.id asc
+            """)
+    List<Game> findAllRenewalNotificationTargets(
+            @Param("status") GameStatus status,
+            @Param("roomStatus") RoomStatus roomStatus,
+            @Param("modes") List<GameMode> modes,
+            @Param("startedAt") LocalDateTime startedAt
+    );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT g FROM Game g WHERE g.id = :gameId")

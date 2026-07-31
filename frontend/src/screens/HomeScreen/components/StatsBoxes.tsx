@@ -1,11 +1,12 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { Card } from '../../../shared/components/Card/Card';
 import { colors } from '../../../shared/constants/colors';
 import { shadow } from '../../../shared/constants/shadow';
 import { spacing } from '../../../shared/constants/spacing';
-import { fontFamily } from '../../../shared/constants/typography';
+import { fontFamily, lineHeights } from '../../../shared/constants/typography';
 
 type StatsBoxesProps = {
   distanceKm: number;
@@ -19,15 +20,15 @@ export function StatsBoxes({ distanceKm, calories }: StatsBoxesProps) {
         <View style={styles.iconBox}>
           <Ionicons name="flash" size={13} color={colors.successText} />
         </View>
-        <Text style={styles.value}>{distanceKm}</Text>
-        <Text style={styles.unit}>km</Text>
+        <AppText style={styles.value}>{distanceKm}</AppText>
+        <AppText style={styles.unit}>km</AppText>
       </Card>
       <Card wrapperStyle={styles.boxWrapper} style={styles.box}>
         <View style={styles.iconBox}>
           <Ionicons name="flame" size={13} color={colors.danger} />
         </View>
-        <Text style={styles.value}>{calories}</Text>
-        <Text style={styles.unit}>kcal</Text>
+        <AppText style={styles.value}>{calories}</AppText>
+        <AppText style={styles.unit}>kcal</AppText>
       </Card>
     </View>
   );
@@ -61,11 +62,13 @@ const styles = StyleSheet.create({
   value: {
     fontFamily: fontFamily.bold,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.ink,
   },
   unit: {
     fontFamily: fontFamily.regular,
     fontSize: 11,
+    lineHeight: lineHeights[11],
     color: colors.ink,
     opacity: 0.6,
   },

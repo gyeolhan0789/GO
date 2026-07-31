@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
 
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
-import { fontFamily, textStyles } from '../../../shared/constants/typography';
+import { fontFamily, lineHeights, MAX_FONT_SCALE, textStyles } from '../../../shared/constants/typography';
 
 type NicknameFieldProps = {
   value: string;
@@ -14,7 +15,7 @@ type NicknameFieldProps = {
 };
 
 const FIELD_HEIGHT = 52;
-const BORDER_COLOR = '#E5E7EB';
+const BORDER_COLOR = colors.borderSoft;
 
 export function NicknameField({
   value,
@@ -26,7 +27,7 @@ export function NicknameField({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>닉네임</Text>
+      <AppText style={styles.label}>닉네임</AppText>
       <View
         style={[
           styles.field,
@@ -35,6 +36,7 @@ export function NicknameField({
         ]}
       >
         <TextInput
+          maxFontSizeMultiplier={MAX_FONT_SCALE}
           style={styles.input}
           accessibilityLabel="닉네임"
           value={value}
@@ -47,14 +49,14 @@ export function NicknameField({
           placeholder="닉네임"
           placeholderTextColor={colors.muted}
         />
-        <Text style={styles.counter}>
+        <AppText style={styles.counter}>
           {value.length}/{maxLength}
-        </Text>
+        </AppText>
       </View>
       {error ? (
-        <Text style={styles.error} accessibilityLiveRegion="polite">
+        <AppText style={styles.error} accessibilityLiveRegion="polite">
           {error}
-        </Text>
+        </AppText>
       ) : null}
     </View>
   );
@@ -67,6 +69,7 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: fontFamily.bold,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
   },
   field: {
@@ -92,11 +95,16 @@ const styles = StyleSheet.create({
     padding: 0,
     fontFamily: fontFamily.regular,
     fontSize: 16,
+    // TextInput에는 lineHeight를 주지 않는다(안드로이드에서 글자가 밀린다).
+    // font padding을 끄고 한 줄 입력이라 세로 가운데로 맞춘다.
+    includeFontPadding: false,
+    textAlignVertical: 'center',
     color: colors.ink,
   },
   counter: {
     fontFamily: fontFamily.regular,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.mutedStrong,
   },
   error: {

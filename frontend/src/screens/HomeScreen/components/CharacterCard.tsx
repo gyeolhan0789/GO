@@ -1,12 +1,13 @@
 import { useEffect, useRef } from 'react';
 import type { ImageSourcePropType, StyleProp, ViewStyle } from 'react-native';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
-import { fontFamily } from '../../../shared/constants/typography';
+import { fontFamily, lineHeights } from '../../../shared/constants/typography';
 
 const BOB_DISTANCE = 6;
 const BOB_DURATION_MS = 400;
@@ -75,7 +76,7 @@ export function CharacterCard({
           accessibilityRole="button"
           accessibilityLabel="진행 중인 산책으로 이동"
         >
-          <Text style={styles.walkBadgeText}>산책 중 · {walkElapsedLabel}</Text>
+          <AppText style={styles.walkBadgeText}>산책 중 · {walkElapsedLabel}</AppText>
         </Pressable>
       ) : null}
       {characterImageSource ? (
@@ -92,7 +93,7 @@ export function CharacterCard({
           <Ionicons name="person" size={48} color={colors.muted} />
         </View>
       )}
-      <Text style={styles.name}>{name}</Text>
+      <AppText style={styles.name}>{name}</AppText>
     </View>
   );
 }
@@ -117,6 +118,7 @@ const styles = StyleSheet.create({
   walkBadgeText: {
     fontFamily: fontFamily.bold,
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.successText,
   },
   characterImage: {
@@ -132,6 +134,7 @@ const styles = StyleSheet.create({
   name: {
     fontFamily: fontFamily.bold,
     fontSize: 20,
+    lineHeight: lineHeights[20],
     color: colors.ink,
   },
 });

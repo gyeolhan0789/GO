@@ -1,11 +1,12 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { AvatarStack } from '../../../shared/components/AvatarStack/AvatarStack';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
-import { fontFamily } from '../../../shared/constants/typography';
+import { fontFamily, lineHeights } from '../../../shared/constants/typography';
 import type { WalkRoomOption } from '../types';
 
 type WalkRoomOptionRowProps = {
@@ -46,8 +47,8 @@ export function WalkRoomOptionRow({
       )}
 
       <View style={styles.textGroup}>
-        <Text style={styles.title}>{option.name}</Text>
-        <Text style={styles.subtitle}>{subtitle}</Text>
+        <AppText style={styles.title}>{option.name}</AppText>
+        <AppText style={styles.subtitle}>{subtitle}</AppText>
       </View>
 
       <View style={[styles.radio, selected && styles.radioSelected]}>
@@ -87,11 +88,13 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: fontFamily.bold,
     fontSize: 15,
+    lineHeight: lineHeights[15],
     color: colors.ink,
   },
   subtitle: {
     fontFamily: fontFamily.regular,
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.ink,
     opacity: 0.6,
     marginTop: 2,

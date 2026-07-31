@@ -1,14 +1,16 @@
 import type { StyleProp, ViewStyle } from 'react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Ionicons, {
   type IoniconsIconName,
 } from '@react-native-vector-icons/ionicons';
 
+import { AppText } from '../AppText/AppText';
+import { controlHeight } from '../../constants/sizing';
 import { colors } from '../../constants/colors';
 import { radius } from '../../constants/radius';
 import { shadow } from '../../constants/shadow';
 import { spacing } from '../../constants/spacing';
-import { fontFamily } from '../../constants/typography';
+import { fontFamily, lineHeights } from '../../constants/typography';
 
 type ButtonVariant = 'primary' | 'secondary';
 type ButtonSize = 'md' | 'lg';
@@ -20,13 +22,15 @@ type ButtonProps = {
   size?: ButtonSize;
   icon?: IoniconsIconName;
   disabled?: boolean;
+  /** label이 진행 상태에 따라 바뀌는 버튼에 고정된 이름을 주기 위한 값. */
+  accessibilityLabel?: string;
   /** 바깥 래퍼(그림자 박스 포함)에 적용. flex:1 등 배치 제어용. */
   style?: StyleProp<ViewStyle>;
 };
 
 const HEIGHT_BY_SIZE: Record<ButtonSize, number> = {
-  md: 56,
-  lg: 68,
+  md: controlHeight.lg,
+  lg: controlHeight.xl,
 };
 
 export function Button({
@@ -36,6 +40,7 @@ export function Button({
   size = 'md',
   icon,
   disabled = false,
+  accessibilityLabel,
   style,
 }: ButtonProps) {
   const isPrimary = variant === 'primary';
@@ -46,6 +51,7 @@ export function Button({
       <Pressable
         onPress={onPress}
         disabled={disabled}
+        accessibilityLabel={accessibilityLabel}
         style={({ pressed }) => [
           styles.base,
           { height: HEIGHT_BY_SIZE[size] },
@@ -63,14 +69,14 @@ export function Button({
               style={styles.icon}
             />
           ) : null}
-          <Text
+          <AppText
             style={[
               styles.label,
               isPrimary ? styles.labelPrimary : styles.labelSecondary,
             ]}
           >
             {label}
-          </Text>
+          </AppText>
         </View>
       </Pressable>
     </View>
@@ -122,6 +128,7 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: fontFamily.bold,
     fontSize: 18,
+    lineHeight: lineHeights[18],
   },
   labelPrimary: {
     color: colors.surface,

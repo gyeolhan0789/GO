@@ -1,15 +1,16 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 import { useWalkDetailQuery } from '../../features/history/hooks/useWalkDetailQuery';
-import { resolveMyParticipant } from '../../features/history/model/walkDetail';
+import { AppText } from '../../shared/components/AppText/AppText';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { colors } from '../../shared/constants/colors';
 import { spacing } from '../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../shared/constants/typography';
 import { ParticipantList } from './components/ParticipantList';
 import { WalkBingoCard } from './components/WalkBingoCard';
-import { WalkStatsCard } from './components/WalkStatsCard';
+import { WalkSummaryCard } from './components/WalkSummaryCard';
 
 type WalkDetailScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -17,24 +18,23 @@ type WalkDetailScreenProps = NativeStackScreenProps<
 >;
 
 export function WalkDetailScreen({ route }: WalkDetailScreenProps) {
-  const { walkId } = route.params;
+  const { roomId } = route.params;
 
-  const walkQuery = useWalkDetailQuery(walkId);
-  const walk = walkQuery.data;
-  const participant = walk ? resolveMyParticipant(walk.participants) : null;
+  const walkQuery = useWalkDetailQuery(roomId);
+  const { walk } = walkQuery;
 
   if (walkQuery.isLoading) {
     return (
       <Screen edges={SCREEN_EDGES}>
-        <Text style={styles.statusText}>불러오는 중...</Text>
+        <AppText style={styles.statusText}>불러오는 중...</AppText>
       </Screen>
     );
   }
 
-  if (walkQuery.isError || !walk || !participant) {
+  if (walkQuery.isError || !walk) {
     return (
       <Screen edges={SCREEN_EDGES}>
-        <Text style={styles.statusText}>산책 기록을 불러오지 못했어요.</Text>
+        <AppText style={styles.statusText}>산책 기록을 불러오지 못했어요.</AppText>
       </Screen>
     );
   }
@@ -45,14 +45,14 @@ export function WalkDetailScreen({ route }: WalkDetailScreenProps) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <WalkStatsCard walk={walk} participant={participant} />
+        <WalkSummaryCard walk={walk} />
 
         <ParticipantList participants={walk.participants} />
 
         <WalkBingoCard
           size={walk.bingoSize}
           cells={walk.bingoCells}
-          myMemberId={participant.memberId}
+          participants={walk.participants}
         />
 
         {/* 카드 오프셋 그림자가 스크롤 끝에서 잘리지 않게. */}
@@ -71,8 +71,9 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   statusText: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.regular,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
     opacity: 0.6,
     textAlign: 'center',

@@ -14,11 +14,13 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
+import com.wecandoit.game.domain.GameParticipant;
 import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomMember;
+import com.wecandoit.game.domain.RoomStatus;
+import com.wecandoit.game.repository.GameParticipantRepository;
 import com.wecandoit.game.repository.GameRepository;
-import com.wecandoit.game.repository.GameResultParticipantRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.GameCycleCommandService;
@@ -44,7 +46,7 @@ public class BingoReadService {
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
     private final GameRepository gameRepository;
-    private final GameResultParticipantRepository gameResultParticipantRepository;
+    private final GameParticipantRepository gameParticipantRepository;
     private final BingoBoardRepository bingoBoardRepository;
     private final BingoCellRepository bingoCellRepository;
     private final MissionRepository missionRepository;
@@ -52,27 +54,26 @@ public class BingoReadService {
     public BingoBoardResponse getActiveBoard(Long memberId, Long roomId) {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+        validateActiveRoomMember(room, memberId);
+        Game game = findActiveGame(roomId);
 
         if (room.getMode() == GameMode.BATTLE) {
-            return getBattleBoard(memberId, room);
+            return getBattleBoard(memberId, room, game);
         }
 
-        validateMember(memberId, roomId);
-        Game game = findActiveGame(roomId);
         BingoBoard board = findActiveBoard(game.getId());
         List<BingoCell> cells = bingoCellRepository.findAllByBoardId(board.getId());
         List<BingoCellResponse> cellResponses = toCellResponses(cells);
-
         int approvedCellCount = countApprovedCells(cells);
-        int completedBingoCount = BingoLineCounter.countCompletedLines(room.getBoardSize(), cells);
-        boolean completed = !cells.isEmpty() && approvedCellCount == cells.size();
-        boolean renewalRequired = isRenewalRequired(room, game);
+        int completedBingoCount = BingoLineCounter.countCompletedLines(board.getBoardSize(), cells);
+        boolean completed = completedBingoCount >= board.getTargetBingoCount();
+        boolean renewalRequired = GameCycleCommandService.isRenewalPeriodPassed(game, LocalDateTime.now());
         boolean canRenew = (completed || renewalRequired) && room.isHost(memberId);
+
         return BingoBoardResponse.of(
                 board,
                 roomId,
                 cellResponses,
-                room.getTargetBingoCount(),
                 completedBingoCount,
                 approvedCellCount,
                 completed,
@@ -81,29 +82,28 @@ public class BingoReadService {
         );
     }
 
-    private BingoBoardResponse getBattleBoard(Long memberId, Room room) {
-        RoomMember myRoomMember = roomMemberRepository.findByRoomIdAndMemberId(room.getId(), memberId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN));
+    private BingoBoardResponse getBattleBoard(Long memberId, Room room, Game game) {
         List<RoomMember> roomMembers = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(room.getId());
-        if (roomMembers.size() != 2) {
+        if (roomMembers.size() != GameMode.BATTLE.getMaximumParticipants()) {
             throw new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND);
         }
-        RoomMember opponentRoomMember = roomMembers.stream()
-                .filter(roomMember -> !roomMember.getId().equals(myRoomMember.getId()))
-                .findFirst()
-                .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
+        GameParticipant myParticipant = gameParticipantRepository.findByGameIdAndMemberId(game.getId(), memberId)
+                .orElseThrow(() -> new CustomException(ErrorCode.GAME_PARTICIPANT_NOT_FOUND));
+        GameParticipant opponentParticipant =
+                gameParticipantRepository.findAllByGameIdOrderByJoinedAtAsc(game.getId()).stream()
+                        .filter(participant -> !participant.getMemberId().equals(memberId))
+                        .findFirst()
+                        .orElseThrow(() -> new CustomException(ErrorCode.GAME_PARTICIPANT_NOT_FOUND));
 
-        Game game = findBattleGame(room.getId());
-        Map<Long, BingoBoard> boardsByRoomMemberId = bingoBoardRepository.findAllByGameIdOrderByIdAsc(game.getId())
-                .stream()
-                .filter(board -> board.getRoomMember() != null)
-                .collect(Collectors.toMap(
-                        board -> board.getRoomMember().getId(),
-                        Function.identity()
-                ));
-        BingoBoard myBoard = getParticipantBoard(boardsByRoomMemberId, myRoomMember.getId());
-        BingoBoard opponentBoard = getParticipantBoard(boardsByRoomMemberId, opponentRoomMember.getId());
-
+        Map<Long, BingoBoard> boardsByParticipantId =
+                bingoBoardRepository.findAllByGameIdOrderByIdAsc(game.getId()).stream()
+                        .filter(BingoBoard::isPersonal)
+                        .collect(Collectors.toMap(
+                                BingoBoard::getGameParticipantId,
+                                Function.identity()
+                        ));
+        BingoBoard myBoard = getParticipantBoard(boardsByParticipantId, myParticipant.getId());
+        BingoBoard opponentBoard = getParticipantBoard(boardsByParticipantId, opponentParticipant.getId());
         Map<Long, List<BingoCell>> cellsByBoardId = bingoCellRepository
                 .findAllByBoardIdIn(List.of(myBoard.getId(), opponentBoard.getId()))
                 .stream()
@@ -111,20 +111,15 @@ public class BingoReadService {
         List<BingoCell> myCells = cellsByBoardId.getOrDefault(myBoard.getId(), List.of());
         List<BingoCell> opponentCells = cellsByBoardId.getOrDefault(opponentBoard.getId(), List.of());
 
-        List<BingoCellResponse> myCellResponses = toCellResponses(myCells);
         BattleParticipantProgressResponse myProgress =
-                toBattleParticipantProgress(myRoomMember, myBoard, room, myCells);
+                toBattleParticipantProgress(myParticipant, myBoard, myCells);
         BattleParticipantProgressResponse opponentProgress =
-                toBattleParticipantProgress(opponentRoomMember, opponentBoard, room, opponentCells);
-        Boolean result = gameResultParticipantRepository.findByGameIdAndMemberId(game.getId(), memberId)
-                .map(participant -> participant.getResult())
-                .orElse(null);
+                toBattleParticipantProgress(opponentParticipant, opponentBoard, opponentCells);
 
         return BingoBoardResponse.ofBattle(
                 myBoard,
                 room.getId(),
-                myCellResponses,
-                room.getTargetBingoCount(),
+                toCellResponses(myCells),
                 myProgress.completedBingoCount(),
                 myProgress.approvedCellCount(),
                 myProgress.targetReached(),
@@ -133,40 +128,35 @@ public class BingoReadService {
                         game.getStatus(),
                         myProgress,
                         opponentProgress,
-                        result
+                        null
                 )
         );
     }
 
-    private void validateMember(Long memberId, Long roomId) {
-        if (!roomMemberRepository.existsByRoomIdAndMemberId(roomId, memberId)) {
+    private void validateActiveRoomMember(Room room, Long memberId) {
+        if (room.getStatus() != RoomStatus.ACTIVE) {
+            throw new CustomException(ErrorCode.ROOM_CLOSED);
+        }
+        if (!roomMemberRepository.existsByRoomIdAndMemberId(room.getId(), memberId)) {
             throw new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN);
         }
     }
 
     private Game findActiveGame(Long roomId) {
-        return gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(roomId, GameStatus.IN_PROGRESS)
+        return gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(roomId, GameStatus.ACTIVE)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_IN_PROGRESS));
-    }
-
-    private Game findBattleGame(Long roomId) {
-        return gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(roomId, GameStatus.IN_PROGRESS)
-                .or(() -> gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(roomId, GameStatus.COMPLETED))
-                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_IN_PROGRESS));
-    }
-
-    private boolean isRenewalRequired(Room room, Game game) {
-        return room.getMode() != GameMode.BATTLE
-                && GameCycleCommandService.isRenewalPeriodPassed(game, LocalDateTime.now());
     }
 
     private BingoBoard findActiveBoard(Long gameId) {
-        return bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(gameId, INACTIVE_BOARD_STATUSES)
+        return bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(
+                        gameId,
+                        INACTIVE_BOARD_STATUSES
+                )
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
     }
 
-    private BingoBoard getParticipantBoard(Map<Long, BingoBoard> boardsByRoomMemberId, Long roomMemberId) {
-        BingoBoard board = boardsByRoomMemberId.get(roomMemberId);
+    private BingoBoard getParticipantBoard(Map<Long, BingoBoard> boardsByParticipantId, Long participantId) {
+        BingoBoard board = boardsByParticipantId.get(participantId);
         if (board == null) {
             throw new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND);
         }
@@ -174,22 +164,19 @@ public class BingoReadService {
     }
 
     private BattleParticipantProgressResponse toBattleParticipantProgress(
-            RoomMember roomMember,
+            GameParticipant participant,
             BingoBoard board,
-            Room room,
             List<BingoCell> cells
     ) {
         int approvedCellCount = countApprovedCells(cells);
-        int completedBingoCount = BingoLineCounter.countCompletedLines(room.getBoardSize(), cells);
-        boolean targetReached = room.getTargetBingoCount() != null
-                && completedBingoCount >= room.getTargetBingoCount();
+        int completedBingoCount = BingoLineCounter.countCompletedLines(board.getBoardSize(), cells);
         return new BattleParticipantProgressResponse(
-                roomMember.getMemberId(),
+                participant.getMemberId(),
                 board.getId(),
                 cells.size(),
                 approvedCellCount,
                 completedBingoCount,
-                targetReached
+                completedBingoCount >= board.getTargetBingoCount()
         );
     }
 

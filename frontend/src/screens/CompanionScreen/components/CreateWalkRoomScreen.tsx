@@ -5,7 +5,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   View,
 } from 'react-native';
@@ -14,12 +13,15 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { useFriendsQuery } from '../../../features/friend/hooks/useFriendsQuery';
 import { useCreateRoomMutation } from '../../../features/room/hooks/useCreateRoomMutation';
 import { useInviteToRoomMutation } from '../../../features/room/hooks/useInviteToRoomMutation';
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { Screen } from '../../../shared/components/Screen/Screen';
 import { SegmentedControl } from '../../../shared/components/SegmentedControl/SegmentedControl';
+import { controlHeight } from '../../../shared/constants/sizing';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
 import { FriendSelectRow } from './FriendSelectRow';
+import { lineHeights, MAX_FONT_SCALE } from '../../../shared/constants/typography';
 
 type BoardSizeOption = '3' | '4' | '5';
 
@@ -28,10 +30,6 @@ const BOARD_SIZE_OPTIONS: { label: string; value: BoardSizeOption }[] = [
   { label: '4 x 4', value: '4' },
   { label: '5 x 5', value: '5' },
 ];
-
-// TODO: 목표 빙고 수를 고르는 UI가 아직 없다. 값이 정해지기 전까지는 최소값
-// (1줄 완성)으로 보낸다.
-const DEFAULT_TARGET_BINGO_COUNT = 1;
 
 type CreateWalkRoomScreenProps = {
   visible: boolean;
@@ -105,7 +103,7 @@ export function CreateWalkRoomScreen({
         name: roomName.trim(),
         mode: 'COOPERATE',
         boardSize: Number(boardSize) as 3 | 4 | 5,
-        targetBingoCount: DEFAULT_TARGET_BINGO_COUNT,
+        targetBingoCount: Number(boardSize),
         targetStepCount: Number(stepGoal),
       });
 
@@ -164,9 +162,9 @@ export function CreateWalkRoomScreen({
               color={colors.ink}
             />
           </Pressable>
-          <Text style={styles.headerTitle}>
+          <AppText style={styles.headerTitle}>
             {step === 1 ? '모임방 만들기' : '친구 추가'}
-          </Text>
+          </AppText>
           <View style={styles.headerSpacer} />
         </View>
 
@@ -176,8 +174,9 @@ export function CreateWalkRoomScreen({
         >
           {step === 1 ? (
             <>
-              <Text style={styles.label}>산책방명</Text>
+              <AppText style={styles.label}>산책방명</AppText>
               <TextInput
+                maxFontSizeMultiplier={MAX_FONT_SCALE}
                 style={styles.input}
                 placeholder="산책방 이름을 입력하세요"
                 placeholderTextColor={colors.muted}
@@ -185,8 +184,9 @@ export function CreateWalkRoomScreen({
                 onChangeText={setRoomName}
               />
 
-              <Text style={styles.label}>공동 목표 걸음수</Text>
+              <AppText style={styles.label}>공동 목표 걸음수</AppText>
               <TextInput
+                maxFontSizeMultiplier={MAX_FONT_SCALE}
                 style={styles.input}
                 placeholder="일주일 기준 목표 걸음수 (예: 10000)"
                 placeholderTextColor={colors.muted}
@@ -195,7 +195,7 @@ export function CreateWalkRoomScreen({
                 keyboardType="number-pad"
               />
 
-              <Text style={styles.label}>빙고 크기</Text>
+              <AppText style={styles.label}>빙고 크기</AppText>
               <SegmentedControl
                 options={BOARD_SIZE_OPTIONS}
                 value={boardSize}
@@ -206,6 +206,7 @@ export function CreateWalkRoomScreen({
             <>
               {friends.length > 0 ? (
                 <TextInput
+                  maxFontSizeMultiplier={MAX_FONT_SCALE}
                   style={styles.friendSearchInput}
                   placeholder="이름으로 검색"
                   placeholderTextColor={colors.muted}
@@ -216,11 +217,11 @@ export function CreateWalkRoomScreen({
                 />
               ) : null}
               {friendsQuery.isLoading ? (
-                <Text style={styles.helperText}>친구 목록을 불러오는 중...</Text>
+                <AppText style={styles.helperText}>친구 목록을 불러오는 중...</AppText>
               ) : friends.length === 0 ? (
-                <Text style={styles.helperText}>추가할 친구가 없어요.</Text>
+                <AppText style={styles.helperText}>추가할 친구가 없어요.</AppText>
               ) : filteredFriends.length === 0 ? (
-                <Text style={styles.helperText}>검색 결과가 없어요.</Text>
+                <AppText style={styles.helperText}>검색 결과가 없어요.</AppText>
               ) : (
                 <View>
                   {filteredFriends.map(friend => (
@@ -245,15 +246,15 @@ export function CreateWalkRoomScreen({
               accessibilityRole="button"
               accessibilityLabel="다음"
             >
-              <Text style={styles.submitButtonText}>다음</Text>
+              <AppText style={styles.submitButtonText}>다음</AppText>
             </Pressable>
           ) : (
             <>
-              <Text style={styles.selectedCount}>
+              <AppText style={styles.selectedCount}>
                 {selectedFriendIds.length > 0
                   ? `${selectedFriendIds.length}명 선택됨`
                   : '선택된 친구 없음'}
-              </Text>
+              </AppText>
               <Pressable
                 onPress={handleCreate}
                 disabled={isSubmitting}
@@ -264,9 +265,9 @@ export function CreateWalkRoomScreen({
                 accessibilityRole="button"
                 accessibilityLabel="산책방 만들기"
               >
-                <Text style={styles.submitButtonText}>
+                <AppText style={styles.submitButtonText}>
                   {isSubmitting ? '만드는 중...' : '만들기'}
-                </Text>
+                </AppText>
               </Pressable>
             </>
           )}
@@ -288,6 +289,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontFamily: 'BMDOHYEON',
     fontSize: 18,
+    lineHeight: lineHeights[18],
     color: colors.ink,
   },
   headerSpacer: {
@@ -300,28 +302,37 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: 'BMDOHYEON',
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
   input: {
-    height: 48,
+    height: controlHeight.md,
     borderWidth: 1.5,
     borderColor: colors.ink,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     fontFamily: 'BMDOHYEON',
     fontSize: 15,
+    // TextInput에는 lineHeight를 주지 않는다(안드로이드에서 글자가 밀린다).
+    // font padding을 끄고 한 줄 입력이라 세로 가운데로 맞춘다.
+    includeFontPadding: false,
+    textAlignVertical: 'center',
     color: colors.ink,
   },
   friendSearchInput: {
-    height: 44,
+    height: controlHeight.md,
     borderWidth: 1.5,
     borderColor: colors.ink,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     fontFamily: 'BMDOHYEON',
     fontSize: 14,
+    // TextInput에는 lineHeight를 주지 않는다(안드로이드에서 글자가 밀린다).
+    // font padding을 끄고 한 줄 입력이라 세로 가운데로 맞춘다.
+    includeFontPadding: false,
+    textAlignVertical: 'center',
     color: colors.ink,
     marginTop: spacing.lg,
     marginBottom: spacing.lg,
@@ -329,6 +340,7 @@ const styles = StyleSheet.create({
   selectedCount: {
     fontFamily: 'BMDOHYEON',
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.ink,
     opacity: 0.7,
     textAlign: 'center',
@@ -337,6 +349,7 @@ const styles = StyleSheet.create({
   helperText: {
     fontFamily: 'BMDOHYEON',
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.ink,
     opacity: 0.6,
   },
@@ -346,7 +359,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   submitButton: {
-    height: 52,
+    height: controlHeight.lg,
     borderRadius: radius.md,
     backgroundColor: colors.primary,
     alignItems: 'center',
@@ -358,6 +371,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     fontFamily: 'BMDOHYEON',
     fontSize: 16,
+    lineHeight: lineHeights[16],
     color: colors.surface,
   },
 });

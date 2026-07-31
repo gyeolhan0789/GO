@@ -1,10 +1,12 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import type { WalkDetailParticipant } from '../../../features/history/types';
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { Card } from '../../../shared/components/Card/Card';
 import { colors } from '../../../shared/constants/colors';
 import { spacing } from '../../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
 
 type ParticipantListProps = {
   participants: WalkDetailParticipant[];
@@ -17,30 +19,22 @@ const PLACEHOLDER_ICON_SIZE = 32;
 export function ParticipantList({ participants }: ParticipantListProps) {
   return (
     <Card>
-      <Text style={styles.heading}>함께한 친구</Text>
+      <AppText style={styles.heading}>함께한 친구</AppText>
 
       <View style={styles.row}>
         {participants.map(participant => (
           <View key={participant.memberId} style={styles.participant}>
             <View style={styles.avatar}>
-              {participant.imageUrl ? (
-                <Image
-                  source={{ uri: participant.imageUrl }}
-                  style={styles.avatarImage}
-                  resizeMode="contain"
-                />
-              ) : (
-                // TODO: 백엔드가 캐릭터 이미지를 내려주면 채워진다.
-                <Ionicons
-                  name="person"
-                  size={PLACEHOLDER_ICON_SIZE}
-                  color={colors.primarySoft}
-                />
-              )}
+              {/* TODO: 백엔드가 캐릭터 이미지를 내려주면 채워진다. */}
+              <Ionicons
+                name="person"
+                size={PLACEHOLDER_ICON_SIZE}
+                color={colors.primarySoft}
+              />
             </View>
-            <Text style={styles.name} numberOfLines={1}>
-              {participant.nickname}
-            </Text>
+            <AppText style={styles.name} numberOfLines={1}>
+              {participant.isMe ? '나' : participant.nickname}
+            </AppText>
           </View>
         ))}
       </View>
@@ -50,8 +44,9 @@ export function ParticipantList({ participants }: ParticipantListProps) {
 
 const styles = StyleSheet.create({
   heading: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 15,
+    lineHeight: lineHeights[15],
     color: colors.ink,
   },
   row: {
@@ -69,14 +64,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-  },
   name: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.ink,
     opacity: 0.6,
+  },
+  missionCount: {
+    fontFamily: bodyFont.regular,
+    fontSize: 11,
+    lineHeight: lineHeights[11],
+    color: colors.ink,
+    opacity: 0.4,
   },
 });

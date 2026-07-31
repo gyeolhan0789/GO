@@ -5,6 +5,7 @@ import com.wecandoit.common.security.LoginMemberId;
 import com.wecandoit.member.dto.FcmTokenUpdateRequest;
 import com.wecandoit.member.dto.MemberProfileUpdateRequest;
 import com.wecandoit.member.dto.MemberSearchResponse;
+import com.wecandoit.member.dto.MyPageResponse;
 import com.wecandoit.member.dto.PasswordChangeRequest;
 import com.wecandoit.member.service.MemberReadService;
 import com.wecandoit.member.service.MemberService;
@@ -26,6 +27,11 @@ public class MemberController {
 
     private final MemberReadService memberReadService;
     private final MemberService memberService;
+
+    @GetMapping("/me")
+    public ResponseEntity<MyPageResponse> getMyPage(@LoginMemberId Long memberId) {
+        return ResponseEntity.ok(memberReadService.getMyPage(memberId));
+    }
 
     @GetMapping("/search")
     public ResponseEntity<SliceResponse<MemberSearchResponse>> searchMembers(

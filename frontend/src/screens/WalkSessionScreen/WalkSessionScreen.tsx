@@ -6,7 +6,6 @@ import {
   PanResponder,
   Pressable,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,14 +16,16 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 import { useWalkSession } from '../../features/walk-session/hooks/useWalkSession';
 import { endWalkSession } from '../../features/walk-session/model/walkSessionStore';
+import { AppText } from '../../shared/components/AppText/AppText';
 import { Button } from '../../shared/components/Button/Button';
 import { MemberProgressBar } from '../../shared/components/MemberProgressBar/MemberProgressBar';
 import { Screen } from '../../shared/components/Screen/Screen';
+import { controlHeight } from '../../shared/constants/sizing';
 import { colors, participantColors } from '../../shared/constants/colors';
 import { radius } from '../../shared/constants/radius';
 import { shadow } from '../../shared/constants/shadow';
 import { spacing } from '../../shared/constants/spacing';
-import { fontFamily } from '../../shared/constants/typography';
+import { fontFamily, lineHeights } from '../../shared/constants/typography';
 import { WalkRouteMap, type WalkRouteMapHandle } from './components/WalkRouteMap';
 import { useRouteTracking } from './hooks/useRouteTracking';
 
@@ -193,7 +194,7 @@ export function WalkSessionScreen() {
         </Pressable>
         <View style={styles.roomBadge}>
           <Ionicons name="people" size={16} color={colors.successText} />
-          <Text style={styles.roomBadgeText}>{MOCK_ROOM.name}</Text>
+          <AppText style={styles.roomBadgeText}>{MOCK_ROOM.name}</AppText>
         </View>
         <Pressable
           style={styles.iconButton}
@@ -206,7 +207,7 @@ export function WalkSessionScreen() {
       </View>
 
       <View style={styles.elapsedBadge}>
-        <Text style={styles.elapsedText}>{formatElapsed(elapsedSeconds)}</Text>
+        <AppText style={styles.elapsedText}>{formatElapsed(elapsedSeconds)}</AppText>
       </View>
 
       <Animated.View
@@ -230,18 +231,18 @@ export function WalkSessionScreen() {
           <View style={styles.dragHandle} />
         </View>
 
-        <Text style={styles.sectionLabel}>이번 산책 팀 목표</Text>
+        <AppText style={styles.sectionLabel}>이번 산책 팀 목표</AppText>
         <View style={styles.teamGoalRow}>
-          <Text style={styles.teamGoalValue}>{teamSteps.toLocaleString()}</Text>
-          <Text style={styles.teamGoalTarget}>
+          <AppText style={styles.teamGoalValue}>{teamSteps.toLocaleString()}</AppText>
+          <AppText style={styles.teamGoalTarget}>
             {' '}
             / {MOCK_ROOM.targetSteps.toLocaleString()}보
-          </Text>
+          </AppText>
         </View>
         <MemberProgressBar segments={stepSegments} total={MOCK_ROOM.targetSteps} />
-        <Text style={styles.remainingText}>
+        <AppText style={styles.remainingText}>
           {remainingSteps.toLocaleString()}보 남았어요
-        </Text>
+        </AppText>
 
         <View style={styles.memberLegendRow}>
           {MOCK_TEAM_MEMBERS.map(member => (
@@ -249,30 +250,30 @@ export function WalkSessionScreen() {
               <View
                 style={[styles.memberDot, { backgroundColor: member.color }]}
               />
-              <Text style={styles.memberName}>{member.nickname}</Text>
+              <AppText style={styles.memberName}>{member.nickname}</AppText>
             </View>
           ))}
         </View>
 
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>오늘 걸음</Text>
-            <Text style={[styles.statValue, styles.statValueAccent]}>
+            <AppText style={styles.statLabel}>오늘 걸음</AppText>
+            <AppText style={[styles.statValue, styles.statValueAccent]}>
               {mySteps.toLocaleString()}
-            </Text>
+            </AppText>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>칼로리</Text>
-            <Text style={styles.statValue}>{MOCK_ROOM.myCalories}</Text>
+            <AppText style={styles.statLabel}>칼로리</AppText>
+            <AppText style={styles.statValue}>{MOCK_ROOM.myCalories}</AppText>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>거리</Text>
-            <Text style={styles.statValue}>
+            <AppText style={styles.statLabel}>거리</AppText>
+            <AppText style={styles.statValue}>
               {MOCK_ROOM.myDistanceKm}
-              <Text style={styles.statUnit}>km</Text>
-            </Text>
+              <AppText style={styles.statUnit}>km</AppText>
+            </AppText>
           </View>
         </View>
 
@@ -346,6 +347,7 @@ const styles = StyleSheet.create({
   roomBadgeText: {
     fontFamily: fontFamily.bold,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.successText,
   },
   elapsedBadge: {
@@ -362,6 +364,7 @@ const styles = StyleSheet.create({
   elapsedText: {
     fontFamily: fontFamily.bold,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.ink,
   },
   recenterButtonWrapper: {
@@ -370,7 +373,7 @@ const styles = StyleSheet.create({
   },
   recenterButton: {
     width: 44,
-    height: 44,
+    height: controlHeight.row,
     borderRadius: radius.md,
     borderWidth: 2,
     borderColor: colors.ink,
@@ -413,6 +416,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontFamily: fontFamily.regular,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
     opacity: 0.6,
   },
@@ -425,11 +429,13 @@ const styles = StyleSheet.create({
   teamGoalValue: {
     fontFamily: fontFamily.bold,
     fontSize: 30,
+    lineHeight: lineHeights[30],
     color: colors.ink,
   },
   teamGoalTarget: {
     fontFamily: fontFamily.bold,
     fontSize: 15,
+    lineHeight: lineHeights[15],
     color: colors.ink,
     opacity: 0.6,
     marginBottom: 4,
@@ -437,6 +443,7 @@ const styles = StyleSheet.create({
   remainingText: {
     fontFamily: fontFamily.regular,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.ink,
     opacity: 0.6,
     marginTop: spacing.xs,
@@ -463,6 +470,7 @@ const styles = StyleSheet.create({
   memberName: {
     fontFamily: fontFamily.regular,
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.ink,
     opacity: 0.7,
   },
@@ -485,12 +493,14 @@ const styles = StyleSheet.create({
   statLabel: {
     fontFamily: fontFamily.regular,
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.ink,
     opacity: 0.6,
   },
   statValue: {
     fontFamily: fontFamily.bold,
     fontSize: 17,
+    lineHeight: lineHeights[17],
     color: colors.ink,
   },
   statValueAccent: {
@@ -499,6 +509,7 @@ const styles = StyleSheet.create({
   statUnit: {
     fontFamily: fontFamily.regular,
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.ink,
     opacity: 0.6,
   },
@@ -528,7 +539,7 @@ const styles = StyleSheet.create({
   },
   pauseButton: {
     width: 68,
-    height: 68,
+    height: controlHeight.xl,
     borderRadius: radius.md,
     borderWidth: 2,
     borderColor: colors.ink,

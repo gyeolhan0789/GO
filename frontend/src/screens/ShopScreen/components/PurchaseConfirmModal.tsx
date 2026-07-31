@@ -1,11 +1,15 @@
-import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import type { ShopItem } from '../../../features/shop/model/shopItem';
+import { AppText } from '../../../shared/components/AppText/AppText';
+import { controlHeight } from '../../../shared/constants/sizing';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { shadow } from '../../../shared/constants/shadow';
 import { spacing } from '../../../shared/constants/spacing';
-import { formatPoints, withObjectParticle } from '../format';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
+import { formatPoints } from '../../../shared/lib/formatPoints';
+import { withObjectParticle } from '../format';
 import { GradientFill } from './GradientFill';
 
 type PurchaseConfirmModalProps = {
@@ -54,22 +58,22 @@ export function PurchaseConfirmModal({
                 />
               ) : null}
 
-              <Text style={styles.title}>
+              <AppText style={styles.title}>
                 {`${withObjectParticle(item.name)} 구매하시겠습니까?`}
-              </Text>
+              </AppText>
 
               <View style={styles.summary}>
                 <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>가격</Text>
-                  <Text style={styles.summaryValue}>
+                  <AppText style={styles.summaryLabel}>가격</AppText>
+                  <AppText style={styles.summaryValue}>
                     {formatPoints(item.price)}
-                  </Text>
+                  </AppText>
                 </View>
                 <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>구매 후 보유 포인트</Text>
-                  <Text style={styles.summaryValue}>
+                  <AppText style={styles.summaryLabel}>구매 후 보유 포인트</AppText>
+                  <AppText style={styles.summaryValue}>
                     {formatPoints(points - item.price)}
-                  </Text>
+                  </AppText>
                 </View>
               </View>
 
@@ -84,9 +88,9 @@ export function PurchaseConfirmModal({
                   accessibilityRole="button"
                   accessibilityLabel="구매 취소"
                 >
-                  <Text style={[styles.actionLabel, styles.cancelLabel]}>
+                  <AppText style={[styles.actionLabel, styles.cancelLabel]}>
                     취소
-                  </Text>
+                  </AppText>
                 </Pressable>
 
                 <Pressable
@@ -107,9 +111,9 @@ export function PurchaseConfirmModal({
                     to={colors.primarySoftDark}
                     borderRadius={radius.sm}
                   />
-                  <Text style={[styles.actionLabel, styles.confirmLabel]}>
+                  <AppText style={[styles.actionLabel, styles.confirmLabel]}>
                     {isPurchasing ? '구매 중...' : '구매하기'}
-                  </Text>
+                  </AppText>
                 </Pressable>
               </View>
             </View>
@@ -129,7 +133,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(17, 24, 39, 0.5)',
   },
   dialogWrapper: {
-    alignSelf: 'stretch',
+    // alignSelf: 'stretch'를 쓰면 backdrop의 alignItems: 'center'를 덮어써서,
+    // 화면이 넓어 maxWidth에 걸리는 순간 다이얼로그가 가운데가 아니라 왼쪽에
+    // 붙는다. width로 채우고 정렬은 부모에게 맡긴다.
+    width: '100%',
     maxWidth: 320,
     paddingRight: shadow.offset,
     paddingBottom: shadow.offset,
@@ -157,8 +164,9 @@ const styles = StyleSheet.create({
     height: IMAGE_SIZE,
   },
   title: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 16,
+    lineHeight: lineHeights[16],
     color: colors.ink,
     textAlign: 'center',
   },
@@ -176,14 +184,16 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   summaryLabel: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.regular,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.successText,
     opacity: 0.8,
   },
   summaryValue: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.successText,
   },
   actions: {
@@ -193,7 +203,7 @@ const styles = StyleSheet.create({
   },
   action: {
     flex: 1,
-    height: 44,
+    height: controlHeight.md,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.sm,
@@ -215,8 +225,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
   },
   actionLabel: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 15,
+    lineHeight: lineHeights[15],
   },
   cancelLabel: {
     color: colors.ink,

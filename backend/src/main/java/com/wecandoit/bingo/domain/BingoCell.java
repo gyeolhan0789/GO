@@ -49,6 +49,9 @@ public class BingoCell extends BaseEntity {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    @Column(name = "submitted_at")
+    private LocalDateTime submittedAt;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "verification_status", length = 20)
     private BingoCellVerificationStatus verificationStatus;
@@ -76,6 +79,7 @@ public class BingoCell extends BaseEntity {
     public void submit(Long memberId, String submitUrl) {
         this.memberId = memberId;
         this.submitUrl = submitUrl;
+        this.submittedAt = LocalDateTime.now();
         this.verificationStatus = BingoCellVerificationStatus.PENDING;
         this.rejectionReason = null;
     }

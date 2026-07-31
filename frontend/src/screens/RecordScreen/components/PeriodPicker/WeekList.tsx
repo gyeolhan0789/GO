@@ -1,13 +1,16 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { eachWeekStartInMonth } from '../../../../features/history/model/calendar';
 import {
   formatPeriodLabel,
   resolvePeriodRange,
 } from '../../../../features/history/model/period';
+import { AppText } from '../../../../shared/components/AppText/AppText';
+import { controlHeight } from '../../../../shared/constants/sizing';
 import { colors } from '../../../../shared/constants/colors';
 import { radius } from '../../../../shared/constants/radius';
 import { spacing } from '../../../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../../../shared/constants/typography';
 
 type WeekListProps = {
   /** 보고 있는 달. 그 달 1일의 'yyyy-MM-dd'. */
@@ -49,7 +52,7 @@ export function WeekList({
             accessibilityLabel={formatPeriodLabel('WEEK', range)}
             accessibilityState={{ selected: isSelected, disabled }}
           >
-            <Text
+            <AppText
               style={[
                 styles.weekLabel,
                 isSelected && styles.weekLabelSelected,
@@ -57,7 +60,7 @@ export function WeekList({
               ]}
             >
               {formatPeriodLabel('WEEK', range)}
-            </Text>
+            </AppText>
           </Pressable>
         );
       })}
@@ -70,7 +73,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   week: {
-    height: 44,
+    height: controlHeight.row,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.sm,
@@ -86,8 +89,9 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   weekLabel: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
   },
   weekLabelSelected: {

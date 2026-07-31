@@ -20,42 +20,74 @@ VALUES
     (301, 'https://example.com/missions/object.png', 'OBJECT', 'Find a blue object', 'Submit a photo containing a blue object.', '{"type":"OBJECT","value":"blue"}'),
     (302, 'https://example.com/missions/attribute.png', 'ATTRIBUTE', 'Find something round', 'Submit a photo containing a round object.', '{"type":"ATTRIBUTE","value":"round"}'),
     (303, 'https://example.com/missions/relation.png', 'RELATION', 'Stand beside a tree', 'Submit a photo standing beside a tree.', '{"type":"RELATION","value":"tree"}'),
-    (304, 'https://example.com/missions/object2.png', 'OBJECT', 'Find a red object', 'Submit a photo containing a red object.', '{"type":"OBJECT","value":"red"}');
+    (304, 'https://example.com/missions/object2.png', 'OBJECT', 'Find a red object', 'Submit a photo containing a red object.', '{"type":"OBJECT","value":"red"}'),
+    (305, 'https://example.com/missions/object3.png', 'OBJECT', 'Find a green object', 'Submit a photo containing a green object.', '{"type":"OBJECT","value":"green"}'),
+    (306, 'https://example.com/missions/attribute2.png', 'ATTRIBUTE', 'Find something long', 'Submit a photo containing a long object.', '{"type":"ATTRIBUTE","value":"long"}'),
+    (307, 'https://example.com/missions/relation2.png', 'RELATION', 'Stand beside a bench', 'Submit a photo standing beside a bench.', '{"type":"RELATION","value":"bench"}'),
+    (308, 'https://example.com/missions/object4.png', 'OBJECT', 'Find a yellow object', 'Submit a photo containing a yellow object.', '{"type":"OBJECT","value":"yellow"}'),
+    (309, 'https://example.com/missions/attribute3.png', 'ATTRIBUTE', 'Find something square', 'Submit a photo containing a square object.', '{"type":"ATTRIBUTE","value":"square"}');
 
-INSERT INTO rooms (id, name, host_id, mode, status, target_bingo_count, target_step_count, board_size, started_at)
+INSERT INTO rooms (id, name, host_id, mode, status, target_bingo_count, target_step_count, board_size)
 VALUES
-    (401, 'Local Waiting Room', 101, 'COOPERATE', 'WAITING', NULL, 10000, 2, NULL),
-    (402, 'Local Active Room', 102, 'COOPERATE', 'IN_PROGRESS', NULL, 10000, 2, '2026-07-27 09:00:00'),
-    (403, 'Local Result Room', 101, 'COOPERATE', 'COMPLETED', NULL, 10000, 2, '2026-07-26 10:00:00');
+    (401, 'Local Waiting Room', 101, 'BATTLE', 'ACTIVE', 1, NULL, 3),
+    (402, 'Local Active Room', 102, 'COOPERATE', 'ACTIVE', 1, 10000, 3),
+    (403, 'Local Result Room', 101, 'COOPERATE', 'CLOSED', 1, 10000, 3);
 
 INSERT INTO games (id, room_id, status, started_at, completed_at)
 VALUES
-    (491, 402, 'IN_PROGRESS', '2026-07-27 09:00:00', NULL),
-    (492, 403, 'COMPLETED', '2026-07-26 10:00:00', '2026-07-26 11:00:00');
+    (491, 402, 'ACTIVE', '2026-07-27 09:00:00', NULL),
+    (492, 403, 'ENDED', '2026-07-26 10:00:00', '2026-07-26 11:00:00');
 
-INSERT INTO room_members (id, room_id, member_id, completed_mission_count, joined_at)
+INSERT INTO room_members (id, room_id, member_id, joined_at)
 VALUES
-    (451, 401, 101, 0, '2026-07-27 08:00:00'),
-    (452, 402, 101, 1, '2026-07-27 09:00:00'),
-    (453, 402, 102, 1, '2026-07-27 09:00:00'),
-    (454, 403, 101, 2, '2026-07-26 10:00:00'),
-    (455, 403, 103, 2, '2026-07-26 10:00:00');
+    (451, 401, 101, '2026-07-27 08:00:00'),
+    (452, 402, 101, '2026-07-27 09:00:00'),
+    (453, 402, 102, '2026-07-27 09:00:00');
 
-INSERT INTO bingo_boards (id, game_id, board_size, target_step_count, status, completed_at)
+INSERT INTO game_participants (id, game_id, member_id, joined_at)
 VALUES
-    (501, 491, 2, 10000, 'IN_PROGRESS', NULL),
-    (502, 492, 2, 10000, 'COMPLETED', '2026-07-26 11:00:00');
+    (471, 491, 101, '2026-07-27 09:00:00'),
+    (472, 491, 102, '2026-07-27 09:00:00'),
+    (473, 492, 101, '2026-07-26 10:00:00'),
+    (474, 492, 103, '2026-07-26 10:00:00');
 
-INSERT INTO bingo_cells (id, board_id, mission_id, row_index, col_index, completed_at, verification_status, rejection_reason, member_id, submit_url)
+INSERT INTO bingo_boards (
+    id,
+    game_id,
+    game_participant_id,
+    board_type,
+    board_size,
+    target_bingo_count,
+    target_step_count,
+    status,
+    completed_at
+)
 VALUES
-    (551, 501, 301, 0, 0, NULL, 'PENDING', NULL, 101, 'https://example.com/submissions/pending.jpg'),
-    (552, 501, 302, 0, 1, '2026-07-27 09:20:00', 'APPROVED', NULL, 101, 'https://example.com/submissions/approved.jpg'),
-    (553, 501, 303, 1, 0, NULL, 'REJECTED', 'Image does not show the mission condition.', 101, 'https://example.com/submissions/rejected.jpg'),
-    (554, 501, 304, 1, 1, NULL, NULL, NULL, NULL, NULL),
-    (555, 502, 301, 0, 0, '2026-07-26 10:20:00', 'APPROVED', NULL, 101, 'https://example.com/submissions/completed-1.jpg'),
-    (556, 502, 302, 0, 1, '2026-07-26 10:30:00', 'APPROVED', NULL, 101, 'https://example.com/submissions/completed-2.jpg'),
-    (557, 502, 303, 1, 0, '2026-07-26 10:40:00', 'APPROVED', NULL, 103, 'https://example.com/submissions/completed-3.jpg'),
-    (558, 502, 304, 1, 1, '2026-07-26 10:50:00', 'APPROVED', NULL, 103, 'https://example.com/submissions/completed-4.jpg');
+    (501, 491, NULL, 'SHARED', 2, 1, 10000, 'ACTIVE', NULL),
+    (502, 492, NULL, 'SHARED', 2, 1, 10000, 'COMPLETED', '2026-07-26 11:00:00');
+
+INSERT INTO bingo_cells (
+    id,
+    board_id,
+    mission_id,
+    row_index,
+    col_index,
+    completed_at,
+    submitted_at,
+    verification_status,
+    rejection_reason,
+    member_id,
+    submit_url
+)
+VALUES
+    (551, 501, 301, 0, 0, NULL, '2026-07-27 09:10:00', 'PENDING', NULL, 101, '/uploads/local/bingo-cells/551/pending.jpg'),
+    (552, 501, 302, 0, 1, '2026-07-27 09:20:00', '2026-07-27 09:15:00', 'APPROVED', NULL, 101, '/uploads/local/bingo-cells/552/approved.jpg'),
+    (553, 501, 303, 1, 0, NULL, '2026-07-27 09:25:00', 'REJECTED', 'Image does not show the mission condition.', 101, '/uploads/local/bingo-cells/553/rejected.jpg'),
+    (554, 501, 304, 1, 1, NULL, NULL, NULL, NULL, NULL, NULL),
+    (555, 502, 301, 0, 0, '2026-07-26 10:20:00', '2026-07-26 10:15:00', 'APPROVED', NULL, 101, '/uploads/local/bingo-cells/555/completed-1.jpg'),
+    (556, 502, 302, 0, 1, '2026-07-26 10:30:00', '2026-07-26 10:25:00', 'APPROVED', NULL, 101, '/uploads/local/bingo-cells/556/completed-2.jpg'),
+    (557, 502, 303, 1, 0, '2026-07-26 10:40:00', '2026-07-26 10:35:00', 'APPROVED', NULL, 103, '/uploads/local/bingo-cells/557/completed-3.jpg'),
+    (558, 502, 304, 1, 1, '2026-07-26 10:50:00', '2026-07-26 10:45:00', 'APPROVED', NULL, 103, '/uploads/local/bingo-cells/558/completed-4.jpg');
 
 INSERT INTO game_requests (id, room_id, inviter_id, invitee_id, status)
 VALUES
@@ -63,9 +95,21 @@ VALUES
     (602, 402, 104, 101, 'ACCEPTED'),
     (603, 401, 101, 105, 'DECLINED');
 
-INSERT INTO game_results (id, room_id, result, bingo_count, completed_mission_count, reward_cash)
+INSERT INTO game_results (id, game_id, room_id, result, bingo_count, completed_mission_count, reward_cash)
 VALUES
-    (651, 403, true, 1, 2, 300);
+    (651, 492, 403, true, 1, 4, 200);
+
+INSERT INTO game_result_participants (
+    id,
+    game_id,
+    member_id,
+    completed_mission_count,
+    reward_cash,
+    result
+)
+VALUES
+    (661, 492, 101, 2, 200, true),
+    (662, 492, 103, 2, 200, true);
 
 INSERT INTO friends (id, member1_id, member2_id)
 VALUES
