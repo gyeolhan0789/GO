@@ -179,6 +179,9 @@ export function WalkSessionScreen() {
           // 방은 파괴하지 않는 한 계속 유지된다. 빙고판 갱신은 다 채웠거나
           // 일주일이 지났을 때 방장이 직접 트리거해야 한다(자동 초기화 없음).
           // 여기서는 이 화면의 로컬 세션(경과 시간 타이머)만 끝낸다.
+          // TODO: 산책 종료를 서버에 알리는 로직이 생기면, 그 시점에 홈 화면의
+          // 빙고판 쿼리(useActiveBingoBoardQuery)도 함께 무효화/refetch해서
+          // 산책 중 인증한 미션이 홈 화면 미리보기에 바로 반영되게 한다.
           endWalkSession();
           navigation.goBack();
         },
