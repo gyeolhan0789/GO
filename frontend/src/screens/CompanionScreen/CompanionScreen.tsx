@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import type {
   FriendResponse,
@@ -10,8 +17,12 @@ import { useDeleteFriendMutation } from '../../features/friend/hooks/useDeleteFr
 import { useFriendsQuery } from '../../features/friend/hooks/useFriendsQuery';
 import { useReceivedRequestsQuery } from '../../features/friend/hooks/useReceivedRequestsQuery';
 import { useRejectFriendRequestMutation } from '../../features/friend/hooks/useRejectFriendRequestMutation';
-import type { ReceivedRoomInvite } from '../../features/room/api/roomApi';
+import type {
+  MyRoomResponse,
+  ReceivedRoomInvite,
+} from '../../features/room/api/roomApi';
 import { useAcceptRoomInviteMutation } from '../../features/room/hooks/useAcceptRoomInviteMutation';
+import { useMyRoomsQuery } from '../../features/room/hooks/useMyRoomsQuery';
 import { useReceivedRoomInvitesQuery } from '../../features/room/hooks/useReceivedRoomInvitesQuery';
 import { useRejectRoomInviteMutation } from '../../features/room/hooks/useRejectRoomInviteMutation';
 import { Fab } from '../../shared/components/Fab/Fab';
@@ -30,93 +41,17 @@ import type { MyWalkRoom } from './types';
 
 type CompanionTab = 'walkRooms' | 'friends';
 
-// TODO: 실제 참여 중인 산책방/친구 API 연동 전까지의 임시 목업 데이터.
-const MOCK_WALK_ROOMS: MyWalkRoom[] = [
-  {
-    id: 'weekly-solo',
-    name: '나의 주간 산책방',
-    mode: 'solo',
-    bingoCompleted: 4,
-    bingoTotal: 9,
-  },
-  {
-    id: 'with-minseo',
-    name: '민서와 걷기',
-    mode: 'group',
-    bingoCompleted: 3,
-    bingoTotal: 9,
-    memberCount: 2,
-    scheduleLabel: '오늘 오후 8:00 예정',
-  },
-  {
-    id: 'ssafy-team',
-    name: 'SSAFY 팀 산책',
-    mode: 'group',
-    bingoCompleted: 2,
-    bingoTotal: 9,
-    memberCount: 4,
-    scheduleLabel: '다음 산책 미정',
-  },
-  {
-    id: 'morning-jog',
-    name: '아침 조깅 클럽',
-    mode: 'group',
-    bingoCompleted: 6,
-    bingoTotal: 9,
-    memberCount: 3,
-    scheduleLabel: '내일 오전 7:00 예정',
-  },
-  {
-    id: 'evening-walk',
-    name: '저녁 산책 모임',
-    mode: 'group',
-    bingoCompleted: 1,
-    bingoTotal: 9,
-    memberCount: 5,
-    scheduleLabel: '다음 산책 미정',
-  },
-  {
-    id: 'solo-time',
-    name: '혼자 걷는 시간',
-    mode: 'solo',
-    bingoCompleted: 7,
-    bingoTotal: 9,
-  },
-  {
-    id: 'neighborhood-loop',
-    name: '동네 한바퀴',
-    mode: 'group',
-    bingoCompleted: 5,
-    bingoTotal: 9,
-    memberCount: 2,
-    scheduleLabel: '오늘 오후 6:30 예정',
-  },
-  {
-    id: 'dog-walk',
-    name: '강아지랑 산책',
-    mode: 'solo',
-    bingoCompleted: 9,
-    bingoTotal: 9,
-  },
-  {
-    id: 'weekend-hiking',
-    name: '주말 등산팀',
-    mode: 'group',
-    bingoCompleted: 0,
-    bingoTotal: 9,
-    memberCount: 6,
-    scheduleLabel: '다음 산책 미정',
-  },
-  {
-    id: 'lunch-walk',
-    name: '점심 산책',
-    mode: 'group',
-    bingoCompleted: 4,
-    bingoTotal: 9,
-    memberCount: 2,
-    scheduleLabel: '오늘 오후 1:00 예정',
-  },
-];
+// 산책방 일정(scheduleLabel) 개념은 백엔드에 아직 없어 채우지 못한다.
+function toMyWalkRoom(room: MyRoomResponse): MyWalkRoom {
+  return {
+    id: String(room.roomId),
+    name: room.name,
+    mode: room.mode === 'SINGLE' ? 'solo' : 'group',
+    bingoCompleted: room.completedMissionCount,
+    bingoTotal: room.totalMissionCount,
+    memberCount: room.members.length,
+  };
+}
 
 export function CompanionScreen() {
   const [tab, setTab] = useState<CompanionTab>('walkRooms');
@@ -127,6 +62,11 @@ export function CompanionScreen() {
     number | null
   >(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const myRoomsQuery = useMyRoomsQuery();
+  // 혼자 방을 항상 위로 올린다. 같은 mode끼리는 서버가 내려준 순서(참여일시 최신순)를 유지한다.
+  const myWalkRooms = (myRoomsQuery.data?.map(toMyWalkRoom) ?? []).sort(
+    (a, b) => Number(b.mode === 'solo') - Number(a.mode === 'solo'),
+  );
   const friendsQuery = useFriendsQuery();
   const friends = friendsQuery.data?.content ?? [];
   const receivedRequestsQuery = useReceivedRequestsQuery();
@@ -279,39 +219,60 @@ export function CompanionScreen() {
         />
 
         {tab === 'walkRooms' ? (
-          <FlatList
-            data={MOCK_WALK_ROOMS}
-            keyExtractor={room => room.id}
-            ListHeaderComponent={
-              <>
-                {receivedInvites.length > 0 ? (
-                  <View style={styles.receivedRequests}>
+          myRoomsQuery.isLoading ? (
+            <Text style={styles.statusText}>불러오는 중...</Text>
+          ) : (
+            <FlatList
+              data={myWalkRooms}
+              keyExtractor={room => room.id}
+              ListHeaderComponent={
+                <>
+                  {receivedInvites.length > 0 ? (
+                    <View style={styles.receivedRequests}>
+                      <Text style={styles.countLabel}>
+                        받은 산책방 초대 {receivedInvites.length}
+                      </Text>
+                      {receivedInvites.map(invite => (
+                        <ReceivedRoomInviteRow
+                          key={invite.requestId}
+                          invite={invite}
+                          onAccept={() => handleAcceptInvite(invite)}
+                          onReject={() => handleRejectInvite(invite)}
+                          disabled={pendingInviteRequestId === invite.requestId}
+                        />
+                      ))}
+                    </View>
+                  ) : null}
+                  {myRoomsQuery.isError ? null : (
                     <Text style={styles.countLabel}>
-                      받은 산책방 초대 {receivedInvites.length}
+                      참여 중인 산책방 {myWalkRooms.length}
                     </Text>
-                    {receivedInvites.map(invite => (
-                      <ReceivedRoomInviteRow
-                        key={invite.requestId}
-                        invite={invite}
-                        onAccept={() => handleAcceptInvite(invite)}
-                        onReject={() => handleRejectInvite(invite)}
-                        disabled={pendingInviteRequestId === invite.requestId}
-                      />
-                    ))}
-                  </View>
-                ) : null}
-                <Text style={styles.countLabel}>
-                  참여 중인 산책방 {MOCK_WALK_ROOMS.length}
-                </Text>
-              </>
-            }
-            renderItem={({ item }) => (
-              <WalkRoomCard room={item} onPress={() => {}} />
-            )}
-            style={styles.list}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-          />
+                  )}
+                </>
+              }
+              ListEmptyComponent={
+                myRoomsQuery.isError ? (
+                  <Pressable onPress={() => myRoomsQuery.refetch()}>
+                    <Text style={styles.statusText}>
+                      산책방 목록을 불러오지 못했어요.{'\n'}눌러서 다시 시도
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <Text style={styles.statusText}>
+                    아직 참여 중인 산책방이 없어요.
+                  </Text>
+                )
+              }
+              renderItem={({ item }) => (
+                <WalkRoomCard room={item} onPress={() => {}} />
+              )}
+              style={styles.list}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              refreshing={myRoomsQuery.isRefetching}
+              onRefresh={() => myRoomsQuery.refetch()}
+            />
+          )
         ) : friendsQuery.isLoading ? (
           <Text style={styles.statusText}>불러오는 중...</Text>
         ) : friendsQuery.isError ? (
@@ -380,6 +341,7 @@ export function CompanionScreen() {
         onCreated={() => {
           setCreateRoomVisible(false);
           setToastMessage('산책방을 만들었어요.');
+          myRoomsQuery.refetch();
         }}
       />
 

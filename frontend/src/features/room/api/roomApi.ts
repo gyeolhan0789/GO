@@ -38,6 +38,30 @@ export function createRoom(body: CreateRoomRequest) {
   return apiClient.post<RoomDetailResponse>('/rooms', body);
 }
 
+export type MyRoomMemberResponse = {
+  memberId: number;
+  nickname: string;
+  host: boolean;
+};
+
+export type MyRoomResponse = {
+  roomId: number;
+  name: string;
+  mode: GameMode;
+  status: GameRoomStatus;
+  targetBingoCount: number | null;
+  targetStepCount: number | null;
+  totalMissionCount: number;
+  completedMissionCount: number;
+  hostId: number;
+  joinedAt: string;
+  members: MyRoomMemberResponse[];
+};
+
+export function getMyRooms() {
+  return apiClient.get<MyRoomResponse[]>('/rooms');
+}
+
 export type RoomInviteStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELED';
 
 export type RoomInviteResponse = {
