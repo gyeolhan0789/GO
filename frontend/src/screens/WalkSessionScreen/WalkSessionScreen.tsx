@@ -29,6 +29,7 @@ import { radius } from '../../shared/constants/radius';
 import { shadow } from '../../shared/constants/shadow';
 import { spacing } from '../../shared/constants/spacing';
 import { fontFamily } from '../../shared/constants/typography';
+import { WalkCountdownOverlay } from './components/WalkCountdownOverlay';
 import { WalkRouteMap, type WalkRouteMapHandle } from './components/WalkRouteMap';
 import { useRouteTracking } from './hooks/useRouteTracking';
 
@@ -57,6 +58,9 @@ type WalkSessionNavigation = NativeStackNavigationProp<
 export function WalkSessionScreen() {
   const navigation = useNavigation<WalkSessionNavigation>();
   const insets = useSafeAreaInsets();
+  // 화면에 들어오자마자 지도가 바로 보이면 어색해서, 짧게 카운트다운을
+  // 보여준 뒤 나머지 UI를 그대로 노출한다(탭하면 건너뜀).
+  const [showCountdown, setShowCountdown] = useState(true);
   // 화면 마운트와 무관하게 시작 시각 기준으로 계산되는 경과 시간/일시정지
   // 상태. 뒤로가기로 나갔다 들어와도 0으로 리셋되지 않는다.
   const { roomId, startHealthSummary, elapsedSeconds, isPaused, togglePause } =
@@ -324,6 +328,10 @@ export function WalkSessionScreen() {
           </View>
         </View>
       </Animated.View>
+
+      {showCountdown ? (
+        <WalkCountdownOverlay onFinish={() => setShowCountdown(false)} />
+      ) : null}
     </Screen>
   );
 }
