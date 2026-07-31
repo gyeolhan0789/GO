@@ -28,7 +28,7 @@ export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
   /**
-   * 소셜 계정으로 처음 로그인한 회원의 닉네임·성별 입력. `signupToken`은 검증
+   * 소셜 계정으로 처음 로그인한 회원의 프로필 입력. `signupToken`은 검증
    * 단계에서 서버가 준 1회용 토큰이고 5분 뒤 만료된다.
    */
   SocialSignup: {

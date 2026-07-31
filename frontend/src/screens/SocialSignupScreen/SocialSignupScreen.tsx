@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -13,8 +13,11 @@ import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 import { AuthSubmitButton } from '../../features/auth/components/AuthSubmitButton';
 import { AuthTextField } from '../../features/auth/components/AuthTextField';
 import { GenderSelector } from '../../features/auth/components/GenderSelector';
+import { RegionDropdown } from '../../features/auth/components/RegionDropdown';
 import type { Gender } from '../../features/auth/constants/genders';
+import type { Region } from '../../features/auth/constants/regions';
 import { SOCIAL_PROVIDER_LABELS } from '../../features/auth/constants/socialProviders';
+import { useRegionDetection } from '../../features/auth/hooks/useRegionDetection';
 import { useSocialSignupMutation } from '../../features/auth/hooks/useSocialSignupMutation';
 import {
   NICKNAME_MAX_LENGTH,
@@ -40,6 +43,8 @@ type SocialSignupScreenProps = NativeStackScreenProps<
 
 const LABEL_COLOR = colors.inkSoft;
 const ERROR_COLOR = colors.danger;
+const ACCENT_COLOR = colors.primaryDark;
+const HINT_COLOR = colors.mutedStrong;
 const TITLE_COLOR = colors.ink;
 const SUBTITLE_COLOR = colors.inkMuted;
 const PRIMARY_COLOR = colors.primary;
@@ -56,7 +61,7 @@ function toInitialNickname(name: string | null) {
 }
 
 /**
- * 소셜 계정으로 처음 로그인한 회원이 닉네임·성별을 정하는 화면. 제출이 성공하면
+ * 소셜 계정으로 처음 로그인한 회원이 프로필(닉네임·지역·성별)을 정하는 화면. 제출이 성공하면
  * 세션이 시작되고 RootNavigator가 Main으로 넘긴다.
  */
 export function SocialSignupScreen({
@@ -68,11 +73,39 @@ export function SocialSignupScreen({
   const [nickname, setNickname] = useState(() =>
     toInitialNickname(suggestedName),
   );
+  const [region, setRegion] = useState<Region | null>(null);
   const [gender, setGender] = useState<Gender | null>(null);
   const [errors, setErrors] = useState<SocialSignupErrors>({});
 
   const mutation = useSocialSignupMutation();
   const providerLabel = SOCIAL_PROVIDER_LABELS[provider];
+  const {
+    status: detectionStatus,
+    detectIfPermitted,
+    detect,
+  } = useRegionDetection();
+
+  // 위치 권한이 이미 허용된 경우에만 진입 시 조용히 지역을 채운다. 사용자가 아직
+  // 아무 지역도 고르지 않았을 때만 반영해 수동 선택을 덮어쓰지 않는다.
+  useEffect(() => {
+    let active = true;
+    detectIfPermitted().then(detected => {
+      if (active && detected) {
+        setRegion(previous => previous ?? detected);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [detectIfPermitted]);
+
+  async function detectRegion() {
+    const detected = await detect();
+    if (detected) {
+      setRegion(detected);
+      clearError('region');
+    }
+  }
 
   function clearError(field: keyof SocialSignupErrors) {
     setErrors(previous => ({ ...previous, [field]: undefined }));
@@ -80,10 +113,14 @@ export function SocialSignupScreen({
   }
 
   function submit() {
-    const nextErrors = validateSocialSignup({ nickname, gender });
+    const nextErrors = validateSocialSignup({ nickname, region, gender });
     setErrors(nextErrors);
 
-    if (Object.keys(nextErrors).length > 0 || gender === null) {
+    if (
+      Object.keys(nextErrors).length > 0 ||
+      region === null ||
+      gender === null
+    ) {
       return;
     }
 
@@ -93,6 +130,7 @@ export function SocialSignupScreen({
       provider,
       signupToken,
       nickname: nickname.trim(),
+      region,
       gender,
     });
   }
@@ -113,7 +151,7 @@ export function SocialSignupScreen({
             <AppText style={styles.title}>거의 다 왔어요!</AppText>
             <AppText style={styles.subtitle}>
               <AppText style={styles.subtitleAccent}>{providerLabel}</AppText> 계정으로
-              시작할게요. 닉네임과 성별만 정해주세요.
+              시작할게요. 프로필만 정해주세요.
             </AppText>
 
             <AuthTextField
@@ -132,6 +170,50 @@ export function SocialSignupScreen({
               returnKeyType="done"
               onSubmitEditing={submit}
             />
+
+            <View style={styles.section}>
+              <View style={styles.regionHeader}>
+                <AppText style={styles.sectionLabel}>지역</AppText>
+                <Pressable
+                  onPress={detectRegion}
+                  disabled={detectionStatus === 'detecting'}
+                  accessibilityRole="button"
+                  accessibilityLabel="현재 위치로 지역 찾기"
+                  accessibilityState={{
+                    disabled: detectionStatus === 'detecting',
+                  }}
+                >
+                  <AppText style={styles.detectButton}>
+                    {detectionStatus === 'detecting'
+                      ? '위치 확인 중…'
+                      : '현재 위치로 찾기'}
+                  </AppText>
+                </Pressable>
+              </View>
+              <RegionDropdown
+                selected={region}
+                invalid={Boolean(errors.region)}
+                onSelect={value => {
+                  setRegion(value);
+                  clearError('region');
+                }}
+              />
+              {detectionStatus === 'denied' ? (
+                <AppText style={styles.hint} accessibilityLiveRegion="polite">
+                  위치 권한이 없어 지역을 직접 선택해 주세요.
+                </AppText>
+              ) : null}
+              {detectionStatus === 'error' ? (
+                <AppText style={styles.hint} accessibilityLiveRegion="polite">
+                  위치를 가져오지 못했어요. 지역을 직접 선택해 주세요.
+                </AppText>
+              ) : null}
+              {errors.region ? (
+                <AppText style={styles.error} accessibilityLiveRegion="polite">
+                  {errors.region}
+                </AppText>
+              ) : null}
+            </View>
 
             <View style={styles.section}>
               <AppText style={styles.sectionLabel}>성별</AppText>
@@ -222,6 +304,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: lineHeights[14],
     color: LABEL_COLOR,
+  },
+  regionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  detectButton: {
+    fontFamily: bodyFont.medium,
+    fontSize: 13,
+    lineHeight: lineHeights[13],
+    color: ACCENT_COLOR,
+  },
+  hint: {
+    marginTop: 8,
+    fontFamily: bodyFont.regular,
+    fontSize: 13,
+    lineHeight: lineHeights[13],
+    color: HINT_COLOR,
   },
   error: {
     marginTop: 4,

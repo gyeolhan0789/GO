@@ -34,6 +34,17 @@ const {
 // 클라이언트 ID를 요구한다. 신규/기존 분기는 제공자와 무관하게 같은 코드다.
 // (factory 없이 부르면 루트 `__mocks__`의 수동 목이 쓰인다.)
 jest.mock('@react-native-seoul/kakao-login');
+
+// 위치 권한이 없는 기기를 흉내낸다. 지역 자동 채움이 꺼져서 드롭다운으로 고르는
+// 경로를 검증할 수 있다.
+jest.mock('../src/shared/lib/permissions', () => ({
+  PERMISSION_KEYS: ['camera', 'activityRecognition', 'location', 'notifications'],
+  checkPermission: jest.fn(() => Promise.resolve(false)),
+  areAllPermissionsGranted: jest.fn(() => Promise.resolve(false)),
+  requestAllPermissions: jest.fn(),
+  requestPermission: jest.fn(() => Promise.resolve(false)),
+  openAppSettings: jest.fn(),
+}));
 const kakao = jest.requireMock('@react-native-seoul/kakao-login');
 
 const KAKAO_ID_TOKEN = 'kakao-id-token';
@@ -158,7 +169,7 @@ async function press(root: ReactTestInstance, label: string) {
 }
 
 describe('소셜 로그인', () => {
-  test('서버가 가입이 필요하다고 하면 닉네임·성별 입력 화면으로 보낸다', async () => {
+  test('서버가 가입이 필요하다고 하면 프로필 입력 화면으로 보낸다', async () => {
     fetchMock.mockResolvedValue(
       jsonResponse(200, {
         status: 'SIGNUP_REQUIRED',
@@ -219,7 +230,7 @@ describe('소셜 로그인', () => {
     expect(callsTo('/auth/oauth/kakao')).toHaveLength(0);
   });
 
-  test('신규 가입은 고른 닉네임·성별을 반영한 뒤 세션을 시작한다', async () => {
+  test('신규 가입은 고른 닉네임·지역·성별을 반영한 뒤 세션을 시작한다', async () => {
     fetchMock.mockImplementation(async url =>
       url.includes('/auth/oauth/kakao/signup')
         ? jsonResponse(200, {
@@ -238,6 +249,9 @@ describe('소셜 로그인', () => {
     await act(async () => {
       nicknameField.props.onChangeText('산책왕');
     });
+    // 지역은 드롭다운을 열어 고른다(위치 권한이 없으면 자동 채움이 안 되므로).
+    await press(tree.root, '지역을 선택하세요');
+    await press(tree.root, '서울');
     await press(tree.root, '여성');
     await press(tree.root, '가입 완료');
 
@@ -251,7 +265,10 @@ describe('소셜 로그인', () => {
     // 닉네임은 서버가 소셜 계정 이름으로 채우므로, 방금 받은 토큰으로 고쳐준다.
     const [[, patchInit]] = callsTo('/members/me');
     expect(patchInit?.method).toBe('PATCH');
-    expect(parseBody(patchInit)).toEqual({ nickname: '산책왕' });
+    expect(parseBody(patchInit)).toEqual({
+      nickname: '산책왕',
+      region: 'SEOUL',
+    });
     expect(
       (patchInit?.headers as Record<string, string>).Authorization,
     ).toBe('Bearer new-access-token');

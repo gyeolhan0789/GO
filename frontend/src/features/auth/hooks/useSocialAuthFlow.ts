@@ -35,7 +35,7 @@ export type SocialSignupHandoff = {
 /**
  * 소셜 버튼을 눌렀을 때의 흐름을 담는다. 제공자 로그인 창을 띄우고 서버에
  * 계정을 검증한다. 가입된 계정이면 바로 로그인되고, 아니면 서버가 준
- * `signupToken`을 `onSignupRequired`로 넘겨 닉네임·성별 입력을 요청한다.
+ * `signupToken`을 `onSignupRequired`로 넘겨 프로필 입력을 요청한다.
  */
 export function useSocialAuthFlow(
   onSignupRequired: (handoff: SocialSignupHandoff) => void,

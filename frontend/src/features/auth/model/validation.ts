@@ -21,7 +21,7 @@ type SignupField =
   | 'agreeAge';
 
 /** 소셜 가입에서 추가로 받는 항목. 이메일·비밀번호는 제공자가 대신한다. */
-type SocialSignupField = 'nickname' | 'gender';
+type SocialSignupField = 'nickname' | 'region' | 'gender';
 
 export type LoginErrors = Partial<Record<LoginField, string>>;
 export type SignupErrors = Partial<Record<SignupField, string>>;
@@ -43,6 +43,7 @@ type SignupValues = LoginValues & {
 
 type SocialSignupValues = {
   nickname: string;
+  region: Region | null;
   gender: Gender | null;
 };
 
@@ -148,6 +149,7 @@ export function validateSignup({
 
 export function validateSocialSignup({
   nickname,
+  region,
   gender,
 }: SocialSignupValues): SocialSignupErrors {
   const errors: SocialSignupErrors = {};
@@ -155,6 +157,10 @@ export function validateSocialSignup({
   const nicknameError = validateNickname(nickname);
   if (nicknameError) {
     errors.nickname = nicknameError;
+  }
+
+  if (region === null) {
+    errors.region = '지역은 필수입니다.';
   }
 
   if (gender === null) {

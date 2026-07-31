@@ -75,7 +75,7 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
     detect,
   } = useRegionDetection();
 
-  // 이 기기에서 가입을 마친 계정이 아니면 닉네임·성별부터 받는다.
+  // 서버가 가입이 필요하다고 하면 프로필 입력 화면으로 넘긴다.
   const social = useSocialAuthFlow(
     useCallback(
       (handoff: SocialSignupHandoff) => {

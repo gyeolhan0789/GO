@@ -15,7 +15,7 @@ type SocialVerifyVariables = {
  * RootNavigator가 Main으로 넘기므로 화면 전환을 직접 하지 않는다.
  *
  * 가입이 필요한 계정은 여기서 세션을 시작하지 않고 응답만 돌려준다. 호출부가
- * `signupToken`을 들고 닉네임·성별 입력으로 넘어간다(`useSocialAuthFlow`).
+ * `signupToken`을 들고 프로필 입력으로 넘어간다(`useSocialAuthFlow`).
  */
 export function useSocialLoginMutation() {
   const { signIn } = useAuth();

@@ -1,4 +1,5 @@
 import { apiClient } from '../../../shared/api/client';
+import type { Region } from '../../auth/constants/regions';
 
 export type ItemCategory =
   | 'HAT'
@@ -56,6 +57,7 @@ export function saveEquippedItems(memberItemIds: number[]) {
 
 export type ProfileUpdateRequest = {
   nickname?: string;
+  region?: Region;
 };
 
 /**
