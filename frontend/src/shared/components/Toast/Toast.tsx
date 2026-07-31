@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text } from 'react-native';
+import { Animated, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppText } from '../AppText/AppText';
 import { colors } from '../../constants/colors';
 import { radius } from '../../constants/radius';
 import { spacing } from '../../constants/spacing';
-import { fontFamily } from '../../constants/typography';
+import { fontFamily, lineHeights } from '../../constants/typography';
 
 type ToastProps = {
   /** null이면 렌더링하지 않는다. */
@@ -73,7 +74,7 @@ export function Toast({
         },
       ]}
     >
-      <Text style={styles.text}>{message}</Text>
+      <AppText style={styles.text}>{message}</AppText>
     </Animated.View>
   );
 }
@@ -92,6 +93,7 @@ const styles = StyleSheet.create({
   text: {
     fontFamily: fontFamily.bold,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.surface,
   },
 });

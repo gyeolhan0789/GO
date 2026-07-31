@@ -1,11 +1,13 @@
 import type { StyleProp, TextStyle } from 'react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { AppText } from '../AppText/AppText';
+import { controlHeight } from '../../constants/sizing';
 import { colors } from '../../constants/colors';
 import { radius } from '../../constants/radius';
 import { shadow } from '../../constants/shadow';
 import { spacing } from '../../constants/spacing';
-import { fontFamily } from '../../constants/typography';
+import { fontFamily, lineHeights } from '../../constants/typography';
 
 type SegmentedControlOption<T extends string> = {
   label: string;
@@ -58,11 +60,11 @@ function Segment({
         onPress={onPress}
         style={[styles.segment, isActive && styles.segmentActive]}
       >
-        <Text
+        <AppText
           style={[styles.label, isActive && styles.labelActive, labelStyle]}
         >
           {label}
-        </Text>
+        </AppText>
       </Pressable>
     </View>
   );
@@ -89,7 +91,7 @@ const styles = StyleSheet.create({
   segment: {
     alignItems: 'center',
     justifyContent: 'center',
-    height: 44,
+    height: controlHeight.row,
     borderRadius: radius.sm,
     borderWidth: 2,
     borderColor: colors.ink,
@@ -101,6 +103,7 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: fontFamily.bold,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
   },
   labelActive: {

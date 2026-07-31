@@ -1,6 +1,7 @@
 import { formatThousands } from '../../features/history/model/format';
 import { colors } from '../../shared/constants/colors';
 import { radius } from '../../shared/constants/radius';
+import { bodyFont } from '../../shared/constants/typography';
 
 const HEX_RADIX = 16;
 const THOUSAND = 1000;
@@ -61,8 +62,10 @@ const TRANSPARENT_BACKGROUND = {
   backgroundGradientToOpacity: 0,
 };
 
+// 축 눈금은 보조 정보라 regular. 막대 위에 얹는 값(propsForTopLabels)만 bold로
+// 강조해서 둘 사이에 위계를 준다.
 const LABEL_FONT = {
-  fontFamily: 'BMDOHYEON',
+  fontFamily: bodyFont.regular,
   fontSize: 11,
 };
 
@@ -109,7 +112,7 @@ export const MONTH_BAR_CHART_CONFIG = {
   barRadius: radius.xs,
   formatTopBarValue: (value: number) => formatThousands(value),
   propsForTopLabels: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 10,
     fill: colors.ink,
   },

@@ -1,11 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import {
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import type {
   LayoutChangeEvent,
   NativeScrollEvent,
@@ -20,11 +14,13 @@ import {
   useRankingQuery,
 } from '../../features/ranking/hooks/useRankingQuery';
 import { resolveApiErrorMessage } from '../../shared/api/resolveApiErrorMessage';
+import { AppText } from '../../shared/components/AppText/AppText';
 import { Card } from '../../shared/components/Card/Card';
 import { Fab } from '../../shared/components/Fab/Fab';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { colors } from '../../shared/constants/colors';
 import { spacing } from '../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../shared/constants/typography';
 import { MyRankBar } from './components/MyRankBar';
 import { PodiumCard } from './components/PodiumCard';
 import { RankingRow } from './components/RankingRow';
@@ -147,14 +143,14 @@ export function RankingScreen() {
           />
         }
       >
-        <Header title="랭킹" subtitle="열심히 걸어서 상위권을 노려보세요!" />
+        <Header title="랭킹" subtitle="열심히 걸어서 상위권을 노려보세요" />
 
         <RankingScopeTabs value={scope} onChange={changeScope} />
 
         {ranking.isError ? (
-          <Text style={styles.errorText} accessibilityLiveRegion="polite">
+          <AppText style={styles.errorText} accessibilityLiveRegion="polite">
             {resolveApiErrorMessage(ranking.error)}
-          </Text>
+          </AppText>
         ) : null}
 
         {ranking.isPending ? <RankingSkeleton /> : null}
@@ -165,9 +161,9 @@ export function RankingScreen() {
 
         {rest.length > 0 ? (
           <>
-            <Text style={styles.countText}>
+            <AppText style={styles.countText}>
               총 {formatThousands(totalCount)}명 참여중
-            </Text>
+            </AppText>
             {/* Card는 onLayout을 받지 않아 래퍼로 위치를 잰다. */}
             <View onLayout={measureTop(setListCardTop)}>
               <Card style={styles.listCard}>
@@ -196,7 +192,7 @@ export function RankingScreen() {
         ) : null}
 
         {isEmpty ? (
-          <Text style={styles.emptyText}>{EMPTY_MESSAGE[scope]}</Text>
+          <AppText style={styles.emptyText}>{EMPTY_MESSAGE[scope]}</AppText>
         ) : null}
       </ScrollView>
 
@@ -250,10 +246,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   countText: {
-    fontFamily: 'NotoSansKR-Regular',
+    fontFamily: bodyFont.regular,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.mutedStrong,
-    marginBottom: -spacing.lg,
+    marginBottom: -spacing.md,
     marginLeft: spacing.sm,
   },
   floating: {
@@ -268,13 +265,15 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   errorText: {
-    fontFamily: 'NotoSansKR-Regular',
+    fontFamily: bodyFont.regular,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.danger,
   },
   emptyText: {
-    fontFamily: 'NotoSansKR-Regular',
+    fontFamily: bodyFont.regular,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
     opacity: 0.5,
     textAlign: 'center',

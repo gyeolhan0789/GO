@@ -1,10 +1,13 @@
 import { useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { AppText } from '../../../shared/components/AppText/AppText';
+import { controlHeight } from '../../../shared/constants/sizing';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
 import { SHOP_FILTERS } from '../constants';
 import type { ShopFilter } from '../types';
 
@@ -50,7 +53,7 @@ export function FilterSelect({ value, onChange }: FilterSelectProps) {
         accessibilityRole="button"
         accessibilityLabel={`필터 ${selected?.label ?? '전체'}`}
       >
-        <Text style={styles.triggerLabel}>{triggerLabel}</Text>
+        <AppText style={styles.triggerLabel}>{triggerLabel}</AppText>
         <Ionicons name="chevron-down" size={16} color={colors.ink} />
       </Pressable>
 
@@ -82,14 +85,14 @@ export function FilterSelect({ value, onChange }: FilterSelectProps) {
                   accessibilityRole="menuitem"
                   accessibilityState={{ selected: isSelected }}
                 >
-                  <Text
+                  <AppText
                     style={[
                       styles.optionLabel,
                       isSelected && styles.optionLabelSelected,
                     ]}
                   >
                     {filter.label}
-                  </Text>
+                  </AppText>
                   {isSelected ? (
                     <Ionicons
                       name="checkmark"
@@ -112,7 +115,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    height: 36,
+    height: controlHeight.compact,
     paddingHorizontal: spacing.md,
     borderRadius: radius.sm,
     borderWidth: 2,
@@ -123,9 +126,10 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   triggerLabel: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 13,
     color: colors.ink,
+    lineHeight: lineHeights[13],
   },
   overlay: {
     flex: 1,
@@ -149,12 +153,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 40,
+    height: controlHeight.row,
     paddingHorizontal: spacing.md,
   },
   optionLabel: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.ink,
     opacity: 0.7,
   },

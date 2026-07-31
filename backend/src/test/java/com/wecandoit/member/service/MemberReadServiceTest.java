@@ -10,12 +10,16 @@ import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.friend.repository.FriendRepository;
 import com.wecandoit.friend.domain.FriendRequest;
 import com.wecandoit.friend.repository.FriendRequestRepository;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
+import com.wecandoit.member.domain.Region;
 import com.wecandoit.member.dto.MemberRelationshipStatus;
 import com.wecandoit.member.dto.MemberSearchResponse;
+import com.wecandoit.member.dto.MyPageResponse;
 import com.wecandoit.member.repository.MemberRepository;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -128,6 +132,40 @@ class MemberReadServiceTest {
 
         // when & then
         assertThatThrownBy(() -> memberReadService.getNicknamesByIds(List.of(1L, 2L)))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("회원 ID로 마이페이지 정보를 조회한다")
+    void getMyPageReturnsMemberInfo() {
+        // given
+        Member member = member(1L, "산책러");
+        given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+
+        // when
+        MyPageResponse response = memberReadService.getMyPage(1L);
+
+        // then
+        assertThat(response).isEqualTo(new MyPageResponse(
+                1L,
+                "산책러@example.com",
+                "산책러",
+                Gender.MALE,
+                null,
+                0L
+        ));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 회원 ID로 마이페이지를 조회하면 실패한다")
+    void getMyPageRejectsMissingMember() {
+        // given
+        given(memberRepository.findById(1L)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> memberReadService.getMyPage(1L))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);

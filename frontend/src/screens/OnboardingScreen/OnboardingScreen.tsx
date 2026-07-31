@@ -5,7 +5,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -19,6 +18,10 @@ import { useOnboardingStatus } from '../../shared/hooks/useOnboardingStatus';
 import { OnboardingSlide } from './components/OnboardingSlide';
 import { Pagination } from './components/Pagination';
 import { ONBOARDING_SLIDES } from './slides';
+import { AppText } from '../../shared/components/AppText/AppText';
+import { controlHeight } from '../../shared/constants/sizing';
+import { colors } from '../../shared/constants/colors';
+import { bodyFont, lineHeights } from '../../shared/constants/typography';
 
 type OnboardingNavigation = NativeStackNavigationProp<
   RootStackParamList,
@@ -90,7 +93,7 @@ export function OnboardingScreen() {
           hitSlop={12}
           style={[styles.skipButton, { top: insets.top + 8 }]}
         >
-          <Text style={styles.skipText}>건너뛰기</Text>
+          <AppText style={styles.skipText}>건너뛰기</AppText>
         </Pressable>
       )}
 
@@ -105,9 +108,9 @@ export function OnboardingScreen() {
           accessibilityLabel={isLastSlide ? '시작하기' : '다음'}
           style={styles.nextButton}
         >
-          <Text style={styles.nextText}>
+          <AppText style={styles.nextText}>
             {isLastSlide ? '시작하기' : '다음'}
-          </Text>
+          </AppText>
         </Pressable>
       </View>
     </View>
@@ -117,7 +120,7 @@ export function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
   },
   skipButton: {
     position: 'absolute',
@@ -126,9 +129,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   skipText: {
-    fontFamily: 'NotoSansKR-Regular',
+    fontFamily: bodyFont.regular,
     fontSize: 15,
-    color: '#505050',
+    lineHeight: lineHeights[15],
+    color: colors.mutedStrong,
   },
   footer: {
     position: 'absolute',
@@ -137,15 +141,16 @@ const styles = StyleSheet.create({
   },
   nextButton: {
     marginTop: 24,
-    height: 56,
+    height: controlHeight.lg,
     borderRadius: 16,
-    backgroundColor: '#2C6A47',
+    backgroundColor: colors.primaryDark,
     alignItems: 'center',
     justifyContent: 'center',
   },
   nextText: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 16,
-    color: '#ffffff',
+    lineHeight: lineHeights[16],
+    color: colors.surface,
   },
 });

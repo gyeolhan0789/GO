@@ -1,8 +1,9 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
+import { AppText } from '../AppText/AppText';
 import { colors } from '../../constants/colors';
-import { fontFamily } from '../../constants/typography';
+import { fontFamily, lineHeights } from '../../constants/typography';
 
 type RingProgressProps = {
   /** 0 to 1 */
@@ -52,7 +53,7 @@ export function RingProgress({
         />
       </Svg>
       <View style={styles.labelContainer} pointerEvents="none">
-        <Text style={styles.label}>{Math.round(clamped * 100)}%</Text>
+        <AppText style={styles.label}>{Math.round(clamped * 100)}%</AppText>
       </View>
     </View>
   );
@@ -71,6 +72,7 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: fontFamily.bold,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
   },
 });

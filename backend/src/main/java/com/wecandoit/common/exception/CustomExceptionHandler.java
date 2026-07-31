@@ -6,6 +6,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 @RestControllerAdvice
 public class CustomExceptionHandler {
@@ -24,6 +25,14 @@ public class CustomExceptionHandler {
                 .map(FieldError::getDefaultMessage)
                 .orElse(ErrorCode.INVALID_INPUT.getMessage());
         ErrorResponse errorResponse = new ErrorResponse(ErrorCode.INVALID_INPUT.getHttpStatus().value(), message);
+        return ResponseEntity.status(ErrorCode.INVALID_INPUT.getHttpStatus()).body(errorResponse);
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ErrorResponse> handleMissingServletRequestPartException(
+            MissingServletRequestPartException e) {
+        ErrorResponse errorResponse = new ErrorResponse(
+                ErrorCode.INVALID_INPUT.getHttpStatus().value(), ErrorCode.INVALID_INPUT.getMessage());
         return ResponseEntity.status(ErrorCode.INVALID_INPUT.getHttpStatus()).body(errorResponse);
     }
 

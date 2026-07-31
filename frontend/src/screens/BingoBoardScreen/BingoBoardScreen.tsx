@@ -1,13 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import {
-  Alert,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import type { LayoutChangeEvent } from 'react-native';
 import { launchCamera } from 'react-native-image-picker';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -30,12 +22,14 @@ import {
   MISSION_TYPE_POINTS,
 } from '../../features/bingo/model/missionType';
 import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
+import { AppText } from '../../shared/components/AppText/AppText';
 import { MemberProgressBar } from '../../shared/components/MemberProgressBar/MemberProgressBar';
 import { Screen } from '../../shared/components/Screen/Screen';
+import { controlHeight } from '../../shared/constants/sizing';
 import { colors, participantColors } from '../../shared/constants/colors';
 import { radius } from '../../shared/constants/radius';
 import { spacing } from '../../shared/constants/spacing';
-import { fontFamily } from '../../shared/constants/typography';
+import { fontFamily, lineHeights } from '../../shared/constants/typography';
 import { useMeasuredWidth } from '../../shared/hooks/useMeasuredWidth';
 
 // 미션에 등록된 이미지가 없을 때 쓰는 유형별 기본 아이콘.
@@ -180,7 +174,7 @@ export function BingoBoardScreen({
   if (boardQuery.isLoading) {
     return (
       <Screen edges={['top', 'bottom']}>
-        <Text style={styles.statusText}>불러오는 중...</Text>
+        <AppText style={styles.statusText}>불러오는 중...</AppText>
       </Screen>
     );
   }
@@ -188,7 +182,7 @@ export function BingoBoardScreen({
   if (boardQuery.isError || !board) {
     return (
       <Screen edges={['top', 'bottom']}>
-        <Text style={styles.statusText}>빙고판을 불러오지 못했어요.</Text>
+        <AppText style={styles.statusText}>빙고판을 불러오지 못했어요.</AppText>
       </Screen>
     );
   }
@@ -204,9 +198,9 @@ export function BingoBoardScreen({
         >
           <Ionicons name="chevron-back" size={24} color={colors.ink} />
         </Pressable>
-        <Text style={styles.headerTitle}>
+        <AppText style={styles.headerTitle}>
           {room?.mode === 'SINGLE' ? '내 빙고' : '팀 빙고'}
-        </Text>
+        </AppText>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -216,17 +210,17 @@ export function BingoBoardScreen({
         showsVerticalScrollIndicator={false}
       >
         {board.renewalRequired ? (
-          <Text style={styles.renewalBanner}>
+          <AppText style={styles.renewalBanner}>
             {board.renewalMessage ?? '빙고판 갱신이 필요합니다.'}
-          </Text>
+          </AppText>
         ) : null}
 
         <View style={styles.progressCard}>
           <View style={styles.progressHeaderRow}>
-            <Text style={styles.progressLabel}>빙고 진행 상황</Text>
-            <Text style={styles.progressCount}>
+            <AppText style={styles.progressLabel}>빙고 진행 상황</AppText>
+            <AppText style={styles.progressCount}>
               {board.approvedCellCount}/{board.totalCellCount}
-            </Text>
+            </AppText>
           </View>
           <MemberProgressBar
             segments={progressSegments}
@@ -242,7 +236,7 @@ export function BingoBoardScreen({
                       { backgroundColor: memberColor(member.memberId) ?? colors.primary },
                     ]}
                   />
-                  <Text style={styles.legendText}>{member.nickname}</Text>
+                  <AppText style={styles.legendText}>{member.nickname}</AppText>
                 </View>
               ))}
             </View>
@@ -269,17 +263,17 @@ export function BingoBoardScreen({
                 size={20}
                 color={colors.ink}
               />
-              <Text style={styles.detailTitle}>{selectedCell.mission.title}</Text>
+              <AppText style={styles.detailTitle}>{selectedCell.mission.title}</AppText>
               <View style={styles.pointBadge}>
-                <Text style={styles.pointBadgeText}>
+                <AppText style={styles.pointBadgeText}>
                   +{MISSION_TYPE_POINTS[selectedCell.mission.type]}P
-                </Text>
+                </AppText>
               </View>
             </View>
-            <Text style={styles.missionTypeText}>
+            <AppText style={styles.missionTypeText}>
               {MISSION_TYPE_LABELS[selectedCell.mission.type]} 미션
-            </Text>
-            <Text style={styles.missionDetail}>{selectedCell.mission.detail}</Text>
+            </AppText>
+            <AppText style={styles.missionDetail}>{selectedCell.mission.detail}</AppText>
 
             {isCellCompleted(selectedCell) ? (
               <View style={styles.completedRow}>
@@ -288,7 +282,7 @@ export function BingoBoardScreen({
                   size={20}
                   color={colors.successText}
                 />
-                <Text style={styles.completedText}>인증 완료</Text>
+                <AppText style={styles.completedText}>인증 완료</AppText>
               </View>
             ) : (
               <Pressable
@@ -298,7 +292,7 @@ export function BingoBoardScreen({
                 accessibilityLabel="사진으로 인증하기"
               >
                 <Ionicons name="camera" size={18} color={colors.surface} />
-                <Text style={styles.captureButtonText}>사진으로 인증하기</Text>
+                <AppText style={styles.captureButtonText}>사진으로 인증하기</AppText>
               </Pressable>
             )}
           </View>
@@ -332,6 +326,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontFamily: fontFamily.bold,
     fontSize: 18,
+    lineHeight: lineHeights[18],
     color: colors.ink,
   },
   headerSpacer: {
@@ -376,12 +371,14 @@ const styles = StyleSheet.create({
   progressLabel: {
     fontFamily: fontFamily.regular,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.ink,
     opacity: 0.6,
   },
   progressCount: {
     fontFamily: fontFamily.bold,
     fontSize: 16,
+    lineHeight: lineHeights[16],
     color: colors.ink,
   },
   legendRow: {
@@ -405,6 +402,7 @@ const styles = StyleSheet.create({
   legendText: {
     fontFamily: fontFamily.regular,
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.ink,
     opacity: 0.7,
   },
@@ -432,6 +430,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: fontFamily.bold,
     fontSize: 17,
+    lineHeight: lineHeights[17],
     color: colors.ink,
   },
   pointBadge: {
@@ -443,11 +442,13 @@ const styles = StyleSheet.create({
   pointBadgeText: {
     fontFamily: fontFamily.bold,
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.highlightText,
   },
   missionTypeText: {
     fontFamily: fontFamily.regular,
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.ink,
     opacity: 0.5,
     marginTop: 2,
@@ -456,7 +457,7 @@ const styles = StyleSheet.create({
   missionDetail: {
     fontFamily: fontFamily.regular,
     fontSize: 15,
-    lineHeight: 22,
+    lineHeight: lineHeights[15],
     color: colors.ink,
     marginBottom: spacing.lg,
   },
@@ -470,10 +471,11 @@ const styles = StyleSheet.create({
   completedText: {
     fontFamily: fontFamily.bold,
     fontSize: 16,
+    lineHeight: lineHeights[16],
     color: colors.successText,
   },
   captureButton: {
-    height: 52,
+    height: controlHeight.lg,
     borderRadius: radius.md,
     backgroundColor: colors.primary,
     flexDirection: 'row',
@@ -484,6 +486,7 @@ const styles = StyleSheet.create({
   captureButtonText: {
     fontFamily: fontFamily.bold,
     fontSize: 16,
+    lineHeight: lineHeights[16],
     color: colors.surface,
   },
 });

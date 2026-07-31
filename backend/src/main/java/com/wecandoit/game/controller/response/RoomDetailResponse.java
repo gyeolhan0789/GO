@@ -1,8 +1,8 @@
 package com.wecandoit.game.controller.response;
 
 import com.wecandoit.game.domain.GameMode;
-import com.wecandoit.game.domain.GameRoomStatus;
 import com.wecandoit.game.domain.Room;
+import com.wecandoit.game.domain.RoomStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -10,7 +10,8 @@ public record RoomDetailResponse(
         Long roomId,
         String name,
         GameMode mode,
-        GameRoomStatus status,
+        RoomStatus status,
+        int boardSize,
         Integer targetBingoCount,
         Integer targetStepCount,
         int totalMissionCount,
@@ -22,8 +23,12 @@ public record RoomDetailResponse(
 
     public static RoomDetailResponse from(
             Room room,
+            int boardSize,
+            Integer targetBingoCount,
+            Integer targetStepCount,
             int totalMissionCount,
             int completedMissionCount,
+            LocalDateTime startedAt,
             List<RoomMemberResponse> members
     ) {
         return new RoomDetailResponse(
@@ -31,12 +36,13 @@ public record RoomDetailResponse(
                 room.getName(),
                 room.getMode(),
                 room.getStatus(),
-                room.getTargetBingoCount(),
-                room.getTargetStepCount(),
+                boardSize,
+                targetBingoCount,
+                targetStepCount,
                 totalMissionCount,
                 completedMissionCount,
                 room.getHostId(),
-                room.getStartedAt(),
+                startedAt,
                 members
         );
     }

@@ -16,13 +16,14 @@ public record RoomMemberResponse(
             RoomMember roomMember,
             String nickname,
             boolean host,
+            int completedMissionCount,
             Long bingoBoardId
     ) {
         return new RoomMemberResponse(
                 roomMember.getMemberId(),
                 nickname,
                 host,
-                roomMember.getCompletedMissionCount(),
+                completedMissionCount,
                 roomMember.getJoinedAt(),
                 bingoBoardId
         );

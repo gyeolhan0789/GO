@@ -1,10 +1,12 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { AppText } from '../../../../shared/components/AppText/AppText';
 import { AvatarStack } from '../../../../shared/components/AvatarStack/AvatarStack';
 import { Card } from '../../../../shared/components/Card/Card';
 import { colors } from '../../../../shared/constants/colors';
 import { shadow } from '../../../../shared/constants/shadow';
 import { spacing } from '../../../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../../../shared/constants/typography';
 import { formatWalkDateRange } from '../../model/format';
 import { GAME_MODE_LABEL } from '../../model/gameResult';
 import type { WalkRecord } from '../../types';
@@ -35,17 +37,17 @@ export function WalkCard({ walk, onPress }: WalkCardProps) {
         <View style={styles.row}>
           <View style={styles.textGroup}>
             <View style={styles.titleRow}>
-              <Text style={styles.title} numberOfLines={1}>
+              <AppText style={styles.title} numberOfLines={1}>
                 {walk.title}
-              </Text>
+              </AppText>
               <WalkResultBadge mode={walk.mode} isWin={walk.isWin} />
             </View>
-            <Text style={styles.meta} numberOfLines={1}>
+            <AppText style={styles.meta} numberOfLines={1}>
               {formatWalkDateRange(walk.startedAt, walk.completedAt)}
-            </Text>
-            <Text style={styles.meta} numberOfLines={1}>
+            </AppText>
+            <AppText style={styles.meta} numberOfLines={1}>
               {summary}
-            </Text>
+            </AppText>
           </View>
 
           <AvatarStack
@@ -87,13 +89,15 @@ const styles = StyleSheet.create({
   title: {
     // 배지가 밀려나지 않게 긴 방 이름은 제목 쪽에서 줄인다.
     flexShrink: 1,
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 15,
+    lineHeight: lineHeights[15],
     color: colors.ink,
   },
   meta: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.regular,
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.ink,
     opacity: 0.6,
   },

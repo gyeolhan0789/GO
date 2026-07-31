@@ -1,9 +1,10 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
-import { fontFamily } from '../../../shared/constants/typography';
+import { fontFamily, lineHeights } from '../../../shared/constants/typography';
 
 type ChangeCharacterButtonProps = {
   onPress: () => void;
@@ -19,7 +20,7 @@ export function ChangeCharacterButton({ onPress }: ChangeCharacterButtonProps) {
       accessibilityRole="button"
       accessibilityLabel="캐릭터 변경하기"
     >
-      <Text style={styles.label}>캐릭터 변경하기</Text>
+      <AppText style={styles.label}>캐릭터 변경하기</AppText>
     </Pressable>
   );
 }
@@ -41,6 +42,7 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: fontFamily.bold,
     fontSize: 16,
+    lineHeight: lineHeights[16],
     color: colors.surface,
   },
 });

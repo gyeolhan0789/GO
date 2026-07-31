@@ -5,7 +5,6 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -21,6 +20,7 @@ import {
 } from '../../features/member/model/equippedItems';
 import { ApiError } from '../../shared/api/ApiError';
 import { resolveApiErrorMessage } from '../../shared/api/resolveApiErrorMessage';
+import { AppText } from '../../shared/components/AppText/AppText';
 import { Button } from '../../shared/components/Button/Button';
 import { Card } from '../../shared/components/Card/Card';
 import { Screen } from '../../shared/components/Screen/Screen';
@@ -131,13 +131,13 @@ export function MyPageScreen({ navigation }: MyPageScreenProps) {
           </Card>
 
           {character.isError ? (
-            <Text style={styles.errorText} accessibilityLiveRegion="polite">
+            <AppText style={styles.errorText} accessibilityLiveRegion="polite">
               {resolveApiErrorMessage(character.error)}
-            </Text>
+            </AppText>
           ) : null}
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>기본 정보</Text>
+            <AppText style={styles.sectionTitle}>기본 정보</AppText>
             <NicknameField
               value={nickname}
               onChangeText={text => {
@@ -147,7 +147,7 @@ export function MyPageScreen({ navigation }: MyPageScreenProps) {
               maxLength={NICKNAME_MAX_LENGTH}
               error={nicknameError}
             />
-            <Text style={styles.hint}>{NICKNAME_LENGTH_MESSAGE}</Text>
+            <AppText style={styles.hint}>{NICKNAME_LENGTH_MESSAGE}</AppText>
           </View>
 
           <Button

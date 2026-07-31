@@ -13,6 +13,8 @@ public interface GameResultRepository extends JpaRepository<GameResult, Long> {
 
     Optional<GameResult> findFirstByRoomIdOrderByCreatedAtDescIdDesc(Long roomId);
 
+    Optional<GameResult> findByGameId(Long gameId);
+
     boolean existsByGameId(Long gameId);
 
     Slice<GameResult> findByRoomIdInOrderByCreatedAtDesc(List<Long> roomIds, Pageable pageable);
