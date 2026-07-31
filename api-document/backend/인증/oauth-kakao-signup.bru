@@ -1,0 +1,78 @@
+meta {
+  name: 카카오 소셜 회원가입 완료
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{backendBaseUrl}}/auth/oauth/kakao/signup
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "signupToken": "",
+    "gender": "MALE"
+  }
+}
+
+script:post-response {
+  if (res.body && res.body.accessToken && res.body.refreshToken) {
+    bru.setEnvVar("accessToken", res.body.accessToken);
+    bru.setEnvVar("refreshToken", res.body.refreshToken);
+  }
+}
+
+docs {
+  성별은 필수이며 `MALE` 또는 `FEMALE`만 입력할 수 있다.
+
+  ## Kakao 소셜 회원가입 완료 (2차)
+
+  `POST /auth/oauth/kakao` 호출 결과가 `SIGNUP_REQUIRED`였을 때, 그 응답으로 받은 `signupToken`과 성별을 제출해 회원가입을 완료한다. 가입이 완료되면 accessToken과 refreshToken이 응답 바디로 발급된다. `signupToken`은 1회용이며 발급 후 5분간만 유효하다.
+
+  ### Request 필드
+  | 필드 | 필수 | 제약조건 |
+  |---|---|---|
+  | signupToken | Y | 공백 불가 (`@NotBlank` 검증), `POST /auth/oauth/kakao` 응답의 signupToken 값 |
+  | gender | Y | `MALE` 또는 `FEMALE` |
+
+  ### 성공 응답 (200 OK)
+  ```json
+  {
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9....",
+    "refreshToken": "eyJhbGciOiJIUzI1NiJ9...."
+  }
+  ```
+
+  ### 비즈니스 규칙
+  - signupToken은 발급 시점의 provider(Kakao)와만 매칭되며, 다른 provider의 signup 엔드포인트로 제출하면 무효 처리된다.
+  - signupToken 소비 후에는 즉시 삭제되어 재사용할 수 없다.
+  - 같은 이메일/provider로 `POST /auth/oauth/kakao`를 다시 호출하면 이전 signupToken은 새 토큰으로 대체되어 무효화된다.
+
+  ### 에러 케이스
+
+  **필수값 누락 (signupToken 또는 gender)**
+  ```json
+  {
+    "status": 400,
+    "message": "입력값이 올바르지 않습니다."
+  }
+  ```
+
+  **signupToken이 만료되었거나 존재하지 않음, 혹은 provider 불일치**
+  ```json
+  {
+    "status": 400,
+    "message": "유효하지 않거나 만료된 가입 토큰입니다."
+  }
+  ```
+
+  **signupToken은 유효하지만 그 사이 동일 이메일로 이미 가입 완료됨**
+  ```json
+  {
+    "status": 409,
+    "message": "이미 가입된 이메일입니다."
+  }
+  ```
+}
