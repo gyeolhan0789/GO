@@ -162,8 +162,8 @@ describe('로그아웃 후 진입 화면', () => {
   test('로그아웃하면 온보딩이 아니라 로그인 화면으로 간다', async () => {
     const tree = await renderAppSignedIn();
     // 캐러셀 안쪽은 onLayout으로 폭을 받은 뒤에야 그려지므로(테스트 렌더러는
-    // 레이아웃 이벤트를 내지 않는다) 홈에 있다는 표식은 산책하기 버튼으로 본다.
-    expect(collectTexts(tree.root)).toContain('산책하기');
+    // 레이아웃 이벤트를 내지 않는다) 홈에 있다는 표식은 혼자하기 버튼으로 본다.
+    expect(collectTexts(tree.root)).toContain('혼자하기');
 
     await openMyPage(tree);
     fetchMock.mockResolvedValueOnce(jsonResponse(204));

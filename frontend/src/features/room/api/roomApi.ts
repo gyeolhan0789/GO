@@ -34,10 +34,13 @@ export type RoomDetailResponse = {
 };
 
 export type CreateRoomRequest = {
+  /** 필수, 20자 이하. */
   name: string;
   mode: GameMode;
   boardSize: 3 | 4 | 5;
+  /** 모드 관계없이 필수, 1 이상. */
   targetBingoCount: number;
+  /** SINGLE/COOPERATE는 필수(1 이상), BATTLE에는 보내면 안 된다. */
   targetStepCount?: number;
 };
 
@@ -47,6 +50,20 @@ export function createRoom(body: CreateRoomRequest) {
 
 export function getRoomDetail(roomId: number) {
   return apiClient.get<RoomDetailResponse>(`/rooms/${roomId}`);
+}
+
+export type RoomInviteStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELED';
+
+export type RoomInviteResponse = {
+  requestId: number;
+  status: RoomInviteStatus;
+  created: boolean;
+};
+
+export function inviteToRoom(roomId: number, inviteeId: number) {
+  return apiClient.post<RoomInviteResponse>(`/rooms/${roomId}/requests`, {
+    inviteeId,
+  });
 }
 
 export type MyRoomMemberResponse = {
@@ -69,22 +86,9 @@ export type MyRoomResponse = {
   members: MyRoomMemberResponse[];
 };
 
-export function getMyRooms() {
-  return apiClient.get<MyRoomResponse[]>('/rooms');
-}
-
-export type RoomInviteStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELED';
-
-export type RoomInviteResponse = {
-  requestId: number;
-  status: RoomInviteStatus;
-  created: boolean;
-};
-
-export function inviteToRoom(roomId: number, inviteeId: number) {
-  return apiClient.post<RoomInviteResponse>(`/rooms/${roomId}/requests`, {
-    inviteeId,
-  });
+export function getMyRooms(mode?: GameMode) {
+  const query = mode ? `?mode=${mode}` : '';
+  return apiClient.get<MyRoomResponse[]>(`/rooms${query}`);
 }
 
 export type ReceivedRoomInvite = {

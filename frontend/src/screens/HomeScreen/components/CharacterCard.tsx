@@ -1,11 +1,16 @@
+import { useEffect, useRef } from 'react';
 import type { ImageSourcePropType, StyleProp, ViewStyle } from 'react-native';
-import { Image, StyleSheet, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { AppText } from '../../../shared/components/AppText/AppText';
 import { colors } from '../../../shared/constants/colors';
+import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
 import { fontFamily, lineHeights } from '../../../shared/constants/typography';
+
+const BOB_DISTANCE = 6;
+const BOB_DURATION_MS = 400;
 
 type CharacterCardProps = {
   /** 캐릭터 이름. 이미지 아래에 표시. */
@@ -14,19 +19,73 @@ type CharacterCardProps = {
   characterImageSource?: ImageSourcePropType;
   /** 패널 크기 제어용. 남는 세로 공간을 채울 때 flex: 1을 전달. */
   style?: StyleProp<ViewStyle>;
+  /** 진행 중인 산책 세션이 있으면 뱃지를 띄우고 캐릭터를 살짝 흔든다. */
+  isWalking?: boolean;
+  /** isWalking일 때만 쓰는, "MM:SS" 형식으로 이미 포맷된 경과 시간. */
+  walkElapsedLabel?: string;
+  /** 뱃지를 눌렀을 때(진행 중인 산책 화면으로 이동). */
+  onPressWalkBadge?: () => void;
 };
 
 export function CharacterCard({
   name,
   characterImageSource,
   style,
+  isWalking = false,
+  walkElapsedLabel,
+  onPressWalkBadge,
 }: CharacterCardProps) {
+  // 새 걷기 애니메이션 에셋이 없어서, 정지 이미지를 위아래로 살짝
+  // 반복시켜 걷는 느낌만 흉내낸다.
+  const bobAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!isWalking) {
+      bobAnim.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bobAnim, {
+          toValue: 1,
+          duration: BOB_DURATION_MS,
+          useNativeDriver: true,
+        }),
+        Animated.timing(bobAnim, {
+          toValue: 0,
+          duration: BOB_DURATION_MS,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isWalking, bobAnim]);
+
+  const bobTranslateY = bobAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -BOB_DISTANCE],
+  });
+
   return (
     <View style={[styles.panel, style]}>
+      {isWalking ? (
+        <Pressable
+          style={styles.walkBadge}
+          onPress={onPressWalkBadge}
+          accessibilityRole="button"
+          accessibilityLabel="진행 중인 산책으로 이동"
+        >
+          <AppText style={styles.walkBadgeText}>산책 중 · {walkElapsedLabel}</AppText>
+        </Pressable>
+      ) : null}
       {characterImageSource ? (
-        <Image
+        <Animated.Image
           source={characterImageSource}
-          style={styles.characterImage}
+          style={[
+            styles.characterImage,
+            isWalking ? { transform: [{ translateY: bobTranslateY }] } : null,
+          ]}
           resizeMode="contain"
         />
       ) : (
@@ -45,6 +104,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
+  },
+  walkBadge: {
+    position: 'absolute',
+    top: 0,
+    alignSelf: 'center',
+    backgroundColor: colors.successBg,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    zIndex: 1,
+  },
+  walkBadgeText: {
+    fontFamily: fontFamily.bold,
+    fontSize: 12,
+    lineHeight: lineHeights[12],
+    color: colors.successText,
   },
   characterImage: {
     width: '85%',
