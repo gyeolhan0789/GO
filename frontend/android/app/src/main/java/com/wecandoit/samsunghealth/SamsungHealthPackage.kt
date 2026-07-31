@@ -1,4 +1,4 @@
-package com.frontend.samsunghealth
+package com.wecandoit.samsunghealth
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule
