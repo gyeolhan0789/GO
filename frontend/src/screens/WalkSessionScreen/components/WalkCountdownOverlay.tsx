@@ -24,7 +24,7 @@ export function WalkCountdownOverlay({ onFinish }: WalkCountdownOverlayProps) {
     }
     const timer = setTimeout(() => setStepIndex(index => index + 1), STEP_DURATION_MS);
     return () => clearTimeout(timer);
-  }, [isFinished, onFinish]);
+  }, [stepIndex, isFinished, onFinish]);
 
   if (isFinished) {
     return null;
