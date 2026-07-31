@@ -1,6 +1,7 @@
 package com.wecandoit.game.room.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
 import com.wecandoit.bingo.domain.BingoBoard;
@@ -8,6 +9,8 @@ import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
+import com.wecandoit.common.exception.CustomException;
+import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.controller.response.MyRoomResponse;
 import com.wecandoit.game.controller.response.RoomDetailResponse;
 import com.wecandoit.game.domain.Game;
@@ -98,6 +101,32 @@ class RoomReadServiceTest {
         assertThat(response.totalMissionCount()).isEqualTo(9);
         assertThat(response.completedMissionCount()).isZero();
         assertThat(response.startedAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("닫힌 방 상세는 멤버 여부와 관계없이 조회할 수 없다")
+    void getRoomDetailRejectsClosedRoom() {
+        Room room = room(10L, GameMode.COOPERATE, 3, 1, 10_000);
+        room.close();
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+
+        assertThatThrownBy(() -> roomReadService.getRoomDetail(1L, 10L))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ROOM_CLOSED);
+    }
+
+    @Test
+    @DisplayName("닫힌 방의 멤버 목록은 조회할 수 없다")
+    void getRoomMembersRejectsClosedRoom() {
+        Room room = room(10L, GameMode.COOPERATE, 3, 1, 10_000);
+        room.close();
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+
+        assertThatThrownBy(() -> roomReadService.getRoomMembers(1L, 10L))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ROOM_CLOSED);
     }
 
     @Test

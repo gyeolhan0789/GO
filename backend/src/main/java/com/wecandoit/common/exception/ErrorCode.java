@@ -15,6 +15,7 @@ public enum ErrorCode {
     UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "인증이 필요합니다."),
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
     REFRESH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "유효하지 않은 Refresh Token입니다."),
+    INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다."),
 
     // Member
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "회원을 찾을 수 없습니다."),
@@ -46,6 +47,7 @@ public enum ErrorCode {
     ROOM_TARGET_BINGO_COUNT_REQUIRED(HttpStatus.BAD_REQUEST, "목표 빙고 수는 필수입니다."),
     ROOM_TARGET_STEP_COUNT_REQUIRED(HttpStatus.BAD_REQUEST, "싱글 및 협동 모드에서는 1 이상의 목표 걸음 수가 필수입니다."),
     ROOM_TARGET_STEP_COUNT_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "대결 모드에서는 목표 걸음 수를 설정할 수 없습니다."),
+    ROOM_CYCLE_INVALID(HttpStatus.CONFLICT, "활성 게임방의 회차 상태가 올바르지 않습니다."),
     GAME_NOT_FOUND(HttpStatus.NOT_FOUND, "게임을 찾을 수 없습니다."),
     GAME_NOT_COMPLETED(HttpStatus.CONFLICT, "완료되지 않은 게임입니다."),
     GAME_RESULT_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 생성된 게임 결과입니다."),

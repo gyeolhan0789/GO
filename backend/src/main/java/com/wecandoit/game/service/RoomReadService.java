@@ -52,8 +52,8 @@ public class RoomReadService {
 
     public RoomDetailResponse getRoomDetail(Long memberId, Long roomId) {
         Room room = findRoom(roomId);
-        validateRoomMember(memberId, roomId);
         validateRoomOpen(room);
+        validateRoomMember(memberId, roomId);
 
         List<RoomMember> roomMembers = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId);
         RoomCycleSnapshot snapshot = getRoomCycleSnapshot(room);
@@ -116,6 +116,7 @@ public class RoomReadService {
 
     public List<RoomMemberResponse> getRoomMembers(Long memberId, Long roomId) {
         Room room = findRoom(roomId);
+        validateRoomOpen(room);
         validateRoomMember(memberId, roomId);
         List<RoomMember> roomMembers = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId);
         return getRoomMemberResponses(room, roomMembers, getRoomCycleSnapshot(room));
