@@ -24,11 +24,12 @@ public interface BingoBoardRepository extends JpaRepository<BingoBoard, Long> {
             List<BingoBoardStatus> excludedStatuses
     );
 
-    Optional<BingoBoard> findFirstByGameIdAndRoomMemberIdAndStatusNotInOrderByIdDesc(
-            Long gameId,
-            Long roomMemberId,
+    List<BingoBoard> findAllByGameIdInAndStatusNotInOrderByIdAsc(
+            List<Long> gameIds,
             List<BingoBoardStatus> excludedStatuses
     );
+
+    List<BingoBoard> findAllByGameIdInOrderByIdAsc(List<Long> gameIds);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

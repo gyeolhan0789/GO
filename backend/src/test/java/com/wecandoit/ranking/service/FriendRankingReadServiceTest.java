@@ -9,8 +9,13 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.history.repository.MemberHistoryRepository;
 import com.wecandoit.history.repository.RankedWeeklyRankingSummary;
+import com.wecandoit.item.controller.response.CharacterResponse;
+import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.item.domain.ItemCategory;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.ranking.controller.response.FriendRankingResponse;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,6 +32,8 @@ class FriendRankingReadServiceTest {
 
     @Mock
     private MemberHistoryRepository memberHistoryRepository;
+    @Mock
+    private RankingCharacterReadService rankingCharacterReadService;
     @InjectMocks
     private FriendRankingReadService friendRankingReadService;
 
@@ -53,6 +60,31 @@ class FriendRankingReadServiceTest {
                 any(),
                 any()
         )).willReturn(Optional.of(summary(4, 4L, "로그인회원", 12_500)));
+        given(rankingCharacterReadService.getCharactersByMemberIds(List.of(3L, 4L)))
+                .willReturn(Map.of(
+                        3L,
+                        new CharacterResponse(
+                                3L,
+                                "친구3",
+                                Gender.FEMALE,
+                                "/uploads/characters/female/default.png",
+                                List.of()
+                        ),
+                        4L,
+                        new CharacterResponse(
+                                4L,
+                                "로그인회원",
+                                Gender.MALE,
+                                "/uploads/characters/male/default.png",
+                                List.of(new EquippedItemResponse(
+                                        10L,
+                                        100L,
+                                        "빨간 모자",
+                                        ItemCategory.HAT,
+                                        "https://example.com/hat.png"
+                                ))
+                        )
+                ));
 
         // when
         FriendRankingResponse response =
@@ -67,6 +99,11 @@ class FriendRankingReadServiceTest {
                         org.assertj.core.groups.Tuple.tuple(1, 3L),
                         org.assertj.core.groups.Tuple.tuple(4, 4L)
                 );
+        assertThat(response.rankings().content().getFirst().equippedItems()).isEmpty();
+        assertThat(response.rankings().content().getFirst().gender()).isEqualTo(Gender.FEMALE);
+        assertThat(response.rankings().content().getFirst().defaultImageUrl())
+                .isEqualTo("/uploads/characters/female/default.png");
+        assertThat(response.rankings().content().get(1).equippedItems()).hasSize(1);
         assertThat(response.rankings().totalElements()).isEqualTo(5);
         assertThat(response.rankings().currentPage()).isEqualTo(1);
     }
@@ -88,6 +125,17 @@ class FriendRankingReadServiceTest {
                 any(),
                 any()
         )).willReturn(Optional.of(loginMember));
+        given(rankingCharacterReadService.getCharactersByMemberIds(List.of(1L)))
+                .willReturn(Map.of(
+                        1L,
+                        new CharacterResponse(
+                                1L,
+                                "로그인회원",
+                                Gender.MALE,
+                                "/uploads/characters/male/default.png",
+                                List.of()
+                        )
+                ));
 
         // when
         FriendRankingResponse response =
@@ -100,6 +148,9 @@ class FriendRankingReadServiceTest {
                 .satisfies(ranking -> {
                     assertThat(ranking.memberId()).isEqualTo(1L);
                     assertThat(ranking.rank()).isEqualTo(1);
+                    assertThat(ranking.gender()).isEqualTo(Gender.MALE);
+                    assertThat(ranking.defaultImageUrl())
+                            .isEqualTo("/uploads/characters/male/default.png");
                 });
         assertThat(response.rankings().totalElements()).isEqualTo(1);
     }

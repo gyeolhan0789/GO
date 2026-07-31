@@ -30,6 +30,9 @@ public class ShopItemCommandService {
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
         Item item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ITEM_NOT_FOUND));
+        if (!item.isAvailableForSale()) {
+            throw new CustomException(ErrorCode.ITEM_NOT_AVAILABLE_FOR_SALE);
+        }
         if (memberItemRepository.existsByMemberIdAndItemId(memberId, itemId)) {
             throw new CustomException(ErrorCode.ITEM_ALREADY_OWNED);
         }

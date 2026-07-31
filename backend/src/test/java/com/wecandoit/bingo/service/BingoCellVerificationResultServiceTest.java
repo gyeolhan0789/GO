@@ -9,13 +9,15 @@ import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
+import com.wecandoit.cash.service.CashCommandService;
 import com.wecandoit.game.domain.Game;
-import com.wecandoit.game.repository.GameRepository;
-import com.wecandoit.game.service.GameCompletionService;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameRoomStatus;
 import com.wecandoit.game.domain.Room;
+import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomRepository;
+import com.wecandoit.game.service.GameCompletionService;
+import com.wecandoit.mission.domain.MissionType;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,6 +41,8 @@ class BingoCellVerificationResultServiceTest {
     @Mock
     private RoomRepository roomRepository;
     @Mock
+    private CashCommandService cashCommandService;
+    @Mock
     private GameCompletionService gameCompletionService;
     @InjectMocks
     private BingoCellVerificationResultService verificationResultService;
@@ -55,14 +59,17 @@ class BingoCellVerificationResultServiceTest {
         given(gameRepository.findByIdForUpdate(200L)).willReturn(Optional.of(game));
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(inProgressRoom(10L)));
         given(bingoCellRepository.save(cell)).willReturn(cell);
+        given(cashCommandService.grantBingoCellReward(1L, 10L, 1000L, MissionType.OBJECT)).willReturn(30L);
 
         // when
-        verificationResultService.applyResult(1000L, true, null);
+        long rewardCash = verificationResultService.applyResult(1000L, true, null, MissionType.OBJECT);
 
         // then
         assertThat(cell.getVerificationStatus()).isEqualTo(BingoCellVerificationStatus.APPROVED);
         assertThat(cell.getRejectionReason()).isNull();
         assertThat(cell.getCompletedAt()).isNotNull();
+        assertThat(rewardCash).isEqualTo(30L);
+        then(cashCommandService).should().grantBingoCellReward(1L, 10L, 1000L, MissionType.OBJECT);
         then(gameCompletionService).should().evaluateAndCompleteIfNeeded(200L, 100L);
     }
 
@@ -80,13 +87,21 @@ class BingoCellVerificationResultServiceTest {
         given(bingoCellRepository.save(cell)).willReturn(cell);
 
         // when
-        verificationResultService.applyResult(1000L, false, "인증 이미지가 조건과 다릅니다.");
+        long rewardCash = verificationResultService.applyResult(
+                1000L,
+                false,
+                "인증 이미지가 조건과 다릅니다.",
+                MissionType.OBJECT
+        );
 
         // then
         assertThat(cell.getVerificationStatus()).isEqualTo(BingoCellVerificationStatus.REJECTED);
         assertThat(cell.getRejectionReason()).isEqualTo("인증 이미지가 조건과 다릅니다.");
         assertThat(cell.getCompletedAt()).isNull();
-        then(gameCompletionService).should(Mockito.never()).evaluateAndCompleteIfNeeded(Mockito.anyLong());
+        assertThat(rewardCash).isZero();
+        then(cashCommandService).shouldHaveNoInteractions();
+        then(gameCompletionService).should(Mockito.never())
+                .evaluateAndCompleteIfNeeded(Mockito.anyLong(), Mockito.anyLong());
     }
 
     @Test
@@ -104,11 +119,13 @@ class BingoCellVerificationResultServiceTest {
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(closedRoom));
 
         // when
-        verificationResultService.applyResult(1000L, true, null);
+        long rewardCash = verificationResultService.applyResult(1000L, true, null, MissionType.OBJECT);
 
         // then
         assertThat(cell.getVerificationStatus()).isEqualTo(BingoCellVerificationStatus.PENDING);
+        assertThat(rewardCash).isZero();
         then(bingoCellRepository).should(Mockito.never()).save(cell);
+        then(cashCommandService).shouldHaveNoInteractions();
         then(gameCompletionService).shouldHaveNoInteractions();
     }
 
@@ -122,11 +139,13 @@ class BingoCellVerificationResultServiceTest {
         given(bingoBoardRepository.findById(100L)).willReturn(Optional.of(board));
         given(gameRepository.findByIdForUpdate(200L)).willReturn(Optional.of(completedGame));
 
-        verificationResultService.applyResult(1000L, true, null);
+        long rewardCash = verificationResultService.applyResult(1000L, true, null, MissionType.OBJECT);
 
         assertThat(cell.getVerificationStatus()).isEqualTo(BingoCellVerificationStatus.PENDING);
+        assertThat(rewardCash).isZero();
         then(roomRepository).shouldHaveNoInteractions();
         then(bingoCellRepository).should(Mockito.never()).save(cell);
+        then(cashCommandService).shouldHaveNoInteractions();
         then(gameCompletionService).shouldHaveNoInteractions();
     }
 
@@ -144,11 +163,13 @@ class BingoCellVerificationResultServiceTest {
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(inProgressRoom(10L)));
 
         // when
-        verificationResultService.applyResult(1000L, true, null);
+        long rewardCash = verificationResultService.applyResult(1000L, true, null, MissionType.OBJECT);
 
         // then
         assertThat(cell.getVerificationStatus()).isEqualTo(BingoCellVerificationStatus.REJECTED);
+        assertThat(rewardCash).isZero();
         then(bingoCellRepository).should(Mockito.never()).save(cell);
+        then(cashCommandService).shouldHaveNoInteractions();
         then(gameCompletionService).shouldHaveNoInteractions();
     }
 
@@ -172,7 +193,7 @@ class BingoCellVerificationResultServiceTest {
     }
 
     private Room inProgressRoom(Long roomId) {
-        Room room = Room.create(1L, GameMode.SINGLE, null, 3);
+        Room room = Room.create(1L, "테스트 방", GameMode.SINGLE, null, 3);
         ReflectionTestUtils.setField(room, "id", roomId);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         return room;

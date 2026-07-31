@@ -143,6 +143,27 @@ class ShopItemCommandServiceTest {
     }
 
     @Test
+    @DisplayName("판매 중지된 아이템은 구매할 수 없다")
+    void purchaseItemRejectsUnavailableItem() {
+        // given
+        Member member = member(1L, 5_000L);
+        Item item = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
+        item.stopSale();
+        given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(member));
+        given(itemRepository.findById(100L)).willReturn(Optional.of(item));
+
+        // when & then
+        assertErrorCode(
+                () -> shopItemCommandService.purchaseItem(1L, 100L),
+                ErrorCode.ITEM_NOT_AVAILABLE_FOR_SALE
+        );
+        assertThat(member.getCash()).isEqualTo(5_000L);
+        then(memberItemRepository).should(never()).existsByMemberIdAndItemId(1L, 100L);
+        then(memberItemRepository).should(never()).save(any(MemberItem.class));
+        then(cashHistoryRepository).should(never()).save(any());
+    }
+
+    @Test
     @DisplayName("존재하지 않는 아이템은 구매할 수 없다")
     void purchaseItemRejectsMissingItem() {
         // given

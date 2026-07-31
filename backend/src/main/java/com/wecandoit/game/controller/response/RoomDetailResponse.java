@@ -8,9 +8,13 @@ import java.util.List;
 
 public record RoomDetailResponse(
         Long roomId,
+        String name,
         GameMode mode,
         GameRoomStatus status,
         Integer targetBingoCount,
+        Integer targetStepCount,
+        int totalMissionCount,
+        int completedMissionCount,
         Long hostId,
         LocalDateTime startedAt,
         List<RoomMemberResponse> members
@@ -18,13 +22,19 @@ public record RoomDetailResponse(
 
     public static RoomDetailResponse from(
             Room room,
+            int totalMissionCount,
+            int completedMissionCount,
             List<RoomMemberResponse> members
     ) {
         return new RoomDetailResponse(
                 room.getId(),
+                room.getName(),
                 room.getMode(),
                 room.getStatus(),
                 room.getTargetBingoCount(),
+                room.getTargetStepCount(),
+                totalMissionCount,
+                completedMissionCount,
                 room.getHostId(),
                 room.getStartedAt(),
                 members

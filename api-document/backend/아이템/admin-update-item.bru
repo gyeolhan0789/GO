@@ -1,0 +1,56 @@
+meta {
+  name: 관리자 아이템 수정
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{backendBaseUrl}}/admin/items/1
+  body: multipartForm
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+body:multipart-form {
+  name: 새 검은 모자
+  category: HAT
+  price: 1200
+  availableForSale: true
+  image: @file(C:\path\to\new-hat.png)
+}
+
+docs {
+  아이템 관리 정보와 선택적으로 이미지를 수정한다. `availableForSale`을 `true`로 지정하면 판매 중지 아이템을 다시 판매할 수 있다. `ADMIN` 권한이 필요하다.
+
+  ### 성공 응답 (200 OK)
+  ```json
+  {
+    "itemId": 1,
+    "name": "새 검은 모자",
+    "category": "HAT",
+    "price": 1200,
+    "imageUrl": "/uploads/dev/items/1/new-hat.png",
+    "availableForSale": true,
+    "updatedAt": "2026-07-29T12:00:00"
+  }
+  ```
+
+  **존재하지 않는 아이템**
+  ```json
+  {
+    "status": 404,
+    "message": "아이템을 찾을 수 없습니다."
+  }
+  ```
+
+  **유효하지 않은 카테고리**
+  ```json
+  {
+    "status": 400,
+    "message": "유효하지 않은 아이템 카테고리입니다."
+  }
+  ```
+}

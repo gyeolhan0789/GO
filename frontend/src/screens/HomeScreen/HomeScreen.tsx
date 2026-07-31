@@ -1,45 +1,125 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
-import { useAuth } from '../../features/auth/model/AuthContext';
+import type { BingoBoardCell } from '../../features/bingo/components/BingoBoard/BingoBoard';
+import { useMyCashQuery } from '../../features/member/hooks/useMyCashQuery';
+import { useMyCharacterQuery } from '../../features/member/hooks/useMyCharacterQuery';
+import {
+  isWalkSessionActive,
+  startWalkSession,
+} from '../../features/walk-session/model/walkSessionStore';
 import { Screen } from '../../shared/components/Screen/Screen';
+import { Button } from '../../shared/components/Button/Button';
+import { spacing } from '../../shared/constants/spacing';
+import { useSamsungHealthToday } from '../../shared/hooks/useSamsungHealthToday';
+import { HomeHeader } from './components/HomeHeader';
+import { HomeCarousel } from './components/HomeCarousel';
+import { WalkRoomSelectSheet } from './components/WalkRoomSelectSheet';
+import characterFemale from './assets/character-female.png';
+import characterMale from './assets/character-male.png';
 
-const TITLE_COLOR = '#111827';
-const DESCRIPTION_COLOR = '#6b7280';
-const BUTTON_BACKGROUND_COLOR = '#2C6A47';
-const BUTTON_LABEL_COLOR = '#FFFFFF';
-const AUTHENTICATED_COLOR = '#2C6A47';
+type HomeNavigation = NativeStackNavigationProp<RootStackParamList, 'Main'>;
 
-const PRESSED_OPACITY = 0.8;
+const CHARACTER_IMAGE_BY_GENDER = {
+  male: characterMale,
+  female: characterFemale,
+} as const;
+
+// TODO: 캐릭터 합성(장착 아이템 반영)과 목표 걸음수 연동 전까지의 임시 목업 데이터.
+// 걸음/거리/칼로리는 useSamsungHealthToday, 포인트·닉네임은 각각
+// useMyCashQuery·useMyCharacterQuery로 실측값을 따로 받아온다.
+const MOCK_HOME_SUMMARY = {
+  goalSteps: 10000,
+  characterGender: 'male' as keyof typeof CHARACTER_IMAGE_BY_GENDER,
+  canRewardHint: '1,000보 더 걸으면 캔 1개를 더 모아요',
+};
+
+// TODO: 실제 이번 주 빙고판 데이터 연동 전까지의 임시 목업 데이터(5x5).
+const MOCK_BINGO_COMPLETED: boolean[] = [
+  true, true, false, false, false,
+  true, false, false, false, false,
+  false, false, true, false, false,
+  false, false, false, false, false,
+  false, false, false, false, false,
+];
+const MOCK_BINGO_CELLS: BingoBoardCell[] = MOCK_BINGO_COMPLETED.map(
+  (completed, index) => ({ id: String(index), completed }),
+);
 
 export function HomeScreen() {
-  const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { isAuthenticated } = useAuth();
+  const summary = MOCK_HOME_SUMMARY;
+  const navigation = useNavigation<HomeNavigation>();
+  const [isRoomSheetVisible, setRoomSheetVisible] = useState(false);
+
+  // 로딩/실패 중에는 가짜 숫자·이름 대신 빈 값을 보여준다.
+  const cash = useMyCashQuery();
+  const points = cash.data?.cash ?? 0;
+  const character = useMyCharacterQuery();
+  const characterName = character.data?.nickname ?? '';
+
+  // 사용 불가/미허용/조회 실패 시 실측값이 없다는 뜻이므로 가짜 숫자 대신 0을
+  // 보여준다.
+  const health = useSamsungHealthToday();
+  const healthSummary =
+    health.data?.status === 'ok' ? health.data.summary : null;
+  const todaySteps = healthSummary?.steps ?? 0;
+  const todayDistanceKm = healthSummary
+    ? Math.round((healthSummary.distanceMeters / 1000) * 10) / 10
+    : 0;
+  const todayCalories = healthSummary
+    ? Math.round(healthSummary.activeCalories)
+    : 0;
 
   return (
     <Screen>
       <View style={styles.content}>
-        <Text style={styles.title}>Home</Text>
-        <Text style={styles.description}>React Native 앱이 준비되었습니다.</Text>
-
-        {isAuthenticated ? (
-          <Text style={styles.authenticated}>로그인됨</Text>
-        ) : (
-          <Pressable
-            style={({ pressed }) => [
-              styles.button,
-              pressed ? styles.buttonPressed : null,
-            ]}
-            onPress={() => navigation.navigate('Login')}
-            accessibilityRole="button"
-            accessibilityLabel="로그인">
-            <Text style={styles.buttonLabel}>로그인</Text>
-          </Pressable>
-        )}
+        <HomeHeader
+          points={points}
+          onProfilePress={() => navigation.navigate('MyPage')}
+        />
+        <HomeCarousel
+          style={styles.carousel}
+          steps={todaySteps}
+          goalSteps={summary.goalSteps}
+          characterName={characterName}
+          characterImageSource={CHARACTER_IMAGE_BY_GENDER[summary.characterGender]}
+          distanceKm={todayDistanceKm}
+          calories={todayCalories}
+          rewardHint={summary.canRewardHint}
+          bingoSize={5}
+          bingoCells={MOCK_BINGO_CELLS}
+        />
+        <Button
+          label="산책하기"
+          size="lg"
+          onPress={() => {
+            // 이미 진행 중인 산책이 있으면 방 목록을 다시 고를 필요 없이
+            // 그 세션으로 바로 이동한다.
+            if (isWalkSessionActive()) {
+              navigation.navigate('WalkSession');
+              return;
+            }
+            setRoomSheetVisible(true);
+          }}
+        />
       </View>
+
+      <WalkRoomSelectSheet
+        visible={isRoomSheetVisible}
+        onClose={() => setRoomSheetVisible(false)}
+        onStart={() => {
+          setRoomSheetVisible(false);
+          // 이미 진행 중인 세션이 있으면(뒤로가기 후 재진입) 건드리지 않는다.
+          // TODO: 실제로는 서버가 내려주는 방의 startedAt을 그대로 쓴다.
+          startWalkSession();
+          // TODO: 선택한 room의 roomId를 파라미터로 넘긴다. 아직 실제 방 목록
+          // API가 없어(mock) 넘길 값이 없다.
+          navigation.navigate('WalkSession');
+        }}
+      />
     </Screen>
   );
 }
@@ -47,39 +127,10 @@ export function HomeScreen() {
 const styles = StyleSheet.create({
   content: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
+    padding: spacing.lg,
+    gap: spacing.md,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: TITLE_COLOR,
-  },
-  description: {
-    marginTop: 8,
-    fontSize: 16,
-    color: DESCRIPTION_COLOR,
-  },
-  button: {
-    marginTop: 24,
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 8,
-    backgroundColor: BUTTON_BACKGROUND_COLOR,
-  },
-  buttonPressed: {
-    opacity: PRESSED_OPACITY,
-  },
-  buttonLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: BUTTON_LABEL_COLOR,
-  },
-  authenticated: {
-    marginTop: 24,
-    fontSize: 16,
-    fontWeight: '700',
-    color: AUTHENTICATED_COLOR,
+  carousel: {
+    flex: 1,
   },
 });

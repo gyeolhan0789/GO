@@ -19,11 +19,12 @@ try {
 
 const filePath = (payload.tool_input && payload.tool_input.file_path) || '';
 
-// .env(.local/.prod/...) and profile-specific application ymls may carry
-// DB credentials / JWT secrets — direct Read/Edit/Write is blocked.
+// .env(.local/.prod/...) files may carry DB credentials / JWT secrets —
+// direct Read/Edit/Write is blocked. Profile-specific application ymls for
+// production/staging aren't tracked in this repo (those envs are configured
+// via env vars / CI secrets, not committed yaml), so they're not matched here.
 const SECRET_PATTERNS = [
   /\.env(\.[\w-]+)?$/i,
-  /application-(local|dev|prod|production|staging|stage)\.ya?ml$/i,
 ];
 
 const isSecret = SECRET_PATTERNS.some((re) => re.test(filePath));

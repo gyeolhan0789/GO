@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.BDDMockito;
@@ -30,6 +31,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 @ExtendWith({RestDocumentationExtension.class, MockitoExtension.class})
+@DisplayName("캐시 이력 API")
 class CashHistoryControllerTest {
 
     @Mock
@@ -54,12 +56,13 @@ class CashHistoryControllerTest {
     }
 
     @Test
+    @DisplayName("인증 회원의 캐시 이력 목록을 반환한다")
     void returnsTheAuthenticatedMembersCashHistories() {
         BDDMockito.given(cashHistoryReadService.getCashHistories(1L)).willReturn(List.of(
-                new CashHistoryResponse(1L, CashHistoryType.BINGO_REWARD, 500L,
-                        LocalDateTime.of(2026, 7, 24, 12, 0), 10L, 100L, null, null),
+                new CashHistoryResponse(1L, CashHistoryType.GAME_GOAL_REWARD, 200L,
+                        LocalDateTime.of(2026, 7, 24, 12, 0), 10L, 100L, null, null, null, null),
                 new CashHistoryResponse(2L, CashHistoryType.ITEM_PURCHASE, -1_000L,
-                        LocalDateTime.of(2026, 7, 24, 11, 0), null, null, 20L, "Red Hat")
+                        LocalDateTime.of(2026, 7, 24, 11, 0), null, null, null, null, 20L, "Red Hat")
         ));
 
         given()
@@ -68,7 +71,7 @@ class CashHistoryControllerTest {
                 .then()
                 .statusCode(200)
                 .body("$", hasSize(2))
-                .body("[0].amount", equalTo(500))
+                .body("[0].amount", equalTo(200))
                 .body("[0].roomId", equalTo(10))
                 .body("[0].gameId", equalTo(100))
                 .body("[1].amount", equalTo(-1_000))
@@ -82,6 +85,8 @@ class CashHistoryControllerTest {
                                 fieldWithPath("[].occurredAt").description("발생 시각"),
                                 fieldWithPath("[].roomId").description("보상 대상 방 ID").optional(),
                                 fieldWithPath("[].gameId").description("보상 대상 게임 회차 ID").optional(),
+                                fieldWithPath("[].bingoCellId").description("빙고 칸 보상 대상 칸 ID").optional(),
+                                fieldWithPath("[].bingoBoardId").description("공동 걸음 목표 보상 대상 빙고판 ID").optional(),
                                 fieldWithPath("[].itemId").description("구매 아이템 ID").optional(),
                                 fieldWithPath("[].itemName").description("구매 아이템 이름").optional()
                         )

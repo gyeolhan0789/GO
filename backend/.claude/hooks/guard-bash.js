@@ -35,14 +35,16 @@ function deny(reason) {
 // 1) Block shell commands that reveal or stage secret-bearing files.
 //    Heuristic guard, not a hard security boundary — a determined bypass
 //    (e.g. base64-encoding the filename) is still possible.
-const SECRET_FILE_RE =
-  /(^|[\s/"'])(\.env(\.[\w-]+)?|application-(local|dev|prod|production|staging|stage)\.ya?ml)(?=[\s"'`]|$)/i;
+//    Profile-specific application ymls for production/staging aren't tracked
+//    in this repo (those envs are configured via env vars / CI secrets, not
+//    committed yaml), so they're not matched here.
+const SECRET_FILE_RE = /(^|[\s/"'])(\.env(\.[\w-]+)?)(?=[\s"'`]|$)/i;
 const REVEAL_OR_STAGE_RE =
   /\b(cat|type|more|less|head|tail|Get-Content|gc|grep|findstr|Select-String|git\s+(add|commit|show|diff|log\s+-p))\b/i;
 
 if (SECRET_FILE_RE.test(command) && REVEAL_OR_STAGE_RE.test(command)) {
   deny(
-    'This command reads or stages a file that may contain secrets (.env / application-<profile>.yml). Blocked by project hook policy.'
+    'This command reads or stages a file that may contain secrets (.env). Blocked by project hook policy.'
   );
 }
 

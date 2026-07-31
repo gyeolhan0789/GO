@@ -15,17 +15,26 @@ import static org.springframework.restdocs.request.RequestDocumentation.paramete
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.wecandoit.bingo.domain.BingoBoardStatus;
+import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.game.controller.GameResultController;
+import com.wecandoit.game.controller.response.GameResultBingoBoardResponse;
+import com.wecandoit.game.controller.response.GameResultBingoCellResponse;
+import com.wecandoit.game.controller.response.GameResultBoardOwnerResponse;
+import com.wecandoit.game.controller.response.GameResultDetailResponse;
 import com.wecandoit.game.controller.response.GameResultParticipantResponse;
 import com.wecandoit.game.controller.response.GameResultResponse;
-import com.wecandoit.game.service.GameResultReadService;
 import com.wecandoit.game.domain.GameMode;
+import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.service.GameResultReadService;
+import com.wecandoit.mission.controller.response.MissionResponse;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -82,11 +91,11 @@ class GameResultControllerTest {
     }
 
     @Test
-    @DisplayName("방 멤버가 완료된 게임의 결과를 조회하면 200 상태와 게임 결과를 반환한다")
+    @DisplayName("방 멤버가 완료된 게임 결과를 조회하면 빙고판 기록을 포함한 결과를 반환한다")
     void getGameResultReturnsResult() {
         // given
         given(gameResultReadService.getGameResult(1L, 10L))
-                .willReturn(cooperateResultResponse());
+                .willReturn(cooperateResultDetailResponse());
 
         // when & then
         given()
@@ -96,17 +105,45 @@ class GameResultControllerTest {
                 .statusCode(HttpStatus.OK.value())
                 .body("gameId", equalTo(100))
                 .body("roomId", equalTo(10))
+                .body("roomName", equalTo("테스트 방"))
                 .body("mode", equalTo("COOPERATE"))
+                .body("roomStatus", equalTo("CLOSED"))
                 .body("result", equalTo(true))
                 .body("boardSize", equalTo(3))
                 .body("targetBingoCount", equalTo(3))
+                .body("targetStepCount", equalTo(10000))
                 .body("bingoCount", equalTo(3))
                 .body("completedMissionCount", equalTo(5))
-                .body("rewardCash", equalTo(500))
+                .body("rewardCash", equalTo(200))
+                .body("startedAt", equalTo("2026-07-01T10:00:00"))
+                .body("completedAt", equalTo("2026-07-08T10:00:00"))
+                .body("totalMissionCount", equalTo(2))
+                .body("myCompletedMissionCount", equalTo(3))
+                .body("myRewardCash", equalTo(200))
+                .body("myResult", equalTo(true))
                 .body("participants[0].memberId", equalTo(1))
                 .body("participants[0].nickname", equalTo("host"))
                 .body("participants[0].completedMissionCount", equalTo(3))
-                .body("participants[0].rewardCash", equalTo(500))
+                .body("participants[0].rewardCash", equalTo(200))
+                .body("participants[0].result", equalTo(true))
+                .body("bingoBoards[0].bingoBoardId", equalTo(201))
+                .body("bingoBoards[0].owners[0].memberId", equalTo(1))
+                .body("bingoBoards[0].owners[0].nickname", equalTo("host"))
+                .body("bingoBoards[0].boardSize", equalTo(3))
+                .body("bingoBoards[0].targetStepCount", equalTo(10000))
+                .body("bingoBoards[0].startedAt", equalTo("2026-07-01T10:00:00"))
+                .body("bingoBoards[0].completedAt", equalTo("2026-07-08T10:00:00"))
+                .body("bingoBoards[0].status", equalTo("COMPLETED"))
+                .body("bingoBoards[0].completedBingoCount", equalTo(1))
+                .body("bingoBoards[0].totalCellCount", equalTo(2))
+                .body("bingoBoards[0].approvedCellCount", equalTo(1))
+                .body("bingoBoards[0].cells[0].cellId", equalTo(301))
+                .body("bingoBoards[0].cells[0].row", equalTo(0))
+                .body("bingoBoards[0].cells[0].col", equalTo(0))
+                .body("bingoBoards[0].cells[0].mission.missionId", equalTo(401))
+                .body("bingoBoards[0].cells[0].verificationStatus", equalTo("APPROVED"))
+                .body("bingoBoards[0].cells[0].submittedByMemberId", equalTo(1))
+                .body("bingoBoards[0].cells[0].rejectionReason", equalTo(null))
                 .apply(document("game-result-detail",
                         pathParameters(
                                 parameterWithName("roomId").description("결과를 조회할 게임방 ID")
@@ -114,19 +151,71 @@ class GameResultControllerTest {
                         responseFields(
                                 fieldWithPath("gameId").description("게임 회차 ID"),
                                 fieldWithPath("roomId").description("게임방 ID"),
+                                fieldWithPath("roomName").description("게임방 이름"),
                                 fieldWithPath("mode").description("게임 모드"),
+                                fieldWithPath("roomStatus").description("게임방 상태"),
                                 fieldWithPath("result").description("완료 결과"),
-                                fieldWithPath("boardSize").description("빙고판 한 변의 길이(N x N에서 N)"),
+                                fieldWithPath("boardSize").description("빙고판 한 변 길이"),
                                 fieldWithPath("targetBingoCount").description("목표 빙고 수"),
-                                fieldWithPath("bingoCount").description("달성한 빙고 줄 수"),
+                                fieldWithPath("targetStepCount")
+                                        .optional()
+                                        .description("공유 빙고판 목표 걸음 수. 대결 모드는 null"),
+                                fieldWithPath("bingoCount").description("달성한 빙고 수"),
                                 fieldWithPath("completedMissionCount").description("완료한 미션 수 합계"),
-                                fieldWithPath("rewardCash").description("참여자 1인당 지급된 보상 캐시"),
+                                fieldWithPath("rewardCash").description("게임 완료 기준 보상 캐시"),
+                                fieldWithPath("startedAt").description("게임 회차 시작 시각"),
+                                fieldWithPath("completedAt").description("게임 회차 종료 시각"),
+                                fieldWithPath("totalMissionCount").description("게임 결과 보드의 전체 미션 수"),
+                                fieldWithPath("myCompletedMissionCount").description("내 완료 미션 수"),
+                                fieldWithPath("myRewardCash").description("내가 받은 보상 캐시"),
+                                fieldWithPath("myResult").description("내 승리 또는 완료 여부"),
                                 fieldWithPath("participants[].memberId").description("참여자 ID"),
                                 fieldWithPath("participants[].nickname").description("참여자 닉네임"),
                                 fieldWithPath("participants[].completedMissionCount")
                                         .description("참여자가 완료한 미션 수"),
                                 fieldWithPath("participants[].rewardCash")
-                                        .description("참여자에게 지급된 보상 캐시")
+                                        .description("참여자에게 지급된 보상 캐시"),
+                                fieldWithPath("participants[].result")
+                                        .description("참여자 승리 또는 완료 여부"),
+                                fieldWithPath("bingoBoards[].bingoBoardId").description("빙고판 ID"),
+                                fieldWithPath("bingoBoards[].owners[].memberId")
+                                        .description("보드 사용자 ID. 공유 보드는 참여자 전원, 개인 보드는 보드 주인 1명"),
+                                fieldWithPath("bingoBoards[].owners[].nickname")
+                                        .description("보드 사용자 닉네임"),
+                                fieldWithPath("bingoBoards[].boardSize").description("빙고판 한 변 길이"),
+                                fieldWithPath("bingoBoards[].targetStepCount")
+                                        .optional()
+                                        .description("해당 보드 목표 걸음 수. 대결 보드는 null"),
+                                fieldWithPath("bingoBoards[].startedAt").description("빙고판 생성 시각"),
+                                fieldWithPath("bingoBoards[].completedAt")
+                                        .optional()
+                                        .description("빙고판 완료 시각. 만료 보드는 null"),
+                                fieldWithPath("bingoBoards[].status").description("빙고판 상태"),
+                                fieldWithPath("bingoBoards[].completedBingoCount")
+                                        .description("완성된 빙고 줄 수"),
+                                fieldWithPath("bingoBoards[].totalCellCount").description("빙고 칸 전체 수"),
+                                fieldWithPath("bingoBoards[].approvedCellCount").description("승인된 빙고 칸 수"),
+                                fieldWithPath("bingoBoards[].cells[].cellId").description("빙고 칸 ID"),
+                                fieldWithPath("bingoBoards[].cells[].row").description("빙고 칸 행 위치"),
+                                fieldWithPath("bingoBoards[].cells[].col").description("빙고 칸 열 위치"),
+                                fieldWithPath("bingoBoards[].cells[].mission.missionId").description("미션 ID"),
+                                fieldWithPath("bingoBoards[].cells[].mission.missionImageUrl")
+                                        .description("미션 이미지 URL"),
+                                fieldWithPath("bingoBoards[].cells[].mission.type").description("미션 유형"),
+                                fieldWithPath("bingoBoards[].cells[].mission.title").description("미션 제목"),
+                                fieldWithPath("bingoBoards[].cells[].mission.detail").description("미션 설명"),
+                                fieldWithPath("bingoBoards[].cells[].mission.decisionCondition")
+                                        .description("미션 판단 조건"),
+                                fieldWithPath("bingoBoards[].cells[].mission.createdAt").description("미션 생성 시각"),
+                                fieldWithPath("bingoBoards[].cells[].verificationStatus")
+                                        .optional()
+                                        .description("빙고 칸 검증 상태"),
+                                fieldWithPath("bingoBoards[].cells[].submittedByMemberId")
+                                        .optional()
+                                        .description("해당 칸을 제출한 참여자 ID"),
+                                fieldWithPath("bingoBoards[].cells[].rejectionReason")
+                                        .optional()
+                                        .description("검증 거절 사유")
                         )
                 ));
         then(gameResultReadService).should().getGameResult(1L, 10L);
@@ -187,32 +276,54 @@ class GameResultControllerTest {
                 .statusCode(HttpStatus.OK.value())
                 .body("content[0].gameId", equalTo(100))
                 .body("content[0].roomId", equalTo(10))
+                .body("content[0].roomName", equalTo("테스트 방"))
                 .body("content[0].mode", equalTo("COOPERATE"))
+                .body("content[0].roomStatus", equalTo("CLOSED"))
                 .body("content[0].result", equalTo(true))
                 .body("content[0].boardSize", equalTo(3))
                 .body("content[0].targetBingoCount", equalTo(3))
+                .body("content[0].targetStepCount", equalTo(10000))
                 .body("content[0].bingoCount", equalTo(3))
                 .body("content[0].completedMissionCount", equalTo(5))
-                .body("content[0].rewardCash", equalTo(500))
+                .body("content[0].rewardCash", equalTo(200))
+                .body("content[0].startedAt", equalTo("2026-07-01T10:00:00"))
+                .body("content[0].completedAt", equalTo("2026-07-08T10:00:00"))
+                .body("content[0].totalMissionCount", equalTo(2))
+                .body("content[0].myCompletedMissionCount", equalTo(3))
+                .body("content[0].myRewardCash", equalTo(200))
+                .body("content[0].myResult", equalTo(true))
                 .body("hasNext", equalTo(false))
                 .apply(document("game-result-list",
                         responseFields(
                                 fieldWithPath("content[].gameId").description("게임 회차 ID"),
                                 fieldWithPath("content[].roomId").description("게임방 ID"),
+                                fieldWithPath("content[].roomName").description("게임방 이름"),
                                 fieldWithPath("content[].mode").description("게임 모드"),
+                                fieldWithPath("content[].roomStatus").description("게임방 상태"),
                                 fieldWithPath("content[].result").description("완료 결과"),
-                                fieldWithPath("content[].boardSize").description("빙고판 한 변의 길이(N x N에서 N)"),
+                                fieldWithPath("content[].boardSize").description("빙고판 한 변 길이"),
                                 fieldWithPath("content[].targetBingoCount").description("목표 빙고 수"),
-                                fieldWithPath("content[].bingoCount").description("달성한 빙고 줄 수"),
+                                fieldWithPath("content[].targetStepCount")
+                                        .optional()
+                                        .description("공유 빙고판 목표 걸음 수. 대결 모드는 null"),
+                                fieldWithPath("content[].bingoCount").description("달성한 빙고 수"),
                                 fieldWithPath("content[].completedMissionCount").description("완료한 미션 수 합계"),
                                 fieldWithPath("content[].rewardCash")
-                                        .description("참여자 1인당 지급된 보상 캐시"),
+                                        .description("게임 완료 기준 보상 캐시"),
+                                fieldWithPath("content[].startedAt").description("게임 회차 시작 시각"),
+                                fieldWithPath("content[].completedAt").description("게임 회차 종료 시각"),
+                                fieldWithPath("content[].totalMissionCount").description("게임 결과 보드의 전체 미션 수"),
+                                fieldWithPath("content[].myCompletedMissionCount").description("내 완료 미션 수"),
+                                fieldWithPath("content[].myRewardCash").description("내가 받은 보상 캐시"),
+                                fieldWithPath("content[].myResult").description("내 승리 또는 완료 여부"),
                                 fieldWithPath("content[].participants[].memberId").description("참여자 ID"),
                                 fieldWithPath("content[].participants[].nickname").description("참여자 닉네임"),
                                 fieldWithPath("content[].participants[].completedMissionCount")
                                         .description("참여자가 완료한 미션 수"),
                                 fieldWithPath("content[].participants[].rewardCash")
                                         .description("참여자에게 지급된 보상 캐시"),
+                                fieldWithPath("content[].participants[].result")
+                                        .description("참여자 승리 또는 완료 여부"),
                                 fieldWithPath("hasNext").description("다음 페이지 존재 여부")
                         )
                 ));
@@ -235,21 +346,105 @@ class GameResultControllerTest {
                 ));
     }
 
+    private GameResultDetailResponse cooperateResultDetailResponse() {
+        return new GameResultDetailResponse(
+                100L,
+                10L,
+                "테스트 방",
+                GameMode.COOPERATE,
+                GameRoomStatus.CLOSED,
+                true,
+                3,
+                3,
+                10_000,
+                3,
+                5,
+                200L,
+                LocalDateTime.of(2026, 7, 1, 10, 0),
+                LocalDateTime.of(2026, 7, 8, 10, 0),
+                2,
+                3,
+                200L,
+                true,
+                participantResponses(),
+                List.of(new GameResultBingoBoardResponse(
+                        201L,
+                        List.of(
+                                new GameResultBoardOwnerResponse(1L, "host"),
+                                new GameResultBoardOwnerResponse(2L, "participant")
+                        ),
+                        3,
+                        10_000,
+                        LocalDateTime.of(2026, 7, 1, 10, 0),
+                        LocalDateTime.of(2026, 7, 8, 10, 0),
+                        BingoBoardStatus.COMPLETED,
+                        1,
+                        2,
+                        1,
+                        List.of(
+                                new GameResultBingoCellResponse(
+                                        301L,
+                                        0,
+                                        0,
+                                        missionResponse(401L),
+                                        BingoCellVerificationStatus.APPROVED,
+                                        1L,
+                                        null
+                                ),
+                                new GameResultBingoCellResponse(
+                                        302L,
+                                        0,
+                                        1,
+                                        missionResponse(402L),
+                                        null,
+                                        null,
+                                        null
+                                )
+                        )
+                ))
+        );
+    }
+
     private GameResultResponse cooperateResultResponse() {
         return new GameResultResponse(
                 100L,
                 10L,
+                "테스트 방",
                 GameMode.COOPERATE,
+                GameRoomStatus.CLOSED,
                 true,
                 3,
                 3,
+                10_000,
                 3,
                 5,
-                500L,
-                List.of(
-                        new GameResultParticipantResponse(1L, "host", 3, 500L),
-                        new GameResultParticipantResponse(2L, "participant", 2, 500L)
-                )
+                200L,
+                LocalDateTime.of(2026, 7, 1, 10, 0),
+                LocalDateTime.of(2026, 7, 8, 10, 0),
+                2,
+                3,
+                200L,
+                true,
+                participantResponses()
+        );
+    }
+
+    private List<GameResultParticipantResponse> participantResponses() {
+        return List.of(
+                new GameResultParticipantResponse(1L, "host", 3, 200L, true),
+                new GameResultParticipantResponse(2L, "participant", 2, 200L, true)
+        );
+    }
+
+    private MissionResponse missionResponse(Long missionId) {
+        return new MissionResponse(
+                missionId,
+                "https://example.com/mission.png",
+                "OBJECT",
+                "미션",
+                "설명",
+                null,
+                LocalDateTime.of(2026, 7, 29, 12, 0)
         );
     }
 }

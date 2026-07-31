@@ -16,17 +16,18 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
-import com.wecandoit.game.domain.GameResult;
+import com.wecandoit.game.domain.GameResultParticipant;
 import com.wecandoit.game.domain.GameRoomStatus;
 import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomMember;
 import com.wecandoit.game.repository.GameRepository;
-import com.wecandoit.game.repository.GameResultRepository;
+import com.wecandoit.game.repository.GameResultParticipantRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.mission.domain.Mission;
 import com.wecandoit.mission.repository.MissionRepository;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -54,7 +55,7 @@ class BingoReadServiceTest {
     @Mock
     private GameRepository gameRepository;
     @Mock
-    private GameResultRepository gameResultRepository;
+    private GameResultParticipantRepository gameResultParticipantRepository;
     @Mock
     private BingoBoardRepository bingoBoardRepository;
     @Mock
@@ -90,6 +91,9 @@ class BingoReadServiceTest {
         assertThat(response.completed()).isTrue();
         assertThat(response.canRenew()).isTrue();
         assertThat(response.targetBingoCount()).isNull();
+        assertThat(response.targetStepCount()).isEqualTo(10_000);
+        assertThat(response.renewalRequired()).isFalse();
+        assertThat(response.renewalMessage()).isNull();
         assertThat(response.completedBingoCount()).isEqualTo(6);
         assertThat(response.totalCellCount()).isEqualTo(4);
         assertThat(response.approvedCellCount()).isEqualTo(4);
@@ -156,6 +160,85 @@ class BingoReadServiceTest {
     }
 
     @Test
+    @DisplayName("게임 시작 후 7일이 지나면 host에게 갱신 필요 여부와 갱신 권한을 반환한다")
+    void getActiveBoardReturnsRenewalRequiredForOldSharedBoard() {
+        // given
+        Room room = inProgressRoom(1L, 10L, 2);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.IN_PROGRESS))
+                .willReturn(Optional.of(activeGameStartedAt(200L, 10L, LocalDateTime.now().minusDays(8))));
+        BingoBoard board = activeBoard(100L, 200L, 2);
+        given(bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(200L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.of(board));
+        List<BingoCell> cells = cellsWithApprovedCount(board.getId(), 4, 3);
+        given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
+        given(missionRepository.findAllById(Mockito.anyIterable())).willReturn(missionsForCells(cells));
+
+        // when
+        BingoBoardResponse response = bingoReadService.getActiveBoard(1L, 10L);
+
+        // then
+        assertThat(response.renewalRequired()).isTrue();
+        assertThat(response.renewalMessage()).isEqualTo("빙고판 갱신이 필요합니다.");
+        assertThat(response.canRenew()).isTrue();
+    }
+
+    @Test
+    @DisplayName("게임 시작 후 7일이 지나도 host가 아니면 갱신 권한 없이 안내만 반환한다")
+    void getActiveBoardReturnsRenewalRequiredWithoutRenewPermissionForParticipant() {
+        // given
+        Room room = inProgressRoom(1L, 10L, 2);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(true);
+        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.IN_PROGRESS))
+                .willReturn(Optional.of(activeGameStartedAt(200L, 10L, LocalDateTime.now().minusDays(8))));
+        BingoBoard board = activeBoard(100L, 200L, 2);
+        given(bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(200L, INACTIVE_BOARD_STATUSES))
+                .willReturn(Optional.of(board));
+        List<BingoCell> cells = cellsWithApprovedCount(board.getId(), 4, 3);
+        given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
+        given(missionRepository.findAllById(Mockito.anyIterable())).willReturn(missionsForCells(cells));
+
+        // when
+        BingoBoardResponse response = bingoReadService.getActiveBoard(2L, 10L);
+
+        // then
+        assertThat(response.renewalRequired()).isTrue();
+        assertThat(response.renewalMessage()).isEqualTo("빙고판 갱신이 필요합니다.");
+        assertThat(response.canRenew()).isFalse();
+    }
+
+    @Test
+    @DisplayName("대결 보드는 갱신 필요 여부를 반환하지 않는다")
+    void getActiveBoardReturnsRenewalNotRequiredForBattleBoard() {
+        // given
+        Room room = battleRoom();
+        RoomMember participantA = roomMember(101L, 10L, 1L);
+        RoomMember participantB = roomMember(102L, 10L, 2L);
+        BingoBoard boardA = battleBoard(201L, 200L, participantA, 2);
+        BingoBoard boardB = battleBoard(202L, 200L, participantB, 2);
+        ReflectionTestUtils.setField(boardA, "createdAt", LocalDateTime.now().minusDays(8));
+        ReflectionTestUtils.setField(boardB, "createdAt", LocalDateTime.now().minusDays(8));
+        List<BingoCell> cellsA = cellsWithApprovedCount(201L, 4, 1);
+        List<BingoCell> cellsB = cellsWithApprovedCount(202L, 4, 3);
+        givenBattleLookup(room, participantA, List.of(participantA, participantB), List.of(boardA, boardB));
+        given(bingoCellRepository.findAllByBoardIdIn(List.of(201L, 202L)))
+                .willReturn(merge(cellsA, cellsB));
+        given(missionRepository.findAllById(Mockito.anyIterable())).willReturn(missionsForCells(cellsA));
+        given(gameResultParticipantRepository.findByGameIdAndMemberId(200L, 1L))
+                .willReturn(Optional.empty());
+
+        // when
+        BingoBoardResponse response = bingoReadService.getActiveBoard(1L, 10L);
+
+        // then
+        assertThat(response.renewalRequired()).isFalse();
+        assertThat(response.renewalMessage()).isNull();
+        assertThat(response.targetStepCount()).isNull();
+    }
+
+    @Test
     @DisplayName("방 멤버가 아니면 빙고판 조회에 실패한다")
     void getActiveBoardRejectsNonMember() {
         // given
@@ -197,7 +280,7 @@ class BingoReadServiceTest {
     @DisplayName("대결 참가자는 본인 RoomMember에 연결된 개인 빙고판을 조회한다")
     void getActiveBoardReturnsBattleBoardOwnedByRoomMember() {
         // given
-        Room room = Room.create(1L, GameMode.BATTLE, 3, 2);
+        Room room = Room.create(1L, "테스트 방", GameMode.BATTLE, 3, 2);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         RoomMember participantA = roomMember(101L, 10L, 1L);
@@ -210,7 +293,8 @@ class BingoReadServiceTest {
         given(bingoCellRepository.findAllByBoardIdIn(List.of(201L, 202L)))
                 .willReturn(merge(cellsA, cellsB));
         given(missionRepository.findAllById(Mockito.anyIterable())).willReturn(missionsForCells(cellsA));
-        given(gameResultRepository.findByGameId(200L)).willReturn(Optional.empty());
+        given(gameResultParticipantRepository.findByGameIdAndMemberId(200L, 1L))
+                .willReturn(Optional.empty());
 
         // when
         BingoBoardResponse response = bingoReadService.getActiveBoard(1L, 10L);
@@ -247,7 +331,8 @@ class BingoReadServiceTest {
         given(bingoCellRepository.findAllByBoardIdIn(List.of(202L, 201L)))
                 .willReturn(merge(cellsA, cellsB));
         given(missionRepository.findAllById(Mockito.anyIterable())).willReturn(missionsForCells(cellsB));
-        given(gameResultRepository.findByGameId(200L)).willReturn(Optional.empty());
+        given(gameResultParticipantRepository.findByGameIdAndMemberId(200L, 2L))
+                .willReturn(Optional.empty());
 
         // when
         BingoBoardResponse response = bingoReadService.getActiveBoard(2L, 10L);
@@ -287,8 +372,8 @@ class BingoReadServiceTest {
         given(bingoCellRepository.findAllByBoardIdIn(List.of(201L, 202L)))
                 .willReturn(merge(cellsA, cellsB));
         given(missionRepository.findAllById(Mockito.anyIterable())).willReturn(missionsForCells(cellsA));
-        given(gameResultRepository.findByGameId(200L))
-                .willReturn(Optional.of(GameResult.create(200L, 10L, true, 3, 4, 500L)));
+        given(gameResultParticipantRepository.findByGameIdAndMemberId(200L, 1L))
+                .willReturn(Optional.of(GameResultParticipant.create(200L, 1L, 3, 300L, true)));
 
         // when
         BingoBoardResponse response = bingoReadService.getActiveBoard(1L, 10L);
@@ -328,7 +413,7 @@ class BingoReadServiceTest {
     }
 
     private Room battleRoom() {
-        Room room = Room.create(1L, GameMode.BATTLE, 3, 2);
+        Room room = Room.create(1L, "테스트 방", GameMode.BATTLE, 3, 2);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         return room;
@@ -353,14 +438,21 @@ class BingoReadServiceTest {
     }
 
     private BingoBoard activeBoard(Long boardId, Long gameId, int boardSize) {
-        BingoBoard board = BingoBoard.create(gameId, boardSize);
+        BingoBoard board = BingoBoard.create(gameId, boardSize, 10_000);
         ReflectionTestUtils.setField(board, "id", boardId);
+        ReflectionTestUtils.setField(board, "createdAt", LocalDateTime.now().minusDays(3));
         return board;
     }
 
     private Game activeGame(Long gameId, Long roomId) {
         Game game = Game.start(roomId);
         ReflectionTestUtils.setField(game, "id", gameId);
+        return game;
+    }
+
+    private Game activeGameStartedAt(Long gameId, Long roomId, LocalDateTime startedAt) {
+        Game game = activeGame(gameId, roomId);
+        ReflectionTestUtils.setField(game, "startedAt", startedAt);
         return game;
     }
 
@@ -389,14 +481,14 @@ class BingoReadServiceTest {
     }
 
     private Room inProgressRoom(Long hostId, Long roomId, int boardSize) {
-        Room room = Room.create(hostId, GameMode.SINGLE, null, boardSize);
+        Room room = Room.create(hostId, "테스트 방", GameMode.SINGLE, null, 10_000, boardSize);
         ReflectionTestUtils.setField(room, "id", roomId);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         return room;
     }
 
     private Room inProgressCooperateRoom(Long hostId, Long roomId, int boardSize) {
-        Room room = Room.create(hostId, GameMode.COOPERATE, null, boardSize);
+        Room room = Room.create(hostId, "테스트 방", GameMode.COOPERATE, null, 10_000, boardSize);
         ReflectionTestUtils.setField(room, "id", roomId);
         ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
         return room;

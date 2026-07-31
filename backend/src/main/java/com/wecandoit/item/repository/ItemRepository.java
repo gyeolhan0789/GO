@@ -7,7 +7,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ItemRepository extends JpaRepository<Item, Long> {
 
-    List<Item> findAllByCategory(String category);
+    List<Item> findAllByAvailableForSaleTrue();
+
+    List<Item> findAllByCategoryAndAvailableForSaleTrue(String category);
 
     List<Item> findAllByIdInAndCategory(Collection<Long> itemIds, String category);
 }

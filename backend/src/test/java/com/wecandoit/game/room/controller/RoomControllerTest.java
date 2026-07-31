@@ -11,6 +11,7 @@ import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.docu
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
+import static org.springframework.restdocs.request.RequestDocumentation.queryParameters;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.relaxedResponseFields;
@@ -22,6 +23,7 @@ import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.game.controller.request.CreateRoomRequest;
+import com.wecandoit.game.controller.request.UpdateRoomNameRequest;
 import com.wecandoit.game.controller.RoomController;
 import com.wecandoit.game.controller.response.CreateRoomResponse;
 import com.wecandoit.game.controller.response.MyRoomMemberResponse;
@@ -96,14 +98,18 @@ class RoomControllerTest {
     @DisplayName("게임방을 생성하면 생성된 방 ID와 상태를 반환한다")
     void createRoomReturnsCreatedRoom() {
         // given
-        CreateRoomRequest request = new CreateRoomRequest(GameMode.BATTLE, 3, 3);
+        CreateRoomRequest request = new CreateRoomRequest("테스트 방", GameMode.BATTLE, 3, null, 3);
         given(roomCommandService.createRoom(1L, request))
                 .willReturn(new CreateRoomResponse(10L, GameRoomStatus.WAITING));
         given(roomReadService.getRoomDetail(1L, 10L)).willReturn(new RoomDetailResponse(
                 10L,
+                "테스트 방",
                 GameMode.BATTLE,
                 GameRoomStatus.WAITING,
                 3,
+                null,
+                9,
+                0,
                 1L,
                 null,
                 List.of()
@@ -114,8 +120,10 @@ class RoomControllerTest {
                 .contentType(ContentType.JSON)
                 .body("""
                         {
+                          "name": "  테스트 방  ",
                           "mode": "BATTLE",
                           "targetBingoCount": 3,
+                          "targetStepCount": null,
                           "boardSize": 3
                         }
                         """)
@@ -124,20 +132,101 @@ class RoomControllerTest {
                 .then()
                 .statusCode(HttpStatus.OK.value())
                 .body("roomId", equalTo(10))
+                .body("name", equalTo("테스트 방"))
                 .body("status", equalTo("WAITING"))
                 .apply(document("room-create",
                         requestFields(
+                                fieldWithPath("name").description("게임방 이름 (1~20자, 앞뒤 공백 제거)"),
                                 fieldWithPath("mode").description("게임 모드"),
-                                fieldWithPath("targetBingoCount").description("대결 모드 목표 빙고 수 (그 외 null)"),
+                                fieldWithPath("targetBingoCount").description("목표 빙고 수"),
+                                fieldWithPath("targetStepCount").description("싱글·협동 모드 공동 목표 걸음 수 (대결 null)"),
                                 fieldWithPath("boardSize").description("빙고판 크기 (3~5)")
                         ),
                         relaxedResponseFields(
                                 fieldWithPath("roomId").description("생성된 게임방 ID"),
+                                fieldWithPath("name").description("게임방 이름"),
                                 fieldWithPath("status").description("게임방 상태")
                         )
                 ));
         then(roomCommandService).should().createRoom(1L, request);
         then(roomReadService).should().getRoomDetail(1L, 10L);
+    }
+
+    @Test
+    @DisplayName("게임방 이름이 없으면 게임방 생성에 실패한다")
+    void createRoomRejectsMissingName() {
+        // when & then
+        given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                          "mode": "BATTLE",
+                          "targetBingoCount": 3,
+                          "targetStepCount": null,
+                          "boardSize": 3
+                        }
+                        """)
+                .when()
+                .post("/rooms")
+                .then()
+                .statusCode(HttpStatus.BAD_REQUEST.value())
+                .apply(document("room-create-invalid-name",
+                        requestFields(
+                                fieldWithPath("mode").description("게임 모드"),
+                                fieldWithPath("targetBingoCount").description("목표 빙고 수"),
+                                fieldWithPath("targetStepCount").description("공동 목표 걸음 수"),
+                                fieldWithPath("boardSize").description("빙고판 크기")
+                        ),
+                        responseFields(
+                                fieldWithPath("status").description("HTTP 상태 코드"),
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+        then(roomCommandService).should(never()).createRoom(Mockito.anyLong(), Mockito.any());
+    }
+
+    @Test
+    @DisplayName("게임방 이름이 공백이면 게임방 생성에 실패한다")
+    void createRoomRejectsBlankName() {
+        // when & then
+        given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                          "name": "   ",
+                          "mode": "BATTLE",
+                          "targetBingoCount": 3,
+                          "targetStepCount": null,
+                          "boardSize": 3
+                        }
+                        """)
+                .when()
+                .post("/rooms")
+                .then()
+                .statusCode(HttpStatus.BAD_REQUEST.value());
+        then(roomCommandService).should(never()).createRoom(Mockito.anyLong(), Mockito.any());
+    }
+
+    @Test
+    @DisplayName("게임방 이름이 20자를 초과하면 게임방 생성에 실패한다")
+    void createRoomRejectsTooLongName() {
+        // when & then
+        given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                          "name": "123456789012345678901",
+                          "mode": "BATTLE",
+                          "targetBingoCount": 3,
+                          "targetStepCount": null,
+                          "boardSize": 3
+                        }
+                        """)
+                .when()
+                .post("/rooms")
+                .then()
+                .statusCode(HttpStatus.BAD_REQUEST.value());
+        then(roomCommandService).should(never()).createRoom(Mockito.anyLong(), Mockito.any());
     }
 
     @Test
@@ -148,6 +237,7 @@ class RoomControllerTest {
                 .contentType(ContentType.JSON)
                 .body("""
                         {
+                          "name": "테스트 방",
                           "targetBingoCount": 3
                         }
                         """)
@@ -157,7 +247,8 @@ class RoomControllerTest {
                 .statusCode(HttpStatus.BAD_REQUEST.value())
                 .apply(document("room-create-invalid-mode",
                         requestFields(
-                                fieldWithPath("targetBingoCount").description("대결 모드 목표 빙고 수 (그 외 null)")
+                                fieldWithPath("name").description("게임방 이름"),
+                                fieldWithPath("targetBingoCount").description("목표 빙고 수")
                         ),
                         responseFields(
                                 fieldWithPath("status").description("HTTP 상태 코드"),
@@ -175,6 +266,7 @@ class RoomControllerTest {
                 .contentType(ContentType.JSON)
                 .body("""
                         {
+                          "name": "테스트 방",
                           "mode": "SINGLE",
                           "targetBingoCount": 0,
                           "boardSize": 3
@@ -195,6 +287,7 @@ class RoomControllerTest {
                 .contentType(ContentType.JSON)
                 .body("""
                         {
+                          "name": "테스트 방",
                           "mode": "SINGLE",
                           "targetBingoCount": 3,
                           "boardSize": 2
@@ -212,12 +305,16 @@ class RoomControllerTest {
     void getMyRoomsReturnsRooms() {
         // given
         LocalDateTime joinedAt = LocalDateTime.of(2026, 7, 22, 10, 0);
-        given(roomReadService.getMyRooms(1L))
+        given(roomReadService.getMyRooms(1L, null))
                 .willReturn(List.of(new MyRoomResponse(
                         10L,
+                        "테스트 방",
                         GameMode.COOPERATE,
                         GameRoomStatus.WAITING,
-                        null,
+                        3,
+                        10_000,
+                        9,
+                        2,
                         1L,
                         joinedAt,
                         List.of(
@@ -233,9 +330,13 @@ class RoomControllerTest {
                 .then()
                 .statusCode(HttpStatus.OK.value())
                 .body("[0].roomId", equalTo(10))
+                .body("[0].name", equalTo("테스트 방"))
                 .body("[0].mode", equalTo("COOPERATE"))
                 .body("[0].status", equalTo("WAITING"))
-                .body("[0].targetBingoCount", nullValue())
+                .body("[0].targetBingoCount", equalTo(3))
+                .body("[0].targetStepCount", equalTo(10_000))
+                .body("[0].totalMissionCount", equalTo(9))
+                .body("[0].completedMissionCount", equalTo(2))
                 .body("[0].hostId", equalTo(1))
                 .body("[0].joinedAt", equalTo("2026-07-22T10:00:00"))
                 .body("[0].members[0].memberId", equalTo(1))
@@ -245,11 +346,21 @@ class RoomControllerTest {
                 .body("[0].members[1].nickname", equalTo("참여자"))
                 .body("[0].members[1].host", equalTo(false))
                 .apply(document("room-my-list",
+                        queryParameters(
+                                parameterWithName("mode")
+                                        .optional()
+                                        .description("조회할 게임 모드 (SINGLE, COOPERATE, BATTLE). 생략 시 전체")
+                        ),
                         responseFields(
                                 fieldWithPath("[].roomId").description("게임방 ID"),
+                                fieldWithPath("[].name").description("게임방 이름 (기존 방은 null 가능)"),
                                 fieldWithPath("[].mode").description("게임 모드"),
                                 fieldWithPath("[].status").description("게임방 상태"),
-                                fieldWithPath("[].targetBingoCount").description("대결 모드 목표 빙고 수 (그 외 null)"),
+                                fieldWithPath("[].targetBingoCount").description("목표 빙고 수"),
+                                fieldWithPath("[].targetStepCount")
+                                        .description("싱글·협동 모드 공동 목표 걸음 수 (대결 null)"),
+                                fieldWithPath("[].totalMissionCount").description("방 전체 미션 총 개수"),
+                                fieldWithPath("[].completedMissionCount").description("방 전체 완료 미션 수"),
                                 fieldWithPath("[].hostId").description("방장 회원 ID"),
                                 fieldWithPath("[].joinedAt").description("로그인 회원의 게임방 참여 시각"),
                                 fieldWithPath("[].members[].memberId").description("참여자 회원 ID"),
@@ -257,7 +368,24 @@ class RoomControllerTest {
                                 fieldWithPath("[].members[].host").description("방장 여부")
                         )
                 ));
-        then(roomReadService).should().getMyRooms(1L);
+        then(roomReadService).should().getMyRooms(1L, null);
+    }
+
+    @Test
+    @DisplayName("내 게임방 목록을 게임 모드로 필터링한다")
+    void getMyRoomsReturnsRoomsFilteredByMode() {
+        // given
+        given(roomReadService.getMyRooms(1L, GameMode.BATTLE)).willReturn(List.of());
+
+        // when & then
+        given()
+                .queryParam("mode", "BATTLE")
+                .when()
+                .get("/rooms")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("size()", equalTo(0));
+        then(roomReadService).should().getMyRooms(1L, GameMode.BATTLE);
     }
 
     @Test
@@ -266,7 +394,7 @@ class RoomControllerTest {
         // given
         willThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND))
                 .given(roomReadService)
-                .getMyRooms(1L);
+                .getMyRooms(1L, null);
 
         // when & then
         given()
@@ -291,9 +419,13 @@ class RoomControllerTest {
         given(roomReadService.getRoomDetail(1L, 10L))
                 .willReturn(new RoomDetailResponse(
                         10L,
+                        "테스트 방",
                         GameMode.COOPERATE,
                         GameRoomStatus.WAITING,
-                        null,
+                        3,
+                        10_000,
+                        9,
+                        2,
                         1L,
                         startedAt,
                         List.of(new RoomMemberResponse(
@@ -301,7 +433,8 @@ class RoomControllerTest {
                                 "방장",
                                 true,
                                 2,
-                                joinedAt
+                                joinedAt,
+                                null
                         ))
                 ));
 
@@ -312,9 +445,13 @@ class RoomControllerTest {
                 .then()
                 .statusCode(HttpStatus.OK.value())
                 .body("roomId", equalTo(10))
+                .body("name", equalTo("테스트 방"))
                 .body("mode", equalTo("COOPERATE"))
                 .body("status", equalTo("WAITING"))
-                .body("targetBingoCount", nullValue())
+                .body("targetBingoCount", equalTo(3))
+                .body("targetStepCount", equalTo(10_000))
+                .body("totalMissionCount", equalTo(9))
+                .body("completedMissionCount", equalTo(2))
                 .body("hostId", equalTo(1))
                 .body("startedAt", equalTo("2026-07-22T09:50:00"))
                 .body("members[0].memberId", equalTo(1))
@@ -328,9 +465,14 @@ class RoomControllerTest {
                         ),
                         responseFields(
                                 fieldWithPath("roomId").description("게임방 ID"),
+                                fieldWithPath("name").description("게임방 이름 (기존 방은 null 가능)"),
                                 fieldWithPath("mode").description("게임 모드"),
                                 fieldWithPath("status").description("게임방 상태"),
-                                fieldWithPath("targetBingoCount").description("대결 모드 목표 빙고 수 (그 외 null)"),
+                                fieldWithPath("targetBingoCount").description("목표 빙고 수"),
+                                fieldWithPath("targetStepCount")
+                                        .description("싱글·협동 모드 공동 목표 걸음 수 (대결 null)"),
+                                fieldWithPath("totalMissionCount").description("방 전체 미션 총 개수"),
+                                fieldWithPath("completedMissionCount").description("방 전체 완료 미션 수"),
                                 fieldWithPath("hostId").description("방장 회원 ID"),
                                 fieldWithPath("startedAt").description("게임 시작 시각"),
                                 fieldWithPath("members[].memberId").description("참여자 회원 ID"),
@@ -403,7 +545,8 @@ class RoomControllerTest {
                         "방장",
                         true,
                         2,
-                        joinedAt
+                        joinedAt,
+                        null
                 )));
 
         // when & then
@@ -516,9 +659,13 @@ class RoomControllerTest {
         given(roomReadService.getRoomDetail(1L, 10L))
                 .willReturn(new RoomDetailResponse(
                         10L,
+                        "테스트 방",
                         GameMode.BATTLE,
                         GameRoomStatus.IN_PROGRESS,
                         3,
+                        null,
+                        18,
+                        0,
                         1L,
                         startedAt,
                         List.of(
@@ -534,9 +681,13 @@ class RoomControllerTest {
                 .then()
                 .statusCode(HttpStatus.OK.value())
                 .body("roomId", equalTo(10))
+                .body("name", equalTo("테스트 방"))
                 .body("mode", equalTo("BATTLE"))
                 .body("status", equalTo("IN_PROGRESS"))
                 .body("targetBingoCount", equalTo(3))
+                .body("targetStepCount", nullValue())
+                .body("totalMissionCount", equalTo(18))
+                .body("completedMissionCount", equalTo(0))
                 .body("startedAt", equalTo("2026-07-22T09:50:00"))
                 .body("members[0].bingoBoardId", equalTo(201))
                 .body("members[1].bingoBoardId", equalTo(202))
@@ -546,9 +697,14 @@ class RoomControllerTest {
                         ),
                         responseFields(
                                 fieldWithPath("roomId").description("게임방 ID"),
+                                fieldWithPath("name").description("게임방 이름 (기존 방은 null 가능)"),
                                 fieldWithPath("mode").description("게임 모드"),
                                 fieldWithPath("status").description("게임방 상태"),
-                                fieldWithPath("targetBingoCount").description("대결 모드 목표 빙고 수 (그 외 null)"),
+                                fieldWithPath("targetBingoCount").description("목표 빙고 수"),
+                                fieldWithPath("targetStepCount")
+                                        .description("싱글·협동 모드 공동 목표 걸음 수 (대결 null)"),
+                                fieldWithPath("totalMissionCount").description("방 전체 미션 총 개수"),
+                                fieldWithPath("completedMissionCount").description("방 전체 완료 미션 수"),
                                 fieldWithPath("hostId").description("방장 회원 ID"),
                                 fieldWithPath("startedAt").description("게임 시작 시각"),
                                 fieldWithPath("members[].memberId").description("참여자 회원 ID"),
@@ -609,6 +765,105 @@ class RoomControllerTest {
 
         // when & then
         assertStartGameErrorResponse(HttpStatus.CONFLICT, "room-start-insufficient-participants");
+    }
+
+    @Test
+    @DisplayName("방장이 게임방 이름을 변경하면 204 상태를 반환한다")
+    void updateRoomNameReturnsNoContent() {
+        // given
+        UpdateRoomNameRequest request = new UpdateRoomNameRequest("변경된 방");
+
+        // when & then
+        given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                          "name": "  변경된 방  "
+                        }
+                        """)
+                .when()
+                .patch("/rooms/{roomId}", 10L)
+                .then()
+                .statusCode(HttpStatus.NO_CONTENT.value())
+                .apply(document("room-update-name",
+                        pathParameters(
+                                parameterWithName("roomId").description("이름을 변경할 게임방 ID")
+                        ),
+                        requestFields(
+                                fieldWithPath("name").description("변경할 게임방 이름 (1~20자, 앞뒤 공백 제거)")
+                        )
+                ));
+        then(roomCommandService).should().updateRoomName(1L, 10L, request);
+    }
+
+    @Test
+    @DisplayName("게임방 이름이 공백이면 이름 변경에 실패한다")
+    void updateRoomNameRejectsBlankName() {
+        // when & then
+        given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                          "name": "   "
+                        }
+                        """)
+                .when()
+                .patch("/rooms/{roomId}", 10L)
+                .then()
+                .statusCode(HttpStatus.BAD_REQUEST.value());
+        then(roomCommandService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("게임방 이름이 20자를 초과하면 이름 변경에 실패한다")
+    void updateRoomNameRejectsTooLongName() {
+        // when & then
+        given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                          "name": "123456789012345678901"
+                        }
+                        """)
+                .when()
+                .patch("/rooms/{roomId}", 10L)
+                .then()
+                .statusCode(HttpStatus.BAD_REQUEST.value());
+        then(roomCommandService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("방장이 아닌 회원이 게임방 이름을 변경하면 403 상태를 반환한다")
+    void updateRoomNameRejectsNonHost() {
+        // given
+        willThrow(new CustomException(ErrorCode.ROOM_UPDATE_FORBIDDEN))
+                .given(roomCommandService)
+                .updateRoomName(Mockito.eq(1L), Mockito.eq(10L), Mockito.any(UpdateRoomNameRequest.class));
+
+        // when & then
+        given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                          "name": "변경된 방"
+                        }
+                        """)
+                .when()
+                .patch("/rooms/{roomId}", 10L)
+                .then()
+                .statusCode(HttpStatus.FORBIDDEN.value())
+                .apply(document("room-update-name-forbidden",
+                        pathParameters(
+                                parameterWithName("roomId").description("이름을 변경할 게임방 ID")
+                        ),
+                        requestFields(
+                                fieldWithPath("name").description("변경할 게임방 이름")
+                        ),
+                        responseFields(
+                                fieldWithPath("status").description("HTTP 상태 코드"),
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
     }
 
     @Test

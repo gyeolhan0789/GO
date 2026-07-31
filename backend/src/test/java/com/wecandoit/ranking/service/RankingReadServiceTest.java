@@ -9,11 +9,16 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.history.repository.MemberHistoryRepository;
 import com.wecandoit.history.repository.RankedWeeklyRankingSummary;
+import com.wecandoit.item.controller.response.CharacterResponse;
+import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.item.domain.ItemCategory;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.domain.Region;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.ranking.controller.response.RankingResponse;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,6 +38,8 @@ class RankingReadServiceTest {
     private MemberRepository memberRepository;
     @Mock
     private MemberHistoryRepository memberHistoryRepository;
+    @Mock
+    private RankingCharacterReadService rankingCharacterReadService;
     @InjectMocks
     private RankingReadService rankingReadService;
 
@@ -62,6 +69,31 @@ class RankingReadServiceTest {
                 any(),
                 any()
         )).willReturn(Optional.of(summary(4, 4L, "로그인회원", 12_500)));
+        given(rankingCharacterReadService.getCharactersByMemberIds(List.of(3L, 4L)))
+                .willReturn(Map.of(
+                        3L,
+                        new CharacterResponse(
+                                3L,
+                                "회원3",
+                                Gender.FEMALE,
+                                "/uploads/characters/female/default.png",
+                                List.of(new EquippedItemResponse(
+                                        10L,
+                                        100L,
+                                        "빨간 모자",
+                                        ItemCategory.HAT,
+                                        "https://example.com/hat.png"
+                                ))
+                        ),
+                        4L,
+                        new CharacterResponse(
+                                4L,
+                                "로그인회원",
+                                Gender.MALE,
+                                "/uploads/characters/male/default.png",
+                                List.of()
+                        )
+                ));
 
         // when
         RankingResponse response = rankingReadService.getRankings(4L, pageable);
@@ -76,6 +108,11 @@ class RankingReadServiceTest {
                         org.assertj.core.groups.Tuple.tuple(3, 3L),
                         org.assertj.core.groups.Tuple.tuple(4, 4L)
                 );
+        assertThat(response.rankings().content().getFirst().equippedItems()).hasSize(1);
+        assertThat(response.rankings().content().getFirst().gender()).isEqualTo(Gender.FEMALE);
+        assertThat(response.rankings().content().getFirst().defaultImageUrl())
+                .isEqualTo("/uploads/characters/female/default.png");
+        assertThat(response.rankings().content().get(1).equippedItems()).isEmpty();
         assertThat(response.rankings().totalElements()).isEqualTo(5);
         assertThat(response.rankings().totalPages()).isEqualTo(3);
         assertThat(response.rankings().currentPage()).isEqualTo(1);
@@ -109,6 +146,25 @@ class RankingReadServiceTest {
                 any(),
                 any()
         )).willReturn(Optional.of(summary(5, 5L, "로그인회원", 0)));
+        given(rankingCharacterReadService.getCharactersByMemberIds(List.of(1L, 2L)))
+                .willReturn(Map.of(
+                        1L,
+                        new CharacterResponse(
+                                1L,
+                                "회원1",
+                                Gender.MALE,
+                                "/uploads/characters/male/default.png",
+                                List.of()
+                        ),
+                        2L,
+                        new CharacterResponse(
+                                2L,
+                                "회원2",
+                                Gender.FEMALE,
+                                "/uploads/characters/female/default.png",
+                                List.of()
+                        )
+                ));
 
         // when
         RankingResponse response = rankingReadService.getRankings(5L, pageable);

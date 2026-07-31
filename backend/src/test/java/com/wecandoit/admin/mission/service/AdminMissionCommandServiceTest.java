@@ -60,6 +60,27 @@ class AdminMissionCommandServiceTest {
     }
 
     @Test
+    @DisplayName("일반 미션 타입을 저장할 수 있다")
+    void createMissionAcceptsOrdinaryType() {
+        // given
+        CreateMissionRequest request = new CreateMissionRequest(
+                "https://example.com/walk.png",
+                "ORDINARY",
+                "Walk",
+                "Walk outside",
+                null
+        );
+
+        // when
+        adminMissionCommandService.createMission(request);
+
+        // then
+        ArgumentCaptor<Mission> captor = ArgumentCaptor.forClass(Mission.class);
+        then(adminMissionRepository).should().save(captor.capture());
+        assertThat(captor.getValue().getType()).isEqualTo("ORDINARY");
+    }
+
+    @Test
     @DisplayName("지원하지 않는 미션 타입이면 예외가 발생한다")
     void createMissionRejectsUnsupportedType() {
         // given

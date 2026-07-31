@@ -1,5 +1,8 @@
+import type { StyleProp, ViewStyle } from 'react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Ionicons, { type IoniconsIconName } from '@react-native-vector-icons/ionicons';
+import Ionicons, {
+  type IoniconsIconName,
+} from '@react-native-vector-icons/ionicons';
 
 import { colors } from '../../constants/colors';
 import { radius } from '../../constants/radius';
@@ -8,32 +11,48 @@ import { spacing } from '../../constants/spacing';
 import { fontFamily } from '../../constants/typography';
 
 type ButtonVariant = 'primary' | 'secondary';
+type ButtonSize = 'md' | 'lg';
 
 type ButtonProps = {
   label: string;
   onPress: () => void;
   variant?: ButtonVariant;
+  size?: ButtonSize;
   icon?: IoniconsIconName;
   disabled?: boolean;
+  /** label이 진행 상태에 따라 바뀌는 버튼에 고정된 이름을 주기 위한 값. */
+  accessibilityLabel?: string;
+  /** 바깥 래퍼(그림자 박스 포함)에 적용. flex:1 등 배치 제어용. */
+  style?: StyleProp<ViewStyle>;
+};
+
+const HEIGHT_BY_SIZE: Record<ButtonSize, number> = {
+  md: 56,
+  lg: 68,
 };
 
 export function Button({
   label,
   onPress,
   variant = 'primary',
+  size = 'md',
   icon,
   disabled = false,
+  accessibilityLabel,
+  style,
 }: ButtonProps) {
   const isPrimary = variant === 'primary';
 
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, style]}>
       <View style={styles.shadowBox} />
       <Pressable
         onPress={onPress}
         disabled={disabled}
+        accessibilityLabel={accessibilityLabel}
         style={({ pressed }) => [
           styles.base,
+          { height: HEIGHT_BY_SIZE[size] },
           isPrimary ? styles.primary : styles.secondary,
           disabled && styles.disabled,
           pressed && !disabled && styles.pressed,
@@ -76,7 +95,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ink,
   },
   base: {
-    height: 56,
     borderRadius: radius.md,
     borderWidth: 2,
     borderColor: colors.ink,

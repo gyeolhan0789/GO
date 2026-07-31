@@ -40,24 +40,30 @@ public class GameResultParticipant extends BaseEntity {
     @Column(name = "reward_cash", nullable = false)
     private long rewardCash;
 
+    @Column(name = "result")
+    private Boolean result;
+
     private GameResultParticipant(
             Long gameId,
             Long memberId,
             int completedMissionCount,
-            long rewardCash
+            long rewardCash,
+            Boolean result
     ) {
         this.gameId = gameId;
         this.memberId = memberId;
         this.completedMissionCount = completedMissionCount;
         this.rewardCash = rewardCash;
+        this.result = result;
     }
 
     public static GameResultParticipant create(
             Long gameId,
             Long memberId,
             int completedMissionCount,
-            long rewardCash
+            long rewardCash,
+            boolean result
     ) {
-        return new GameResultParticipant(gameId, memberId, completedMissionCount, rewardCash);
+        return new GameResultParticipant(gameId, memberId, completedMissionCount, rewardCash, result);
     }
 }

@@ -30,9 +30,14 @@ type AuthState = {
   status: AuthStatus;
   isAuthenticated: boolean;
   signIn: (accessToken: string, refreshToken: string) => Promise<void>;
+  signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
+
+// 앱을 켠 직후엔 네트워크가 늦게 붙는 경우가 흔하다. 서버에 닿지 못한 것뿐이면
+// 리프레시 토큰이 남아 있으므로 잠깐 뒤 다시 시도한다.
+const RESTORE_RETRY_DELAYS_MS = [500, 2000];
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [isRestoring, setIsRestoring] = useState(true);
@@ -46,18 +51,39 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
     // 액세스 토큰은 메모리에만 있어 재시작하면 없다. Keychain에 refreshToken이
     // 남아 있으면 여기서 재발급되어 로그인 상태가 그대로 이어지고, 없으면
     // 실패하며 로그인 화면으로 간다.
-    refreshAccessToken().finally(() => {
-      if (!cancelled) {
-        setIsRestoring(false);
+    async function restore(attempt: number) {
+      const result = await refreshAccessToken();
+
+      if (cancelled) {
+        return;
       }
-    });
+
+      if (
+        result === 'unavailable' &&
+        attempt < RESTORE_RETRY_DELAYS_MS.length
+      ) {
+        retryTimer = setTimeout(() => {
+          restore(attempt + 1);
+        }, RESTORE_RETRY_DELAYS_MS[attempt]);
+        return;
+      }
+
+      setIsRestoring(false);
+    }
+
+    restore(0);
 
     return () => {
       cancelled = true;
+
+      if (retryTimer !== null) {
+        clearTimeout(retryTimer);
+      }
     };
   }, []);
 
@@ -77,6 +103,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
     [],
   );
 
+  /** 이 기기의 세션을 끝낸다. 서버 로그아웃의 성공 여부와 무관하게 불린다. */
+  const signOut = useCallback(async () => {
+    // 액세스 토큰을 먼저 비우면 남아 있는 리프레시 토큰으로 세션이 되살아날 틈이
+    // 생긴다. 디스크를 먼저 정리한다.
+    await clearRefreshToken();
+    setAccessToken(null);
+  }, []);
+
   const value = useMemo<AuthState>(() => {
     const status: AuthStatus = isRestoring
       ? 'restoring'
@@ -88,8 +122,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
       status,
       isAuthenticated: status === 'authenticated',
       signIn,
+      signOut,
     };
-  }, [accessToken, isRestoring, signIn]);
+  }, [accessToken, isRestoring, signIn, signOut]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

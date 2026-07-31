@@ -17,43 +17,52 @@ headers {
 docs {
   ## 게임 결과 단건 조회
 
-  완료(`COMPLETED`)된 게임방의 결과를 조회한다. 해당 게임방의 참여자만 조회할 수 있다.
+  완료된 최신 Game 회차의 결과를 조회한다. 해당 게임방의 참여자만 조회할 수 있다.
 
   ### 성공 응답 (200 OK)
   ```json
   {
+    "gameId": 100,
     "roomId": 1,
-    "mode": "COOPERATE",
+    "mode": "BATTLE",
     "result": true,
     "boardSize": 3,
     "targetBingoCount": 3,
     "bingoCount": 3,
-    "completedMissionCount": 5,
+    "completedMissionCount": 7,
     "rewardCash": 500,
     "participants": [
       {
         "memberId": 1,
         "nickname": "host",
-        "completedMissionCount": 3,
-        "rewardCash": 500
+        "completedMissionCount": 7,
+        "rewardCash": 500,
+        "result": true
       },
       {
         "memberId": 2,
         "nickname": "participant",
-        "completedMissionCount": 2,
-        "rewardCash": 500
+        "completedMissionCount": 4,
+        "rewardCash": 0,
+        "result": false
       }
     ]
   }
   ```
 
   ### 비즈니스 규칙
-  - `result`는 현재 항상 `true`다(패배·타임아웃 종료 경로가 아직 없어 완료된 게임은 모두 승리로 기록된다).
+  - 최상위 `result`는 해당 Game 회차가 정상적으로 완료됐음을 나타낸다.
+  - 대결 모드의 `participants[].result`는 승자 `true`, 패자 `false`이며 승자에게만 보상이 지급된다.
   - `boardSize`는 N x N 빙고판에서 한 변의 길이 N이다.
-  - 협동 모드는 공동 보드의 `bingoCount`가 `targetBingoCount` 이상이 되면 완료된다.
-  - `completedMissionCount`는 공동 보드에서 승인된 전체 미션 수다.
-  - `participants[].completedMissionCount`는 해당 참여자가 승인받은 미션 수다.
-  - `rewardCash`와 `participants[].rewardCash`는 참여자 1인당 지급된 보상 캐시다.
+  - 싱글·협동 모드는 공용 보드의 모든 칸이 승인되면 완료된다.
+  - 대결 모드는 개인 보드의 `bingoCount`가 `targetBingoCount` 이상이 되면 완료된다.
+  - 싱글 모드의 최상위 `completedMissionCount`는 공용 보드에서 승인된 전체 미션 수다.
+  - 협동 모드의 최상위 `completedMissionCount`는 공동 보드에서 모든 참가자가 승인받은 미션 수의 합이다.
+  - 대결 모드의 최상위 `completedMissionCount`는 승자 개인 보드의 승인 미션 수다.
+  - 모든 모드에서 `participants[].completedMissionCount`는 해당 참가자가 직접 승인받은 미션 수다.
+  - 기존 결과 데이터의 `participants[].result`는 승패 필드 도입 이전 데이터인 경우 `null`일 수 있다.
+  - 싱글·협동 참가자의 `result`는 게임 완료 성공을 의미하는 `true`이며 모든 참가자에게 기존 완료 보상이 지급된다.
+  - Game 완료 후 SINGLE Room은 `COMPLETED`, 참가 인원이 유지된 COOPERATE·BATTLE Room은 `READY`가 되며 결과는 Game 회차 기준으로 조회한다.
   - 목표 빙고 달성 전에는 결과가 생성되지 않으며 `409 GAME_NOT_COMPLETED`를 반환한다.
 
   ### 에러 케이스

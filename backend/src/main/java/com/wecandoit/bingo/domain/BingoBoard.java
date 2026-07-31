@@ -49,6 +49,9 @@ public class BingoBoard extends BaseEntity {
     @Column(name = "board_size", nullable = false)
     private int boardSize;
 
+    @Column(name = "target_step_count")
+    private Integer targetStepCount;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private BingoBoardStatus status;
@@ -56,9 +59,10 @@ public class BingoBoard extends BaseEntity {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
-    private BingoBoard(Long gameId, int boardSize) {
+    private BingoBoard(Long gameId, int boardSize, Integer targetStepCount) {
         this.gameId = gameId;
         this.boardSize = boardSize;
+        this.targetStepCount = targetStepCount;
         this.status = BingoBoardStatus.IN_PROGRESS;
     }
 
@@ -70,7 +74,11 @@ public class BingoBoard extends BaseEntity {
     }
 
     public static BingoBoard create(Long gameId, int boardSize) {
-        return new BingoBoard(gameId, boardSize);
+        return new BingoBoard(gameId, boardSize, null);
+    }
+
+    public static BingoBoard create(Long gameId, int boardSize, Integer targetStepCount) {
+        return new BingoBoard(gameId, boardSize, targetStepCount);
     }
 
     public static BingoBoard createForBattle(Long gameId, RoomMember roomMember, int boardSize) {
@@ -78,11 +86,21 @@ public class BingoBoard extends BaseEntity {
     }
 
     public void expire() {
-        this.status = BingoBoardStatus.EXPIRED;
+        expireAt(LocalDateTime.now());
     }
 
     public void complete() {
-        this.status = BingoBoardStatus.COMPLETED;
-        this.completedAt = LocalDateTime.now();
+        completeAt(LocalDateTime.now());
     }
+
+    public void completeAt(LocalDateTime completedAt) {
+        this.status = BingoBoardStatus.COMPLETED;
+        this.completedAt = completedAt;
+    }
+
+    public void expireAt(LocalDateTime expiredAt) {
+        this.status = BingoBoardStatus.EXPIRED;
+        this.completedAt = expiredAt;
+    }
+
 }

@@ -15,8 +15,6 @@ public interface BingoCellRepository extends JpaRepository<BingoCell, Long> {
 
     List<BingoCell> findAllByBoardIdIn(List<Long> boardIds);
 
-    boolean existsByBoardIdAndCompletedAtIsNull(Long boardId);
-
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from BingoCell c where c.id = :cellId")
     Optional<BingoCell> findByIdForUpdate(@Param("cellId") Long cellId);
