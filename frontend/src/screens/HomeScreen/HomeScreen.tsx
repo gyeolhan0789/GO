@@ -8,6 +8,7 @@ import type { BingoBoardCell } from '../../features/bingo/components/BingoBoard/
 import { useLogoutMutation } from '../../features/auth/hooks/useLogoutMutation';
 import { useMyCashQuery } from '../../features/member/hooks/useMyCashQuery';
 import { useMyCharacterQuery } from '../../features/member/hooks/useMyCharacterQuery';
+import { useMyRoomsQuery } from '../../features/room/hooks/useMyRoomsQuery';
 import {
   isWalkSessionActive,
   startWalkSession,
@@ -71,6 +72,12 @@ export function HomeScreen() {
   const points = cash.data?.cash ?? 0;
   const character = useMyCharacterQuery();
   const characterName = character.data?.nickname ?? '';
+
+  // 진행 중인 솔로 방이 이미 있으면(빙고를 다 못 채웠거나 일주일이 안
+  // 지났으면 방은 그대로 유지된다) 목표를 다시 입력받지 않고 그 방으로
+  // 바로 이어서 들어간다.
+  const mySoloRoomsQuery = useMyRoomsQuery('SINGLE');
+  const activeSoloRoom = mySoloRoomsQuery.data?.[0] ?? null;
 
   // 사용 불가/미허용/조회 실패 시 실측값이 없다는 뜻이므로 가짜 숫자 대신 0을
   // 보여준다.
@@ -142,6 +149,14 @@ export function HomeScreen() {
                 navigation.navigate('WalkSession');
                 return;
               }
+              // 로컬 세션은 끝났어도(예: 산책 종료 후 다시 누름) 서버에 이미
+              // 진행 중인 솔로 방이 있으면 새로 만들지 않고 그 방을 그대로
+              // 이어서 시작한다.
+              if (activeSoloRoom) {
+                startWalkSession(activeSoloRoom.roomId);
+                navigation.navigate('WalkSession');
+                return;
+              }
               setSoloSheetVisible(true);
             }}
             style={styles.startButton}
@@ -164,13 +179,11 @@ export function HomeScreen() {
       <WalkRoomSelectSheet
         visible={isRoomSheetVisible}
         onClose={() => setRoomSheetVisible(false)}
-        onStart={() => {
+        onStart={room => {
           setRoomSheetVisible(false);
           // 이미 진행 중인 세션이 있으면(뒤로가기 후 재진입) 건드리지 않는다.
           // TODO: 실제로는 서버가 내려주는 방의 startedAt을 그대로 쓴다.
-          startWalkSession();
-          // TODO: 선택한 room의 roomId를 파라미터로 넘긴다. 아직 실제 방 목록
-          // API가 없어(mock) 넘길 값이 없다.
+          startWalkSession(Number(room.id));
           navigation.navigate('WalkSession');
         }}
       />
@@ -179,9 +192,15 @@ export function HomeScreen() {
         visible={isSoloSheetVisible}
         nickname={characterName}
         onClose={() => setSoloSheetVisible(false)}
-        onCreated={() => {
+        onCreated={roomId => {
           setSoloSheetVisible(false);
-          // TODO: 산책 진행 화면으로 이동. 화면이 아직 없어 생성만 반영하고 닫는다.
+          // 방금 만든 방을 다음번 "혼자하기"에서 바로 알아보도록 목록을 새로
+          // 받아온다(첫 생성 전에는 활성 솔로 방이 없어 목록이 비어 있었다).
+          mySoloRoomsQuery.refetch();
+          // 서버가 이미 방을 시작 상태로 만들어 반환하므로, 로컬 세션도 바로 시작
+          // 상태로 맞춘다(같이하기 쪽과 동일한 흐름).
+          startWalkSession(roomId);
+          navigation.navigate('WalkSession');
         }}
       />
     </Screen>

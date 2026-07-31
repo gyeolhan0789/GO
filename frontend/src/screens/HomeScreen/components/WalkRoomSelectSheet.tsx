@@ -1,38 +1,14 @@
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
+import { useMyRoomsQuery } from '../../../features/room/hooks/useMyRoomsQuery';
 import { BottomSheet } from '../../../shared/components/BottomSheet/BottomSheet';
 import { Button } from '../../../shared/components/Button/Button';
+import { colors } from '../../../shared/constants/colors';
 import { spacing } from '../../../shared/constants/spacing';
+import { fontFamily } from '../../../shared/constants/typography';
 import type { WalkRoomOption } from '../types';
 import { WalkRoomOptionRow } from './WalkRoomOptionRow';
-
-// TODO: 실제 참여 중인 산책방 API 연동 전까지의 임시 목업 데이터.
-const MOCK_WALK_ROOMS: WalkRoomOption[] = [
-  {
-    id: 'solo',
-    name: '혼자 걷기',
-    mode: 'solo',
-    bingoCompleted: 4,
-    bingoTotal: 9,
-  },
-  {
-    id: 'weekend-walkers-1',
-    name: '주말 산책러들',
-    mode: 'group',
-    bingoCompleted: 4,
-    bingoTotal: 9,
-    memberCount: 4,
-  },
-  {
-    id: 'weekend-walkers-2',
-    name: '주말 산책러들',
-    mode: 'group',
-    bingoCompleted: 4,
-    bingoTotal: 9,
-    memberCount: 4,
-  },
-];
 
 type WalkRoomSelectSheetProps = {
   visible: boolean;
@@ -45,9 +21,25 @@ export function WalkRoomSelectSheet({
   onClose,
   onStart,
 }: WalkRoomSelectSheetProps) {
-  const [selectedId, setSelectedId] = useState(MOCK_WALK_ROOMS[1].id);
-  const selectedRoom =
-    MOCK_WALK_ROOMS.find(room => room.id === selectedId) ?? MOCK_WALK_ROOMS[0];
+  const roomsQuery = useMyRoomsQuery('COOPERATE');
+  const rooms: WalkRoomOption[] = (roomsQuery.data ?? []).map(room => ({
+    id: String(room.roomId),
+    name: room.name,
+    mode: 'group',
+    bingoCompleted: room.completedMissionCount,
+    bingoTotal: room.totalMissionCount,
+    memberCount: room.members.length,
+  }));
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // 목록이 로드되면(또는 시트를 다시 열면) 첫 번째 방을 기본 선택한다.
+  useEffect(() => {
+    if (visible && rooms.length > 0) {
+      setSelectedId(rooms[0].id);
+    }
+  }, [visible, roomsQuery.data]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const selectedRoom = rooms.find(room => room.id === selectedId) ?? null;
 
   return (
     <BottomSheet
@@ -55,17 +47,31 @@ export function WalkRoomSelectSheet({
       onClose={onClose}
       title="산책방을 선택하세요"
     >
-      <View style={styles.list}>
-        {MOCK_WALK_ROOMS.map(room => (
-          <WalkRoomOptionRow
-            key={room.id}
-            option={room}
-            selected={room.id === selectedId}
-            onPress={() => setSelectedId(room.id)}
-          />
-        ))}
-      </View>
-      <Button label="시작하기" onPress={() => onStart(selectedRoom)} />
+      {roomsQuery.isLoading ? (
+        <Text style={styles.statusText}>불러오는 중...</Text>
+      ) : roomsQuery.isError ? (
+        <Text style={styles.statusText}>산책방 목록을 불러오지 못했어요.</Text>
+      ) : rooms.length === 0 ? (
+        <Text style={styles.statusText}>
+          참여 중인 산책방이 없어요. 동행 탭에서 만들어보세요.
+        </Text>
+      ) : (
+        <View style={styles.list}>
+          {rooms.map(room => (
+            <WalkRoomOptionRow
+              key={room.id}
+              option={room}
+              selected={room.id === selectedId}
+              onPress={() => setSelectedId(room.id)}
+            />
+          ))}
+        </View>
+      )}
+      <Button
+        label="시작하기"
+        disabled={!selectedRoom}
+        onPress={() => selectedRoom && onStart(selectedRoom)}
+      />
     </BottomSheet>
   );
 }
@@ -73,5 +79,13 @@ export function WalkRoomSelectSheet({
 const styles = StyleSheet.create({
   list: {
     marginBottom: spacing.md,
+  },
+  statusText: {
+    fontFamily: fontFamily.regular,
+    fontSize: 14,
+    color: colors.ink,
+    opacity: 0.6,
+    textAlign: 'center',
+    marginVertical: spacing.xl,
   },
 });

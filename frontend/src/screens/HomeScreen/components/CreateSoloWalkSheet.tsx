@@ -25,7 +25,7 @@ const DEFAULT_TARGET_BINGO_COUNT = 1;
 type CreateSoloWalkSheetProps = {
   visible: boolean;
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (roomId: number) => void;
   /** 게임방명으로 그대로 보낸다. */
   nickname: string;
 };
@@ -50,14 +50,14 @@ export function CreateSoloWalkSheet({
     try {
       // SINGLE 모드는 서버가 알아서 처리한다: 이미 진행 중인 솔로 방이 있으면
       // 그 방을 그대로 반환하고, 없으면 새로 만들어 바로 시작한다.
-      await createRoomMutation.mutateAsync({
+      const room = await createRoomMutation.mutateAsync({
         name: nickname,
         mode: 'SINGLE',
         boardSize: Number(boardSize) as 3 | 4 | 5,
         targetBingoCount: DEFAULT_TARGET_BINGO_COUNT,
         targetStepCount,
       });
-      onCreated();
+      onCreated(room.roomId);
     } catch (error) {
       Alert.alert(
         '산책 시작 실패',

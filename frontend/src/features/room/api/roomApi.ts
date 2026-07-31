@@ -14,14 +14,20 @@ export type RoomMemberResponse = {
   memberId: number;
   nickname: string;
   host: boolean;
+  completedMissionCount: number;
+  joinedAt: string;
+  bingoBoardId: number | null;
 };
 
 export type RoomDetailResponse = {
   roomId: number;
+  name: string;
   mode: GameMode;
   status: GameRoomStatus;
   targetBingoCount: number | null;
   targetStepCount: number | null;
+  totalMissionCount: number;
+  completedMissionCount: number;
   hostId: number;
   startedAt: string | null;
   members: RoomMemberResponse[];
@@ -42,6 +48,10 @@ export function createRoom(body: CreateRoomRequest) {
   return apiClient.post<RoomDetailResponse>('/rooms', body);
 }
 
+export function getRoomDetail(roomId: number) {
+  return apiClient.get<RoomDetailResponse>(`/rooms/${roomId}`);
+}
+
 export type RoomInviteStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELED';
 
 export type RoomInviteResponse = {
@@ -54,4 +64,29 @@ export function inviteToRoom(roomId: number, inviteeId: number) {
   return apiClient.post<RoomInviteResponse>(`/rooms/${roomId}/requests`, {
     inviteeId,
   });
+}
+
+export type MyRoomMemberResponse = {
+  memberId: number;
+  nickname: string;
+  host: boolean;
+};
+
+export type MyRoomResponse = {
+  roomId: number;
+  name: string;
+  mode: GameMode;
+  status: GameRoomStatus;
+  targetBingoCount: number | null;
+  targetStepCount: number | null;
+  totalMissionCount: number;
+  completedMissionCount: number;
+  hostId: number;
+  joinedAt: string;
+  members: MyRoomMemberResponse[];
+};
+
+export function getMyRooms(mode?: GameMode) {
+  const query = mode ? `?mode=${mode}` : '';
+  return apiClient.get<MyRoomResponse[]>(`/rooms${query}`);
 }
