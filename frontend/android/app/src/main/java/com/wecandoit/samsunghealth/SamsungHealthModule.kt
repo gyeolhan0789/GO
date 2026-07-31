@@ -1,4 +1,4 @@
-package com.frontend.samsunghealth
+package com.wecandoit.samsunghealth
 
 import android.app.Activity
 import androidx.core.content.ContextCompat

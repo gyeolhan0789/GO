@@ -17,7 +17,7 @@ const ACCOUNT = 'refreshToken';
 
 // 다른 항목과 섞이지 않도록 이 토큰 전용 네임스페이스를 준다.
 const SERVICE_OPTIONS: Keychain.BaseOptions = {
-  service: 'com.frontend.auth.refresh',
+  service: 'com.wecandoit.auth.refresh',
 };
 
 const SET_OPTIONS: Keychain.SetOptions = {
