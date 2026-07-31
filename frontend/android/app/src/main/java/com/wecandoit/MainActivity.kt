@@ -1,4 +1,4 @@
-package com.frontend
+package com.wecandoit
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
