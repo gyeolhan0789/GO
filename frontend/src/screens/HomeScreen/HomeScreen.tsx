@@ -4,7 +4,10 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
-import type { BingoBoardCell } from '../../features/bingo/components/BingoBoard/BingoBoard';
+import type {
+  BingoBoardCell,
+  BingoBoardSize,
+} from '../../features/bingo/components/BingoBoard/BingoBoard';
 import { BoardRenewalSheet } from '../../features/bingo/components/BoardRenewalSheet/BoardRenewalSheet';
 import { useActiveBingoBoardQuery } from '../../features/bingo/hooks/useActiveBingoBoardQuery';
 import { useMyCashQuery } from '../../features/member/hooks/useMyCashQuery';
@@ -42,17 +45,7 @@ const MOCK_HOME_SUMMARY = {
   canRewardHint: '1,000보 더 걸으면 캔 1개를 더 모아요',
 };
 
-// TODO: 실제 이번 주 빙고판 데이터 연동 전까지의 임시 목업 데이터(5x5).
-const MOCK_BINGO_COMPLETED: boolean[] = [
-  true, true, false, false, false,
-  true, false, false, false, false,
-  false, false, true, false, false,
-  false, false, false, false, false,
-  false, false, false, false, false,
-];
-const MOCK_BINGO_CELLS: BingoBoardCell[] = MOCK_BINGO_COMPLETED.map(
-  (completed, index) => ({ id: String(index), completed }),
-);
+const DEFAULT_BINGO_SIZE: BingoBoardSize = 5;
 
 function formatElapsed(totalSeconds: number) {
   const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
@@ -102,6 +95,19 @@ export function HomeScreen() {
         }
       : undefined;
 
+  // 진행 중인 솔로 방이 없거나 아직 안 불러와졌으면 빈 판을 보여준다.
+  const bingoSize =
+    (activeSoloBoardQuery.data?.boardSize as BingoBoardSize | undefined) ??
+    DEFAULT_BINGO_SIZE;
+  const bingoCells: BingoBoardCell[] = [
+    ...(activeSoloBoardQuery.data?.cells ?? []),
+  ]
+    .sort((a, b) => a.row - b.row || a.col - b.col)
+    .map(cell => ({
+      id: String(cell.cellId),
+      completed: cell.verificationStatus === 'APPROVED',
+    }));
+
   // 사용 불가/미허용/조회 실패 시 실측값이 없다는 뜻이므로 가짜 숫자 대신 0을
   // 보여준다.
   const health = useSamsungHealthToday();
@@ -131,8 +137,8 @@ export function HomeScreen() {
           distanceKm={todayDistanceKm}
           calories={todayCalories}
           rewardHint={summary.canRewardHint}
-          bingoSize={5}
-          bingoCells={MOCK_BINGO_CELLS}
+          bingoSize={bingoSize}
+          bingoCells={bingoCells}
           isWalking={walkSession.isActive}
           walkElapsedLabel={formatElapsed(walkSession.elapsedSeconds)}
           onPressWalkBadge={() => navigation.navigate('WalkSession')}
