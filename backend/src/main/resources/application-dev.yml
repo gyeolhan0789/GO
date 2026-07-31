@@ -6,10 +6,13 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+    defer-datasource-initialization: true
     show-sql: false
   sql:
     init:
       mode: never
+      continue-on-error: false
+      data-locations: classpath:db/dev/data.sql
   data:
     redis:
       host: localhost
