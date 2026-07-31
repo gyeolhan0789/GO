@@ -1,8 +1,9 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { colors } from '../../../shared/constants/colors';
 import { spacing } from '../../../shared/constants/spacing';
-import { fontFamily } from '../../../shared/constants/typography';
+import { fontFamily, lineHeights } from '../../../shared/constants/typography';
 import { StepsProgressBar } from './StepsProgressBar';
 
 type StepsSummaryProps = {
@@ -19,17 +20,17 @@ export function StepsSummary({ steps, goalSteps }: StepsSummaryProps) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>오늘 걸음</Text>
+      <AppText style={styles.label}>오늘 걸음</AppText>
       <View style={styles.valueRow}>
-        <Text style={styles.value}>{formatWithComma(steps)}</Text>
-        <Text style={styles.unit}>보</Text>
+        <AppText style={styles.value}>{formatWithComma(steps)}</AppText>
+        <AppText style={styles.unit}>보</AppText>
       </View>
       <View style={styles.progressBarWrapper}>
         <StepsProgressBar percent={percent} />
       </View>
-      <Text style={styles.goal}>
+      <AppText style={styles.goal}>
         목표 {formatWithComma(goalSteps)}보 · {percent}%
-      </Text>
+      </AppText>
     </View>
   );
 }
@@ -42,6 +43,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: fontFamily.regular,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
     opacity: 0.6,
   },
@@ -54,11 +56,13 @@ const styles = StyleSheet.create({
   value: {
     fontFamily: fontFamily.bold,
     fontSize: 30,
+    lineHeight: lineHeights[30],
     color: colors.ink,
   },
   unit: {
     fontFamily: fontFamily.bold,
     fontSize: 15,
+    lineHeight: lineHeights[15],
     color: colors.ink,
     marginBottom: 3,
   },
@@ -71,6 +75,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     fontFamily: fontFamily.bold,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.successText,
   },
 });

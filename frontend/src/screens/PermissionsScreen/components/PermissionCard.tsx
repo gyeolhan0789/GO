@@ -1,9 +1,12 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Ionicons, {
   type IoniconsIconName,
 } from '@react-native-vector-icons/ionicons';
 
 import type { PermissionResult } from '../../../shared/lib/permissions';
+import { AppText } from '../../../shared/components/AppText/AppText';
+import { colors } from '../../../shared/constants/colors';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
 
 type PermissionCardProps = {
   icon: IoniconsIconName;
@@ -12,9 +15,9 @@ type PermissionCardProps = {
   status?: PermissionResult;
 };
 
-const GREEN = '#2C6A47';
-const GRAY = '#9CA3AF';
-const RED = '#DC2626';
+const GREEN = colors.primaryDark;
+const GRAY = colors.muted;
+const RED = colors.danger;
 
 export function PermissionCard({
   icon,
@@ -28,8 +31,8 @@ export function PermissionCard({
         <Ionicons name={icon} size={24} color={GREEN} />
       </View>
       <View style={styles.textBox}>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.description}>{description}</Text>
+        <AppText style={styles.title}>{title}</AppText>
+        <AppText style={styles.description}>{description}</AppText>
       </View>
       <View style={styles.statusBox}>
         {status ? <StatusMark status={status} /> : null}
@@ -57,15 +60,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#ffffff',
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surface,
     marginBottom: 12,
   },
   iconBox: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: '#E8F5E9',
+    backgroundColor: colors.successBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -80,16 +83,16 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   title: {
-    fontFamily: 'NotoSansKR-Bold',
+    fontFamily: bodyFont.bold,
     fontSize: 16,
-    lineHeight: 22,
-    color: '#111827',
+    lineHeight: lineHeights[16],
+    color: colors.ink,
   },
   description: {
-    fontFamily: 'NotoSansKR-Regular',
+    fontFamily: bodyFont.regular,
     fontSize: 12,
     lineHeight: 18,
-    color: '#6B7280',
+    color: colors.mutedStrong,
     marginTop: 2,
   },
 });

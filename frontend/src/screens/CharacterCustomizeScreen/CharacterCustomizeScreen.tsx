@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 
 import { CharacterPreview } from '../../features/member/components/CharacterPreview';
 import type { ItemCategory } from '../../features/member/api/memberApi';
+import { AppText } from '../../shared/components/AppText/AppText';
 import { ITEM_CATEGORIES } from '../../features/member/constants/itemCategories';
 import type { CharacterItem } from '../../features/member/model/character';
 import { useMyCharacterQuery } from '../../features/member/hooks/useMyCharacterQuery';
@@ -26,7 +27,7 @@ import { Toast } from '../../shared/components/Toast/Toast';
 import { colors } from '../../shared/constants/colors';
 import { spacing } from '../../shared/constants/spacing';
 import { textStyles } from '../../shared/constants/typography';
-import { ItemCategoryTabs } from './components/ItemCategoryTabs';
+import { CategoryTabs } from '../../features/member/components/CategoryTabs';
 import { OwnedItemCard } from './components/OwnedItemCard';
 import { UndressButton } from './components/UndressButton';
 
@@ -112,20 +113,20 @@ export function CharacterCustomizeScreen() {
               onPress={() => setDraft({})}
               disabled={!hasEquippedItem(equipped)}
             />
-            <ItemCategoryTabs value={category} onChange={setCategory} />
+            <CategoryTabs value={category} onChange={setCategory} />
             {errorMessage ? (
-              <Text style={styles.errorText} accessibilityLiveRegion="polite">
+              <AppText style={styles.errorText} accessibilityLiveRegion="polite">
                 {errorMessage}
-              </Text>
+              </AppText>
             ) : null}
           </View>
         }
         ListEmptyComponent={
-          <Text style={styles.emptyText}>
+          <AppText style={styles.emptyText}>
             {myItems.isPending
               ? '보유 아이템을 불러오는 중이에요.'
               : '이 카테고리에 보유한 아이템이 없어요. 상점에서 먼저 구매해 주세요.'}
-          </Text>
+          </AppText>
         }
         renderItem={({ item }) =>
           item ? (

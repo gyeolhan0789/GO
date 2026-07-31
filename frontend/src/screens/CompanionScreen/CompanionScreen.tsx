@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, View } from 'react-native';
 
 import type {
   FriendResponse,
@@ -10,7 +10,9 @@ import { useDeleteFriendMutation } from '../../features/friend/hooks/useDeleteFr
 import { useFriendsQuery } from '../../features/friend/hooks/useFriendsQuery';
 import { useReceivedRequestsQuery } from '../../features/friend/hooks/useReceivedRequestsQuery';
 import { useRejectFriendRequestMutation } from '../../features/friend/hooks/useRejectFriendRequestMutation';
+import { AppText } from '../../shared/components/AppText/AppText';
 import { Fab } from '../../shared/components/Fab/Fab';
+import { Header } from '../../shared/components/Header/Header';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { SegmentedControl } from '../../shared/components/SegmentedControl/SegmentedControl';
 import { Toast } from '../../shared/components/Toast/Toast';
@@ -22,6 +24,7 @@ import { FriendCard } from './components/FriendCard';
 import { ReceivedRequestRow } from './components/ReceivedRequestRow';
 import { WalkRoomCard } from './components/WalkRoomCard';
 import type { MyWalkRoom } from './types';
+import { lineHeights } from '../../shared/constants/typography';
 
 type CompanionTab = 'walkRooms' | 'friends';
 
@@ -204,7 +207,10 @@ export function CompanionScreen() {
   return (
     <Screen>
       <View style={styles.content}>
-        <Text style={styles.pageTitle}>동행</Text>
+        <Header
+          title="동행"
+          subtitle="친구와 산책방을 만들어 함께 걸어보세요"
+        />
         <SegmentedControl
           options={[
             { label: '내 산책방', value: 'walkRooms' },
@@ -220,9 +226,9 @@ export function CompanionScreen() {
             data={MOCK_WALK_ROOMS}
             keyExtractor={room => room.id}
             ListHeaderComponent={
-              <Text style={styles.countLabel}>
+              <AppText style={styles.countLabel}>
                 참여 중인 산책방 {MOCK_WALK_ROOMS.length}
-              </Text>
+              </AppText>
             }
             renderItem={({ item }) => (
               <WalkRoomCard room={item} onPress={() => {}} />
@@ -232,9 +238,9 @@ export function CompanionScreen() {
             showsVerticalScrollIndicator={false}
           />
         ) : friendsQuery.isLoading ? (
-          <Text style={styles.statusText}>불러오는 중...</Text>
+          <AppText style={styles.statusText}>불러오는 중...</AppText>
         ) : friendsQuery.isError ? (
-          <Text style={styles.statusText}>친구 목록을 불러오지 못했어요.</Text>
+          <AppText style={styles.statusText}>친구 목록을 불러오지 못했어요.</AppText>
         ) : (
           <FlatList
             data={friends}
@@ -243,9 +249,9 @@ export function CompanionScreen() {
               <>
                 {receivedRequests.length > 0 ? (
                   <View style={styles.receivedRequests}>
-                    <Text style={styles.countLabel}>
+                    <AppText style={styles.countLabel}>
                       받은 친구 요청 {receivedRequests.length}
-                    </Text>
+                    </AppText>
                     {receivedRequests.map(request => (
                       <ReceivedRequestRow
                         key={request.requestId}
@@ -257,7 +263,7 @@ export function CompanionScreen() {
                     ))}
                   </View>
                 ) : null}
-                <Text style={styles.countLabel}>내 친구 {friends.length}</Text>
+                <AppText style={styles.countLabel}>내 친구 {friends.length}</AppText>
               </>
             }
             renderItem={({ item }) => (
@@ -316,14 +322,10 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     gap: spacing.lg,
   },
-  pageTitle: {
-    fontFamily: 'BMDOHYEON',
-    fontSize: 28,
-    color: colors.ink,
-  },
   countLabel: {
     fontFamily: 'BMDOHYEON',
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
   },
   receivedRequests: {
@@ -333,6 +335,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontFamily: 'BMDOHYEON',
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
     opacity: 0.6,
     textAlign: 'center',

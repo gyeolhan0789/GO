@@ -11,6 +11,8 @@ import {
   Svg,
 } from 'react-native-svg';
 
+import { colors } from '../../../shared/constants/colors';
+
 // 캐릭터를 세워둘 산책길 배경. 사진이 아니라 도형이라 어떤 크기로 늘려도
 // 흐려지지 않고, 캐릭터/아이템 이미지만 서버에서 받아 위에 얹으면 된다.
 const SCENE_WIDTH = 320;
@@ -25,8 +27,10 @@ const TRAIL = '#EEF7E8';
 const SUN = '#FCEFB4';
 const LEAF = '#A8D69A';
 const TRUNK = '#A9825C';
-const TREE_DARK = '#7FC46E';
-const TREE_LIGHT = '#9BD68C';
+// 나무는 상점 카드/버튼과 같은 초록을 쓴다. 나머지 하늘·언덕 색은 이 장면
+// 전용 팔레트라 토큰으로 올리지 않는다.
+const TREE_DARK = colors.primarySoft;
+const TREE_LIGHT = colors.primarySoftLight;
 
 type TreeProps = {
   x: number;

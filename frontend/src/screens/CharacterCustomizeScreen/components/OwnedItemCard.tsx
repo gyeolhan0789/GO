@@ -1,11 +1,14 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { ItemThumbnail } from '../../../features/member/components/ItemThumbnail';
 import type { CharacterItem } from '../../../features/member/model/character';
+import { AppText } from '../../../shared/components/AppText/AppText';
+import { Badge } from '../../../shared/components/Badge/Badge';
+import { Card } from '../../../shared/components/Card/Card';
 import { colors } from '../../../shared/constants/colors';
-import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
-import { fontFamily } from '../../../shared/constants/typography';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
 
 type OwnedItemCardProps = {
   item: CharacterItem;
@@ -14,9 +17,14 @@ type OwnedItemCardProps = {
   onToggle: () => void;
 };
 
-const IMAGE_SIZE = 64;
 const FALLBACK_ICON_SIZE = 28;
 
+/**
+ * 보유 아이템 카드. 상점의 아이템 카드(ShopItemCard)와 같은 겉모습을 쓴다 —
+ * 두 화면이 같은 아이템을 다른 모양으로 그리면 같은 물건으로 안 보인다.
+ * 차이는 하단 가격 버튼이 없다는 것뿐이고, 착용 여부는 상점과 같은 배지로
+ * 알린다.
+ */
 export function OwnedItemCard({
   item,
   isEquipped,
@@ -25,78 +33,78 @@ export function OwnedItemCard({
   return (
     <Pressable
       onPress={onToggle}
-      style={({ pressed }) => [
-        styles.card,
-        isEquipped && styles.cardEquipped,
-        pressed && styles.pressed,
-      ]}
+      style={({ pressed }) => [styles.pressable, pressed && styles.pressed]}
       accessibilityRole="button"
       accessibilityLabel={`${item.name} ${isEquipped ? '벗기' : '착용하기'}`}
       accessibilityState={{ selected: isEquipped }}
     >
-      <View style={styles.imageBox}>
-        {item.image ? (
-          <Image
-            source={item.image}
-            style={styles.image}
-            resizeMode="contain"
-            accessibilityIgnoresInvertColors
-          />
-        ) : (
-          <Ionicons
-            name="image-outline"
-            size={FALLBACK_ICON_SIZE}
-            color={colors.muted}
-          />
-        )}
-      </View>
+      <Card style={styles.card} shadow={false}>
+        {isEquipped ? (
+          <View style={styles.badgeSlot}>
+            <Badge label="착용중" />
+          </View>
+        ) : null}
 
-      <Text style={styles.name} numberOfLines={1}>
-        {item.name}
-      </Text>
+        <View style={styles.imageBox}>
+          {item.image ? (
+            <ItemThumbnail
+              source={item.image}
+              category={item.category}
+              style={styles.image}
+            />
+          ) : (
+            <Ionicons
+              name="image-outline"
+              size={FALLBACK_ICON_SIZE}
+              color={colors.muted}
+            />
+          )}
+        </View>
 
-      {isEquipped ? <Text style={styles.equippedLabel}>착용중</Text> : null}
+        <AppText style={styles.name} numberOfLines={1}>
+          {item.name}
+        </AppText>
+      </Card>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
+  pressable: {
     flex: 1,
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.sm,
-    borderWidth: 2,
-    borderColor: colors.neutralBg,
-    backgroundColor: colors.surface,
-  },
-  cardEquipped: {
-    borderColor: colors.primarySoft,
-    backgroundColor: colors.successBg,
   },
   pressed: {
     opacity: 0.85,
   },
+  card: {
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.sm,
+  },
+  badgeSlot: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    zIndex: 1,
+  },
   imageBox: {
-    width: IMAGE_SIZE,
-    height: IMAGE_SIZE,
+    width: '100%',
+    aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: spacing.xs,
   },
   image: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
     width: '100%',
     height: '100%',
   },
   name: {
-    fontFamily: fontFamily.regular,
-    fontSize: 12,
+    fontFamily: bodyFont.bold,
+    fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
-    paddingHorizontal: spacing.xs,
-  },
-  equippedLabel: {
-    fontFamily: fontFamily.bold,
-    fontSize: 11,
-    color: colors.successText,
   },
 });

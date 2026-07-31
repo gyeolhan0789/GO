@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Pressable, ScrollView, StyleSheet } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { BottomSheet } from '../../../shared/components/BottomSheet/BottomSheet';
 import { colors } from '../../../shared/constants/colors';
 import { spacing } from '../../../shared/constants/spacing';
-import { textStyles } from '../../../shared/constants/typography';
+import { bodyFont, lineHeights, textStyles } from '../../../shared/constants/typography';
 import { REGIONS } from '../constants/regions';
 import type { Region } from '../constants/regions';
 
@@ -16,10 +17,10 @@ type RegionDropdownProps = {
   placeholder?: string;
 };
 
-const BORDER_COLOR = '#D1D5DB';
-const ERROR_COLOR = '#DC2626';
-const PLACEHOLDER_COLOR = '#9CA3AF';
-const TEXT_COLOR = '#111827';
+const BORDER_COLOR = colors.border;
+const ERROR_COLOR = colors.danger;
+const PLACEHOLDER_COLOR = colors.muted;
+const TEXT_COLOR = colors.ink;
 
 const FIELD_HEIGHT = 48;
 const LIST_MAX_HEIGHT = 360;
@@ -46,11 +47,11 @@ export function RegionDropdown({
         }
         accessibilityState={{ expanded: open }}
       >
-        <Text
+        <AppText
           style={[styles.fieldText, selectedLabel ? null : styles.placeholder]}
         >
           {selectedLabel ?? placeholder}
-        </Text>
+        </AppText>
         <Ionicons name="chevron-down" size={20} color={colors.muted} />
       </Pressable>
 
@@ -75,14 +76,14 @@ export function RegionDropdown({
                 accessibilityLabel={label}
                 accessibilityState={{ selected: isSelected }}
               >
-                <Text
+                <AppText
                   style={[
                     textStyles.body,
                     isSelected ? styles.optionTextSelected : styles.optionText,
                   ]}
                 >
                   {label}
-                </Text>
+                </AppText>
                 {isSelected ? (
                   <Ionicons name="checkmark" size={20} color={colors.primary} />
                 ) : null}
@@ -110,7 +111,9 @@ const styles = StyleSheet.create({
     borderColor: ERROR_COLOR,
   },
   fieldText: {
+    fontFamily: bodyFont.regular,
     fontSize: 16,
+    lineHeight: lineHeights[16],
     color: TEXT_COLOR,
   },
   placeholder: {

@@ -1,12 +1,14 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { WalkResultBadge } from '../../../features/history/components/WalkResultBadge/WalkResultBadge';
 import { formatWalkDayRange } from '../../../features/history/model/format';
 import { GAME_MODE_LABEL } from '../../../features/history/model/gameResult';
 import type { WalkDetail } from '../../../features/history/types';
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { Card } from '../../../shared/components/Card/Card';
 import { colors } from '../../../shared/constants/colors';
 import { spacing } from '../../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
 
 type WalkSummaryCardProps = {
   walk: WalkDetail;
@@ -20,17 +22,17 @@ export function WalkSummaryCard({ walk }: WalkSummaryCardProps) {
   return (
     <Card>
       <View style={styles.titleRow}>
-        <Text style={styles.title} numberOfLines={2}>
+        <AppText style={styles.title} numberOfLines={2}>
           {walk.title}
-        </Text>
+        </AppText>
         <WalkResultBadge mode={walk.mode} isWin={walk.isWin} />
       </View>
-      <Text style={styles.dayRange}>
+      <AppText style={styles.dayRange}>
         {`${GAME_MODE_LABEL[walk.mode]} · ${formatWalkDayRange(
           walk.startedAt,
           walk.completedAt,
         )}`}
-      </Text>
+      </AppText>
     </Card>
   );
 }
@@ -45,13 +47,15 @@ const styles = StyleSheet.create({
   title: {
     // 배지를 밀어내지 않게 긴 방 이름은 제목 쪽에서 줄바꿈한다.
     flexShrink: 1,
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 16,
+    lineHeight: lineHeights[16],
     color: colors.ink,
   },
   dayRange: {
-    fontFamily: 'NotoSansKR-Medium',
+    fontFamily: bodyFont.regular,
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.ink,
     opacity: 0.5,
     marginTop: spacing.xs,
