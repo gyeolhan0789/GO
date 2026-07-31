@@ -67,8 +67,15 @@ pipeline {
             steps {
                 sh '''
                 docker ps
-                STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 $HEALTH_CHECK_URL || echo "000")
-                echo "Health check status: $STATUS"
+                STATUS=000
+                for i in $(seq 1 15); do
+                  STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 $HEALTH_CHECK_URL || echo "000")
+                  echo "Health check attempt $i status: $STATUS"
+                  if [ "$STATUS" -lt 500 ] && [ "$STATUS" != "000" ]; then
+                    break
+                  fi
+                  sleep 2
+                done
                 if [ "$STATUS" -ge 500 ] || [ "$STATUS" = "000" ]; then
                   echo "Health check failed with status $STATUS"
                   exit 1
