@@ -6,6 +6,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 import type { BingoBoardCell } from '../../features/bingo/components/BingoBoard/BingoBoard';
 import { useLogoutMutation } from '../../features/auth/hooks/useLogoutMutation';
+import { BoardRenewalSheet } from '../../features/bingo/components/BoardRenewalSheet/BoardRenewalSheet';
+import { useActiveBingoBoardQuery } from '../../features/bingo/hooks/useActiveBingoBoardQuery';
 import { useMyCashQuery } from '../../features/member/hooks/useMyCashQuery';
 import { useMyCharacterQuery } from '../../features/member/hooks/useMyCharacterQuery';
 import { useMyRoomsQuery } from '../../features/room/hooks/useMyRoomsQuery';
@@ -64,6 +66,12 @@ export function HomeScreen() {
   const navigation = useNavigation<HomeNavigation>();
   const [isRoomSheetVisible, setRoomSheetVisible] = useState(false);
   const [isSoloSheetVisible, setSoloSheetVisible] = useState(false);
+  // 협동 방을 고른 뒤 빙고판 갱신이 필요하고 내가 방장일 때만 채워진다.
+  const [groupRenewal, setGroupRenewal] = useState<{
+    roomId: number;
+    targetStepCount: number | null;
+    boardSize: number;
+  } | null>(null);
   const logout = useLogoutMutation();
   const isLoggingOut = useRef(false);
 
@@ -78,6 +86,20 @@ export function HomeScreen() {
   // 바로 이어서 들어간다.
   const mySoloRoomsQuery = useMyRoomsQuery('SINGLE');
   const activeSoloRoom = mySoloRoomsQuery.data?.[0] ?? null;
+
+  // 활성 솔로 방의 빙고판이 다 채워졌거나 일주일이 지나 갱신이 필요한지
+  // 서버 판단을 그대로 따른다(프론트에서 날짜를 다시 계산하지 않는다).
+  const activeSoloBoardQuery = useActiveBingoBoardQuery(
+    activeSoloRoom?.roomId ?? null,
+  );
+  const soloRenewal =
+    activeSoloRoom && activeSoloBoardQuery.data?.renewalRequired
+      ? {
+          roomId: activeSoloRoom.roomId,
+          currentTargetStepCount: activeSoloBoardQuery.data.targetStepCount,
+          currentBoardSize: activeSoloBoardQuery.data.boardSize,
+        }
+      : undefined;
 
   // 사용 불가/미허용/조회 실패 시 실측값이 없다는 뜻이므로 가짜 숫자 대신 0을
   // 보여준다.
@@ -151,8 +173,9 @@ export function HomeScreen() {
               }
               // 로컬 세션은 끝났어도(예: 산책 종료 후 다시 누름) 서버에 이미
               // 진행 중인 솔로 방이 있으면 새로 만들지 않고 그 방을 그대로
-              // 이어서 시작한다.
-              if (activeSoloRoom) {
+              // 이어서 시작한다 — 단, 빙고판 갱신이 필요하면 먼저 목표를
+              // 다시 받는다.
+              if (activeSoloRoom && !soloRenewal) {
                 startWalkSession(activeSoloRoom.roomId);
                 navigation.navigate('WalkSession');
                 return;
@@ -186,23 +209,59 @@ export function HomeScreen() {
           startWalkSession(Number(room.id));
           navigation.navigate('WalkSession');
         }}
-      />
-
-      <CreateSoloWalkSheet
-        visible={isSoloSheetVisible}
-        nickname={characterName}
-        onClose={() => setSoloSheetVisible(false)}
-        onCreated={roomId => {
-          setSoloSheetVisible(false);
-          // 방금 만든 방을 다음번 "혼자하기"에서 바로 알아보도록 목록을 새로
-          // 받아온다(첫 생성 전에는 활성 솔로 방이 없어 목록이 비어 있었다).
-          mySoloRoomsQuery.refetch();
-          // 서버가 이미 방을 시작 상태로 만들어 반환하므로, 로컬 세션도 바로 시작
-          // 상태로 맞춘다(같이하기 쪽과 동일한 흐름).
-          startWalkSession(roomId);
-          navigation.navigate('WalkSession');
+        onNeedsRenewal={renewal => {
+          setRoomSheetVisible(false);
+          setGroupRenewal(renewal);
         }}
       />
+
+      {groupRenewal ? (
+        <BoardRenewalSheet
+          visible
+          onClose={() => setGroupRenewal(null)}
+          roomId={groupRenewal.roomId}
+          currentTargetStepCount={groupRenewal.targetStepCount}
+          currentBoardSize={groupRenewal.boardSize}
+          onRenewed={roomId => {
+            setGroupRenewal(null);
+            startWalkSession(roomId);
+            navigation.navigate('WalkSession');
+          }}
+        />
+      ) : null}
+
+      {soloRenewal ? (
+        <BoardRenewalSheet
+          visible={isSoloSheetVisible}
+          onClose={() => setSoloSheetVisible(false)}
+          roomId={soloRenewal.roomId}
+          currentTargetStepCount={soloRenewal.currentTargetStepCount}
+          currentBoardSize={soloRenewal.currentBoardSize}
+          onRenewed={roomId => {
+            setSoloSheetVisible(false);
+            mySoloRoomsQuery.refetch();
+            activeSoloBoardQuery.refetch();
+            startWalkSession(roomId);
+            navigation.navigate('WalkSession');
+          }}
+        />
+      ) : (
+        <CreateSoloWalkSheet
+          visible={isSoloSheetVisible}
+          nickname={characterName}
+          onClose={() => setSoloSheetVisible(false)}
+          onCreated={roomId => {
+            setSoloSheetVisible(false);
+            // 방금 만든 방을 다음번 "혼자하기"에서 바로 알아보도록 목록을 새로
+            // 받아온다(첫 생성 전에는 활성 솔로 방이 없어 목록이 비어 있었다).
+            mySoloRoomsQuery.refetch();
+            // 서버가 이미 방을 시작 상태로 만들어 반환하므로, 로컬 세션도 바로 시작
+            // 상태로 맞춘다(같이하기 쪽과 동일한 흐름).
+            startWalkSession(roomId);
+            navigation.navigate('WalkSession');
+          }}
+        />
+      )}
     </Screen>
   );
 }

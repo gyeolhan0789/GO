@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
+import { useActiveBingoBoardQuery } from '../../../features/bingo/hooks/useActiveBingoBoardQuery';
+import { useMyMemberIdQuery } from '../../../features/member/hooks/useMyMemberIdQuery';
 import { useMyRoomsQuery } from '../../../features/room/hooks/useMyRoomsQuery';
 import { BottomSheet } from '../../../shared/components/BottomSheet/BottomSheet';
 import { Button } from '../../../shared/components/Button/Button';
@@ -14,12 +16,20 @@ type WalkRoomSelectSheetProps = {
   visible: boolean;
   onClose: () => void;
   onStart: (room: WalkRoomOption) => void;
+  /** 선택한 방이 빙고판 갱신이 필요하고, 내가 그 방의 방장일 때만
+   * 호출한다(방장이 아니면 시트 안에서 대기 안내만 하고 끝낸다). */
+  onNeedsRenewal: (params: {
+    roomId: number;
+    targetStepCount: number | null;
+    boardSize: number;
+  }) => void;
 };
 
 export function WalkRoomSelectSheet({
   visible,
   onClose,
   onStart,
+  onNeedsRenewal,
 }: WalkRoomSelectSheetProps) {
   const roomsQuery = useMyRoomsQuery('COOPERATE');
   const rooms: WalkRoomOption[] = (roomsQuery.data ?? []).map(room => ({
@@ -40,6 +50,37 @@ export function WalkRoomSelectSheet({
   }, [visible, roomsQuery.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedRoom = rooms.find(room => room.id === selectedId) ?? null;
+  const selectedRoomDetail = roomsQuery.data?.find(
+    room => String(room.roomId) === selectedId,
+  );
+
+  const myMemberIdQuery = useMyMemberIdQuery();
+  const isHost = myMemberIdQuery.data === selectedRoomDetail?.hostId;
+  const selectedBoardQuery = useActiveBingoBoardQuery(
+    selectedRoom ? Number(selectedRoom.id) : null,
+  );
+
+  const handleStartPress = () => {
+    if (!selectedRoom) {
+      return;
+    }
+    if (selectedBoardQuery.data?.renewalRequired) {
+      if (isHost) {
+        onNeedsRenewal({
+          roomId: Number(selectedRoom.id),
+          targetStepCount: selectedBoardQuery.data.targetStepCount,
+          boardSize: selectedBoardQuery.data.boardSize,
+        });
+      } else {
+        Alert.alert(
+          '아직 시작할 수 없어요',
+          '산책방 형성중이에요. 방장이 다음 주 목표를 설정하면 시작할 수 있어요.',
+        );
+      }
+      return;
+    }
+    onStart(selectedRoom);
+  };
 
   return (
     <BottomSheet
@@ -70,7 +111,7 @@ export function WalkRoomSelectSheet({
       <Button
         label="시작하기"
         disabled={!selectedRoom}
-        onPress={() => selectedRoom && onStart(selectedRoom)}
+        onPress={handleStartPress}
       />
     </BottomSheet>
   );

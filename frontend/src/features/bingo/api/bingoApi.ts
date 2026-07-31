@@ -1,5 +1,31 @@
+import { apiClient } from '../../../shared/api/client';
 import type { MissionType } from '../model/missionType';
 import { MISSION_TYPE_POINTS } from '../model/missionType';
+
+// 백엔드 BingoBoardResponse의 일부와 대응한다. 칸(cells) 목록은 빙고판 화면
+// 자체를 실제 API로 바꿀 때 타입을 채운다 — 지금은 갱신 필요 여부만 본다.
+export type BingoBoardSummary = {
+  boardSize: number;
+  targetStepCount: number | null;
+  canRenew: boolean;
+  renewalRequired: boolean;
+  renewalMessage: string | null;
+};
+
+export function getActiveBingoBoard(roomId: number) {
+  return apiClient.get<BingoBoardSummary>(`/rooms/${roomId}/bingo-boards/active`);
+}
+
+export type RenewBingoBoardRequest = {
+  targetStepCount: number;
+};
+
+export function renewBingoBoard(roomId: number, body: RenewBingoBoardRequest) {
+  return apiClient.post<BingoBoardSummary>(
+    `/rooms/${roomId}/bingo-boards/renewal`,
+    body,
+  );
+}
 
 // 백엔드 BingoCellSubmitResponse(backend/.../bingo/controller/response/BingoCellSubmitResponse.java)의
 // 일부와 대응한다. 검증은 같은 HTTP 요청 안에서 동기로 끝나 폴링이 필요
