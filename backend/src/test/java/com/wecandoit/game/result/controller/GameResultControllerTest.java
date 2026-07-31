@@ -30,7 +30,7 @@ import com.wecandoit.game.controller.response.GameResultDetailResponse;
 import com.wecandoit.game.controller.response.GameResultParticipantResponse;
 import com.wecandoit.game.controller.response.GameResultResponse;
 import com.wecandoit.game.domain.GameMode;
-import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.domain.RoomStatus;
 import com.wecandoit.game.service.GameResultReadService;
 import com.wecandoit.mission.controller.response.MissionResponse;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
@@ -100,7 +100,7 @@ class GameResultControllerTest {
         // when & then
         given()
                 .when()
-                .get("/game-results/{roomId}", 10L)
+                .get("/game-results/{gameId}", 10L)
                 .then()
                 .statusCode(HttpStatus.OK.value())
                 .body("gameId", equalTo(100))
@@ -146,7 +146,7 @@ class GameResultControllerTest {
                 .body("bingoBoards[0].cells[0].rejectionReason", equalTo(null))
                 .apply(document("game-result-detail",
                         pathParameters(
-                                parameterWithName("roomId").description("결과를 조회할 게임방 ID")
+                                parameterWithName("gameId").description("결과를 조회할 게임 회차 ID")
                         ),
                         responseFields(
                                 fieldWithPath("gameId").description("게임 회차 ID"),
@@ -332,12 +332,12 @@ class GameResultControllerTest {
     private void assertGameResultErrorResponse(HttpStatus status, String documentName) {
         given()
                 .when()
-                .get("/game-results/{roomId}", 10L)
+                .get("/game-results/{gameId}", 10L)
                 .then()
                 .statusCode(status.value())
                 .apply(document(documentName,
                         pathParameters(
-                                parameterWithName("roomId").description("결과를 조회할 게임방 ID")
+                                parameterWithName("gameId").description("결과를 조회할 게임 회차 ID")
                         ),
                         responseFields(
                                 fieldWithPath("status").description("HTTP 상태 코드"),
@@ -352,7 +352,7 @@ class GameResultControllerTest {
                 10L,
                 "테스트 방",
                 GameMode.COOPERATE,
-                GameRoomStatus.CLOSED,
+                RoomStatus.CLOSED,
                 true,
                 3,
                 3,
@@ -411,7 +411,7 @@ class GameResultControllerTest {
                 10L,
                 "테스트 방",
                 GameMode.COOPERATE,
-                GameRoomStatus.CLOSED,
+                RoomStatus.CLOSED,
                 true,
                 3,
                 3,

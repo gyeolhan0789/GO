@@ -71,7 +71,7 @@ public class BingoStepGoalRewardCommandService {
         BingoBoard bingoBoard = bingoBoardRepository.findByIdForUpdate(target.bingoBoardId())
                 .orElse(null);
         return bingoBoard != null
-                && bingoBoard.getStatus() == BingoBoardStatus.IN_PROGRESS
+                && bingoBoard.getStatus() == BingoBoardStatus.ACTIVE
                 && !cashReadService.hasDailyStepGoalReward(target.bingoBoardId());
     }
 

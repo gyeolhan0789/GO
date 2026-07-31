@@ -20,12 +20,12 @@ public class GameResultController {
 
     private final GameResultReadService gameResultReadService;
 
-    @GetMapping("/{roomId}")
+    @GetMapping("/{gameId}")
     public ResponseEntity<GameResultDetailResponse> getGameResult(
             @LoginMemberId Long memberId,
-            @PathVariable Long roomId
+            @PathVariable Long gameId
     ) {
-        GameResultDetailResponse response = gameResultReadService.getGameResult(memberId, roomId);
+        GameResultDetailResponse response = gameResultReadService.getGameResult(memberId, gameId);
         return ResponseEntity.ok(response);
     }
 

@@ -1,12 +1,12 @@
 package com.wecandoit.game.controller.response;
 
-import com.wecandoit.game.domain.GameRoomStatus;
 import com.wecandoit.game.domain.Room;
+import com.wecandoit.game.domain.RoomStatus;
 
 public record CreateRoomResponse(
         // TODO: Add response fields after the room creation spec is confirmed.
         Long roomId,
-        GameRoomStatus status
+        RoomStatus status
 ) {
 
     public static CreateRoomResponse from(Room room) {
