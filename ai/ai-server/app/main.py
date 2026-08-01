@@ -11,4 +11,10 @@ app = FastAPI(
     title="AI Mission Server"
 )
 
+
+@app.get("/health")
+def health():
+    return {"status": "UP"}
+
+
 app.include_router(mission_router)
