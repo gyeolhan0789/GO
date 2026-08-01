@@ -37,6 +37,5 @@ oauth:
       client-id: fbced36af5aff1bbd08073540fea816c
       jwk-uri: https://kauth.kakao.com/.well-known/jwks.json
 
-# todo: 실제 AI 서버 주소로 변경 필요
 ai-server:
-  base-url: http://localhost:8000
+  base-url: https://i15a506.p.ssafy.io/ai
