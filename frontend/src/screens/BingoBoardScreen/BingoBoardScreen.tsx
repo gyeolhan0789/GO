@@ -7,8 +7,12 @@ import type { IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
-import type { BingoCellResponse, VerificationResult } from '../../features/bingo/api/bingoApi';
-import { submitMissionPhoto } from '../../features/bingo/api/bingoApi';
+import type {
+  BingoCellResponse,
+  MissionPhoto,
+  VerificationResult,
+} from '../../features/bingo/api/bingoApi';
+import { submitBingoCellPhoto } from '../../features/bingo/api/bingoApi';
 import type {
   BingoBoardCell,
   BingoBoardSize,
@@ -57,15 +61,10 @@ export function BingoBoardScreen({
   const members = room?.members ?? [];
 
   const [selectedCellId, setSelectedCellId] = useState<number | null>(null);
-  const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
+  const [capturedPhoto, setCapturedPhoto] = useState<MissionPhoto | null>(null);
   const [isSubmitting, setSubmitting] = useState(false);
   const [verificationResult, setVerificationResult] =
     useState<VerificationResult | null>(null);
-  // 사진 인증 API가 아직 없어(TODO, bingoApi.ts 참고) 실제 서버에는 반영되지
-  // 않는다. 승인된 칸을 화면에서만 채워진 것처럼 보여주는 로컬 오버레이다.
-  const [locallyApprovedCellIds, setLocallyApprovedCellIds] = useState<
-    Set<number>
-  >(new Set());
   // 빙고판 컨테이너의 퍼센트 width가 잘못 계산돼 3열이 아니라 2열로 보이는
   // 문제가 있었다. 실측한 너비를 고정 픽셀로 내려준다.
   const { width: boardWidth, onLayout: onBoardLayout } = useMeasuredWidth();
@@ -76,8 +75,7 @@ export function BingoBoardScreen({
     (a, b) => a.row - b.row || a.col - b.col,
   );
   const isCellCompleted = (cell: BingoCellResponse) =>
-    cell.verificationStatus === 'APPROVED' ||
-    locallyApprovedCellIds.has(cell.cellId);
+    cell.verificationStatus === 'APPROVED';
   const selectedCell =
     sortedCells.find(cell => cell.cellId === selectedCellId) ?? null;
 
@@ -86,8 +84,7 @@ export function BingoBoardScreen({
     return index >= 0 ? participantColors[index % participantColors.length] : undefined;
   };
 
-  // 인원별 완료 칸 수를 세서 진행바 색 구간을 만든다. 로컬로만 승인된 칸은
-  // 누가 했는지 서버가 모르니(실제 제출이 아니다) 구간에 넣지 않는다.
+  // 인원별 완료 칸 수를 세서 진행바 색 구간을 만든다.
   const progressSegments = members.map(member => ({
     value: sortedCells.filter(
       cell =>
@@ -122,7 +119,7 @@ export function BingoBoardScreen({
   });
 
   const handleSelectCell = useCallback((cellId: number) => {
-    setCapturedPhotoUri(null);
+    setCapturedPhoto(null);
     setVerificationResult(null);
     setSelectedCellId(cellId);
     // 빙고판 아래에 상세가 나타나자마자 바로 보이도록, 레이아웃이 잡힌
@@ -137,7 +134,15 @@ export function BingoBoardScreen({
   };
 
   const handleCapturePhoto = useCallback(async () => {
-    const result = await launchCamera({ mediaType: 'photo', saveToPhotos: false });
+    // 백엔드 업로드 제한(application.yml, 5MB)을 넘지 않도록 촬영 단계에서
+    // 미리 리사이즈·압축한다 — 원본 해상도는 사물 인식에 필요하지도 않다.
+    const result = await launchCamera({
+      mediaType: 'photo',
+      saveToPhotos: false,
+      maxWidth: 1280,
+      maxHeight: 1280,
+      quality: 0.7,
+    });
     if (result.didCancel) {
       return;
     }
@@ -145,29 +150,45 @@ export function BingoBoardScreen({
       Alert.alert('카메라를 열 수 없어요', result.errorMessage ?? '잠시 후 다시 시도해주세요.');
       return;
     }
-    const uri = result.assets?.[0]?.uri;
-    if (uri) {
+    const asset = result.assets?.[0];
+    if (asset?.uri) {
       setVerificationResult(null);
-      setCapturedPhotoUri(uri);
+      setCapturedPhoto({
+        uri: asset.uri,
+        type: asset.type,
+        fileName: asset.fileName,
+      });
     }
   }, []);
 
   const handleSubmitMission = useCallback(async () => {
-    if (!selectedCell) {
+    if (!selectedCell || !capturedPhoto) {
       return;
     }
     setSubmitting(true);
-    const result = await submitMissionPhoto(selectedCell.mission.type);
-    setSubmitting(false);
-    setVerificationResult(result);
-    if (result.status === 'APPROVED') {
-      const cellId = selectedCell.cellId;
-      setLocallyApprovedCellIds(previous => new Set(previous).add(cellId));
+    try {
+      const result = await submitBingoCellPhoto(
+        roomId,
+        selectedCell.cellId,
+        capturedPhoto,
+      );
+      setVerificationResult(result);
+      if (result.status === 'APPROVED') {
+        // 서버에 반영된 최신 승인 상태(칸 색·진행 카운트)를 다시 받아온다.
+        boardQuery.refetch();
+      }
+    } catch (error) {
+      Alert.alert(
+        '제출에 실패했어요',
+        error instanceof Error ? error.message : '잠시 후 다시 시도해주세요.',
+      );
+    } finally {
+      setSubmitting(false);
     }
-  }, [selectedCell]);
+  }, [roomId, selectedCell, capturedPhoto, boardQuery]);
 
   const handleCloseVerification = useCallback(() => {
-    setCapturedPhotoUri(null);
+    setCapturedPhoto(null);
     setVerificationResult(null);
   }, []);
 
@@ -300,9 +321,9 @@ export function BingoBoardScreen({
       </ScrollView>
 
       <MissionVerificationModal
-        visible={capturedPhotoUri !== null}
+        visible={capturedPhoto !== null}
         onClose={handleCloseVerification}
-        photoUri={capturedPhotoUri}
+        photoUri={capturedPhoto?.uri ?? null}
         missionTitle={selectedCell?.mission.title ?? ''}
         isSubmitting={isSubmitting}
         result={verificationResult}
