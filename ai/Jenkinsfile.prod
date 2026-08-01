@@ -47,7 +47,7 @@ pipeline {
                           -e GEMINI_API_KEY \
                           -e GEMINI_MODEL \
                           "$image"
-                        curl --fail --retry 10 --retry-delay 2 "$HEALTH_URL"
+                        curl --fail --retry 10 --retry-connrefused --retry-delay 2 "$HEALTH_URL"
                         '''
                     }
                 }
