@@ -1,6 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { useAuth } from '../../features/auth/model/AuthContext';
+import type { GameMode } from '../../features/room/api/roomApi';
 import { colors } from '../../shared/constants/colors';
 import { fontFamily } from '../../shared/constants/typography';
 import { useOnboardingStatus } from '../../shared/hooks/useOnboardingStatus';
@@ -14,6 +15,7 @@ import { MyPageScreen } from '../../screens/MyPageScreen/MyPageScreen';
 import { SignupScreen } from '../../screens/SignupScreen/SignupScreen';
 import { WalkDetailScreen } from '../../screens/WalkDetailScreen/WalkDetailScreen';
 import { WalkListScreen } from '../../screens/WalkListScreen/WalkListScreen';
+import { WalkResultScreen } from '../../screens/WalkResultScreen/WalkResultScreen';
 import { WalkSessionScreen } from '../../screens/WalkSessionScreen/WalkSessionScreen';
 import { MainTabNavigator } from './MainTabNavigator';
 
@@ -31,6 +33,17 @@ export type RootStackParamList = {
   // roomId는 화면 파라미터가 아니라 walkSessionStore(전역 진행 중인 세션
   // 상태)로 전달된다.
   WalkSession: undefined;
+  // endWalkSession()이 스토어를 바로 비우므로, 방금 끝난 세션의 수치는
+  // 화면 파라미터로 직접 들고 온다.
+  WalkResult: {
+    roomId: number;
+    roomName: string;
+    mode: GameMode;
+    steps: number;
+    distanceKm: number;
+    calories: number;
+    elapsedSeconds: number;
+  };
   BingoBoard: { roomId: number };
   MyPage: undefined;
   CharacterCustomize: undefined;
@@ -104,6 +117,8 @@ export function RootNavigator() {
           />
           {/* 진행 중 화면은 자체 상단바(나가기 버튼)를 쓰므로 네이티브 헤더를 끈다. */}
           <Stack.Screen name="WalkSession" component={WalkSessionScreen} />
+          {/* 축하 화면 톤을 내려고 자체 레이아웃을 쓰므로 네이티브 헤더를 끈다. */}
+          <Stack.Screen name="WalkResult" component={WalkResultScreen} />
           {/* 보드/미션 상세 2단계를 자체 상단바로 전환하므로 네이티브 헤더를 끈다. */}
           <Stack.Screen name="BingoBoard" component={BingoBoardScreen} />
           <Stack.Screen

@@ -16,6 +16,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 import { todayIso } from '../../features/history/model/period';
 import { useHistoriesQuery } from '../../features/history/hooks/useHistoriesQuery';
+import { useSaveHistoryMutation } from '../../features/history/hooks/useSaveHistoryMutation';
 import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
 import { useWalkSession } from '../../features/walk-session/hooks/useWalkSession';
 import {
@@ -169,25 +170,69 @@ export function WalkSessionScreen() {
     }),
   ).current;
 
+  const saveHistoryMutation = useSaveHistoryMutation();
+
   const handleEndWalk = useCallback(() => {
     Alert.alert('산책 종료', '지금 산책을 종료할까요?', [
       { text: '취소', style: 'cancel' },
       {
         text: '종료',
         style: 'destructive',
-        onPress: () => {
+        onPress: async () => {
           // 방은 파괴하지 않는 한 계속 유지된다. 빙고판 갱신은 다 채웠거나
           // 일주일이 지났을 때 방장이 직접 트리거해야 한다(자동 초기화 없음).
           // 여기서는 이 화면의 로컬 세션(경과 시간 타이머)만 끝낸다.
-          // TODO: 산책 종료를 서버에 알리는 로직이 생기면, 그 시점에 홈 화면의
-          // 빙고판 쿼리(useActiveBingoBoardQuery)도 함께 무효화/refetch해서
-          // 산책 중 인증한 미션이 홈 화면 미리보기에 바로 반영되게 한다.
+          // TODO: 홈 화면의 빙고판 쿼리(useActiveBingoBoardQuery)도 함께
+          // 무효화/refetch해서 산책 중 인증한 미션이 홈 화면 미리보기에 바로
+          // 반영되게 한다.
+          if (roomId === null) {
+            endWalkSession();
+            navigation.goBack();
+            return;
+          }
+
+          // 오늘 걸음/거리/칼로리를 서버에 올린다. 실패해도 이 세션 자체를
+          // 못 끝내게 막을 이유는 없어서(내 기기에서 이미 다 계산해둔
+          // 값이라 결과 화면은 그대로 보여줄 수 있다), 실패는 알림만 띄우고
+          // 계속 진행한다.
+          try {
+            await saveHistoryMutation.mutateAsync({
+              historyDate: todayIso(),
+              step: sessionSteps,
+              distance: Math.round(sessionDistanceKm * 1000),
+              calories: sessionCalories,
+            });
+          } catch (error) {
+            Alert.alert(
+              '기록 저장에 실패했어요',
+              error instanceof Error ? error.message : '잠시 후 다시 시도해주세요.',
+            );
+          }
+
+          const resultParams = {
+            roomId,
+            roomName: room?.name ?? '',
+            mode: room?.mode ?? ('SINGLE' as const),
+            steps: sessionSteps,
+            distanceKm: sessionDistanceKm,
+            calories: sessionCalories,
+            elapsedSeconds,
+          };
           endWalkSession();
-          navigation.goBack();
+          navigation.replace('WalkResult', resultParams);
         },
       },
     ]);
-  }, [navigation]);
+  }, [
+    navigation,
+    roomId,
+    room,
+    sessionSteps,
+    sessionDistanceKm,
+    sessionCalories,
+    elapsedSeconds,
+    saveHistoryMutation,
+  ]);
 
   // 카운트다운이 끝나기 전까지는 지도를 아예 안 띄운다(지도가 살짝
   // 비치는 오버레이보다 완전히 가려진 화면이 낫다는 판단).
