@@ -47,5 +47,20 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
+      <!-- 카카오 로그인이 카카오톡/브라우저에서 돌아올 때 받는 리다이렉트 창구.
+           스킴의 키는 app/build.gradle이 local.properties의
+           KAKAO_NATIVE_APP_KEY에서 채운다(없으면 빈 값이라 로그인만 실패한다). -->
+      <activity
+        android:name="com.kakao.sdk.auth.AuthCodeHandlerActivity"
+        android:exported="true">
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data
+              android:host="oauth"
+              android:scheme="kakao${KAKAO_NATIVE_APP_KEY}" />
+        </intent-filter>
+      </activity>
     </application>
 </manifest>

@@ -34,7 +34,8 @@ pipeline {
                 dir('ai/ai-server') {
                     withCredentials([
                         string(credentialsId: 'prod-gemini-api-key', variable: 'GEMINI_API_KEY'),
-                        string(credentialsId: 'prod-gemini-model', variable: 'GEMINI_MODEL')
+                        string(credentialsId: 'prod-gemini-model', variable: 'GEMINI_MODEL'),
+                        string(credentialsId: 'prod-gemini-base-url', variable: 'GEMINI_BASE_URL')
                     ]) {
                         sh '''
                         set -eu
@@ -46,6 +47,7 @@ pipeline {
                           -p "127.0.0.1:$HOST_PORT:8000" \
                           -e GEMINI_API_KEY \
                           -e GEMINI_MODEL \
+                          -e GEMINI_BASE_URL \
                           "$image"
                         curl --fail --retry 10 --retry-connrefused --retry-delay 2 "$HEALTH_URL"
                         '''

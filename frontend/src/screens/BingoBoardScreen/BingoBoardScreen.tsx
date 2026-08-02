@@ -25,12 +25,14 @@ import {
   MISSION_TYPE_LABELS,
   MISSION_TYPE_POINTS,
 } from '../../features/bingo/model/missionType';
+import { useMyMemberIdQuery } from '../../features/member/hooks/useMyMemberIdQuery';
 import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
 import { AppText } from '../../shared/components/AppText/AppText';
 import { MemberProgressBar } from '../../shared/components/MemberProgressBar/MemberProgressBar';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { controlHeight } from '../../shared/constants/sizing';
-import { colors, participantColors } from '../../shared/constants/colors';
+import { colors } from '../../shared/constants/colors';
+import { getParticipantColor } from '../../shared/lib/participantColor';
 import { radius } from '../../shared/constants/radius';
 import { spacing } from '../../shared/constants/spacing';
 import { fontFamily, lineHeights } from '../../shared/constants/typography';
@@ -59,6 +61,7 @@ export function BingoBoardScreen({
   const roomQuery = useRoomDetailQuery(roomId);
   const room = roomQuery.data ?? null;
   const members = room?.members ?? [];
+  const myMemberIdQuery = useMyMemberIdQuery();
 
   const [selectedCellId, setSelectedCellId] = useState<number | null>(null);
   const [capturedPhoto, setCapturedPhoto] = useState<MissionPhoto | null>(null);
@@ -79,10 +82,8 @@ export function BingoBoardScreen({
   const selectedCell =
     sortedCells.find(cell => cell.cellId === selectedCellId) ?? null;
 
-  const memberColor = (memberId: number) => {
-    const index = members.findIndex(member => member.memberId === memberId);
-    return index >= 0 ? participantColors[index % participantColors.length] : undefined;
-  };
+  const memberColor = (memberId: number) =>
+    getParticipantColor(memberId, myMemberIdQuery.data ?? null, members);
 
   // 인원별 완료 칸 수를 세서 진행바 색 구간을 만든다.
   const progressSegments = members.map(member => ({

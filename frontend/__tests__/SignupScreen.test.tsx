@@ -9,6 +9,7 @@ import type { ReactTestInstance } from 'react-test-renderer';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+import { AuthProvider } from '../src/features/auth/model/AuthContext';
 import { SignupScreen } from '../src/screens/SignupScreen/SignupScreen';
 
 const INITIAL_METRICS = {
@@ -48,11 +49,14 @@ async function renderScreen() {
     renderer = ReactTestRenderer.create(
       <SafeAreaProvider initialMetrics={INITIAL_METRICS}>
         <QueryClientProvider client={client}>
-          {/* 화면은 navigation prop만 사용한다. 나머지 props는 테스트에서 불필요. */}
-          <SignupScreen
-            navigation={navigation as never}
-            route={{ key: 'Signup', name: 'Signup' } as never}
-          />
+          {/* 소셜 로그인 성공 시 세션을 시작하므로 AuthProvider가 필요하다. */}
+          <AuthProvider>
+            {/* 화면은 navigation prop만 사용한다. 나머지 props는 테스트에서 불필요. */}
+            <SignupScreen
+              navigation={navigation as never}
+              route={{ key: 'Signup', name: 'Signup' } as never}
+            />
+          </AuthProvider>
         </QueryClientProvider>
       </SafeAreaProvider>,
     );

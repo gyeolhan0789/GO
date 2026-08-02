@@ -1,5 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import type { SocialProvider } from '../../features/auth/constants/socialProviders';
 import { useAuth } from '../../features/auth/model/AuthContext';
 import type { GameMode } from '../../features/room/api/roomApi';
 import { colors } from '../../shared/constants/colors';
@@ -13,6 +14,7 @@ import { PermissionsScreen } from '../../screens/PermissionsScreen/PermissionsSc
 import { CharacterCustomizeScreen } from '../../screens/CharacterCustomizeScreen/CharacterCustomizeScreen';
 import { MyPageScreen } from '../../screens/MyPageScreen/MyPageScreen';
 import { SignupScreen } from '../../screens/SignupScreen/SignupScreen';
+import { SocialSignupScreen } from '../../screens/SocialSignupScreen/SocialSignupScreen';
 import { WalkDetailScreen } from '../../screens/WalkDetailScreen/WalkDetailScreen';
 import { WalkListScreen } from '../../screens/WalkListScreen/WalkListScreen';
 import { WalkResultScreen } from '../../screens/WalkResultScreen/WalkResultScreen';
@@ -27,6 +29,15 @@ export type RootStackParamList = {
   Permissions: undefined;
   Login: undefined;
   Signup: undefined;
+  /**
+   * 소셜 계정으로 처음 로그인한 회원의 프로필 입력. `signupToken`은 검증
+   * 단계에서 서버가 준 1회용 토큰이고 5분 뒤 만료된다.
+   */
+  SocialSignup: {
+    provider: SocialProvider;
+    signupToken: string;
+    suggestedName: string | null;
+  };
   Main: undefined;
   WalkList: undefined;
   WalkDetail: { roomId: number };
@@ -148,6 +159,13 @@ export function RootNavigator() {
           <Stack.Screen
             name="Signup"
             component={SignupScreen}
+            options={{ headerShown: false }}
+          />
+          {/* 로그인·회원가입 화면과 같은 배너를 쓰므로 헤더를 숨긴다. 뒤로가기는
+              화면 하단의 '다른 방법으로 로그인' 링크로 대체한다. */}
+          <Stack.Screen
+            name="SocialSignup"
+            component={SocialSignupScreen}
             options={{ headerShown: false }}
           />
         </>

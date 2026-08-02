@@ -9,10 +9,7 @@
 // 시작 시각도 지금은 화면 진입 시점을 쓰지만, 실제로는 방(room)의
 // startedAt을 그대로 써야 한다.
 
-import {
-  readSamsungHealthToday,
-  type SamsungHealthSummary,
-} from '../../../shared/lib/samsungHealth';
+import type { SamsungHealthSummary } from '../../../shared/lib/samsungHealth';
 
 type Listener = () => void;
 
@@ -62,23 +59,29 @@ export function startWalkSession(roomId: number) {
 }
 
 /** 시작 카운트다운이 끝나거나 건너뛴 시점에 호출한다. 이 순간을 진짜
- * 시작 시각으로 기록하고, 오늘 걸음 기준값도 이때 읽는다. */
+ * 시작 시각으로 기록한다. 걸음 기준값은 여기서 한 번만 읽지 않고
+ * setWalkSessionStartHealthSummary로 화면의 정기 폴링 결과 중 처음
+ * 성공한 값을 쓴다(단발성 조회는 실패해도 재시도가 없어, 실패하면
+ * 세션 내내 기준값이 null로 남아 "세션 걸음"이 그날 누적 걸음처럼
+ * 보이는 문제가 있었다). */
 export function confirmWalkSessionStart() {
   if (state.roomId === null || state.startedAt !== null) {
     return;
   }
-  const startedAt = Date.now();
-  state = { ...state, startedAt };
+  state = { ...state, startedAt: Date.now() };
   notify();
+}
 
-  readSamsungHealthToday().then(summary => {
-    // 그 사이 세션이 끝났거나 다른 세션이 새로 시작됐으면 이 기준값은 버린다.
-    if (state.startedAt !== startedAt || summary === null) {
-      return;
-    }
-    state = { ...state, startHealthSummary: summary };
-    notify();
-  });
+/** 화면의 정기 폴링(useSamsungHealthToday)이 처음 성공했을 때 그 값을
+ * 이번 세션의 걸음 기준값으로 등록한다. 이미 등록돼 있으면 무시한다 —
+ * 나중 값으로 덮어쓰면 그 사이 걸은 만큼이 기준에 섞여 세션 걸음수가
+ * 줄어드는 것처럼 보인다. */
+export function setWalkSessionStartHealthSummary(summary: SamsungHealthSummary) {
+  if (state.startedAt === null || state.startHealthSummary !== null) {
+    return;
+  }
+  state = { ...state, startHealthSummary: summary };
+  notify();
 }
 
 export function endWalkSession() {

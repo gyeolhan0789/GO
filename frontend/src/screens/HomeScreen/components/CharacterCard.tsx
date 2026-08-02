@@ -84,7 +84,13 @@ export function CharacterCard({
           source={characterImageSource}
           style={[
             styles.characterImage,
-            isWalking ? { transform: [{ translateY: bobTranslateY }] } : null,
+            // transform을 isWalking에 따라 배열↔null로 바꾸면(네이티브 드라이버가
+            // 이미 이 뷰의 transform을 직접 갱신 중인 상태에서) Fabric이 새
+            // 커밋 값과 병합하다 SurfaceMountingManager의 어서션에 걸려 앱이
+            // 죽는 문제가 있었다. transform은 항상 배열로 유지하고, 정지시킬
+            // 때는 위 useEffect에서 bobAnim 자체를 0으로 되돌리는 것만으로
+            // 충분하다.
+            { transform: [{ translateY: bobTranslateY }] },
           ]}
           resizeMode="contain"
         />

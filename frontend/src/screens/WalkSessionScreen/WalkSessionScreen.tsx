@@ -14,22 +14,26 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
+import { useFriendsQuery } from '../../features/friend/hooks/useFriendsQuery';
 import { todayIso } from '../../features/history/model/period';
 import { useHistoriesQuery } from '../../features/history/hooks/useHistoriesQuery';
 import { useSaveHistoryMutation } from '../../features/history/hooks/useSaveHistoryMutation';
+import { useMyMemberIdQuery } from '../../features/member/hooks/useMyMemberIdQuery';
 import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
 import { useWalkSession } from '../../features/walk-session/hooks/useWalkSession';
 import {
   confirmWalkSessionStart,
   endWalkSession,
+  setWalkSessionStartHealthSummary,
 } from '../../features/walk-session/model/walkSessionStore';
 import { AppText } from '../../shared/components/AppText/AppText';
 import { Button } from '../../shared/components/Button/Button';
 import { MemberProgressBar } from '../../shared/components/MemberProgressBar/MemberProgressBar';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { controlHeight } from '../../shared/constants/sizing';
-import { colors, participantColors } from '../../shared/constants/colors';
+import { colors } from '../../shared/constants/colors';
 import { useSamsungHealthToday } from '../../shared/hooks/useSamsungHealthToday';
+import { getParticipantColor } from '../../shared/lib/participantColor';
 import { radius } from '../../shared/constants/radius';
 import { shadow } from '../../shared/constants/shadow';
 import { spacing } from '../../shared/constants/spacing';
@@ -76,20 +80,71 @@ export function WalkSessionScreen() {
 
   const roomQuery = useRoomDetailQuery(roomId);
   const room = roomQuery.data ?? null;
-  // 방 목표 걸음수는 "이번 주" 단위라 주간 누적으로 비교한다. 팀원별 걸음수를
-  // 내려주는 API가 없어(다른 사람 헬스 데이터라 프라이버시 이슈도 있다),
-  // 지금은 내 걸음수만 반영한다.
-  const weeklyStepsQuery = useHistoriesQuery('WEEK', todayIso());
+  const members = room?.members ?? [];
+  // 방 목표 걸음수는 "이번 주" 단위라 주간 누적으로 비교한다.
+  const weeklyStepsQuery = useHistoriesQuery('WEEK', todayIso(), {
+    refetchInterval: HEALTH_POLL_INTERVAL_MS,
+    enabled: !isPaused,
+  });
   const weeklySteps = weeklyStepsQuery.data?.totalStep ?? 0;
   const targetStepCount = room?.targetStepCount ?? null;
-  const remainingSteps =
-    targetStepCount !== null ? Math.max(0, targetStepCount - weeklySteps) : 0;
-  const stepSegments = [{ value: weeklySteps, color: participantColors[0] }];
 
-  // 걷는 동안 화면에 뜬 값이 계속 갱신되도록 주기적으로 다시 읽는다.
-  const health = useSamsungHealthToday({ refetchInterval: HEALTH_POLL_INTERVAL_MS });
+  // 팀원별 걸음수를 직접 내려주는 API는 아직 없어서, 이미 있는 친구 목록
+  // API(친구별 이번 주 걸음수 포함)로 대신한다. 이 목록은 "나(로그인한 사람)의
+  // 친구"라서, 방을 만든 사람이 자기 친구들을 초대해 방 멤버가 곧 자기 친구
+  // 목록과 겹치는 방장 시점에서만 정확하다 — 방장이 아닌 멤버가 볼 때는
+  // 다른 멤버가 나와 친구가 아닐 수 있어(방장의 친구일 뿐) 그 사람 걸음수는
+  // 0으로 보일 수 있다. 제대로 하려면 "이 방 멤버들의 걸음수"를 직접 내려주는
+  // 백엔드 엔드포인트가 필요하다(현재 memberHistoryRepository는 임의의
+  // memberId 목록을 이미 받을 수 있어 서비스단만 추가하면 됨) — 지금은 범위
+  // 밖이라 남겨둔다.
+  const friendsQuery = useFriendsQuery({
+    enabled: room !== null && room.mode !== 'SINGLE',
+  });
+  const myMemberIdQuery = useMyMemberIdQuery();
+  const weeklyStepsByMemberId = new Map(
+    (friendsQuery.data?.content ?? []).map(friend => [
+      friend.memberId,
+      friend.weeklySteps,
+    ]),
+  );
+  const stepSegments = members.map(member => ({
+    value:
+      member.memberId === myMemberIdQuery.data
+        ? weeklySteps
+        : weeklyStepsByMemberId.get(member.memberId) ?? 0,
+    color: getParticipantColor(member.memberId, myMemberIdQuery.data ?? null, members),
+  }));
+  const teamWeeklySteps = stepSegments.reduce(
+    (sum, segment) => sum + segment.value,
+    0,
+  );
+  const remainingSteps =
+    targetStepCount !== null
+      ? Math.max(0, targetStepCount - teamWeeklySteps)
+      : 0;
+  const weeklyPercent =
+    targetStepCount !== null
+      ? Math.min(100, Math.round((teamWeeklySteps / targetStepCount) * 100))
+      : 0;
+
+  // 걷는 동안 화면에 뜬 값이 계속 갱신되도록 주기적으로 다시 읽는다. 일시정지
+  // 중에는(경로 추적도 같이 멈추는 것과 동일하게) 다시 읽지 않고 멈춘
+  // 시점 값을 그대로 보여준다.
+  const health = useSamsungHealthToday({
+    refetchInterval: HEALTH_POLL_INTERVAL_MS,
+    enabled: !isPaused,
+  });
   const healthSummary =
     health.data?.status === 'ok' ? health.data.summary : null;
+  // 이 폴링에서 처음 성공한 값을 세션 걸음 기준값으로 등록한다(한 번
+  // 등록되면 store가 이후 호출을 무시한다). 단발성 조회 대신 이미 도는
+  // 폴링에 얹어서, 첫 시도가 실패해도 다음 폴링 때 자연히 재시도된다.
+  useEffect(() => {
+    if (isStarted && startHealthSummary === null && healthSummary) {
+      setWalkSessionStartHealthSummary(healthSummary);
+    }
+  }, [isStarted, startHealthSummary, healthSummary]);
   // 오늘 누적치에서 세션 시작 시점 기준값을 빼서 "이 산책에서" 걷고 쓴
   // 양만 보여준다. 기준값을 아직 못 읽었으면(권한 문제 등) 0을 빼는 셈이라
   // 오늘 누적치가 그대로 나온다.
@@ -324,46 +379,75 @@ export function WalkSessionScreen() {
           <View style={styles.dragHandle} />
         </View>
 
+        <AppText style={styles.sessionTitle}>이번 산책</AppText>
+        <View style={styles.sessionStatsRow}>
+          <View style={styles.sessionPrimaryStat}>
+            <AppText style={styles.sessionPrimaryValue}>
+              {sessionSteps.toLocaleString()}
+            </AppText>
+            <AppText style={styles.sessionPrimaryUnit}>보</AppText>
+          </View>
+          <View style={styles.sessionSecondaryStats}>
+            <View style={styles.sessionSecondaryStat}>
+              <AppText style={styles.sessionSecondaryValue}>
+                {sessionCalories}
+                <AppText style={styles.sessionSecondaryUnit}> kcal</AppText>
+              </AppText>
+              <AppText style={styles.sessionSecondaryLabel}>소모 칼로리</AppText>
+            </View>
+            <View style={styles.sessionSecondaryStat}>
+              <AppText style={styles.sessionSecondaryValue}>
+                {sessionDistanceKm}
+                <AppText style={styles.sessionSecondaryUnit}> km</AppText>
+              </AppText>
+              <AppText style={styles.sessionSecondaryLabel}>이동 거리</AppText>
+            </View>
+          </View>
+        </View>
+
         {targetStepCount !== null ? (
           <>
-            <AppText style={styles.sectionLabel}>이번 주 목표</AppText>
-            <View style={styles.teamGoalRow}>
-              <AppText style={styles.teamGoalValue}>
-                {weeklySteps.toLocaleString()}
-              </AppText>
-              <AppText style={styles.teamGoalTarget}>
-                {' '}
-                / {targetStepCount.toLocaleString()}보
+            <View style={styles.dividerDotted} />
+            <View style={styles.weeklyHeaderRow}>
+              <View style={styles.weeklyLabelRow}>
+                <Ionicons name="flag" size={16} color={colors.primary} />
+                <AppText style={styles.weeklyLabel}>
+                  이번 주 {teamWeeklySteps.toLocaleString()}보
+                </AppText>
+              </View>
+              <AppText style={styles.weeklyTarget}>
+                목표 {targetStepCount.toLocaleString()}보
               </AppText>
             </View>
             <MemberProgressBar segments={stepSegments} total={targetStepCount} />
-            <AppText style={styles.remainingText}>
-              {remainingSteps.toLocaleString()}보 남았어요
+            <AppText style={styles.weeklyCaption}>
+              {remainingSteps > 0
+                ? `${weeklyPercent}% 달성 · ${remainingSteps.toLocaleString()}보 남음`
+                : '이번 주 목표를 달성했어요!'}
             </AppText>
+            {members.length > 1 ? (
+              <View style={styles.legendRow}>
+                {members.map(member => (
+                  <View key={member.memberId} style={styles.legendItem}>
+                    <View
+                      style={[
+                        styles.legendDot,
+                        {
+                          backgroundColor: getParticipantColor(
+                            member.memberId,
+                            myMemberIdQuery.data ?? null,
+                            members,
+                          ),
+                        },
+                      ]}
+                    />
+                    <AppText style={styles.legendText}>{member.nickname}</AppText>
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </>
         ) : null}
-
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <AppText style={styles.statLabel}>이번 산책 걸음</AppText>
-            <AppText style={[styles.statValue, styles.statValueAccent]}>
-              {sessionSteps.toLocaleString()}
-            </AppText>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <AppText style={styles.statLabel}>칼로리</AppText>
-            <AppText style={styles.statValue}>{sessionCalories}</AppText>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <AppText style={styles.statLabel}>거리</AppText>
-            <AppText style={styles.statValue}>
-              {sessionDistanceKm}
-              <AppText style={styles.statUnit}>km</AppText>
-            </AppText>
-          </View>
-        </View>
 
         <View style={[styles.panelFooter, { paddingBottom: spacing.lg + insets.bottom }]}>
           <View style={styles.footerRow}>
@@ -501,80 +585,129 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.muted,
   },
-  sectionLabel: {
-    fontFamily: fontFamily.regular,
-    fontSize: 14,
-    lineHeight: lineHeights[14],
-    color: colors.ink,
-    opacity: 0.6,
-  },
-  teamGoalRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginTop: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-  teamGoalValue: {
-    fontFamily: fontFamily.bold,
-    fontSize: 30,
-    lineHeight: lineHeights[30],
-    color: colors.ink,
-  },
-  teamGoalTarget: {
+  sessionTitle: {
     fontFamily: fontFamily.bold,
     fontSize: 15,
     lineHeight: lineHeights[15],
     color: colors.ink,
-    opacity: 0.6,
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  sessionStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: spacing.md,
+  },
+  sessionPrimaryStat: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: spacing.xs,
+  },
+  sessionPrimaryValue: {
+    fontFamily: fontFamily.bold,
+    fontSize: 30,
+    lineHeight: lineHeights[30],
+    color: colors.primary,
+  },
+  sessionPrimaryUnit: {
+    fontFamily: fontFamily.bold,
+    fontSize: 15,
+    lineHeight: lineHeights[15],
+    color: colors.primary,
     marginBottom: 4,
   },
-  remainingText: {
+  sessionSecondaryStats: {
+    flexDirection: 'row',
+    gap: spacing.lg,
+  },
+  sessionSecondaryStat: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  sessionSecondaryValue: {
+    fontFamily: fontFamily.bold,
+    fontSize: 17,
+    lineHeight: lineHeights[17],
+    color: colors.ink,
+  },
+  sessionSecondaryUnit: {
+    fontFamily: fontFamily.regular,
+    fontSize: 12,
+    lineHeight: lineHeights[12],
+    color: colors.ink,
+    opacity: 0.6,
+  },
+  sessionSecondaryLabel: {
+    fontFamily: fontFamily.regular,
+    fontSize: 12,
+    lineHeight: lineHeights[12],
+    color: colors.ink,
+    opacity: 0.6,
+  },
+  dividerDotted: {
+    borderTopWidth: 1,
+    borderStyle: 'dotted',
+    borderColor: colors.border,
+    marginBottom: spacing.md,
+  },
+  weeklyHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  weeklyLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  weeklyLabel: {
+    fontFamily: fontFamily.bold,
+    fontSize: 15,
+    lineHeight: lineHeights[15],
+    color: colors.ink,
+  },
+  weeklyTarget: {
+    fontFamily: fontFamily.regular,
+    fontSize: 13,
+    lineHeight: lineHeights[13],
+    color: colors.ink,
+    opacity: 0.6,
+  },
+  weeklyCaption: {
     fontFamily: fontFamily.regular,
     fontSize: 13,
     lineHeight: lineHeights[13],
     color: colors.ink,
     opacity: 0.6,
     marginTop: spacing.xs,
+  },
+  legendRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    marginTop: spacing.sm,
     marginBottom: spacing.md,
   },
-  statsRow: {
+  legendItem: {
     flexDirection: 'row',
-    borderWidth: 2,
-    borderColor: colors.ink,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-  },
-  statItem: {
-    flex: 1,
     alignItems: 'center',
     gap: spacing.xs,
   },
-  statDivider: {
-    width: 1,
-    backgroundColor: colors.neutralBg,
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: radius.xs,
+    borderWidth: 1,
+    borderColor: colors.ink,
   },
-  statLabel: {
+  legendText: {
     fontFamily: fontFamily.regular,
     fontSize: 12,
     lineHeight: lineHeights[12],
     color: colors.ink,
-    opacity: 0.6,
-  },
-  statValue: {
-    fontFamily: fontFamily.bold,
-    fontSize: 17,
-    lineHeight: lineHeights[17],
-    color: colors.ink,
-  },
-  statValueAccent: {
-    color: colors.successText,
-  },
-  statUnit: {
-    fontFamily: fontFamily.regular,
-    fontSize: 12,
-    lineHeight: lineHeights[12],
-    color: colors.ink,
-    opacity: 0.6,
+    opacity: 0.7,
   },
   panelFooter: {
     paddingTop: spacing.lg,

@@ -1,5 +1,6 @@
 import time
 import logging
+from io import BytesIO
 
 from google import genai
 from google.genai import types
@@ -20,7 +21,9 @@ class GeminiService:
 
         self.client = genai.Client(
             api_key=settings.GEMINI_API_KEY,
+
             http_options=types.HttpOptions(
+                base_url=settings.GEMINI_BASE_URL,
                 timeout=15000
             )
         )
@@ -87,6 +90,50 @@ class GeminiService:
 
 
             # --------------------------
+            # Gemini input 생성
+            # --------------------------
+
+            image_buffer = BytesIO()
+
+
+            image.save(
+                image_buffer,
+                format="JPEG"
+            )
+
+
+            image_bytes = image_buffer.getvalue()
+
+
+
+            contents = types.Content(
+
+                role="user",
+
+                parts=[
+
+                    types.Part.from_text(
+                        text=prompt
+                    ),
+
+                    types.Part.from_bytes(
+                        data=image_bytes,
+                        mime_type="image/jpeg"
+                    )
+
+                ]
+
+            )
+
+
+
+            logger.info(
+                f"prompt length={len(prompt)}"
+            )
+
+
+
+            # --------------------------
             # Gemini API 호출
             # --------------------------
 
@@ -97,10 +144,8 @@ class GeminiService:
 
                 model=settings.GEMINI_MODEL,
 
-                contents=[
-                    prompt,
-                    image
-                ],
+                contents=contents,
+
 
                 config=types.GenerateContentConfig(
 
@@ -113,6 +158,7 @@ class GeminiService:
                 )
 
             )
+
 
 
             gemini_latency = (
@@ -155,6 +201,7 @@ class GeminiService:
             logger.info(
                 f"Total mission verification latency: {total_latency:.3f}s"
             )
+
 
 
             return self.convert_to_ai_result(
