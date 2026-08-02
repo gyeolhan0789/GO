@@ -501,7 +501,7 @@ const gameResultResponse = {
   roomId: 12,
   roomName: '민서와의 산책',
   mode: 'COOPERATE' as const,
-  roomStatus: 'COMPLETED' as const,
+  roomStatus: 'CLOSED' as const,
   result: true,
   boardSize: 3,
   targetBingoCount: 2,

@@ -2,13 +2,9 @@ import { apiClient } from '../../../shared/api/client';
 
 export type GameMode = 'SINGLE' | 'COOPERATE' | 'BATTLE';
 
-export type GameRoomStatus =
-  | 'CREATED'
-  | 'WAITING'
-  | 'READY'
-  | 'IN_PROGRESS'
-  | 'COMPLETED'
-  | 'CLOSED';
+// 백엔드 RoomStatus(backend/.../game/domain/RoomStatus.java)와 동일하다.
+// 회차 진행 상태는 방이 아니라 빙고판 status(BingoBoardStatus)가 갖는다.
+export type GameRoomStatus = 'ACTIVE' | 'CLOSED';
 
 export type RoomMemberResponse = {
   memberId: number;
@@ -102,6 +98,34 @@ export type ReceivedRoomInvite = {
 
 export function getReceivedRoomInvites() {
   return apiClient.get<ReceivedRoomInvite[]>('/rooms/requests/received');
+}
+
+export type SentRoomInvite = {
+  requestId: number;
+  roomId: number;
+  inviteeId: number;
+  inviteeNickname: string;
+  status: RoomInviteStatus;
+  createdAt: string;
+};
+
+/** 내가 보낸 PENDING 초대 전체를 돌려준다. 방별로 보려면 roomId로 걸러 쓴다. */
+export function getSentRoomInvites() {
+  return apiClient.get<SentRoomInvite[]>('/rooms/requests/sent');
+}
+
+export function cancelRoomInvite(roomId: number, requestId: number) {
+  return apiClient.patch<void>(
+    `/rooms/${roomId}/requests/${requestId}/cancel`,
+  );
+}
+
+export function leaveRoom(roomId: number) {
+  return apiClient.delete<void>(`/rooms/${roomId}/members/me`);
+}
+
+export function deleteRoom(roomId: number) {
+  return apiClient.delete<void>(`/rooms/${roomId}`);
 }
 
 export function acceptRoomInvite(roomId: number, requestId: number) {
