@@ -1,12 +1,18 @@
+import { useEffect, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import type { SocialProvider } from '../../features/auth/constants/socialProviders';
 import { useAuth } from '../../features/auth/model/AuthContext';
 import type { GameMode } from '../../features/room/api/roomApi';
+import {
+  hydrateWalkSessionFromNative,
+  isWalkSessionActive,
+} from '../../features/walk-session/model/walkSessionStore';
 import { colors } from '../../shared/constants/colors';
 import { fontFamily } from '../../shared/constants/typography';
 import { useOnboardingStatus } from '../../shared/hooks/useOnboardingStatus';
 import { usePermissionsStatus } from '../../shared/hooks/usePermissionsStatus';
+import { navigateToWalkSession } from './navigationRef';
 import { BingoBoardScreen } from '../../screens/BingoBoardScreen/BingoBoardScreen';
 import { LoginScreen } from '../../screens/LoginScreen/LoginScreen';
 import { OnboardingScreen } from '../../screens/OnboardingScreen/OnboardingScreen';
@@ -80,13 +86,34 @@ export function RootNavigator() {
   const onboarding = useOnboardingStatus();
   const permissions = usePermissionsStatus();
 
-  // 세션 복구나 게이트 조회가 끝나기 전에 화면을 고르면, 이미 온보딩을 끝낸
-  // 사용자에게 온보딩이 한 프레임 깜빡인다. 다 읽을 때까지 그리지 않는다.
-  if (status === 'restoring' || onboarding.isLoading || permissions.isLoading) {
-    return null;
-  }
+  // 네이티브 산책 세션(WalkForegroundService)의 현재 상태로 walkSessionStore
+  // 캐시를 한 번 맞춘다 — 앱이 강제종료됐다 다시 켜졌을 때도 진행 중이던
+  // 세션이 있으면 이걸로 알아낸다.
+  const [isWalkHydrated, setWalkHydrated] = useState(false);
+  useEffect(() => {
+    hydrateWalkSessionFromNative().finally(() => setWalkHydrated(true));
+  }, []);
 
   const isAuthenticated = status === 'authenticated';
+
+  // 하이드레이션 결과 진행 중인 세션이 있으면 산책 화면으로 바로 이동한다.
+  // 사용자가 끝내고 싶으면 그 화면의 기존 "산책 종료" 버튼을 쓰면 된다.
+  useEffect(() => {
+    if (isAuthenticated && isWalkHydrated && isWalkSessionActive()) {
+      navigateToWalkSession();
+    }
+  }, [isAuthenticated, isWalkHydrated]);
+
+  // 세션 복구나 게이트 조회가 끝나기 전에 화면을 고르면, 이미 온보딩을 끝낸
+  // 사용자에게 온보딩이 한 프레임 깜빡인다. 다 읽을 때까지 그리지 않는다.
+  if (
+    status === 'restoring' ||
+    onboarding.isLoading ||
+    permissions.isLoading ||
+    !isWalkHydrated
+  ) {
+    return null;
+  }
 
   // 앱을 켰을 때 어디서 시작할지. 로그인 상태가 가장 우선이고, 그다음 온보딩,
   // 권한 순으로 통과하지 못한 첫 관문에서 시작한다.
