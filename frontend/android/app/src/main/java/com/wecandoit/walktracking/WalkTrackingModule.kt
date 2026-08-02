@@ -114,7 +114,7 @@ class WalkTrackingModule(private val reactContext: ReactApplicationContext) :
       promise.resolve(snapshotToMap(WalkSessionState().toSnapshot(System.currentTimeMillis())))
       return
     }
-    promise.resolve(snapshotToMap(service.stop()))
+    service.stop { snapshot -> promise.resolve(snapshotToMap(snapshot)) }
   }
 
   @ReactMethod

@@ -105,7 +105,7 @@ class WalkForegroundService : Service() {
       }
       WalkTrackingConstants.ACTION_PAUSE -> pause()
       WalkTrackingConstants.ACTION_RESUME -> resume()
-      WalkTrackingConstants.ACTION_STOP -> stop()
+      WalkTrackingConstants.ACTION_STOP -> stop {}
     }
     return START_STICKY
   }
@@ -210,11 +210,26 @@ class WalkForegroundService : Service() {
     return snapshot
   }
 
-  fun stop(): WalkSessionSnapshot {
-    if (state.status == WalkStatus.IDLE) return state.toSnapshot(System.currentTimeMillis())
+  /** 20초 폴링 주기의 캐시된 값을 그대로 확정하면 마지막 폴링 이후 최대
+   * 20초치 걸음·거리·칼로리가 최종 기록에서 빠진다 — 종료 직전에 반드시
+   * 한 번 더 읽어서 lastRaw를 최신화한 뒤 스냅샷을 확정한다. */
+  fun stop(onResult: (WalkSessionSnapshot) -> Unit) {
+    if (state.status == WalkStatus.IDLE) {
+      onResult(state.toSnapshot(System.currentTimeMillis()))
+      return
+    }
     stopLocationUpdates()
     mainHandler.removeCallbacksAndMessages(null)
-    val finalSnapshot = state.toSnapshot(System.currentTimeMillis())
+
+    healthProvider.readNow(state.gender) { raw, source ->
+      state = state.copy(lastRaw = raw, healthSource = source)
+      val finalSnapshot = state.toSnapshot(System.currentTimeMillis())
+      finishStop()
+      onResult(finalSnapshot)
+    }
+  }
+
+  private fun finishStop() {
     repository.deleteRoute(state.sessionId)
     repository.clear()
     state = WalkSessionState()
@@ -223,7 +238,6 @@ class WalkForegroundService : Service() {
     emitState(state.toSnapshot(System.currentTimeMillis()))
     stopForegroundCompat()
     stopSelf()
-    return finalSnapshot
   }
 
   fun currentSnapshot(): WalkSessionSnapshot = state.toSnapshot(System.currentTimeMillis())
