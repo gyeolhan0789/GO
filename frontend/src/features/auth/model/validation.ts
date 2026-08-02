@@ -20,8 +20,12 @@ type SignupField =
   | 'agreeTerms'
   | 'agreeAge';
 
+/** 소셜 가입에서 추가로 받는 항목. 이메일·비밀번호는 제공자가 대신한다. */
+type SocialSignupField = 'nickname' | 'region' | 'gender';
+
 export type LoginErrors = Partial<Record<LoginField, string>>;
 export type SignupErrors = Partial<Record<SignupField, string>>;
+export type SocialSignupErrors = Partial<Record<SocialSignupField, string>>;
 
 type LoginValues = {
   email: string;
@@ -37,6 +41,12 @@ type SignupValues = LoginValues & {
   agreeAge: boolean;
 };
 
+type SocialSignupValues = {
+  nickname: string;
+  region: Region | null;
+  gender: Gender | null;
+};
+
 function validateEmail(email: string) {
   if (email.trim().length === 0) {
     return '이메일은 필수입니다.';
@@ -44,6 +54,23 @@ function validateEmail(email: string) {
 
   if (!EMAIL_PATTERN.test(email)) {
     return '이메일 형식이 올바르지 않습니다.';
+  }
+
+  return undefined;
+}
+
+function validateNickname(nickname: string) {
+  const trimmed = nickname.trim();
+
+  if (trimmed.length === 0) {
+    return '닉네임은 필수입니다.';
+  }
+
+  if (
+    trimmed.length < NICKNAME_MIN_LENGTH ||
+    trimmed.length > NICKNAME_MAX_LENGTH
+  ) {
+    return `닉네임은 ${NICKNAME_MIN_LENGTH}자 이상 ${NICKNAME_MAX_LENGTH}자 이하이어야 합니다.`;
   }
 
   return undefined;
@@ -95,14 +122,9 @@ export function validateSignup({
     errors.passwordConfirm = '비밀번호가 일치하지 않습니다.';
   }
 
-  const trimmedNickname = nickname.trim();
-  if (trimmedNickname.length === 0) {
-    errors.nickname = '닉네임은 필수입니다.';
-  } else if (
-    trimmedNickname.length < NICKNAME_MIN_LENGTH ||
-    trimmedNickname.length > NICKNAME_MAX_LENGTH
-  ) {
-    errors.nickname = `닉네임은 ${NICKNAME_MIN_LENGTH}자 이상 ${NICKNAME_MAX_LENGTH}자 이하이어야 합니다.`;
+  const nicknameError = validateNickname(nickname);
+  if (nicknameError) {
+    errors.nickname = nicknameError;
   }
 
   if (region === null) {
@@ -120,6 +142,29 @@ export function validateSignup({
 
   if (!agreeAge) {
     errors.agreeAge = '만 14세 이상만 가입할 수 있습니다.';
+  }
+
+  return errors;
+}
+
+export function validateSocialSignup({
+  nickname,
+  region,
+  gender,
+}: SocialSignupValues): SocialSignupErrors {
+  const errors: SocialSignupErrors = {};
+
+  const nicknameError = validateNickname(nickname);
+  if (nicknameError) {
+    errors.nickname = nicknameError;
+  }
+
+  if (region === null) {
+    errors.region = '지역은 필수입니다.';
+  }
+
+  if (gender === null) {
+    errors.gender = '성별은 필수입니다.';
   }
 
   return errors;

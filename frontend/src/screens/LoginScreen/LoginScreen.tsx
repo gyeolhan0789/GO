@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -16,6 +16,8 @@ import { AuthSubmitButton } from '../../features/auth/components/AuthSubmitButto
 import { AuthTextField } from '../../features/auth/components/AuthTextField';
 import { SocialAuthButtons } from '../../features/auth/components/SocialAuthButtons';
 import { useLoginMutation } from '../../features/auth/hooks/useLoginMutation';
+import { useSocialAuthFlow } from '../../features/auth/hooks/useSocialAuthFlow';
+import type { SocialSignupHandoff } from '../../features/auth/hooks/useSocialAuthFlow';
 import { validateLogin } from '../../features/auth/model/validation';
 import type { LoginErrors } from '../../features/auth/model/validation';
 import { resolveApiErrorMessage } from '../../shared/api/resolveApiErrorMessage';
@@ -52,6 +54,15 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
   const passwordRef = useRef<TextInput>(null);
   const mutation = useLoginMutation();
   const { hasLoggedInBefore } = useHasLoggedInBefore();
+
+  const social = useSocialAuthFlow(
+    useCallback(
+      (handoff: SocialSignupHandoff) => {
+        navigation.navigate('SocialSignup', handoff);
+      },
+      [navigation],
+    ),
+  );
 
   function clearError(field: keyof LoginErrors) {
     setErrors(previous => ({ ...previous, [field]: undefined }));
@@ -171,10 +182,20 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
               <View style={styles.dividerLine} />
             </View>
 
+            {social.errorMessage ? (
+              <AppText
+                style={styles.serverError}
+                accessibilityLiveRegion="polite"
+              >
+                {social.errorMessage}
+              </AppText>
+            ) : null}
+
             <SocialAuthButtons
               action="로그인"
-              onKakaoPress={notReady}
-              onGooglePress={notReady}
+              onKakaoPress={() => social.start('KAKAO')}
+              onGooglePress={() => social.start('GOOGLE')}
+              pendingProvider={social.pendingProvider}
             />
 
             <View style={styles.tip}>
