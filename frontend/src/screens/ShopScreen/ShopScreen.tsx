@@ -177,6 +177,7 @@ export function ShopScreen() {
             />
             <CharacterStage
               baseImage={character.data?.baseImage ?? null}
+              fallbackImage={character.data?.baseImageFallback ?? null}
               items={selectLayerItems(equipped)}
             />
             <EquipResetButton
