@@ -42,17 +42,14 @@ export const colors = {
   borderSoft: '#E5E7EB',
 } as const;
 
-// Per-member identity colors for shared bingo boards (who completed which
-// cell). Muted to match the app's soft pastel palette rather than raw chart
-// colors. Order is a CVD-safety mechanism, not cosmetic — validated with the
-// dataviz skill's palette checker (worst adjacent pair CVD dE 7.3, light
-// mode; within the 6-8 floor band, legal because every cell already carries
-// an ink border + the board ships a color/name legend as secondary encoding).
-// Hues stay outside the green/red/yellow/blue families already used above
-// for status colors, so identity never impersonates status.
+// Per-member identity colors for shared bingo boards/걸음 진행바(누가 얼마나
+// 기여했는지). index 0은 항상 "나(로그인한 사람)"에게 고정 배정하고, 나머지
+// 인원은 이 배열의 1번부터 순서대로 배정한다(참가자 배열 순서 그대로 쓰면
+// 안 되고, 반드시 memberId로 "나"를 먼저 가려낸 뒤 나머지에 배정해야 함 —
+// getParticipantColor, shared/lib/participantColor.ts 참고).
 export const participantColors = [
-  '#3DA688', // teal
-  '#E08152', // coral
-  '#7B6CC9', // violet
-  '#D66F94', // rose
+  '#159A55', // emerald — 나
+  '#D49320', // golden amber — 친구 1
+  '#3F7EBB', // cornflower blue — 친구 2
+  '#8B62A8', // soft plum — 친구 3
 ] as const;

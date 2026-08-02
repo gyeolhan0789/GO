@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -81,6 +81,13 @@ export function HomeScreen() {
   const mySoloRoomsQuery = useMyRoomsQuery('SINGLE');
   const activeSoloRoom = mySoloRoomsQuery.data?.[0] ?? null;
 
+  // 진행 중인 세션이 있어도 그게 지금 누른 버튼과 다른 모드면(예: 솔로 산책
+  // 중에 "같이하기"를 누름) 그 세션으로 그냥 이어가면 안 되고 막아야 한다.
+  const isActiveSessionSolo =
+    walkSession.isActive &&
+    activeSoloRoom !== null &&
+    walkSession.roomId === activeSoloRoom.roomId;
+
   // 활성 솔로 방의 빙고판이 다 채워졌거나 일주일이 지나 갱신이 필요한지
   // 서버 판단을 그대로 따른다(프론트에서 날짜를 다시 계산하지 않는다).
   const activeSoloBoardQuery = useActiveBingoBoardQuery(
@@ -150,8 +157,16 @@ export function HomeScreen() {
             variant="secondary"
             onPress={() => {
               // 이미 진행 중인 산책이 있으면 시트를 다시 고를 필요 없이
-              // 그 세션으로 바로 이동한다.
+              // 그 세션으로 바로 이동한다 — 단, 다른 모드로 진행 중이면
+              // 그 화면으로 잘못 들어가지 않도록 막는다.
               if (isWalkSessionActive()) {
+                if (!isActiveSessionSolo) {
+                  Alert.alert(
+                    '진행 중인 산책이 있어요',
+                    '다른 모드로 진행 중인 산책을 먼저 종료한 뒤 다시 시도해주세요.',
+                  );
+                  return;
+                }
                 navigation.navigate('WalkSession');
                 return;
               }
@@ -173,6 +188,13 @@ export function HomeScreen() {
             size="lg"
             onPress={() => {
               if (isWalkSessionActive()) {
+                if (isActiveSessionSolo) {
+                  Alert.alert(
+                    '진행 중인 산책이 있어요',
+                    '다른 모드로 진행 중인 산책을 먼저 종료한 뒤 다시 시도해주세요.',
+                  );
+                  return;
+                }
                 navigation.navigate('WalkSession');
                 return;
               }
