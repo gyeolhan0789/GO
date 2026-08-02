@@ -12,6 +12,10 @@ import { BoardRenewalSheet } from '../../features/bingo/components/BoardRenewalS
 import { useActiveBingoBoardQuery } from '../../features/bingo/hooks/useActiveBingoBoardQuery';
 import { useMyCashQuery } from '../../features/member/hooks/useMyCashQuery';
 import { useMyCharacterQuery } from '../../features/member/hooks/useMyCharacterQuery';
+import {
+  selectLayerItems,
+  toEquippedByCategory,
+} from '../../features/member/model/equippedItems';
 import { useMyRoomsQuery } from '../../features/room/hooks/useMyRoomsQuery';
 import { useWalkSession } from '../../features/walk-session/hooks/useWalkSession';
 import {
@@ -26,22 +30,14 @@ import { CreateSoloWalkSheet } from './components/CreateSoloWalkSheet';
 import { HomeHeader } from './components/HomeHeader';
 import { HomeCarousel } from './components/HomeCarousel';
 import { WalkRoomSelectSheet } from './components/WalkRoomSelectSheet';
-import characterFemale from './assets/character-female.png';
-import characterMale from './assets/character-male.png';
 
 type HomeNavigation = NativeStackNavigationProp<RootStackParamList, 'Main'>;
 
-const CHARACTER_IMAGE_BY_GENDER = {
-  male: characterMale,
-  female: characterFemale,
-} as const;
-
-// TODO: 캐릭터 합성(장착 아이템 반영)과 목표 걸음수 연동 전까지의 임시 목업 데이터.
-// 걸음/거리/칼로리는 useSamsungHealthToday, 포인트·닉네임은 각각
+// TODO: 목표 걸음수 연동 전까지의 임시 목업 데이터.
+// 걸음/거리/칼로리는 useSamsungHealthToday, 포인트·캐릭터는 각각
 // useMyCashQuery·useMyCharacterQuery로 실측값을 따로 받아온다.
 const MOCK_HOME_SUMMARY = {
   goalSteps: 10000,
-  characterGender: 'male' as keyof typeof CHARACTER_IMAGE_BY_GENDER,
   canRewardHint: '1,000보 더 걸으면 캔 1개를 더 모아요',
 };
 
@@ -70,6 +66,10 @@ export function HomeScreen() {
   const points = cash.data?.cash ?? 0;
   const character = useMyCharacterQuery();
   const characterName = character.data?.nickname ?? '';
+  // 마이페이지·상점과 같은 순서로 겹쳐야 같은 조합이 화면마다 똑같이 보인다.
+  const characterItems = selectLayerItems(
+    toEquippedByCategory(character.data?.equippedItems ?? []),
+  );
 
   // 홈 화면에서도 진행 중인 산책을 놓치지 않도록, 캐릭터 카드에 뱃지로
   // 살짝 보여준다.
@@ -140,7 +140,9 @@ export function HomeScreen() {
           steps={todaySteps}
           goalSteps={summary.goalSteps}
           characterName={characterName}
-          characterImageSource={CHARACTER_IMAGE_BY_GENDER[summary.characterGender]}
+          characterBaseImage={character.data?.baseImage ?? null}
+          characterFallbackImage={character.data?.baseImageFallback ?? null}
+          characterItems={characterItems}
           distanceKm={todayDistanceKm}
           calories={todayCalories}
           rewardHint={summary.canRewardHint}
