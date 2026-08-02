@@ -47,12 +47,17 @@ type SocialSignupValues = {
   gender: Gender | null;
 };
 
+// 화면이 서버로 보내는 값과 같은 기준으로 검사한다. 앞뒤 공백은 다듬어 보내므로
+// 여기서도 다듬은 값을 본다 — 그러지 않으면 자동완성이 붙인 공백 하나 때문에
+// 실제로는 통과할 이메일이 형식 오류로 막힌다.
 function validateEmail(email: string) {
-  if (email.trim().length === 0) {
+  const trimmed = email.trim();
+
+  if (trimmed.length === 0) {
     return '이메일은 필수입니다.';
   }
 
-  if (!EMAIL_PATTERN.test(email)) {
+  if (!EMAIL_PATTERN.test(trimmed)) {
     return '이메일 형식이 올바르지 않습니다.';
   }
 
