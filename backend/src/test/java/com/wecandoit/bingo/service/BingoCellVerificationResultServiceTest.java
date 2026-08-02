@@ -1,6 +1,7 @@
 package com.wecandoit.bingo.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -9,6 +10,7 @@ import static org.mockito.Mockito.never;
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
+import com.wecandoit.bingo.event.BattleBingoProgressUpdatedEvent;
 import com.wecandoit.bingo.event.CooperativeBingoProgressUpdatedEvent;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
@@ -26,8 +28,6 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -146,6 +146,7 @@ class BingoCellVerificationResultServiceTest {
                 2,
                 1
         ));
+        then(eventPublisher).should(never()).publishEvent(any(BattleBingoProgressUpdatedEvent.class));
     }
 
     @Test
@@ -185,12 +186,86 @@ class BingoCellVerificationResultServiceTest {
                 1,
                 0
         ));
+        then(eventPublisher).should(never()).publishEvent(any(BattleBingoProgressUpdatedEvent.class));
     }
 
-    @ParameterizedTest
-    @EnumSource(value = GameMode.class, names = {"SINGLE", "BATTLE"})
-    @DisplayName("협동 모드가 아니면 빙고 진행 이벤트를 발행하지 않는다")
-    void applyResultDoesNotPublishProgressEventOutsideCooperativeMode(GameMode gameMode) {
+    @Test
+    @DisplayName("대결 모드 승인 결과는 해당 참가자의 최신 진행률 이벤트를 발행한다")
+    void applyApprovedResultPublishesBattleProgressEvent() {
+        // given
+        BingoCell changedCell = cell(1000L, 100L, 0, 0);
+        BingoCell approvedCell = approvedCell(1001L, 100L, 0, 1);
+        BingoBoard board = battleBoard(100L, 200L, 300L, 1);
+        Game game = game(200L, 10L);
+        given(bingoCellRepository.findByIdForUpdate(1000L)).willReturn(Optional.of(changedCell));
+        given(bingoBoardRepository.findById(100L)).willReturn(Optional.of(board));
+        given(gameRepository.findByIdForUpdate(200L)).willReturn(Optional.of(game));
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(inProgressRoom(10L, GameMode.BATTLE)));
+        given(bingoCellRepository.save(changedCell)).willReturn(changedCell);
+        given(bingoCellRepository.findAllByBoardId(100L)).willReturn(List.of(changedCell, approvedCell));
+        given(cashCommandService.grantBingoCellReward(1L, 10L, 1000L, MissionType.OBJECT)).willReturn(30L);
+
+        // when
+        verificationResultService.applyResult(1000L, true, null, MissionType.OBJECT);
+
+        // then
+        ArgumentCaptor<BattleBingoProgressUpdatedEvent> eventCaptor =
+                ArgumentCaptor.forClass(BattleBingoProgressUpdatedEvent.class);
+        then(eventPublisher).should().publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue()).isEqualTo(new BattleBingoProgressUpdatedEvent(
+                10L,
+                200L,
+                1L,
+                100L,
+                2,
+                1,
+                true
+        ));
+        then(eventPublisher).should(never()).publishEvent(any(CooperativeBingoProgressUpdatedEvent.class));
+    }
+
+    @Test
+    @DisplayName("대결 모드 거절 결과도 상세 정보 없이 유지된 진행률 이벤트를 발행한다")
+    void applyRejectedResultPublishesBattleProgressEvent() {
+        // given
+        BingoCell changedCell = cell(1000L, 100L, 0, 0);
+        BingoCell approvedCell = approvedCell(1001L, 100L, 0, 1);
+        BingoBoard board = battleBoard(100L, 200L, 300L, 1);
+        Game game = game(200L, 10L);
+        given(bingoCellRepository.findByIdForUpdate(1000L)).willReturn(Optional.of(changedCell));
+        given(bingoBoardRepository.findById(100L)).willReturn(Optional.of(board));
+        given(gameRepository.findByIdForUpdate(200L)).willReturn(Optional.of(game));
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(inProgressRoom(10L, GameMode.BATTLE)));
+        given(bingoCellRepository.save(changedCell)).willReturn(changedCell);
+        given(bingoCellRepository.findAllByBoardId(100L)).willReturn(List.of(changedCell, approvedCell));
+
+        // when
+        verificationResultService.applyResult(
+                1000L,
+                false,
+                "인증 이미지가 조건과 다릅니다.",
+                MissionType.OBJECT
+        );
+
+        // then
+        ArgumentCaptor<BattleBingoProgressUpdatedEvent> eventCaptor =
+                ArgumentCaptor.forClass(BattleBingoProgressUpdatedEvent.class);
+        then(eventPublisher).should().publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue()).isEqualTo(new BattleBingoProgressUpdatedEvent(
+                10L,
+                200L,
+                1L,
+                100L,
+                1,
+                0,
+                false
+        ));
+        then(eventPublisher).should(never()).publishEvent(any(CooperativeBingoProgressUpdatedEvent.class));
+    }
+
+    @Test
+    @DisplayName("싱글 모드에서는 빙고 진행 이벤트를 발행하지 않는다")
+    void applyResultDoesNotPublishProgressEventInSingleMode() {
         // given
         BingoCell cell = cell(1000L, 100L);
         BingoBoard board = board(100L, 200L);
@@ -198,7 +273,7 @@ class BingoCellVerificationResultServiceTest {
         given(bingoCellRepository.findByIdForUpdate(1000L)).willReturn(Optional.of(cell));
         given(bingoBoardRepository.findById(100L)).willReturn(Optional.of(board));
         given(gameRepository.findByIdForUpdate(200L)).willReturn(Optional.of(game));
-        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(inProgressRoom(10L, gameMode)));
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(inProgressRoom(10L, GameMode.SINGLE)));
         given(bingoCellRepository.save(cell)).willReturn(cell);
         given(cashCommandService.grantBingoCellReward(1L, 10L, 1000L, MissionType.OBJECT)).willReturn(30L);
 
@@ -298,6 +373,12 @@ class BingoCellVerificationResultServiceTest {
 
     private BingoBoard board(Long id, Long gameId) {
         BingoBoard board = BingoBoard.create(gameId, 2);
+        ReflectionTestUtils.setField(board, "id", id);
+        return board;
+    }
+
+    private BingoBoard battleBoard(Long id, Long gameId, Long gameParticipantId, int targetBingoCount) {
+        BingoBoard board = BingoBoard.createForBattle(gameId, gameParticipantId, 2, targetBingoCount);
         ReflectionTestUtils.setField(board, "id", id);
         return board;
     }

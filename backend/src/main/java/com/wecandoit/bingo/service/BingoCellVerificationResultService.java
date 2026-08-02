@@ -4,6 +4,7 @@ import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
 import com.wecandoit.bingo.domain.BingoLineCounter;
+import com.wecandoit.bingo.event.BattleBingoProgressUpdatedEvent;
 import com.wecandoit.bingo.event.CooperativeBingoProgressUpdatedEvent;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
@@ -61,7 +62,7 @@ public class BingoCellVerificationResultService {
         if (!approved) {
             cell.reject(rejectionReason);
             bingoCellRepository.save(cell);
-            publishCooperativeProgressEvent(room, board, cell);
+            publishProgressEvent(room, board, cell);
             return 0L;
         }
 
@@ -74,12 +75,12 @@ public class BingoCellVerificationResultService {
                 missionType
         );
         gameCompletionService.evaluateAndCompleteIfNeeded(game.getId(), board.getId());
-        publishCooperativeProgressEvent(room, board, cell);
+        publishProgressEvent(room, board, cell);
         return rewardCash;
     }
 
-    private void publishCooperativeProgressEvent(Room room, BingoBoard board, BingoCell changedCell) {
-        if (room.getMode() != GameMode.COOPERATE) {
+    private void publishProgressEvent(Room room, BingoBoard board, BingoCell changedCell) {
+        if (room.getMode() != GameMode.COOPERATE && room.getMode() != GameMode.BATTLE) {
             return;
         }
 
@@ -89,15 +90,28 @@ public class BingoCellVerificationResultService {
                 .count();
         int completedBingoCount = BingoLineCounter.countCompletedLines(board.getBoardSize(), cells);
 
-        eventPublisher.publishEvent(new CooperativeBingoProgressUpdatedEvent(
+        if (room.getMode() == GameMode.COOPERATE) {
+            eventPublisher.publishEvent(new CooperativeBingoProgressUpdatedEvent(
+                    room.getId(),
+                    board.getId(),
+                    changedCell.getId(),
+                    changedCell.getVerificationStatus(),
+                    changedCell.getMemberId(),
+                    changedCell.getRejectionReason(),
+                    approvedCellCount,
+                    completedBingoCount
+            ));
+            return;
+        }
+
+        eventPublisher.publishEvent(new BattleBingoProgressUpdatedEvent(
                 room.getId(),
-                board.getId(),
-                changedCell.getId(),
-                changedCell.getVerificationStatus(),
+                board.getGameId(),
                 changedCell.getMemberId(),
-                changedCell.getRejectionReason(),
+                board.getId(),
                 approvedCellCount,
-                completedBingoCount
+                completedBingoCount,
+                completedBingoCount >= board.getTargetBingoCount()
         ));
     }
 }
