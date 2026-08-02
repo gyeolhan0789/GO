@@ -24,12 +24,17 @@ import { useShopItemsQuery } from '../../features/shop/hooks/useShopItemsQuery';
 import type { ShopItem } from '../../features/shop/model/shopItem';
 import { toShopItems } from '../../features/shop/model/shopItem';
 import { resolveApiErrorMessage } from '../../shared/api/resolveApiErrorMessage';
+import { Fab } from '../../shared/components/Fab/Fab';
 import { Header } from '../../shared/components/Header/Header';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { Toast } from '../../shared/components/Toast/Toast';
 import { colors } from '../../shared/constants/colors';
 import { spacing } from '../../shared/constants/spacing';
 import { bodyFont, lineHeights } from '../../shared/constants/typography';
+import {
+  SCROLL_THROTTLE_MS,
+  useScrollTopButton,
+} from '../../shared/hooks/useScrollTopButton';
 import { CategoryTabs } from '../../features/member/components/CategoryTabs';
 import { CharacterStage } from './components/CharacterStage';
 import { EquipResetButton } from './components/EquipResetButton';
@@ -44,6 +49,9 @@ import type { ShopFilter } from './types';
 const NOT_ENOUGH_POINTS_MESSAGE = '포인트가 부족해요.';
 
 const SHOP_COLUMN_COUNT = 3;
+
+// 구매 토스트 한 줄 높이(세로 여백 + 글줄). 맨 위로 버튼을 그만큼 띄운다.
+const TOAST_CLEARANCE = spacing.sm * 2 + lineHeights[14];
 
 const EMPTY_SHOP_ITEMS: ShopItemResponse[] = [];
 const EMPTY_OWNED_ITEMS: CharacterItem[] = [];
@@ -66,6 +74,8 @@ export function ShopScreen() {
   );
   const [pendingPurchase, setPendingPurchase] = useState<ShopItem | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const { listRef, isScrolledDown, handleScroll, scrollToTop } =
+    useScrollTopButton<ShopItem | null>();
 
   const points = cash.data?.cash ?? 0;
 
@@ -160,6 +170,9 @@ export function ShopScreen() {
   return (
     <Screen>
       <FlatList
+        ref={listRef}
+        onScroll={handleScroll}
+        scrollEventThrottle={SCROLL_THROTTLE_MS}
         data={gridItems}
         keyExtractor={(item, index) =>
           item ? String(item.itemId) : `placeholder-${index}`
@@ -226,6 +239,16 @@ export function ShopScreen() {
         showsVerticalScrollIndicator={false}
       />
 
+      {isScrolledDown ? (
+        <View style={styles.scrollToTop}>
+          <Fab
+            icon="arrow-up"
+            onPress={scrollToTop}
+            accessibilityLabel="맨 위로"
+          />
+        </View>
+      ) : null}
+
       <PurchaseConfirmModal
         item={pendingPurchase}
         points={points}
@@ -286,5 +309,11 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     // 탭 바에 마지막 줄이 가리지 않도록 스크롤 끝에 여유를 둔다.
     paddingBottom: spacing.lg * 2,
+  },
+  scrollToTop: {
+    position: 'absolute',
+    right: spacing.lg,
+    // 토스트가 같은 바닥선에 화면 폭으로 뜬다. 그 위로 올려 가려지지 않게 한다.
+    bottom: spacing.lg + TOAST_CLEARANCE,
   },
 });
