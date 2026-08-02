@@ -54,6 +54,7 @@ export function MyRankBar({ rank, weeklySteps, character }: MyRankBarProps) {
 
       <CharacterBust
         baseImage={character?.baseImage ?? null}
+        fallbackImage={character?.baseImageFallback ?? null}
         items={layers}
         style={styles.avatar}
       />

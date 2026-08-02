@@ -13,7 +13,7 @@ import { colors } from '../src/shared/constants/colors';
 
 import { RankingScreen } from '../src/screens/RankingScreen/RankingScreen';
 import { MyRankBar } from '../src/screens/RankingScreen/components/MyRankBar';
-import { RankingAvatar } from '../src/screens/RankingScreen/components/RankingAvatar';
+import { MemberAvatar } from '../src/features/member/components/MemberAvatar';
 import { RankingRow } from '../src/screens/RankingScreen/components/RankingRow';
 import { installFetchMock, jsonResponse } from '../jest/fetchMock';
 import type { FetchMock } from '../jest/fetchMock';
@@ -25,6 +25,7 @@ const MY_RANK = 4;
 const MY_CHARACTER = {
   memberId: 4,
   nickname: MY_NICKNAME,
+  gender: 'MALE',
   defaultImageUrl: null,
   equippedItems: [],
 };
@@ -425,7 +426,7 @@ describe('RankingScreen', () => {
 
     const tree = await renderScreen();
 
-    const avatars = tree.root.findAllByType(RankingAvatar);
+    const avatars = tree.root.findAllByType(MemberAvatar);
     const withHat = avatars.find(
       avatar => avatar.props.equippedItems?.length > 0,
     );

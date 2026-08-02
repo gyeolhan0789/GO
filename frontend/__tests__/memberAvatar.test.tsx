@@ -7,7 +7,7 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Image, StyleSheet, View } from 'react-native';
 import type { ReactTestInstance } from 'react-test-renderer';
 
-import { RankingAvatar } from '../src/screens/RankingScreen/components/RankingAvatar';
+import { MemberAvatar } from '../src/features/member/components/MemberAvatar';
 
 /** 아래에 깔리는 기본 캐릭터가 첫 레이어다. */
 function baseLayerSource(root: ReactTestInstance) {
@@ -50,7 +50,7 @@ describe('흉상 크롭', () => {
 
   test('캔버스의 머리~허리 구간만 창에 남긴다', () => {
     const tree = render(
-      <RankingAvatar gender="MALE" defaultImageUrl={null} equippedItems={[]} />,
+      <MemberAvatar gender="MALE" defaultImageUrl={null} equippedItems={[]} />,
     );
     const box = layerBoxStyle(tree.root);
 
@@ -66,7 +66,7 @@ describe('흉상 크롭', () => {
 
   test('창을 넘는 몸통은 잘라낸다', () => {
     const tree = render(
-      <RankingAvatar gender="MALE" defaultImageUrl={null} equippedItems={[]} />,
+      <MemberAvatar gender="MALE" defaultImageUrl={null} equippedItems={[]} />,
     );
 
     // overflow를 빼면 확대된 전신이 줄 밖으로 삐져나온다.
@@ -79,7 +79,7 @@ describe('흉상 크롭', () => {
 
   test('시상대는 전신을 그대로 세운다', () => {
     const tree = render(
-      <RankingAvatar
+      <MemberAvatar
         gender="MALE"
         defaultImageUrl={null}
         equippedItems={[]}
@@ -92,10 +92,10 @@ describe('흉상 크롭', () => {
   });
 });
 
-describe('랭킹 아바타 기본 캐릭터', () => {
+describe('회원 아바타 기본 캐릭터', () => {
   test('서버가 준 경로를 절대 URL로 만들어 쓴다', () => {
     const tree = render(
-      <RankingAvatar
+      <MemberAvatar
         gender="FEMALE"
         defaultImageUrl="/uploads/character-female.png"
         equippedItems={[]}
@@ -111,10 +111,10 @@ describe('랭킹 아바타 기본 캐릭터', () => {
 
   test('경로가 없으면 성별에 맞는 번들 에셋으로 그린다', () => {
     const male = render(
-      <RankingAvatar gender="MALE" defaultImageUrl={null} equippedItems={[]} />,
+      <MemberAvatar gender="MALE" defaultImageUrl={null} equippedItems={[]} />,
     );
     const female = render(
-      <RankingAvatar
+      <MemberAvatar
         gender="FEMALE"
         defaultImageUrl={null}
         equippedItems={[]}
@@ -129,9 +129,28 @@ describe('랭킹 아바타 기본 캐릭터', () => {
     );
   });
 
+  test('서버 이미지 로드에 실패하면 성별 번들 에셋으로 대체한다', () => {
+    // dev의 /uploads 서빙 장애처럼, URL은 내려왔는데 파일이 안 열리는 상황.
+    const tree = render(
+      <MemberAvatar
+        gender="MALE"
+        defaultImageUrl="/uploads/broken.png"
+        equippedItems={[]}
+      />,
+    );
+
+    expect(baseLayerSource(tree.root)).toHaveProperty('uri');
+
+    act(() => {
+      tree.root.findAllByType(Image)[0].props.onError();
+    });
+
+    expect(baseLayerSource(tree.root)).not.toHaveProperty('uri');
+  });
+
   test('착용 아이템을 기본 캐릭터 위에 겹친다', () => {
     const tree = render(
-      <RankingAvatar
+      <MemberAvatar
         gender="MALE"
         defaultImageUrl={null}
         equippedItems={[
@@ -156,7 +175,7 @@ describe('랭킹 아바타 기본 캐릭터', () => {
   test('여러 카테고리를 끼고 있으면 정해진 순서로 겹친다', () => {
     // 로컬 시드의 test-user가 이 조합이다. 넘기는 순서는 일부러 섞어 둔다.
     const tree = render(
-      <RankingAvatar
+      <MemberAvatar
         gender="MALE"
         defaultImageUrl={null}
         equippedItems={[
@@ -217,7 +236,7 @@ describe('랭킹 아바타 기본 캐릭터', () => {
 
   test('같은 카테고리가 겹쳐 오면 하나만 그린다', () => {
     const tree = render(
-      <RankingAvatar
+      <MemberAvatar
         gender="MALE"
         defaultImageUrl={null}
         equippedItems={[
@@ -244,7 +263,7 @@ describe('랭킹 아바타 기본 캐릭터', () => {
 
   test('아이템이 안 내려온 배포에서도 기본 캐릭터는 그린다', () => {
     const tree = render(
-      <RankingAvatar
+      <MemberAvatar
         gender="MALE"
         defaultImageUrl={null}
         equippedItems={undefined}
@@ -252,5 +271,36 @@ describe('랭킹 아바타 기본 캐릭터', () => {
     );
 
     expect(tree.root.findAllByType(Image)).toHaveLength(1);
+  });
+
+  test('성별도 기본 이미지도 없으면 흉상 확대 없이 아이콘 자리만 남긴다', () => {
+    // 친구 목록처럼 응답에 캐릭터 정보가 없는 곳. 확대·이동을 걸면 가운데
+    // 그려질 아이콘이 원 밖으로 밀려나 잘려 보인다.
+    const tree = render(
+      <MemberAvatar
+        defaultImageUrl={null}
+        equippedItems={[
+          {
+            memberItemId: 1,
+            itemId: 201,
+            name: 'Blue Cap',
+            category: 'HAT',
+            imageUrl: '/uploads/cap.png',
+          },
+        ]}
+      />,
+    );
+
+    const hasZoomedBox = tree.root
+      .findAllByType(View)
+      .map(node => StyleSheet.flatten(node.props.style))
+      .some(
+        style =>
+          typeof (style as { width?: unknown })?.width === 'string' &&
+          (style as { position?: string }).position === 'absolute',
+      );
+    expect(hasZoomedBox).toBe(false);
+    // 몸통 없이 옷만 떠 있지 않도록 아이템도 그리지 않는다.
+    expect(tree.root.findAllByType(Image)).toHaveLength(0);
   });
 });
