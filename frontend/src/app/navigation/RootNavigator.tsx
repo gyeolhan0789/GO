@@ -16,6 +16,7 @@ import { SignupScreen } from '../../screens/SignupScreen/SignupScreen';
 import { SocialSignupScreen } from '../../screens/SocialSignupScreen/SocialSignupScreen';
 import { WalkDetailScreen } from '../../screens/WalkDetailScreen/WalkDetailScreen';
 import { WalkListScreen } from '../../screens/WalkListScreen/WalkListScreen';
+import { WalkRoomDetailScreen } from '../../screens/WalkRoomDetailScreen/WalkRoomDetailScreen';
 import { WalkSessionScreen } from '../../screens/WalkSessionScreen/WalkSessionScreen';
 import { MainTabNavigator } from './MainTabNavigator';
 
@@ -39,6 +40,7 @@ export type RootStackParamList = {
   Main: undefined;
   WalkList: undefined;
   WalkDetail: { roomId: number };
+  WalkRoomDetail: { roomId: number };
   // roomId는 화면 파라미터가 아니라 walkSessionStore(전역 진행 중인 세션
   // 상태)로 전달된다.
   WalkSession: undefined;
@@ -112,6 +114,11 @@ export function RootNavigator() {
             name="WalkDetail"
             component={WalkDetailScreen}
             options={{ ...DETAIL_HEADER_OPTIONS, title: '산책 기록' }}
+          />
+          <Stack.Screen
+            name="WalkRoomDetail"
+            component={WalkRoomDetailScreen}
+            options={{ ...DETAIL_HEADER_OPTIONS, title: '모임 상세' }}
           />
           {/* 진행 중 화면은 자체 상단바(나가기 버튼)를 쓰므로 네이티브 헤더를 끈다. */}
           <Stack.Screen name="WalkSession" component={WalkSessionScreen} />
