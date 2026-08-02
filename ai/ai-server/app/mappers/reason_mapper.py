@@ -32,6 +32,7 @@ class ReasonMapper:
             .strip()
         )
 
+
         # ==========================
         # 성공
         # ==========================
@@ -44,73 +45,7 @@ class ReasonMapper:
 
             return ai_result
 
-        # ==========================
-        # 이미지 품질 문제
-        # ==========================
 
-        if any(
-            keyword in reason
-            for keyword in [
-                "흐림",
-                "흐려",
-                "blur"
-            ]
-        ):
-
-            ai_result.reason_code = (
-                ReasonCode.BLUR_IMAGE
-            )
-
-            return ai_result
-
-        if any(
-            keyword in reason
-            for keyword in [
-                "어두",
-                "dark"
-            ]
-        ):
-
-            ai_result.reason_code = (
-                ReasonCode.DARK_IMAGE
-            )
-
-            return ai_result
-        
-
-        # ==========================
-        # 촬영 구도 문제
-        # ==========================
-
-        if any(
-            keyword in reason
-            for keyword in [
-                "일부만 보",
-                "가려",
-                "잘린"
-            ]
-        ):
-
-            ai_result.reason_code = (
-                ReasonCode.PARTIAL_OBJECT
-            )
-
-            return ai_result
-
-        if any(
-            keyword in reason
-            for keyword in [
-                "화면 끝",
-                "치우쳐",
-                "구석"
-            ]
-        ):
-
-            ai_result.reason_code = (
-                ReasonCode.OBJECT_OFF_CENTER
-            )
-
-            return ai_result
 
         # ==========================
         # 실제 객체 아님
@@ -124,18 +59,76 @@ class ReasonMapper:
 
             return ai_result
 
+
+
         # ==========================
-        # 판정 모호
+        # ATTRIBUTE 불확실
         # ==========================
+        # 객체는 존재하지만 속성 확인 불가
+
+        if mission_type == "ATTRIBUTE":
+
+            attribute_uncertain_keywords = [
+
+                "attribute_uncertain",
+
+                "색상을 확인할 수 없",
+                "색상을 판단할 수 없",
+
+                "속성을 확인할 수 없",
+                "속성 확인이 어렵",
+
+                "조건을 확인할 수 없",
+
+                "판단하기 어렵",
+                "확인하기 어렵"
+
+            ]
+
+
+            if any(
+                keyword in reason
+                for keyword in attribute_uncertain_keywords
+            ):
+
+                ai_result.reason_code = (
+                    ReasonCode.ATTRIBUTE_UNCERTAIN
+                )
+
+                return ai_result
+
+
+
+        # ==========================
+        # OBJECT / RELATION 불확실
+        # ==========================
+
+        uncertain_keywords = [
+
+            "object_uncertain",
+            "relation_uncertain",
+
+            "일부",
+            "부분",
+
+            "가려",
+            "잘린",
+            "전체 형태",
+            "형태가 명확하지",
+
+            "확신할 수 없",
+            "식별할 수 없",
+            "판단하기 어렵",
+            "확인하기 어렵"
+
+        ]
+
 
         if any(
             keyword in reason
-            for keyword in [
-                "판단하기 어렵",
-                "확인하기 어렵",
-                "식별하기 어렵"
-            ]
+            for keyword in uncertain_keywords
         ):
+
 
             if mission_type == "OBJECT":
 
@@ -143,11 +136,6 @@ class ReasonMapper:
                     ReasonCode.OBJECT_UNCERTAIN
                 )
 
-            elif mission_type == "ATTRIBUTE":
-
-                ai_result.reason_code = (
-                    ReasonCode.ATTRIBUTE_UNCERTAIN
-                )
 
             elif mission_type == "RELATION":
 
@@ -155,7 +143,50 @@ class ReasonMapper:
                     ReasonCode.RELATION_UNCERTAIN
                 )
 
+
             return ai_result
+
+
+
+        # ==========================
+        # 이미지 품질 문제
+        # ==========================
+
+        if any(
+            keyword in reason
+            for keyword in [
+                "흐림",
+                "흐려",
+                "흐리고",
+                "흐릿",
+                "blur"
+            ]
+        ):
+
+            ai_result.reason_code = (
+                ReasonCode.BLUR_IMAGE
+            )
+
+            return ai_result
+
+
+
+        if any(
+            keyword in reason
+            for keyword in [
+                "어두",
+                "어둡",
+                "dark"
+            ]
+        ):
+
+            ai_result.reason_code = (
+                ReasonCode.DARK_IMAGE
+            )
+
+            return ai_result
+
+
 
         # ==========================
         # 일반 실패
@@ -167,16 +198,19 @@ class ReasonMapper:
                 ReasonCode.OBJECT_NOT_FOUND
             )
 
+
         elif mission_type == "ATTRIBUTE":
 
             ai_result.reason_code = (
                 ReasonCode.ATTRIBUTE_MISMATCH
             )
 
+
         elif mission_type == "RELATION":
 
             ai_result.reason_code = (
                 ReasonCode.RELATION_MISMATCH
             )
+
 
         return ai_result
