@@ -1,4 +1,5 @@
 import { apiClient } from '../../../shared/api/client';
+import type { Region } from '../../auth/constants/regions';
 
 export type ItemCategory =
   | 'HAT'
@@ -54,6 +55,20 @@ export function saveEquippedItems(memberItemIds: number[]) {
   return apiClient.put<void>('/character-items', { memberItemIds });
 }
 
-export function updateMyProfile(request: { nickname: string }) {
-  return apiClient.patch<void>('/members/me', request);
+export type ProfileUpdateRequest = {
+  nickname?: string;
+  region?: Region;
+};
+
+/**
+ * 보낸 항목만 바뀐다(서버가 null인 필드는 건너뛴다).
+ *
+ * `accessToken`은 아직 세션을 시작하지 않은 소셜 가입 마무리에서만 넘긴다.
+ * 그 외에는 생략해서 저장된 토큰을 쓴다.
+ */
+export function updateMyProfile(
+  request: ProfileUpdateRequest,
+  options?: { accessToken?: string },
+) {
+  return apiClient.patch<void>('/members/me', request, options);
 }

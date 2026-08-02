@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -23,6 +23,8 @@ import type { Gender } from '../../features/auth/constants/genders';
 import type { Region } from '../../features/auth/constants/regions';
 import { useRegionDetection } from '../../features/auth/hooks/useRegionDetection';
 import { useSignupMutation } from '../../features/auth/hooks/useSignupMutation';
+import { useSocialAuthFlow } from '../../features/auth/hooks/useSocialAuthFlow';
+import type { SocialSignupHandoff } from '../../features/auth/hooks/useSocialAuthFlow';
 import {
   NICKNAME_MAX_LENGTH,
   validateSignup,
@@ -72,6 +74,15 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
     detectIfPermitted,
     detect,
   } = useRegionDetection();
+
+  const social = useSocialAuthFlow(
+    useCallback(
+      (handoff: SocialSignupHandoff) => {
+        navigation.navigate('SocialSignup', handoff);
+      },
+      [navigation],
+    ),
+  );
 
   // 위치 권한이 이미 허용된 경우에만 진입 시 조용히 지역을 채운다. 사용자가 아직
   // 아무 지역도 고르지 않았을 때만 반영해 수동 선택을 덮어쓰지 않는다.
@@ -340,9 +351,16 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
               <View style={styles.dividerLine} />
             </View>
 
+            {social.errorMessage ? (
+              <AppText style={styles.error} accessibilityLiveRegion="polite">
+                {social.errorMessage}
+              </AppText>
+            ) : null}
+
             <SocialAuthButtons
-              onKakaoPress={notReady}
-              onGooglePress={notReady}
+              onKakaoPress={() => social.start('KAKAO')}
+              onGooglePress={() => social.start('GOOGLE')}
+              pendingProvider={social.pendingProvider}
             />
           </View>
         </ScrollView>
