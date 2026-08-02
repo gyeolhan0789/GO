@@ -21,7 +21,7 @@ import {
 import { Screen } from '../../shared/components/Screen/Screen';
 import { Button } from '../../shared/components/Button/Button';
 import { spacing } from '../../shared/constants/spacing';
-import { useSamsungHealthToday } from '../../shared/hooks/useSamsungHealthToday';
+import { useStepDataToday } from '../../shared/hooks/useStepDataToday';
 import { CreateSoloWalkSheet } from './components/CreateSoloWalkSheet';
 import { HomeHeader } from './components/HomeHeader';
 import { HomeCarousel } from './components/HomeCarousel';
@@ -117,7 +117,7 @@ export function HomeScreen() {
 
   // 사용 불가/미허용/조회 실패 시 실측값이 없다는 뜻이므로 가짜 숫자 대신 0을
   // 보여준다.
-  const health = useSamsungHealthToday();
+  const health = useStepDataToday();
   const healthSummary =
     health.data?.status === 'ok' ? health.data.summary : null;
   const todaySteps = healthSummary?.steps ?? 0;

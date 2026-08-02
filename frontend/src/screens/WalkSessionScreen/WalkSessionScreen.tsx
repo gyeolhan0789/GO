@@ -32,7 +32,7 @@ import { MemberProgressBar } from '../../shared/components/MemberProgressBar/Mem
 import { Screen } from '../../shared/components/Screen/Screen';
 import { controlHeight } from '../../shared/constants/sizing';
 import { colors } from '../../shared/constants/colors';
-import { useSamsungHealthToday } from '../../shared/hooks/useSamsungHealthToday';
+import { useStepDataToday } from '../../shared/hooks/useStepDataToday';
 import { getParticipantColor } from '../../shared/lib/participantColor';
 import { radius } from '../../shared/constants/radius';
 import { shadow } from '../../shared/constants/shadow';
@@ -131,7 +131,7 @@ export function WalkSessionScreen() {
   // 걷는 동안 화면에 뜬 값이 계속 갱신되도록 주기적으로 다시 읽는다. 일시정지
   // 중에는(경로 추적도 같이 멈추는 것과 동일하게) 다시 읽지 않고 멈춘
   // 시점 값을 그대로 보여준다.
-  const health = useSamsungHealthToday({
+  const health = useStepDataToday({
     refetchInterval: HEALTH_POLL_INTERVAL_MS,
     enabled: !isPaused,
   });

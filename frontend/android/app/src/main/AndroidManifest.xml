@@ -19,6 +19,10 @@
     <uses-feature
       android:name="android.hardware.camera"
       android:required="false" />
+    <!-- 걸음 센서 없는 기기도 설치 허용 -->
+    <uses-feature
+      android:name="android.hardware.sensor.stepcounter"
+      android:required="false" />
 
     <application
       android:name=".MainApplication"
