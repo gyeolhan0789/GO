@@ -66,12 +66,12 @@ export function WalkListScreen({ navigation }: WalkListScreenProps) {
             ref={listRef}
             onScroll={handleScroll}
             data={walks}
-            keyExtractor={walk => String(walk.roomId)}
+            keyExtractor={walk => String(walk.gameId)}
             renderItem={({ item }) => (
               <WalkCard
                 walk={item}
                 onPress={() =>
-                  navigation.navigate('WalkDetail', { roomId: item.roomId })
+                  navigation.navigate('WalkDetail', { gameId: item.gameId })
                 }
               />
             )}

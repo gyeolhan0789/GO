@@ -40,7 +40,7 @@ function resolveIsWin(response: GameResultResponse): boolean {
 
 export function toWalkRecord(response: GameResultResponse): WalkRecord {
   return {
-    roomId: response.roomId,
+    gameId: response.gameId,
     title: response.roomName,
     mode: response.mode,
     startedAt: response.startedAt,
@@ -114,7 +114,7 @@ export function toWalkDetail(
   const board = selectMyBoard(response.bingoBoards, myMemberId);
 
   return {
-    roomId: response.roomId,
+    gameId: response.gameId,
     title: response.roomName,
     mode: response.mode,
     startedAt: response.startedAt,

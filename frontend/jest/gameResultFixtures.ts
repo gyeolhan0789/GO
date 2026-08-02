@@ -43,7 +43,9 @@ export function buildGameResultResponse(index: number): GameResultResponse {
 
   return {
     gameId: index + 1,
-    roomId: index + 1,
+    // 방 하나가 판을 여러 번 돌리므로 두 값은 절대 같지 않다. 같은 숫자로
+    // 두면 상세를 방 번호로 조회하는 버그가 테스트를 그냥 통과한다.
+    roomId: 4000 + index,
     roomName: TITLES[index % TITLES.length],
     mode: friends.length === 0 ? 'SINGLE' : 'COOPERATE',
     roomStatus: 'CLOSED',
@@ -124,11 +126,11 @@ function buildCells(): GameResultBingoCellResponse[] {
 
 /** 참가자 셋이 판 하나를 같이 쓰는 협동 산책. */
 export function buildGameResultDetailResponse(
-  roomId: number,
+  gameId: number,
 ): GameResultDetailResponse {
   return {
     ...buildGameResultResponse(0),
-    roomId,
+    gameId,
     mode: 'COOPERATE',
     participants: [
       {

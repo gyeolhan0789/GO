@@ -101,6 +101,7 @@ export function getMyGameResults({ page, size }: GetMyGameResultsParams) {
   );
 }
 
-export function getGameResult(roomId: number) {
-  return apiClient.get<GameResultDetailResponse>(`/game-results/${roomId}`);
+/** 경로 변수는 방이 아니라 게임 식별자다(백엔드 GameResultController). */
+export function getGameResult(gameId: number) {
+  return apiClient.get<GameResultDetailResponse>(`/game-results/${gameId}`);
 }

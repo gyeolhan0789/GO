@@ -12,8 +12,11 @@ export type WalkParticipant = {
  * 게임 지표로 대신 보여준다.
  */
 export type WalkRecord = {
-  /** 상세 조회 키. 산책 한 건은 방 하나에서 끝난 게임 한 판이다. */
-  roomId: number;
+  /**
+   * 상세 조회 키. 산책 한 건은 방 하나에서 끝난 게임 한 판이다. 방은 판을
+   * 여러 번 돌리므로 방이 아니라 판을 가리켜야 한 건이 특정된다.
+   */
+  gameId: number;
   title: string;
   mode: GameMode;
   /** 'yyyy-MM-ddTHH:mm:ss'. 카드에는 날짜만 쓰지만 방이 여러 날 열려 있을 수 있다. */
@@ -60,7 +63,7 @@ export type WalkBingoCell = {
  * 따로 담지 않는다.
  */
 export type WalkDetail = {
-  roomId: number;
+  gameId: number;
   title: string;
   mode: GameMode;
   /** 'yyyy-MM-ddTHH:mm:ss'. */

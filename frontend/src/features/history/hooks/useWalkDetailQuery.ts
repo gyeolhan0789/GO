@@ -15,14 +15,14 @@ type WalkDetailQueryResult = {
  * 산책 상세. 응답에 '이 사람이 나'라는 표시가 없어서 내 memberId를 먼저 알아야
  * 내 빙고판과 내가 완료한 칸을 가려낼 수 있다.
  */
-export function useWalkDetailQuery(roomId: number): WalkDetailQueryResult {
+export function useWalkDetailQuery(gameId: number): WalkDetailQueryResult {
   const characterQuery = useMyCharacterQuery();
   const myMemberId = characterQuery.data?.memberId ?? null;
 
   const walkQuery = useQuery({
-    queryKey: ['game-results', 'detail', roomId, myMemberId],
+    queryKey: ['game-results', 'detail', gameId, myMemberId],
     queryFn: async () => {
-      const response = await getGameResult(roomId);
+      const response = await getGameResult(gameId);
 
       // enabled가 막아주지만 타입을 좁히려면 여기서 한 번 더 확인해야 한다.
       return myMemberId === null ? null : toWalkDetail(response, myMemberId);

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -226,6 +227,7 @@ export function WalkSessionScreen() {
   ).current;
 
   const saveHistoryMutation = useSaveHistoryMutation();
+  const queryClient = useQueryClient();
 
   const handleEndWalk = useCallback(() => {
     Alert.alert('산책 종료', '지금 산책을 종료할까요?', [
@@ -264,6 +266,11 @@ export function WalkSessionScreen() {
             );
           }
 
+          // 기록 화면은 탭에 계속 살아 있어 다시 마운트되지 않는다. 여기서
+          // 비워주지 않으면 방금 끝낸 산책이 최근 산책·전체 기록에 앱을 다시
+          // 열기 전까지 안 보인다.
+          queryClient.invalidateQueries({ queryKey: ['game-results'] });
+
           const resultParams = {
             roomId,
             roomName: room?.name ?? '',
@@ -287,6 +294,7 @@ export function WalkSessionScreen() {
     sessionCalories,
     elapsedSeconds,
     saveHistoryMutation,
+    queryClient,
   ]);
 
   // 카운트다운이 끝나기 전까지는 지도를 아예 안 띄운다(지도가 살짝
