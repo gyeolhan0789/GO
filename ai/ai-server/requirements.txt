@@ -1,8 +1,20 @@
-﻿fastapi
+﻿# Web Framework
+fastapi
 uvicorn[standard]
-google-genai
-python-dotenv
-pillow
-pydantic-settings
 python-multipart
+
+# Config
+python-dotenv
+pydantic-settings
+
+# Gemini Vision API
+google-genai
+
+# Image Processing
+pillow
 opencv-python
+
+# Local Vision Model
+transformers
+torch
+accelerate
