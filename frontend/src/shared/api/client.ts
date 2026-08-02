@@ -39,14 +39,21 @@ function send(
   options: RequestOptions,
   accessToken: string | null,
 ) {
+  // FormData는 JSON으로 감싸면 안 되고, Content-Type도 boundary를 포함해
+  // fetch가 자동으로 채워야 하므로 여기서 강제로 지정하지 않는다.
+  const isFormData = options.body instanceof FormData;
   return fetch(`${BASE_URL}${path}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? null : { 'Content-Type': 'application/json' }),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : null),
       ...options.headers,
     },
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    body: isFormData
+      ? (options.body as FormData)
+      : options.body !== undefined
+      ? JSON.stringify(options.body)
+      : undefined,
   });
 }
 
@@ -91,6 +98,8 @@ export const apiClient = {
   get: <T>(path: string) => request<T>(path, { method: 'GET' }),
   post: <T>(path: string, body?: unknown, sendOptions?: SendOptions) =>
     request<T>(path, { method: 'POST', body }, sendOptions),
+  postForm: <T>(path: string, form: FormData, sendOptions?: SendOptions) =>
+    request<T>(path, { method: 'POST', body: form }, sendOptions),
   put: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'PUT', body }),
   patch: <T>(path: string, body?: unknown, sendOptions?: SendOptions) =>

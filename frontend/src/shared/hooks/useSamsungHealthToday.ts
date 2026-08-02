@@ -30,6 +30,8 @@ async function fetchSamsungHealthToday(): Promise<SamsungHealthState> {
 type UseSamsungHealthTodayOptions = {
   /** 산책 세션 화면처럼 값이 계속 갱신돼야 하는 곳에서만 넘긴다(ms). */
   refetchInterval?: number;
+  /** false를 주면(예: 산책 일시정지 중) 새로 읽지 않고 마지막 값을 그대로 보여준다. */
+  enabled?: boolean;
 };
 
 /**
@@ -40,5 +42,6 @@ export function useSamsungHealthToday(options: UseSamsungHealthTodayOptions = {}
     queryKey: ['samsungHealth', 'today'],
     queryFn: fetchSamsungHealthToday,
     refetchInterval: options.refetchInterval,
+    enabled: options.enabled ?? true,
   });
 }
