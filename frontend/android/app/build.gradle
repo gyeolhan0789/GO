@@ -96,12 +96,16 @@ android {
         // ${MAPS_API_KEY} 자리로 들어간다. 키가 없으면 빈 문자열이라 지도가
         // 회색 화면으로만 뜨고 크래시는 나지 않는다.
         //
-        // KAKAO_NATIVE_APP_KEY도 같은 방식이다. AndroidManifest의 리다이렉트
-        // 스킴(kakao${KAKAO_NATIVE_APP_KEY})과, 카카오 SDK가 초기화 때 직접 읽는
-        // 문자열 리소스(kakao_app_key) 두 곳에 들어간다. 키 값은 Kakao
-        // Developers 콘솔 > 앱 키 > 네이티브 앱 키이며, 백엔드가 ID 토큰을 검증할
-        // 때 쓰는 `oauth.providers.kakao.client-id`와 같은 값이어야 한다.
-        def kakaoNativeAppKey = localProperties.getProperty('KAKAO_NATIVE_APP_KEY', '')
+        // 카카오 네이티브 앱 키는 AndroidManifest의 리다이렉트 스킴과 카카오 SDK가
+        // 읽는 문자열 리소스(kakao_app_key), 두 곳에 들어간다. 백엔드가 ID 토큰의
+        // aud를 검증할 때 쓰는 `oauth.providers.kakao.client-id`와 같은 값이다.
+        //
+        // Maps 키와 달리 기본값을 커밋한다. APK와 리다이렉트 스킴에 그대로 노출되는
+        // 공개 식별자라 숨길 이유가 없고, 팀원이 각자 설정하지 않아도 카카오 로그인이
+        // 되어야 하기 때문이다. 다른 카카오 앱으로 붙일 때만 local.properties에서
+        // 덮어쓴다.
+        def kakaoNativeAppKey = localProperties.getProperty(
+            'KAKAO_NATIVE_APP_KEY', 'fbced36af5aff1bbd08073540fea816c')
         manifestPlaceholders = [
             MAPS_API_KEY: localProperties.getProperty('MAPS_API_KEY', ''),
             KAKAO_NATIVE_APP_KEY: kakaoNativeAppKey,
