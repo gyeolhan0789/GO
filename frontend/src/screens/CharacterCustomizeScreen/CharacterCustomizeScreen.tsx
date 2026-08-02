@@ -105,6 +105,7 @@ export function CharacterCustomizeScreen() {
             <Card style={styles.characterCard}>
               <CharacterPreview
                 baseImage={character.data?.baseImage ?? null}
+                fallbackImage={character.data?.baseImageFallback ?? null}
                 items={selectLayerItems(equipped)}
                 style={styles.preview}
               />
