@@ -268,8 +268,11 @@ export function CompanionScreen() {
               style={styles.list}
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
-              refreshing={myRoomsQuery.isRefetching}
-              onRefresh={() => myRoomsQuery.refetch()}
+              refreshing={myRoomsQuery.isRefetching || receivedInvitesQuery.isRefetching}
+              onRefresh={() => {
+                myRoomsQuery.refetch();
+                receivedInvitesQuery.refetch();
+              }}
             />
           )
         ) : friendsQuery.isLoading ? (
@@ -310,8 +313,11 @@ export function CompanionScreen() {
             style={styles.list}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
-            refreshing={friendsQuery.isRefetching}
-            onRefresh={() => friendsQuery.refetch()}
+            refreshing={friendsQuery.isRefetching || receivedRequestsQuery.isRefetching}
+            onRefresh={() => {
+              friendsQuery.refetch();
+              receivedRequestsQuery.refetch();
+            }}
           />
         )}
       </View>
