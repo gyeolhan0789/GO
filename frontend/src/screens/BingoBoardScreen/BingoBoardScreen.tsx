@@ -3,7 +3,6 @@ import { Alert, Image, Pressable, ScrollView, StyleSheet, View } from 'react-nat
 import type { LayoutChangeEvent } from 'react-native';
 import { launchCamera } from 'react-native-image-picker';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import type { IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -21,8 +20,8 @@ import type {
 import { BingoBoard } from '../../features/bingo/components/BingoBoard/BingoBoard';
 import { useActiveBingoBoardQuery } from '../../features/bingo/hooks/useActiveBingoBoardQuery';
 import { MissionVerificationModal } from '../../features/bingo/components/MissionVerificationModal/MissionVerificationModal';
-import type { MissionType } from '../../features/bingo/model/missionType';
 import {
+  MISSION_TYPE_ICONS,
   MISSION_TYPE_LABELS,
   MISSION_TYPE_POINTS,
 } from '../../features/bingo/model/missionType';
@@ -38,14 +37,6 @@ import { radius } from '../../shared/constants/radius';
 import { spacing } from '../../shared/constants/spacing';
 import { fontFamily, lineHeights } from '../../shared/constants/typography';
 import { useMeasuredWidth } from '../../shared/hooks/useMeasuredWidth';
-
-// 미션에 등록된 이미지가 없을 때 쓰는 유형별 기본 아이콘.
-const MISSION_TYPE_ICONS: Record<MissionType, IoniconsIconName> = {
-  OBJECT: 'cube-outline',
-  ATTRIBUTE: 'sparkles-outline',
-  RELATION: 'people-outline',
-  ORDINARY: 'walk-outline',
-};
 
 type BingoBoardScreenProps = NativeStackScreenProps<
   RootStackParamList,
