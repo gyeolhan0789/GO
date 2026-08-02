@@ -26,15 +26,22 @@ type WalkSessionState = {
    * 걷고 쓴 양을 보여주려면 나중 값에서 이 값을 뺀다. 조회 실패/미허용이면
    * null로 남고, 화면 쪽이 오늘 누적치를 그대로 보여주는 걸로 대체한다. */
   startHealthSummary: SamsungHealthSummary | null;
+  /** 워치에서 "산책 종료"를 눌렀을 때 선다. 기록 저장·결과 화면 이동은
+   * WalkSessionScreen만 할 수 있어서(저장할 수치와 방 정보를 그 화면이
+   * 들고 있다), 여기서는 요청만 남기고 화면이 마운트되면 이어받는다. */
+  endRequested: boolean;
 };
 
-let state: WalkSessionState = {
+const INITIAL_STATE: WalkSessionState = {
   roomId: null,
   startedAt: null,
   pausedAt: null,
   pausedMs: 0,
   startHealthSummary: null,
+  endRequested: false,
 };
+
+let state: WalkSessionState = INITIAL_STATE;
 const listeners = new Set<Listener>();
 
 function notify() {
@@ -48,13 +55,7 @@ export function startWalkSession(roomId: number) {
   if (state.roomId !== null) {
     return;
   }
-  state = {
-    roomId,
-    startedAt: null,
-    pausedAt: null,
-    pausedMs: 0,
-    startHealthSummary: null,
-  };
+  state = { ...INITIAL_STATE, roomId };
   notify();
 }
 
@@ -85,13 +86,29 @@ export function setWalkSessionStartHealthSummary(summary: SamsungHealthSummary) 
 }
 
 export function endWalkSession() {
-  state = {
-    roomId: null,
-    startedAt: null,
-    pausedAt: null,
-    pausedMs: 0,
-    startHealthSummary: null,
-  };
+  state = INITIAL_STATE;
+  notify();
+}
+
+/** 워치의 "산책 종료"가 도착했을 때. 실제 종료는 WalkSessionScreen이 한다. */
+export function requestWalkSessionEnd() {
+  if (state.roomId === null || state.endRequested) {
+    return;
+  }
+  state = { ...state, endRequested: true };
+  notify();
+}
+
+export function isWalkSessionEndRequested() {
+  return state.endRequested;
+}
+
+/** 종료 흐름을 시작한 화면이 요청을 소비한다(같은 요청을 두 번 타지 않게). */
+export function clearWalkSessionEndRequest() {
+  if (!state.endRequested) {
+    return;
+  }
+  state = { ...state, endRequested: false };
   notify();
 }
 

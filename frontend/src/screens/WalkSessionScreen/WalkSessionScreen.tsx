@@ -22,7 +22,9 @@ import { useSaveHistoryMutation } from '../../features/history/hooks/useSaveHist
 import { useMyMemberIdQuery } from '../../features/member/hooks/useMyMemberIdQuery';
 import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
 import { useWalkSession } from '../../features/walk-session/hooks/useWalkSession';
+import { toWalkSessionMetrics } from '../../features/walk-session/model/sessionMetrics';
 import {
+  clearWalkSessionEndRequest,
   confirmWalkSessionStart,
   endWalkSession,
   setWalkSessionStartHealthSummary,
@@ -72,8 +74,15 @@ export function WalkSessionScreen() {
   // 상태. 뒤로가기로 나갔다 들어와도 0으로 리셋되지 않는다. isStarted가
   // false인 동안은 카운트다운이 아직 안 끝난 것이라 경과 시간이 0으로
   // 고정된다.
-  const { roomId, startHealthSummary, elapsedSeconds, isPaused, isStarted, togglePause } =
-    useWalkSession();
+  const {
+    roomId,
+    startHealthSummary,
+    elapsedSeconds,
+    isPaused,
+    isStarted,
+    isEndRequested,
+    togglePause,
+  } = useWalkSession();
   // 카운트다운이 끝나야 진짜 시작이므로, 그 전까지는 경로도 기록하지 않는다.
   const showCountdown = !isStarted;
   // 일시정지하면 경로도 같이 멈춘다. 지금까지 찍은 좌표는 그대로 남는다.
@@ -146,28 +155,13 @@ export function WalkSessionScreen() {
       setWalkSessionStartHealthSummary(healthSummary);
     }
   }, [isStarted, startHealthSummary, healthSummary]);
-  // 오늘 누적치에서 세션 시작 시점 기준값을 빼서 "이 산책에서" 걷고 쓴
-  // 양만 보여준다. 기준값을 아직 못 읽었으면(권한 문제 등) 0을 빼는 셈이라
-  // 오늘 누적치가 그대로 나온다.
-  const sessionSteps = healthSummary
-    ? Math.max(0, healthSummary.steps - (startHealthSummary?.steps ?? 0))
-    : 0;
-  const sessionDistanceKm = healthSummary
-    ? Math.round(
-        Math.max(
-          0,
-          healthSummary.distanceMeters - (startHealthSummary?.distanceMeters ?? 0),
-        ) / 100,
-      ) / 10
-    : 0;
-  const sessionCalories = healthSummary
-    ? Math.round(
-        Math.max(
-          0,
-          healthSummary.activeCalories - (startHealthSummary?.activeCalories ?? 0),
-        ),
-      )
-    : 0;
+  // 오늘 누적치에서 세션 시작 시점 기준값을 뺀 "이 산책에서" 걷고 쓴 양.
+  // 워치도 같은 숫자를 보여줘야 해서 계산을 모델로 빼놨다.
+  const {
+    steps: sessionSteps,
+    distanceKm: sessionDistanceKm,
+    calories: sessionCalories,
+  } = toWalkSessionMetrics(healthSummary, startHealthSummary);
   const mapRef = useRef<WalkRouteMapHandle>(null);
   // 현위치 버튼을 패널의 현재 노출 높이 바로 위에 띄우려면 패널의 실측
   // 높이가 필요하다(콘텐츠에 따라 늘어나서 고정값을 쓸 수 없다). 패널을
@@ -229,62 +223,55 @@ export function WalkSessionScreen() {
   const saveHistoryMutation = useSaveHistoryMutation();
   const queryClient = useQueryClient();
 
-  const handleEndWalk = useCallback(() => {
-    Alert.alert('산책 종료', '지금 산책을 종료할까요?', [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '종료',
-        style: 'destructive',
-        onPress: async () => {
-          // 방은 파괴하지 않는 한 계속 유지된다. 빙고판 갱신은 다 채웠거나
-          // 일주일이 지났을 때 방장이 직접 트리거해야 한다(자동 초기화 없음).
-          // 여기서는 이 화면의 로컬 세션(경과 시간 타이머)만 끝낸다.
-          // TODO: 홈 화면의 빙고판 쿼리(useActiveBingoBoardQuery)도 함께
-          // 무효화/refetch해서 산책 중 인증한 미션이 홈 화면 미리보기에 바로
-          // 반영되게 한다.
-          if (roomId === null) {
-            endWalkSession();
-            navigation.goBack();
-            return;
-          }
+  /** 확인을 마친 뒤의 실제 종료. 워치에서 종료를 눌렀을 때도 여기로 온다
+   * (확인은 워치 화면에서 이미 받는다). */
+  const finishWalk = useCallback(async () => {
+    // 방은 파괴하지 않는 한 계속 유지된다. 빙고판 갱신은 다 채웠거나
+    // 일주일이 지났을 때 방장이 직접 트리거해야 한다(자동 초기화 없음).
+    // 여기서는 이 화면의 로컬 세션(경과 시간 타이머)만 끝낸다.
+    // TODO: 홈 화면의 빙고판 쿼리(useActiveBingoBoardQuery)도 함께
+    // 무효화/refetch해서 산책 중 인증한 미션이 홈 화면 미리보기에 바로
+    // 반영되게 한다.
+    if (roomId === null) {
+      endWalkSession();
+      navigation.goBack();
+      return;
+    }
 
-          // 오늘 걸음/거리/칼로리를 서버에 올린다. 실패해도 이 세션 자체를
-          // 못 끝내게 막을 이유는 없어서(내 기기에서 이미 다 계산해둔
-          // 값이라 결과 화면은 그대로 보여줄 수 있다), 실패는 알림만 띄우고
-          // 계속 진행한다.
-          try {
-            await saveHistoryMutation.mutateAsync({
-              historyDate: todayIso(),
-              step: sessionSteps,
-              distance: Math.round(sessionDistanceKm * 1000),
-              calories: sessionCalories,
-            });
-          } catch (error) {
-            Alert.alert(
-              '기록 저장에 실패했어요',
-              error instanceof Error ? error.message : '잠시 후 다시 시도해주세요.',
-            );
-          }
+    // 오늘 걸음/거리/칼로리를 서버에 올린다. 실패해도 이 세션 자체를
+    // 못 끝내게 막을 이유는 없어서(내 기기에서 이미 다 계산해둔
+    // 값이라 결과 화면은 그대로 보여줄 수 있다), 실패는 알림만 띄우고
+    // 계속 진행한다.
+    try {
+      await saveHistoryMutation.mutateAsync({
+        historyDate: todayIso(),
+        step: sessionSteps,
+        distance: Math.round(sessionDistanceKm * 1000),
+        calories: sessionCalories,
+      });
+    } catch (error) {
+      Alert.alert(
+        '기록 저장에 실패했어요',
+        error instanceof Error ? error.message : '잠시 후 다시 시도해주세요.',
+      );
+    }
 
-          // 기록 화면은 탭에 계속 살아 있어 다시 마운트되지 않는다. 여기서
-          // 비워주지 않으면 방금 끝낸 산책이 최근 산책·전체 기록에 앱을 다시
-          // 열기 전까지 안 보인다.
-          queryClient.invalidateQueries({ queryKey: ['game-results'] });
+    // 기록 화면은 탭에 계속 살아 있어 다시 마운트되지 않는다. 여기서
+    // 비워주지 않으면 방금 끝낸 산책이 최근 산책·전체 기록에 앱을 다시
+    // 열기 전까지 안 보인다.
+    queryClient.invalidateQueries({ queryKey: ['game-results'] });
 
-          const resultParams = {
-            roomId,
-            roomName: room?.name ?? '',
-            mode: room?.mode ?? ('SINGLE' as const),
-            steps: sessionSteps,
-            distanceKm: sessionDistanceKm,
-            calories: sessionCalories,
-            elapsedSeconds,
-          };
-          endWalkSession();
-          navigation.replace('WalkResult', resultParams);
-        },
-      },
-    ]);
+    const resultParams = {
+      roomId,
+      roomName: room?.name ?? '',
+      mode: room?.mode ?? ('SINGLE' as const),
+      steps: sessionSteps,
+      distanceKm: sessionDistanceKm,
+      calories: sessionCalories,
+      elapsedSeconds,
+    };
+    endWalkSession();
+    navigation.replace('WalkResult', resultParams);
   }, [
     navigation,
     roomId,
@@ -296,6 +283,24 @@ export function WalkSessionScreen() {
     saveHistoryMutation,
     queryClient,
   ]);
+
+  const handleEndWalk = useCallback(() => {
+    Alert.alert('산책 종료', '지금 산책을 종료할까요?', [
+      { text: '취소', style: 'cancel' },
+      { text: '종료', style: 'destructive', onPress: finishWalk },
+    ]);
+  }, [finishWalk]);
+
+  // 워치에서 종료를 눌렀을 때. 기록 저장과 결과 화면은 이 화면만 할 수 있어서
+  // (저장할 수치와 방 정보를 여기서 들고 있다) 워치 쪽은 요청만 남기고,
+  // 화면이 뜬 뒤 여기서 이어받는다. 요청은 먼저 비워서 두 번 타지 않게 한다.
+  useEffect(() => {
+    if (!isEndRequested) {
+      return;
+    }
+    clearWalkSessionEndRequest();
+    finishWalk();
+  }, [isEndRequested, finishWalk]);
 
   // 카운트다운이 끝나기 전까지는 지도를 아예 안 띄운다(지도가 살짝
   // 비치는 오버레이보다 완전히 가려진 화면이 낫다는 판단).

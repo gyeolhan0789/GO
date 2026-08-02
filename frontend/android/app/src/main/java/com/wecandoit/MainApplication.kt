@@ -18,6 +18,7 @@ class MainApplication : Application(), ReactApplication {
           // add(MyReactNativePackage())
           add(com.wecandoit.samsunghealth.SamsungHealthPackage())
           add(com.wecandoit.stepsensor.StepSensorPackage())
+          add(com.wecandoit.wearbridge.WearBridgePackage())
         },
     )
   }

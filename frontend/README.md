@@ -89,6 +89,8 @@ npm start -- --reset-cache
 | `npm run ios`       | iOS 앱 빌드/실행 (macOS) |
 | `npm run lint`      | ESLint 검사              |
 | `npm run test`      | Jest 테스트 실행         |
+| `npm run wear:install` | 갤럭시 워치 앱 설치   |
+| `npm run wear:build`   | 갤럭시 워치 앱 빌드   |
 
 PR 올리기 전에 `lint`, `test`가 통과하는지 확인해주세요.
 
@@ -99,6 +101,9 @@ App.tsx                 # 앱 루트: Provider/Navigation 조립
 index.js                # React Native 앱 등록 진입점
 env.d.ts                # `@env` 모듈 타입 선언
 android/                # Android Gradle 프로젝트
+  app/                  # 폰 앱(React Native)
+  wear/                 # 갤럭시 워치 컴패니언 (Kotlin + Compose). android/wear/README.md 참고
+  wear-protocol/        # 폰·워치가 같이 컴파일하는 Data Layer 규약
 ios/                    # iOS Xcode 프로젝트
 __tests__/              # Jest 테스트
 src/

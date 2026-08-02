@@ -1,0 +1,32 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Data Layer는 Play 서비스를 거치므로 워치 자체 인터넷은 쓰지 않는다.
+         (인증·API 호출은 전부 폰이 맡는 컴패니언 구조다.) -->
+    <uses-feature android:name="android.hardware.type.watch" />
+
+    <application
+      android:label="@string/app_name"
+      android:icon="@drawable/ic_wear_launcher"
+      android:allowBackup="false"
+      android:supportsRtl="true"
+      android:theme="@android:style/Theme.DeviceDefault">
+
+      <!-- 폰 앱 없이는 아무것도 못 하는 컴패니언이라 false다. Play 스토어가
+           이 값을 보고 "워치 단독 설치 가능" 여부를 판단한다. -->
+      <meta-data
+        android:name="com.google.android.wearable.standalone"
+        android:value="false" />
+
+      <activity
+        android:name=".WearMainActivity"
+        android:exported="true"
+        android:label="@string/app_name"
+        android:launchMode="singleTask"
+        android:taskAffinity="">
+        <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
+      </activity>
+    </application>
+</manifest>
