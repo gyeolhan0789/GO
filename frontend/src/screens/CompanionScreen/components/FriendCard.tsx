@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { FriendResponse } from '../../../features/friend/api/friendApi';
+import { MemberAvatar } from '../../../features/member/components/MemberAvatar';
 import { AppText } from '../../../shared/components/AppText/AppText';
 import { Card } from '../../../shared/components/Card/Card';
 import { colors } from '../../../shared/constants/colors';
@@ -21,8 +22,12 @@ export function FriendCard({ friend, onLongPress }: FriendCardProps) {
       style={({ pressed }) => [styles.pressable, pressed && styles.pressed]}
     >
       <Card style={styles.card}>
-        {/* TODO: equippedItems로 캐릭터 아바타 구성. 지금은 빈 원으로 대체. */}
-        <View style={styles.avatar} />
+        <MemberAvatar
+          gender={friend.gender}
+          defaultImageUrl={friend.defaultImageUrl}
+          equippedItems={friend.equippedItems}
+          style={styles.avatar}
+        />
         <View style={styles.textGroup}>
           <AppText style={styles.name} numberOfLines={1}>
             {friend.nickname}

@@ -1,4 +1,5 @@
 import { apiClient } from '../../../shared/api/client';
+import type { Gender } from '../../auth/constants/genders';
 
 export type ItemCategory =
   | 'HAT'
@@ -21,6 +22,12 @@ export type FriendResponse = {
   nickname: string;
   /** Asia/Seoul 기준 이번 주 월요일부터 오늘까지의 누적 걸음 수. */
   weeklySteps: number;
+  /**
+   * 백엔드 FriendResponse에 아직 없는 필드(추가 요청 예정). 내려오기 시작하면
+   * 친구 아바타의 기본 캐릭터가 랭킹처럼 채워진다. 그 전까지는 undefined.
+   */
+  gender?: Gender;
+  defaultImageUrl?: string | null;
   equippedItems: EquippedItem[];
 };
 
