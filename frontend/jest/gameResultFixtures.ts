@@ -46,7 +46,7 @@ export function buildGameResultResponse(index: number): GameResultResponse {
     roomId: index + 1,
     roomName: TITLES[index % TITLES.length],
     mode: friends.length === 0 ? 'SINGLE' : 'COOPERATE',
-    roomStatus: 'COMPLETED',
+    roomStatus: 'CLOSED',
     result: true,
     boardSize: BOARD_SIZE,
     targetBingoCount: 2,

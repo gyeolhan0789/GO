@@ -2,13 +2,9 @@ import { apiClient } from '../../../shared/api/client';
 
 export type GameMode = 'SINGLE' | 'COOPERATE' | 'BATTLE';
 
-export type GameRoomStatus =
-  | 'CREATED'
-  | 'WAITING'
-  | 'READY'
-  | 'IN_PROGRESS'
-  | 'COMPLETED'
-  | 'CLOSED';
+// 백엔드 RoomStatus(backend/.../game/domain/RoomStatus.java)와 동일하다.
+// 회차 진행 상태는 방이 아니라 빙고판 status(BingoBoardStatus)가 갖는다.
+export type GameRoomStatus = 'ACTIVE' | 'CLOSED';
 
 export type RoomMemberResponse = {
   memberId: number;
