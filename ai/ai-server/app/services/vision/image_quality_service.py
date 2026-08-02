@@ -11,55 +11,40 @@ class ImageQualityService:
 
     역할
     -----------------------
-    - AI Vision 호출 전 최소 품질 검증
-    - Gemini가 판단 불가능한 이미지 차단
-    - 손상 / 극심한 blur / 극단적인 dark 이미지 판단
+    - Gemini 호출 전 이미지 품질 검증
+    - 판단 불가능한 이미지 사전 차단
 
     주의
     -----------------------
-    - 객체 존재 여부 판단 X
+    - 객체 존재 판단 X
     - 속성 판단 X
     - 관계 판단 X
-
-    위 판단은 Gemini Vision 담당
     """
 
     # Laplacian variance 기준
-    # 낮을수록 이미지가 흐림
-    BLUR_THRESHOLD = 8.0
-
+    # 낮을수록 blur 가능성 증가
+    BLUR_THRESHOLD = 15.0
 
     # 평균 밝기 기준
-    DARK_THRESHOLD = 20.0
-
+    DARK_THRESHOLD = 25.0
 
     # 전체 픽셀 중 어두운 픽셀 비율
-    # 90% 이상 어두워야 DARK_IMAGE 처리
     DARK_RATIO_THRESHOLD = 0.9
-
-
-    # 품질 실패 confidence 최소값
-    MIN_FAILURE_CONFIDENCE = 0.7
-
-
 
     def check(
         self,
         image_bytes: bytes
     ) -> AIResult | None:
 
-
         image_array = np.frombuffer(
             image_bytes,
             np.uint8
         )
 
-
         image = cv2.imdecode(
             image_array,
             cv2.IMREAD_COLOR
         )
-
 
         # --------------------------
         # 이미지 디코딩 실패
@@ -79,13 +64,46 @@ class ImageQualityService:
 
             )
 
-
         gray = cv2.cvtColor(
             image,
             cv2.COLOR_BGR2GRAY
         )
 
+        # --------------------------
+        # Dark 검사
+        # Blur보다 먼저 수행
+        # --------------------------
 
+        brightness = float(
+            gray.mean()
+        )
+
+        dark_ratio = float(
+            np.mean(
+                gray < self.DARK_THRESHOLD
+            )
+        )
+
+        if (
+            brightness < self.DARK_THRESHOLD
+            and
+            dark_ratio > self.DARK_RATIO_THRESHOLD
+        ):
+
+            return AIResult(
+
+                success=False,
+
+                confidence=self.calculate_dark_confidence(
+                    brightness,
+                    dark_ratio
+                ),
+
+                reason="사진이 어두워 객체 식별이 어렵습니다.",
+
+                reason_code=ReasonCode.DARK_IMAGE
+
+            )
 
         # --------------------------
         # Blur 검사
@@ -98,9 +116,7 @@ class ImageQualityService:
             ).var()
         )
 
-
         if variance < self.BLUR_THRESHOLD:
-
 
             return AIResult(
 
@@ -110,111 +126,49 @@ class ImageQualityService:
                     variance
                 ),
 
-                reason="사진이 너무 흐려 객체를 식별하기 어렵습니다.",
+                reason="사진이 흐려 객체 식별이 어렵습니다.",
 
                 reason_code=ReasonCode.BLUR_IMAGE
 
             )
 
-
-
-        # --------------------------
-        # Dark 검사
-        # --------------------------
-
-        brightness = float(
-            gray.mean()
-        )
-
-
-        dark_ratio = np.mean(
-            gray < self.DARK_THRESHOLD
-        )
-
-
-        # 전체적으로 거의 검은 이미지인 경우만 실패 처리
-        if (
-
-            brightness < self.DARK_THRESHOLD
-
-            and
-
-            dark_ratio > self.DARK_RATIO_THRESHOLD
-
-        ):
-
-
-            return AIResult(
-
-                success=False,
-
-                confidence=self.calculate_dark_confidence(
-                    brightness,
-                    dark_ratio
-                ),
-
-                reason="사진이 너무 어두워 객체를 식별할 수 없습니다.",
-
-                reason_code=ReasonCode.DARK_IMAGE
-
-            )
-
-
-        # Gemini에게 전달
+        # Gemini 전달
         return None
-
-
-
 
     def calculate_blur_confidence(
         self,
         variance: float
     ) -> float:
         """
-        Blur로 인해 판정이 어려운 정도
+        Blur 상태 판단 신뢰도
+
+        blur 여부는 확실하지만
+        미션 판정은 불가능하므로
+        낮은 confidence 사용
         """
 
-        raw_score = (
-
+        severity = (
             self.BLUR_THRESHOLD - variance
-
         ) / self.BLUR_THRESHOLD
 
+        severity = max(
+            0.0,
+            min(
+                1.0,
+                severity
+            )
+        )
 
         confidence = (
-
-            self.MIN_FAILURE_CONFIDENCE
-
+            0.3
             +
-
-            raw_score
-            *
-            (
-                1.0 - self.MIN_FAILURE_CONFIDENCE
-            )
-
+            severity * 0.3
         )
-
 
         return round(
-
-            max(
-
-                self.MIN_FAILURE_CONFIDENCE,
-
-                min(
-                    1.0,
-                    confidence
-                )
-
-            ),
-
+            confidence,
             2
-
         )
-
-
-
 
     def calculate_dark_confidence(
         self,
@@ -222,71 +176,52 @@ class ImageQualityService:
         dark_ratio: float
     ) -> float:
         """
-        Dark 이미지 판정 신뢰도
+        Dark 상태 판단 신뢰도
 
-        brightness와 dark_ratio를 함께 고려
+        Dark 여부는 확실하지만
+        미션 판정은 불가능하므로
+        Blur와 동일한 기준 사용
         """
 
         brightness_score = (
-
             self.DARK_THRESHOLD - brightness
-
         ) / self.DARK_THRESHOLD
 
-
+        brightness_score = max(
+            0.0,
+            min(
+                1.0,
+                brightness_score
+            )
+        )
 
         ratio_score = (
-
             dark_ratio - self.DARK_RATIO_THRESHOLD
-
         ) / (
-
             1.0 - self.DARK_RATIO_THRESHOLD
-
         )
 
+        ratio_score = max(
+            0.0,
+            min(
+                1.0,
+                ratio_score
+            )
+        )
 
-
-        raw_score = (
-
+        severity = (
             brightness_score * 0.5
-
             +
-
             ratio_score * 0.5
-
         )
-
-
 
         confidence = (
-
-            self.MIN_FAILURE_CONFIDENCE
-
+            0.3
             +
-
-            raw_score
-            *
-            (
-                1.0 - self.MIN_FAILURE_CONFIDENCE
-            )
-
+            severity * 0.3
         )
 
-
         return round(
-
-            max(
-
-                self.MIN_FAILURE_CONFIDENCE,
-
-                min(
-                    1.0,
-                    confidence
-                )
-
-            ),
-
+            confidence,
             2
-
         )

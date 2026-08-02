@@ -53,16 +53,6 @@ class ReasonCode(str, Enum):
 
 
     # =========================
-    # 촬영 구도 / 객체 확인 문제
-    # =========================
-
-    PARTIAL_OBJECT = "PARTIAL_OBJECT"
-
-    OBJECT_OFF_CENTER = "OBJECT_OFF_CENTER"
-
-
-
-    # =========================
     # 판단 불가
     # =========================
 
