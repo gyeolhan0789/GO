@@ -67,7 +67,7 @@ export function RecordScreen() {
 
         <FlatList
           data={recentWalks}
-          keyExtractor={walk => String(walk.roomId)}
+          keyExtractor={walk => String(walk.gameId)}
           ListHeaderComponent={
             <View style={styles.listHeader}>
               <View style={styles.periodRow}>
@@ -119,7 +119,7 @@ export function RecordScreen() {
             <WalkCard
               walk={item}
               onPress={() =>
-                navigation.navigate('WalkDetail', { roomId: item.roomId })
+                navigation.navigate('WalkDetail', { gameId: item.gameId })
               }
             />
           )}
@@ -131,6 +131,13 @@ export function RecordScreen() {
               />
             </View>
           }
+          refreshing={
+            recentWalksQuery.isRefetching || historiesQuery.isRefetching
+          }
+          onRefresh={() => {
+            recentWalksQuery.refetch();
+            historiesQuery.refetch();
+          }}
           style={styles.list}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}

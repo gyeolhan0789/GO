@@ -18,9 +18,9 @@ type WalkDetailScreenProps = NativeStackScreenProps<
 >;
 
 export function WalkDetailScreen({ route }: WalkDetailScreenProps) {
-  const { roomId } = route.params;
+  const { gameId } = route.params;
 
-  const walkQuery = useWalkDetailQuery(roomId);
+  const walkQuery = useWalkDetailQuery(gameId);
   const { walk } = walkQuery;
 
   if (walkQuery.isLoading) {

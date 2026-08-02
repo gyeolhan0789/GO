@@ -4,6 +4,7 @@ import type { LayoutChangeEvent } from 'react-native';
 import { launchCamera } from 'react-native-image-picker';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import type { IoniconsIconName } from '@react-native-vector-icons/ionicons';
+import { useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
@@ -56,6 +57,7 @@ export function BingoBoardScreen({
   navigation,
 }: BingoBoardScreenProps) {
   const { roomId } = route.params;
+  const queryClient = useQueryClient();
   const boardQuery = useActiveBingoBoardQuery(roomId);
   const board = boardQuery.data ?? null;
   const roomQuery = useRoomDetailQuery(roomId);
@@ -177,6 +179,9 @@ export function BingoBoardScreen({
       if (result.status === 'APPROVED') {
         // 서버에 반영된 최신 승인 상태(칸 색·진행 카운트)를 다시 받아온다.
         boardQuery.refetch();
+        // 대결 방은 이 승인으로 목표 빙고가 채워지면 서버가 그 자리에서 판을
+        // 끝내고 산책 기록을 만든다. 기록 화면이 그걸 놓치지 않게 비워둔다.
+        queryClient.invalidateQueries({ queryKey: ['game-results'] });
       }
     } catch (error) {
       Alert.alert(
@@ -186,7 +191,7 @@ export function BingoBoardScreen({
     } finally {
       setSubmitting(false);
     }
-  }, [roomId, selectedCell, capturedPhoto, boardQuery]);
+  }, [roomId, selectedCell, capturedPhoto, boardQuery, queryClient]);
 
   const handleCloseVerification = useCallback(() => {
     setCapturedPhoto(null);
