@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import {
   Image,
   StyleSheet,
@@ -13,6 +14,8 @@ import { fontFamily, lineHeights } from '../../constants/typography';
 type AvatarStackMember = {
   id: string;
   imageUri?: string;
+  /** 원 안에 그릴 내용물(예: 캐릭터 흉상). imageUri보다 우선한다. */
+  avatar?: ReactNode;
 };
 
 type GridCell = AvatarStackMember | 'overflow';
@@ -165,9 +168,10 @@ function AvatarCircle({
         style,
       ]}
     >
-      {member.imageUri ? (
-        <Image source={{ uri: member.imageUri }} style={styles.image} />
-      ) : null}
+      {member.avatar ??
+        (member.imageUri ? (
+          <Image source={{ uri: member.imageUri }} style={styles.image} />
+        ) : null)}
     </View>
   );
 }
