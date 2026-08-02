@@ -102,6 +102,8 @@ public enum ErrorCode {
     OAUTH_ALREADY_REGISTERED(HttpStatus.CONFLICT, "이미 가입된 이메일입니다."),
 
     // AI Verification
+    AI_VERIFICATION_REQUEST_INVALID(HttpStatus.BAD_GATEWAY, "AI 검증 요청이 올바르지 않습니다."),
+    AI_VERIFICATION_SERVER_ERROR(HttpStatus.BAD_GATEWAY, "AI 검증 서버에서 오류가 발생했습니다."),
     AI_VERIFICATION_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "AI 검증 서버 호출에 실패했습니다."),
 
     // Notification
