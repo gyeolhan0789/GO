@@ -3,12 +3,15 @@ package com.wecandoit.bingo.service;
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
+import com.wecandoit.bingo.domain.BingoLineCounter;
+import com.wecandoit.bingo.event.CooperativeBingoProgressUpdatedEvent;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.cash.service.CashCommandService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
+import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomStatus;
@@ -16,7 +19,9 @@ import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.GameCompletionService;
 import com.wecandoit.mission.domain.MissionType;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +36,7 @@ public class BingoCellVerificationResultService {
     private final RoomRepository roomRepository;
     private final CashCommandService cashCommandService;
     private final GameCompletionService gameCompletionService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public long applyResult(Long cellId, boolean approved, String rejectionReason, MissionType missionType) {
         BingoCell cell = bingoCellRepository.findByIdForUpdate(cellId)
@@ -55,6 +61,7 @@ public class BingoCellVerificationResultService {
         if (!approved) {
             cell.reject(rejectionReason);
             bingoCellRepository.save(cell);
+            publishCooperativeProgressEvent(room, board, cell);
             return 0L;
         }
 
@@ -67,6 +74,30 @@ public class BingoCellVerificationResultService {
                 missionType
         );
         gameCompletionService.evaluateAndCompleteIfNeeded(game.getId(), board.getId());
+        publishCooperativeProgressEvent(room, board, cell);
         return rewardCash;
+    }
+
+    private void publishCooperativeProgressEvent(Room room, BingoBoard board, BingoCell changedCell) {
+        if (room.getMode() != GameMode.COOPERATE) {
+            return;
+        }
+
+        List<BingoCell> cells = bingoCellRepository.findAllByBoardId(board.getId());
+        int approvedCellCount = (int) cells.stream()
+                .filter(cell -> cell.getCompletedAt() != null)
+                .count();
+        int completedBingoCount = BingoLineCounter.countCompletedLines(board.getBoardSize(), cells);
+
+        eventPublisher.publishEvent(new CooperativeBingoProgressUpdatedEvent(
+                room.getId(),
+                board.getId(),
+                changedCell.getId(),
+                changedCell.getVerificationStatus(),
+                changedCell.getMemberId(),
+                changedCell.getRejectionReason(),
+                approvedCellCount,
+                completedBingoCount
+        ));
     }
 }
