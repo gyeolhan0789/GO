@@ -79,7 +79,7 @@ export function verifySocialAccount(
   return apiClient.post<SocialVerifyResponse>(SOCIAL_PATHS[provider], body);
 }
 
-/** 가입용 토큰과 성별로 소셜 가입을 마치고 토큰을 받는다. 닉네임은 서버가 소셜 계정 이름으로 채운다. */
+/** 닉네임·지역은 받지 않는다. 서버가 소셜 계정 이름으로 채우므로 가입 후 따로 고쳐야 한다. */
 export function completeSocialSignup(
   provider: SocialProvider,
   body: SocialSignupRequest,

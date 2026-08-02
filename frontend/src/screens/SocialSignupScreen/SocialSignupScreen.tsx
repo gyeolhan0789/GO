@@ -55,7 +55,6 @@ const BODY_CORNER_RADIUS = 24;
 
 const SCREEN_EDGES = ['bottom'] as const;
 
-/** 소셜 계정 이름을 닉네임 기본값으로 쓸 수 있게 다듬는다. */
 function toInitialNickname(name: string | null) {
   return (name ?? '').trim().slice(0, NICKNAME_MAX_LENGTH);
 }

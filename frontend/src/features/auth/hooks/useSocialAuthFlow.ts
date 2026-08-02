@@ -26,7 +26,6 @@ function resolveErrorMessage(error: unknown) {
 
 export type SocialSignupHandoff = {
   provider: SocialProvider;
-  /** 가입 API에 그대로 실어 보낼 1회용 토큰. 5분 뒤 만료된다. */
   signupToken: string;
   /** 닉네임 입력의 기본값으로 쓸 소셜 계정 이름. */
   suggestedName: string | null;

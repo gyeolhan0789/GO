@@ -55,7 +55,6 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
   const mutation = useLoginMutation();
   const { hasLoggedInBefore } = useHasLoggedInBefore();
 
-  // 서버가 가입이 필요하다고 하면 프로필 입력 화면으로 넘긴다.
   const social = useSocialAuthFlow(
     useCallback(
       (handoff: SocialSignupHandoff) => {

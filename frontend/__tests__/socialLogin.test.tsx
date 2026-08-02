@@ -183,7 +183,6 @@ describe('소셜 로그인', () => {
 
     await press(tree.root, '카카오로 로그인');
 
-    // 검증 요청에는 idToken만 실린다.
     const [[, init]] = callsTo('/auth/oauth/kakao');
     expect(parseBody(init)).toEqual({ idToken: KAKAO_ID_TOKEN });
 
@@ -242,7 +241,6 @@ describe('소셜 로그인', () => {
 
     const tree = await renderSocialSignup();
 
-    // 제공자가 준 이름이 기본값으로 채워진다.
     const nicknameField = tree.root.find(
       node => node.props.value === KAKAO_PROFILE.nickname,
     );
@@ -255,7 +253,6 @@ describe('소셜 로그인', () => {
     await press(tree.root, '여성');
     await press(tree.root, '가입 완료');
 
-    // 가입 요청에는 가입 토큰과 성별만 실린다.
     const [[, signupInit]] = callsTo('/auth/oauth/kakao/signup');
     expect(parseBody(signupInit)).toEqual({
       signupToken: SIGNUP_TOKEN,
