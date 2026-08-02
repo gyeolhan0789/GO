@@ -2,15 +2,26 @@
   "hooks": {
     "PreToolUse": [
       {
+        "matcher": "Read|Edit|Write",
         "hooks": [
           {
             "type": "command",
             "command": "node .codex/hooks/block-secret-files.js"
-          },
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
           {
             "type": "command",
             "command": "node .codex/hooks/guard-bash.js"
-          },
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
           {
             "type": "command",
             "command": "node .codex/hooks/guard-worktree.js"
