@@ -45,8 +45,7 @@ public class MissionVerificationFacade {
         try {
             result = requestVerification(imageBytes, resolveFileName(submittedCell.getSubmitUrl()), mission);
         } catch (CustomException e) {
-            verificationResultService.applyResult(cellId, false, ErrorCode.AI_VERIFICATION_FAILED.getMessage(),
-                    missionType);
+            verificationResultService.applyResult(cellId, false, resolveFailureReason(e), missionType);
             throw e;
         }
 
@@ -78,9 +77,18 @@ public class MissionVerificationFacade {
     private AiVerificationResult requestVerification(byte[] imageBytes, String fileName, Mission mission) {
         try {
             return aiVerificationClient.verify(imageBytes, fileName, mission.getType(), mission.getDecisionCondition());
+        } catch (CustomException e) {
+            throw e;
         } catch (RuntimeException e) {
             throw new CustomException(ErrorCode.AI_VERIFICATION_FAILED);
         }
+    }
+
+    private String resolveFailureReason(CustomException exception) {
+        if (exception.getMessage() != null && !exception.getMessage().isBlank()) {
+            return exception.getMessage();
+        }
+        return exception.getErrorCode().getMessage();
     }
 
     private String resolveRejectionReason(AiVerificationResult result, boolean approved) {

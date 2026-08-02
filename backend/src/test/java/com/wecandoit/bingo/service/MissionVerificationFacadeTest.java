@@ -153,6 +153,36 @@ class MissionVerificationFacadeTest {
                 .applyResult(CELL_ID, false, ErrorCode.AI_VERIFICATION_FAILED.getMessage(), MissionType.OBJECT);
     }
 
+    @Test
+    @DisplayName("AI 서버가 400을 반환하면 502 오류와 상세 사유를 전달한다")
+    void propagatesRequestInvalidErrorFromAiServer() {
+        // given
+        when(bingoCommandService.submitCell(eq(MEMBER_ID), eq(ROOM_ID), eq(CELL_ID), any(MultipartFile.class)))
+                .thenReturn(pendingCell());
+        when(missionRepository.findById(MISSION_ID)).thenReturn(Optional.of(mission()));
+        when(aiVerificationClient.verify(any(), any(), any(), any()))
+                .thenThrow(new CustomException(
+                        ErrorCode.AI_VERIFICATION_REQUEST_INVALID,
+                        "decision_condition.target가 없습니다."
+                ));
+
+        // when, then
+        assertThatThrownBy(() -> facade.submitAndVerify(MEMBER_ID, ROOM_ID, CELL_ID, image()))
+                .isInstanceOf(CustomException.class)
+                .satisfies(exception -> {
+                    CustomException customException = (CustomException) exception;
+                    assertThat(customException.getErrorCode()).isEqualTo(ErrorCode.AI_VERIFICATION_REQUEST_INVALID);
+                    assertThat(customException.getMessage()).isEqualTo("decision_condition.target가 없습니다.");
+                });
+        verify(verificationResultService)
+                .applyResult(
+                        CELL_ID,
+                        false,
+                        "decision_condition.target가 없습니다.",
+                        MissionType.OBJECT
+                );
+    }
+
     private void stubSubmitAndLookup() {
         BingoCell cell = pendingCell();
         when(bingoCommandService.submitCell(eq(MEMBER_ID), eq(ROOM_ID), eq(CELL_ID), any(MultipartFile.class)))

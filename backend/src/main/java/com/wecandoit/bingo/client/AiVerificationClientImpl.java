@@ -2,11 +2,17 @@ package com.wecandoit.bingo.client;
 
 import java.time.Duration;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import com.wecandoit.common.exception.CustomException;
+import com.wecandoit.common.exception.ErrorCode;
+import reactor.core.publisher.Mono;
 
 @Component
 public class AiVerificationClientImpl implements AiVerificationClient {
@@ -38,12 +44,30 @@ public class AiVerificationClientImpl implements AiVerificationClient {
         bodyBuilder.part("mission_type", missionType);
         bodyBuilder.part("decision_condition", decisionCondition);
 
-        return aiServerWebClient.post()
-                .uri(VERIFY_PATH)
-                .contentType(MediaType.MULTIPART_FORM_DATA)
-                .body(BodyInserters.fromMultipartData(bodyBuilder.build()))
-                .retrieve()
-                .bodyToMono(AiVerificationResult.class)
-                .block(CALL_TIMEOUT);
+        try {
+            return aiServerWebClient.post()
+                    .uri(VERIFY_PATH)
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(BodyInserters.fromMultipartData(bodyBuilder.build()))
+                    .retrieve()
+                    .onStatus(HttpStatusCode::is4xxClientError, response -> response.bodyToMono(String.class)
+                            .defaultIfEmpty("")
+                            .flatMap(body -> Mono.error(
+                                    AiVerificationErrorParser.toClientException(response.statusCode().value(), body))))
+                    .onStatus(HttpStatusCode::is5xxServerError, response -> response.bodyToMono(String.class)
+                            .defaultIfEmpty("")
+                            .flatMap(body -> Mono.error(
+                                    AiVerificationErrorParser.toClientException(response.statusCode().value(), body))))
+                    .bodyToMono(AiVerificationResult.class)
+                    .block(CALL_TIMEOUT);
+        } catch (CustomException e) {
+            throw e;
+        } catch (WebClientResponseException e) {
+            throw AiVerificationErrorParser.toClientException(e.getStatusCode().value(), e.getResponseBodyAsString());
+        } catch (WebClientRequestException e) {
+            throw new CustomException(ErrorCode.AI_VERIFICATION_FAILED);
+        } catch (RuntimeException e) {
+            throw new CustomException(ErrorCode.AI_VERIFICATION_FAILED);
+        }
     }
 }
