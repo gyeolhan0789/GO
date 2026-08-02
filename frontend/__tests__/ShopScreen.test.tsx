@@ -13,13 +13,6 @@ import { ShopScreen } from '../src/screens/ShopScreen/ShopScreen';
 import { installFetchMock, jsonResponse } from '../jest/fetchMock';
 import type { FetchMock } from '../jest/fetchMock';
 
-// 이 파일은 서버와 주고받는 계약을 확인한다. 캐릭터/보유 아이템은 목업 모드로
-// 돌고 있어(characterMocks.USE_MOCK_CHARACTER) 요청이 나가지 않으므로 스위치를 끈다.
-jest.mock('../src/features/member/mocks/characterMocks', () => ({
-  ...jest.requireActual('../src/features/member/mocks/characterMocks'),
-  USE_MOCK_CHARACTER: false,
-}));
-
 const INITIAL_METRICS = {
   frame: { x: 0, y: 0, width: 400, height: 800 },
   insets: { top: 0, left: 0, right: 0, bottom: 0 },
@@ -65,6 +58,7 @@ const MY_HAT = {
 const CHARACTER = {
   memberId: 1,
   nickname: '산책이 좋아',
+  gender: 'MALE',
   defaultImageUrl: '/uploads/characters/male.png',
   equippedItems: [MY_HAT],
 };

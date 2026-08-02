@@ -16,6 +16,7 @@ export const MY_MEMBER_ID = 1;
 export const MY_CHARACTER_RESPONSE = {
   memberId: MY_MEMBER_ID,
   nickname: '걷는곰',
+  gender: 'MALE',
   defaultImageUrl: null,
   equippedItems: [],
 };

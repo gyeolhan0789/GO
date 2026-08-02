@@ -1,4 +1,5 @@
 import { apiClient } from '../../../shared/api/client';
+import type { Gender } from '../../auth/constants/genders';
 import type { Region } from '../../auth/constants/regions';
 
 export type ItemCategory =
@@ -23,6 +24,7 @@ export type EquippedItem = MemberItem;
 export type MyCharacterResponse = {
   memberId: number;
   nickname: string;
+  gender: Gender;
   /** 성별별 기본 캐릭터 이미지. 관리자가 등록하지 않았으면 null이다. */
   defaultImageUrl: string | null;
   equippedItems: EquippedItem[];

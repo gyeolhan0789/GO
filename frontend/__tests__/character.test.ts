@@ -3,11 +3,13 @@
  */
 
 import type { MyCharacterResponse } from '../src/features/member/api/memberApi';
+import { DEFAULT_CHARACTER_IMAGE_BY_GENDER } from '../src/features/member/constants/characterImages';
 import { toCharacter } from '../src/features/member/model/character';
 
 const RESPONSE: MyCharacterResponse = {
   memberId: 1,
   nickname: '산책이 좋아',
+  gender: 'MALE',
   defaultImageUrl: '/uploads/characters/male.png',
   equippedItems: [
     {
@@ -32,10 +34,10 @@ describe('캐릭터 응답 변환', () => {
     });
   });
 
-  test('기본 캐릭터 이미지가 등록되지 않았으면 이미지 없이 내려준다', () => {
+  test('기본 캐릭터 이미지가 등록되지 않았으면 성별 번들 에셋으로 대체한다', () => {
     const character = toCharacter({ ...RESPONSE, defaultImageUrl: null });
 
-    expect(character.baseImage).toBeNull();
+    expect(character.baseImage).toBe(DEFAULT_CHARACTER_IMAGE_BY_GENDER.MALE);
     expect(character.nickname).toBe(RESPONSE.nickname);
   });
 });
