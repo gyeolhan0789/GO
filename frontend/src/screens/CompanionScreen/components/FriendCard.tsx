@@ -1,10 +1,10 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { FriendResponse } from '../../../features/friend/api/friendApi';
+import { MemberAvatar } from '../../../features/member/components/MemberAvatar';
 import { AppText } from '../../../shared/components/AppText/AppText';
 import { Card } from '../../../shared/components/Card/Card';
 import { colors } from '../../../shared/constants/colors';
-import { radius } from '../../../shared/constants/radius';
 import { shadow } from '../../../shared/constants/shadow';
 import { spacing } from '../../../shared/constants/spacing';
 import { lineHeights } from '../../../shared/constants/typography';
@@ -21,8 +21,12 @@ export function FriendCard({ friend, onLongPress }: FriendCardProps) {
       style={({ pressed }) => [styles.pressable, pressed && styles.pressed]}
     >
       <Card style={styles.card}>
-        {/* TODO: equippedItems로 캐릭터 아바타 구성. 지금은 빈 원으로 대체. */}
-        <View style={styles.avatar} />
+        <MemberAvatar
+          gender={friend.gender}
+          defaultImageUrl={friend.defaultImageUrl}
+          equippedItems={friend.equippedItems}
+          style={styles.avatar}
+        />
         <View style={styles.textGroup}>
           <AppText style={styles.name} numberOfLines={1}>
             {friend.nickname}
@@ -51,11 +55,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
+  // 원 테두리 디자인은 CharacterBust가 모든 화면 공통으로 그린다.
   avatar: {
     width: 48,
     height: 48,
-    borderRadius: radius.pill,
-    backgroundColor: colors.neutralBg,
   },
   textGroup: {
     flex: 1,

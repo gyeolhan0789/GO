@@ -215,4 +215,32 @@ class AdminMissionCommandServiceTest {
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.MISSION_NOT_FOUND);
     }
+
+    @Test
+    @DisplayName("미션을 활성화한다")
+    void activateMissionActivatesExistingMission() {
+        // given
+        Mission mission = Mission.create("https://example.com/flower.png", "OBJECT", "Red flower", "Find it", null);
+        mission.deactivate();
+        given(adminMissionRepository.findById(1L)).willReturn(Optional.of(mission));
+
+        // when
+        adminMissionCommandService.activateMission(1L);
+
+        // then
+        assertThat(mission.isActive()).isTrue();
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 미션을 활성화하면 예외가 발생한다")
+    void activateMissionRejectsMissingMission() {
+        // given
+        given(adminMissionRepository.findById(1L)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> adminMissionCommandService.activateMission(1L))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.MISSION_NOT_FOUND);
+    }
 }

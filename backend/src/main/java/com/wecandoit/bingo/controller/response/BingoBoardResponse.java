@@ -19,6 +19,7 @@ public record BingoBoardResponse(
         BingoBoardStatus status,
         List<BingoCellResponse> cells,
         boolean completed,
+        boolean isHost,
         boolean canRenew,
         boolean renewalRequired,
         String renewalMessage,
@@ -34,6 +35,7 @@ public record BingoBoardResponse(
             int completedBingoCount,
             int approvedCellCount,
             boolean completed,
+            boolean isHost,
             boolean canRenew,
             boolean renewalRequired
     ) {
@@ -50,6 +52,7 @@ public record BingoBoardResponse(
                 board.getStatus(),
                 cells,
                 completed,
+                isHost,
                 canRenew,
                 renewalRequired,
                 renewalRequired ? RENEWAL_REQUIRED_MESSAGE : null,
@@ -64,6 +67,7 @@ public record BingoBoardResponse(
             int completedBingoCount,
             int approvedCellCount,
             boolean completed,
+            boolean isHost,
             BattleProgressResponse battleProgress
     ) {
         return new BingoBoardResponse(
@@ -79,6 +83,7 @@ public record BingoBoardResponse(
                 board.getStatus(),
                 cells,
                 completed,
+                isHost,
                 false,
                 false,
                 null,

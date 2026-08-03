@@ -155,6 +155,7 @@ export function MyPageScreen({ navigation }: MyPageScreenProps) {
           <Card style={styles.characterCard}>
             <CharacterPreview
               baseImage={character.data?.baseImage ?? null}
+              fallbackImage={character.data?.baseImageFallback ?? null}
               items={equippedItems}
               style={styles.preview}
             />

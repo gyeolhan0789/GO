@@ -17,13 +17,6 @@ import { MyPageScreen } from '../src/screens/MyPageScreen/MyPageScreen';
 import { installFetchMock, jsonResponse } from '../jest/fetchMock';
 import type { FetchMock } from '../jest/fetchMock';
 
-// 이 파일은 서버와 주고받는 계약을 확인한다. 앱은 지금 목업 모드로 돌고 있어
-// (characterMocks.USE_MOCK_CHARACTER) 요청이 나가지 않으므로 그 스위치를 끈다.
-jest.mock('../src/features/member/mocks/characterMocks', () => ({
-  ...jest.requireActual('../src/features/member/mocks/characterMocks'),
-  USE_MOCK_CHARACTER: false,
-}));
-
 // 로그아웃 버튼이 useAuth를 타므로 AuthProvider가 필요하다. 저장된 리프레시
 // 토큰이 없는 기기라 세션 복구는 요청 없이 끝난다.
 jest.mock('react-native-keychain', () =>
@@ -39,6 +32,7 @@ const NICKNAME = '산책이 좋아';
 const CHARACTER = {
   memberId: 1,
   nickname: NICKNAME,
+  gender: 'MALE',
   defaultImageUrl: '/uploads/characters/male.png',
   equippedItems: [],
 };

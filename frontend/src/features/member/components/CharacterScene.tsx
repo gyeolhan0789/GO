@@ -15,8 +15,13 @@ import { colors } from '../../../shared/constants/colors';
 
 // 캐릭터를 세워둘 산책길 배경. 사진이 아니라 도형이라 어떤 크기로 늘려도
 // 흐려지지 않고, 캐릭터/아이템 이미지만 서버에서 받아 위에 얹으면 된다.
-const SCENE_WIDTH = 320;
-const SCENE_HEIGHT = 180;
+export const SCENE_WIDTH = 320;
+export const SCENE_HEIGHT = 180;
+
+// 발밑에서 뒤로 멀어질수록 좁아지는 길의 반폭.
+const TRAIL_TOP_Y = 118;
+const TRAIL_TOP_HALF_WIDTH = 10;
+const TRAIL_BOTTOM_HALF_WIDTH = 32;
 
 const SKY_TOP = '#F6FBF2';
 const SKY_BOTTOM = '#E4F3DC';
@@ -49,7 +54,17 @@ function Tree({ x, y, scale }: TreeProps) {
   );
 }
 
-export function CharacterScene() {
+type CharacterSceneProps = {
+  /**
+   * 산책길 중심의 x 좌표(장면 좌표, 0~SCENE_WIDTH). 캐릭터 아트가 캔버스
+   * 정중앙에 있지 않아, 캐릭터를 얹는 쪽이 자기 레이아웃에 맞춰 계산해 준다.
+   */
+  trailCenterX?: number;
+};
+
+export function CharacterScene({
+  trailCenterX = SCENE_WIDTH / 2,
+}: CharacterSceneProps) {
   return (
     <Svg
       style={StyleSheet.absoluteFill}
@@ -76,7 +91,13 @@ export function CharacterScene() {
 
       {/* 발밑에서 뒤로 멀어지는 산책길. */}
       <Path
-        d={`M136 ${SCENE_HEIGHT} L152 118 L172 118 L200 ${SCENE_HEIGHT} Z`}
+        d={[
+          `M${trailCenterX - TRAIL_BOTTOM_HALF_WIDTH} ${SCENE_HEIGHT}`,
+          `L${trailCenterX - TRAIL_TOP_HALF_WIDTH} ${TRAIL_TOP_Y}`,
+          `L${trailCenterX + TRAIL_TOP_HALF_WIDTH} ${TRAIL_TOP_Y}`,
+          `L${trailCenterX + TRAIL_BOTTOM_HALF_WIDTH} ${SCENE_HEIGHT}`,
+          'Z',
+        ].join(' ')}
         fill={TRAIL}
       />
 

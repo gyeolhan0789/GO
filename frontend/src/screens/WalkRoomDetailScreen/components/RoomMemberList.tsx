@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { MemberAvatar } from '../../../features/member/components/MemberAvatar';
 import type {
   RoomMemberResponse,
   SentRoomInvite,
@@ -43,10 +44,12 @@ export function RoomMemberList({
       <View style={styles.list}>
         {members.map(member => (
           <View key={member.memberId} style={styles.row}>
-            <View style={styles.avatar}>
-              {/* TODO: 백엔드가 캐릭터 이미지를 내려주면 채워진다. */}
-              <Ionicons name="person" size={20} color={colors.primarySoft} />
-            </View>
+            <MemberAvatar
+              gender={member.gender}
+              defaultImageUrl={member.defaultImageUrl}
+              equippedItems={member.equippedItems}
+              style={styles.avatar}
+            />
             {/* 이름과 방장 배지는 붙여 두고, 미션 수만 오른쪽 끝에 고정한다.
                 배지가 오른쪽으로 밀리면 줄마다 배치가 어긋나 보인다. */}
             <View style={styles.nameGroup}>
@@ -133,16 +136,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
+  // 원 테두리 디자인은 CharacterBust가 모든 화면 공통으로 그린다.
   avatar: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
+  },
+  // 수락 대기 줄은 캐릭터가 아니라 모래시계 아이콘이라 원을 직접 그린다.
+  pendingAvatar: {
     borderRadius: radius.pill,
-    backgroundColor: colors.successBg,
+    backgroundColor: colors.neutralBg,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  pendingAvatar: {
-    backgroundColor: colors.neutralBg,
   },
   nameGroup: {
     flex: 1,

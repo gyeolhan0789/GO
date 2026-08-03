@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import type { CashResponse } from '../../member/api/memberApi';
-import { CASH_QUERY_KEY } from '../../member/hooks/useMyCashQuery';
+import type { PointResponse } from '../../member/api/memberApi';
+import { POINT_QUERY_KEY } from '../../member/hooks/useMyPointQuery';
 import { MY_ITEMS_QUERY_KEY } from '../../member/hooks/useMyItemsQuery';
 import type { CharacterItem } from '../../member/model/character';
 import { purchaseItem } from '../api/shopApi';
@@ -20,8 +20,8 @@ export function usePurchaseItemMutation() {
     // 바뀐 값은 응답에 다 들어 있다. 재조회에 맡기면 구매 직후에도 옛 포인트와
     // 가격 버튼이 잠깐 남으므로 캐시를 직접 갱신한다.
     onSuccess: (response, item) => {
-      queryClient.setQueryData<CashResponse>(CASH_QUERY_KEY, {
-        cash: response.remainingCash,
+      queryClient.setQueryData<PointResponse>(POINT_QUERY_KEY, {
+        point: response.remainingPoint,
       });
       queryClient.setQueryData<CharacterItem[]>(MY_ITEMS_QUERY_KEY, items =>
         items

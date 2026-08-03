@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { SentFriendRequest } from '../../../features/friend/api/friendApi';
+import { MemberAvatar } from '../../../features/member/components/MemberAvatar';
 import { AppText } from '../../../shared/components/AppText/AppText';
 import { Card } from '../../../shared/components/Card/Card';
 import { colors } from '../../../shared/constants/colors';
@@ -35,7 +36,12 @@ export function SentRequestRow({
 }: SentRequestRowProps) {
   return (
     <Card style={styles.card} wrapperStyle={styles.wrapper}>
-      <View style={styles.avatar} />
+      <MemberAvatar
+        gender={request.gender}
+        defaultImageUrl={request.defaultImageUrl}
+        equippedItems={request.equippedItems}
+        style={styles.avatar}
+      />
       <View style={styles.textGroup}>
         <AppText style={styles.nickname} numberOfLines={1}>
           {request.inviteeNickname}
@@ -82,11 +88,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
+  // 원 테두리 디자인은 CharacterBust가 모든 화면 공통으로 그린다.
   avatar: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
-    borderRadius: radius.pill,
-    backgroundColor: colors.neutralBg,
   },
   textGroup: {
     flex: 1,

@@ -13,12 +13,18 @@ const STAGE_BACKGROUND = require('../assets/ShopStage.png');
 
 type CharacterStageProps = {
   baseImage: ImageSourcePropType | null;
+  /** 서버 이미지가 로드에 실패할 때 대신 그릴 번들 에셋. */
+  fallbackImage?: ImageSourcePropType | null;
   /** 아래에 깔릴 것부터 정렬된 착용 아이템(`selectLayerItems` 결과). */
   items: CharacterLayer[];
 };
 
 /** 상점 단상 위에 내 캐릭터를 세운다. 입어보는 아이템도 여기서 겹쳐 보인다. */
-export function CharacterStage({ baseImage, items }: CharacterStageProps) {
+export function CharacterStage({
+  baseImage,
+  fallbackImage,
+  items,
+}: CharacterStageProps) {
   return (
     <View
       style={styles.stage}
@@ -34,6 +40,7 @@ export function CharacterStage({ baseImage, items }: CharacterStageProps) {
 
       <CharacterLayers
         baseImage={baseImage}
+        fallbackImage={fallbackImage}
         items={items}
         style={styles.characterBox}
       />

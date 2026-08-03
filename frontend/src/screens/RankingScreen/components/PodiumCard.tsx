@@ -10,7 +10,7 @@ import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
 import { bodyFont, lineHeights } from '../../../shared/constants/typography';
 import { ME_LABEL } from '../model';
-import { RankingAvatar } from './RankingAvatar';
+import { MemberAvatar } from '../../../features/member/components/MemberAvatar';
 
 type PodiumCardProps = {
   /** 왼쪽부터 그릴 세 자리(2위 · 1위 · 3위). 빈 자리는 null. */
@@ -64,7 +64,7 @@ function Place({ place, isMe }: { place: RankingItem; isMe: boolean }) {
   return (
     <View style={styles.place}>
       <View style={styles.stand}>
-        <RankingAvatar
+        <MemberAvatar
           gender={place.gender}
           defaultImageUrl={place.defaultImageUrl}
           equippedItems={place.equippedItems}

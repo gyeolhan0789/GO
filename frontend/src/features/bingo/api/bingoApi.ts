@@ -55,7 +55,7 @@ export function renewBingoBoard(roomId: number, body: RenewBingoBoardRequest) {
 }
 
 export type VerificationResult =
-  | { status: 'APPROVED'; rewardCash: number }
+  | { status: 'APPROVED'; rewardPoint: number }
   | { status: 'REJECTED'; rejectionReason: string };
 
 // 백엔드 BingoCellSubmitResponse(backend/.../bingo/controller/response/BingoCellSubmitResponse.java)와
@@ -69,7 +69,7 @@ type BingoCellSubmitResponse = {
   verificationStatus: BingoCellVerificationStatus;
   submittedByMemberId: number | null;
   rejectionReason: string | null;
-  rewardCash: number;
+  rewardPoint: number;
 };
 
 export type MissionPhoto = {
@@ -97,7 +97,7 @@ export function submitBingoCellPhoto(
     )
     .then(response =>
       response.verificationStatus === 'APPROVED'
-        ? { status: 'APPROVED', rewardCash: response.rewardCash }
+        ? { status: 'APPROVED', rewardPoint: response.rewardPoint }
         : {
             status: 'REJECTED',
             rejectionReason: response.rejectionReason ?? '인증에 실패했습니다.',
