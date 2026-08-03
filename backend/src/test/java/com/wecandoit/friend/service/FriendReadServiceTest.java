@@ -1,5 +1,6 @@
 package com.wecandoit.friend.service;
 
+import com.wecandoit.avatar.service.AvatarReadService;
 import com.wecandoit.friend.domain.Friend;
 import com.wecandoit.friend.repository.FriendRepository;
 
@@ -18,7 +19,6 @@ import com.wecandoit.item.controller.response.EquippedItemResponse;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
-import com.wecandoit.ranking.service.RankingCharacterReadService;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,7 +40,7 @@ class FriendReadServiceTest {
     @Mock
     private MemberHistoryRepository memberHistoryRepository;
     @Mock
-    private RankingCharacterReadService rankingCharacterReadService;
+    private AvatarReadService avatarReadService;
     private FriendReadService friendReadService;
 
     @BeforeEach
@@ -48,7 +48,7 @@ class FriendReadServiceTest {
         friendReadService = new FriendReadService(
                 friendRepository,
                 memberHistoryRepository,
-                rankingCharacterReadService
+                avatarReadService
         );
     }
 
@@ -79,7 +79,7 @@ class FriendReadServiceTest {
                 ItemCategory.HAT,
                 "https://example.com/hat.png"
         );
-        given(rankingCharacterReadService.getCharactersByMemberIds(List.of(1L, 3L)))
+        given(avatarReadService.getAvatars(List.of(smallerIdFriend, largerIdFriend)))
                 .willReturn(Map.of(
                         1L,
                         new CharacterResponse(
@@ -135,8 +135,8 @@ class FriendReadServiceTest {
                 any(),
                 any()
         );
-        then(rankingCharacterReadService).should()
-                .getCharactersByMemberIds(List.of(1L, 3L));
+        then(avatarReadService).should()
+                .getAvatars(List.of(smallerIdFriend, largerIdFriend));
     }
 
     @Test
@@ -154,7 +154,7 @@ class FriendReadServiceTest {
         assertThat(responses.content()).isEmpty();
         assertThat(responses.hasNext()).isFalse();
         then(memberHistoryRepository).shouldHaveNoInteractions();
-        then(rankingCharacterReadService).shouldHaveNoInteractions();
+        then(avatarReadService).shouldHaveNoInteractions();
     }
 
     private Member member(Long id, String nickname) {

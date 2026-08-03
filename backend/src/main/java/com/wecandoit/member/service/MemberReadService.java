@@ -1,5 +1,6 @@
 package com.wecandoit.member.service;
 
+import com.wecandoit.avatar.service.AvatarReadService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.SliceResponse;
@@ -12,7 +13,6 @@ import com.wecandoit.member.dto.MemberRelationshipStatus;
 import com.wecandoit.member.dto.MemberSearchResponse;
 import com.wecandoit.member.dto.MyPageResponse;
 import com.wecandoit.member.repository.MemberRepository;
-import com.wecandoit.ranking.service.RankingCharacterReadService;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -35,7 +35,7 @@ public class MemberReadService {
     private final MemberRepository memberRepository;
     private final FriendRepository friendRepository;
     private final FriendRequestRepository friendRequestRepository;
-    private final RankingCharacterReadService rankingCharacterReadService;
+    private final AvatarReadService avatarReadService;
 
     public SliceResponse<MemberSearchResponse> searchMembers(
             Long memberId,
@@ -66,7 +66,7 @@ public class MemberReadService {
         );
         Map<Long, MemberRelationshipStatus> requestStatuses = getRequestStatuses(memberId, candidateIds);
         Map<Long, CharacterResponse> charactersByMemberId =
-                rankingCharacterReadService.getCharactersByMemberIds(candidateMemberIds);
+                avatarReadService.getAvatars(members.getContent());
 
         Slice<MemberSearchResponse> responses = members
                 .map(member -> {

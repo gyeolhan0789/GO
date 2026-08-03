@@ -1,9 +1,11 @@
 package com.wecandoit.ranking.service;
 
+import com.wecandoit.avatar.service.AvatarReadService;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
@@ -39,7 +41,7 @@ class RankingReadServiceTest {
     @Mock
     private MemberHistoryRepository memberHistoryRepository;
     @Mock
-    private RankingCharacterReadService rankingCharacterReadService;
+    private AvatarReadService avatarReadService;
     @InjectMocks
     private RankingReadService rankingReadService;
 
@@ -48,6 +50,7 @@ class RankingReadServiceTest {
     void getRankingsReturnsGlobalRankAndPageResponse() {
         // given
         Member loginMember = member(4L, "로그인회원", Region.SEOUL);
+        Member rankingMember = member(3L, "회원3", Region.SEOUL, Gender.FEMALE);
         PageRequest pageable = PageRequest.of(1, 2);
         given(memberRepository.findById(4L)).willReturn(Optional.of(loginMember));
         given(memberHistoryRepository.findPagedWeeklyRankingsByRegion(
@@ -69,7 +72,8 @@ class RankingReadServiceTest {
                 any(),
                 any()
         )).willReturn(Optional.of(summary(4, 4L, "로그인회원", 12_500)));
-        given(rankingCharacterReadService.getCharactersByMemberIds(List.of(3L, 4L)))
+        given(memberRepository.findAllById(List.of(3L))).willReturn(List.of(rankingMember));
+        given(avatarReadService.getAvatars(List.of(rankingMember, loginMember)))
                 .willReturn(Map.of(
                         3L,
                         new CharacterResponse(
@@ -118,6 +122,8 @@ class RankingReadServiceTest {
         assertThat(response.rankings().currentPage()).isEqualTo(1);
         assertThat(response.rankings().size()).isEqualTo(2);
         assertThat(response.rankings().hasNext()).isTrue();
+        then(memberRepository).should().findAllById(List.of(3L));
+        then(avatarReadService).should().getAvatars(List.of(rankingMember, loginMember));
     }
 
     @Test
@@ -125,6 +131,8 @@ class RankingReadServiceTest {
     void getRankingsReturnsMyRankOutsideCurrentPage() {
         // given
         Member loginMember = member(5L, "로그인회원", Region.BUSAN);
+        Member firstRankingMember = member(1L, "회원1", Region.BUSAN);
+        Member secondRankingMember = member(2L, "회원2", Region.BUSAN, Gender.FEMALE);
         PageRequest pageable = PageRequest.of(0, 2);
         given(memberRepository.findById(5L)).willReturn(Optional.of(loginMember));
         given(memberHistoryRepository.findPagedWeeklyRankingsByRegion(
@@ -146,7 +154,9 @@ class RankingReadServiceTest {
                 any(),
                 any()
         )).willReturn(Optional.of(summary(5, 5L, "로그인회원", 0)));
-        given(rankingCharacterReadService.getCharactersByMemberIds(List.of(1L, 2L)))
+        given(memberRepository.findAllById(List.of(1L, 2L)))
+                .willReturn(List.of(firstRankingMember, secondRankingMember));
+        given(avatarReadService.getAvatars(List.of(firstRankingMember, secondRankingMember)))
                 .willReturn(Map.of(
                         1L,
                         new CharacterResponse(
@@ -204,7 +214,11 @@ class RankingReadServiceTest {
     }
 
     private Member member(Long id, String nickname, Region region) {
-        Member member = Member.create(nickname + "@example.com", "password", nickname, region);
+        return member(id, nickname, region, Gender.MALE);
+    }
+
+    private Member member(Long id, String nickname, Region region, Gender gender) {
+        Member member = Member.create(nickname + "@example.com", "password", nickname, region, gender);
         ReflectionTestUtils.setField(member, "id", id);
         return member;
     }

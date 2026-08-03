@@ -1,9 +1,11 @@
 package com.wecandoit.member.service;
 
+import com.wecandoit.avatar.service.AvatarReadService;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
@@ -21,7 +23,6 @@ import com.wecandoit.member.dto.MemberRelationshipStatus;
 import com.wecandoit.member.dto.MemberSearchResponse;
 import com.wecandoit.member.dto.MyPageResponse;
 import com.wecandoit.member.repository.MemberRepository;
-import com.wecandoit.ranking.service.RankingCharacterReadService;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -47,7 +48,7 @@ class MemberReadServiceTest {
     @Mock
     private FriendRequestRepository friendRequestRepository;
     @Mock
-    private RankingCharacterReadService rankingCharacterReadService;
+    private AvatarReadService avatarReadService;
     private MemberReadService memberReadService;
 
     @BeforeEach
@@ -56,7 +57,7 @@ class MemberReadServiceTest {
                 memberRepository,
                 friendRepository,
                 friendRequestRepository,
-                rankingCharacterReadService
+                avatarReadService
         );
     }
 
@@ -93,7 +94,7 @@ class MemberReadServiceTest {
                 ItemCategory.HAT,
                 "https://example.com/hat.png"
         );
-        given(rankingCharacterReadService.getCharactersByMemberIds(List.of(2L, 3L, 4L, 5L)))
+        given(avatarReadService.getAvatars(List.of(friend, sent, received, none)))
                 .willReturn(Map.of(
                         2L,
                         character(friend, "https://example.com/male.png", List.of(equippedItem)),
@@ -146,8 +147,9 @@ class MemberReadServiceTest {
         assertThat(responses.content().getFirst().equippedItems()).containsExactly(equippedItem);
         assertThat(responses.content().get(1).equippedItems()).isEmpty();
         assertThat(responses.hasNext()).isFalse();
-        then(rankingCharacterReadService).should()
-                .getCharactersByMemberIds(List.of(2L, 3L, 4L, 5L));
+        then(avatarReadService).should()
+                .getAvatars(List.of(friend, sent, received, none));
+        then(memberRepository).should(never()).findAllById(ArgumentMatchers.anyIterable());
     }
 
     @Test

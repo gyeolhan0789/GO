@@ -1,17 +1,14 @@
 package com.wecandoit.item.service;
 
-import com.wecandoit.character.repository.CharacterImageRepository;
+import com.wecandoit.avatar.service.AvatarReadService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.item.controller.response.CharacterResponse;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
 import com.wecandoit.item.controller.response.MemberItemResponse;
 import com.wecandoit.item.domain.Item;
 import com.wecandoit.item.domain.ItemCategory;
-import com.wecandoit.item.domain.MemberEquippedItem;
 import com.wecandoit.item.domain.MemberItem;
 import com.wecandoit.item.repository.ItemRepository;
-import com.wecandoit.item.repository.MemberEquippedItemRepository;
 import com.wecandoit.item.repository.MemberItemRepository;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
@@ -29,35 +26,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class CharacterItemReadService {
 
     private final MemberRepository memberRepository;
-    private final MemberEquippedItemRepository memberEquippedItemRepository;
     private final MemberItemRepository memberItemRepository;
     private final ItemRepository itemRepository;
-    private final CharacterImageRepository characterImageRepository;
+    private final AvatarReadService avatarReadService;
 
     public CharacterResponse getMyCharacter(Long memberId) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
-        String defaultImageUrl = characterImageRepository.findByGender(member.getGender())
-                .map(asset -> asset.getImageUrl())
-                .orElse(null);
-        List<MemberEquippedItem> equippedItems = memberEquippedItemRepository.findAllByMemberId(memberId);
-        if (equippedItems.isEmpty()) {
-            return CharacterResponse.of(member, defaultImageUrl, List.of());
-        }
-
-        Map<Long, MemberItem> memberItemsById = memberItemRepository.findAllById(
-                        equippedItems.stream().map(MemberEquippedItem::getMemberItemId).toList()
-                ).stream()
-                .collect(Collectors.toMap(MemberItem::getId, Function.identity()));
-        Map<Long, Item> itemsById = itemRepository.findAllById(
-                        memberItemsById.values().stream().map(MemberItem::getItemId).toList()
-                ).stream()
-                .collect(Collectors.toMap(Item::getId, Function.identity()));
-
-        List<EquippedItemResponse> equippedItemResponses = equippedItems.stream()
-                .map(equippedItem -> toResponse(memberId, equippedItem, memberItemsById, itemsById))
-                .toList();
-        return CharacterResponse.of(member, defaultImageUrl, equippedItemResponses);
+        return avatarReadService.getAvatars(List.of(member)).get(memberId);
     }
 
     public List<MemberItemResponse> getMyItems(Long memberId) {
@@ -99,23 +75,6 @@ public class CharacterItemReadService {
         } catch (IllegalArgumentException e) {
             throw new CustomException(ErrorCode.INVALID_ITEM_CATEGORY);
         }
-    }
-
-    private EquippedItemResponse toResponse(
-            Long memberId,
-            MemberEquippedItem equippedItem,
-            Map<Long, MemberItem> memberItemsById,
-            Map<Long, Item> itemsById
-    ) {
-        MemberItem memberItem = memberItemsById.get(equippedItem.getMemberItemId());
-        if (memberItem == null || !memberItem.getMemberId().equals(memberId)) {
-            throw new CustomException(ErrorCode.ITEM_NOT_FOUND);
-        }
-        Item item = itemsById.get(memberItem.getItemId());
-        if (item == null) {
-            throw new CustomException(ErrorCode.ITEM_NOT_FOUND);
-        }
-        return EquippedItemResponse.of(equippedItem, memberItem, item);
     }
 
     private MemberItemResponse toResponse(MemberItem memberItem, Map<Long, Item> itemsById) {

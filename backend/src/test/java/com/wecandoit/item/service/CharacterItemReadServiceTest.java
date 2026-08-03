@@ -1,5 +1,6 @@
 package com.wecandoit.item.service;
 
+import com.wecandoit.avatar.service.AvatarReadService;
 import static com.wecandoit.item.domain.ItemFixture.item;
 import static com.wecandoit.item.domain.MemberItemFixture.memberItem;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -8,23 +9,21 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
-import com.wecandoit.character.domain.CharacterImage;
-import com.wecandoit.character.repository.CharacterImageRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.item.controller.response.CharacterResponse;
+import com.wecandoit.item.controller.response.EquippedItemResponse;
 import com.wecandoit.item.controller.response.MemberItemResponse;
 import com.wecandoit.item.domain.Item;
 import com.wecandoit.item.domain.ItemCategory;
-import com.wecandoit.item.domain.MemberEquippedItem;
 import com.wecandoit.item.domain.MemberItem;
 import com.wecandoit.item.repository.ItemRepository;
-import com.wecandoit.item.repository.MemberEquippedItemRepository;
 import com.wecandoit.item.repository.MemberItemRepository;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.repository.MemberRepository;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -42,23 +41,20 @@ class CharacterItemReadServiceTest {
     @Mock
     private MemberRepository memberRepository;
     @Mock
-    private MemberEquippedItemRepository memberEquippedItemRepository;
-    @Mock
     private MemberItemRepository memberItemRepository;
     @Mock
     private ItemRepository itemRepository;
     @Mock
-    private CharacterImageRepository characterImageRepository;
+    private AvatarReadService avatarReadService;
     private CharacterItemReadService characterItemReadService;
 
     @BeforeEach
     void setUp() {
         characterItemReadService = new CharacterItemReadService(
                 memberRepository,
-                memberEquippedItemRepository,
                 memberItemRepository,
                 itemRepository,
-                characterImageRepository
+                avatarReadService
         );
     }
 
@@ -202,20 +198,32 @@ class CharacterItemReadServiceTest {
     void getMyCharacterReturnsMemberAndEquippedItems() {
         // given
         Member member = member(1L, "테스터");
-        MemberEquippedItem equippedHat = MemberEquippedItem.create(1L, 10L, ItemCategory.HAT);
-        MemberEquippedItem equippedTop = MemberEquippedItem.create(1L, 20L, ItemCategory.TOP);
-        MemberItem hat = memberItem(10L, 1L, 100L);
-        MemberItem top = memberItem(20L, 1L, 200L);
-        Item hatItem = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
-        Item topItem = item(200L, "파란 상의", "TOP", "https://example.com/top.png");
         given(memberRepository.findById(1L)).willReturn(Optional.of(member));
-        given(characterImageRepository.findByGender(Gender.MALE))
-                .willReturn(Optional.of(CharacterImage.create(
-                        Gender.MALE, "/uploads/test/characters/male/default.png")));
-        given(memberEquippedItemRepository.findAllByMemberId(1L))
-                .willReturn(List.of(equippedHat, equippedTop));
-        given(memberItemRepository.findAllById(List.of(10L, 20L))).willReturn(List.of(hat, top));
-        given(itemRepository.findAllById(Mockito.anyIterable())).willReturn(List.of(hatItem, topItem));
+        given(avatarReadService.getAvatars(List.of(member))).willReturn(Map.of(
+                1L,
+                new CharacterResponse(
+                        1L,
+                        "테스터",
+                        Gender.MALE,
+                        "/uploads/test/characters/male/default.png",
+                        List.of(
+                                new EquippedItemResponse(
+                                        10L,
+                                        100L,
+                                        "빨간 모자",
+                                        ItemCategory.HAT,
+                                        "https://example.com/hat.png"
+                                ),
+                                new EquippedItemResponse(
+                                        20L,
+                                        200L,
+                                        "파란 상의",
+                                        ItemCategory.TOP,
+                                        "https://example.com/top.png"
+                                )
+                        )
+                )
+        ));
 
         // when
         CharacterResponse response = characterItemReadService.getMyCharacter(1L);
@@ -252,18 +260,23 @@ class CharacterItemReadServiceTest {
         // given
         Member member = member(1L, "테스터");
         given(memberRepository.findById(1L)).willReturn(Optional.of(member));
-        given(characterImageRepository.findByGender(Gender.MALE))
-                .willReturn(Optional.of(CharacterImage.create(
-                        Gender.MALE, "/uploads/test/characters/male/default.png")));
-        given(memberEquippedItemRepository.findAllByMemberId(1L)).willReturn(List.of());
+        given(avatarReadService.getAvatars(List.of(member))).willReturn(Map.of(
+                1L,
+                new CharacterResponse(
+                        1L,
+                        "테스터",
+                        Gender.MALE,
+                        "/uploads/test/characters/male/default.png",
+                        List.of()
+                )
+        ));
 
         // when
         CharacterResponse response = characterItemReadService.getMyCharacter(1L);
 
         // then
         assertThat(response.equippedItems()).isEmpty();
-        then(memberItemRepository).should(never()).findAllById(Mockito.anyIterable());
-        then(itemRepository).should(never()).findAllById(Mockito.anyIterable());
+        then(avatarReadService).should().getAvatars(List.of(member));
     }
 
     @Test
@@ -277,7 +290,7 @@ class CharacterItemReadServiceTest {
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
-        then(memberEquippedItemRepository).should(never()).findAllByMemberId(Mockito.anyLong());
+        then(avatarReadService).shouldHaveNoInteractions();
     }
 
     @Test
@@ -286,9 +299,16 @@ class CharacterItemReadServiceTest {
         // given
         Member member = member(1L, "테스터");
         given(memberRepository.findById(1L)).willReturn(Optional.of(member));
-        given(characterImageRepository.findByGender(Gender.MALE)).willReturn(Optional.empty());
-
-        given(memberEquippedItemRepository.findAllByMemberId(1L)).willReturn(List.of());
+        given(avatarReadService.getAvatars(List.of(member))).willReturn(Map.of(
+                1L,
+                new CharacterResponse(
+                        1L,
+                        "테스터",
+                        Gender.MALE,
+                        null,
+                        List.of()
+                )
+        ));
 
         // when
         CharacterResponse response = characterItemReadService.getMyCharacter(1L);

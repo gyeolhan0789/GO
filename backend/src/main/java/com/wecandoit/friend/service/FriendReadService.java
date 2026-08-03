@@ -1,5 +1,6 @@
 package com.wecandoit.friend.service;
 
+import com.wecandoit.avatar.service.AvatarReadService;
 import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.friend.domain.Friend;
 import com.wecandoit.friend.dto.FriendResponse;
@@ -9,7 +10,6 @@ import com.wecandoit.history.repository.MemberHistoryRepository;
 import com.wecandoit.history.repository.WeeklyRankingSummary;
 import com.wecandoit.item.controller.response.CharacterResponse;
 import com.wecandoit.member.domain.Member;
-import com.wecandoit.ranking.service.RankingCharacterReadService;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -32,7 +32,7 @@ public class FriendReadService {
 
     private final FriendRepository friendRepository;
     private final MemberHistoryRepository memberHistoryRepository;
-    private final RankingCharacterReadService rankingCharacterReadService;
+    private final AvatarReadService avatarReadService;
 
     public SliceResponse<FriendResponse> getFriends(Long memberId, Pageable pageable) {
         Pageable fixedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
@@ -47,7 +47,7 @@ public class FriendReadService {
         List<Long> friendMemberIds = friendMembers.stream().map(Member::getId).toList();
         Map<Long, Long> weeklyStepsByMemberId = getWeeklyStepsByMemberId(friendMemberIds);
         Map<Long, CharacterResponse> charactersByMemberId =
-                rankingCharacterReadService.getCharactersByMemberIds(friendMemberIds);
+                avatarReadService.getAvatars(friendMembers);
 
         List<FriendResponse> responses = friendMembers.stream()
                 .map(friendMember -> {
