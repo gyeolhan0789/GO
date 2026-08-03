@@ -7,13 +7,17 @@ meta {
 get {
   url: {{backendBaseUrl}}/admin/missions
   body: none
-  auth: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
 }
 
 docs {
   ## 미션 목록 조회 (관리자)
 
-  등록된 전체 미션 목록을 조회한다. 인증이 필요 없는 API다.
+  등록된 전체 미션 목록을 조회한다. `ADMIN` 권한이 필요하다.
 
   ### 성공 응답 (200 OK)
   ```json
@@ -26,6 +30,7 @@ docs {
       "title": "빨간 우산 찾기",
       "detail": "빨간색 우산을 찾아 사진을 찍으세요.",
       "decisionCondition": "사진 속 우산 색상이 빨간색인지 확인",
+      "isActive": true,
       "createdAt": "2026-07-24T10:00:00"
     }
   ]

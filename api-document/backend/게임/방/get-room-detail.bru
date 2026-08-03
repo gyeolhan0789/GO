@@ -23,22 +23,50 @@ docs {
   ```json
   {
     "roomId": 1,
+    "name": "테스트 방",
     "mode": "BATTLE",
-    "status": "IN_PROGRESS",
+    "status": "ACTIVE",
+    "boardSize": 3,
     "targetBingoCount": 3,
+    "targetStepCount": null,
+    "totalMissionCount": 18,
+    "completedMissionCount": 2,
     "hostId": 1,
     "startedAt": "2026-07-24T10:05:00",
     "members": [
-      { "memberId": 1, "nickname": "host_nick", "host": true, "completedMissionCount": 2, "joinedAt": "2026-07-24T10:00:00", "bingoBoardId": 101 },
-      { "memberId": 2, "nickname": "guest_nick", "host": false, "completedMissionCount": 0, "joinedAt": "2026-07-24T10:01:00", "bingoBoardId": 102 }
+      {
+        "memberId": 1,
+        "nickname": "host_nick",
+        "gender": "MALE",
+        "defaultImageUrl": "https://example.com/images/default.png",
+        "equippedItems": [
+          { "memberItemId": 10, "itemId": 5, "name": "기본 모자", "category": "HAT", "imageUrl": "https://example.com/images/hat.png" }
+        ],
+        "host": true,
+        "completedMissionCount": 2,
+        "joinedAt": "2026-07-24T10:00:00",
+        "bingoBoardId": 101
+      },
+      {
+        "memberId": 2,
+        "nickname": "guest_nick",
+        "gender": "FEMALE",
+        "defaultImageUrl": "https://example.com/images/default2.png",
+        "equippedItems": [],
+        "host": false,
+        "completedMissionCount": 0,
+        "joinedAt": "2026-07-24T10:01:00",
+        "bingoBoardId": 102
+      }
     ]
   }
   ```
   ### 비즈니스 규칙
   - `mode`: `SINGLE` | `COOPERATE` | `BATTLE`
-  - `targetBingoCount`는 모든 모드에서 저장된다.
-  - `status`: `CREATED` | `WAITING` | `READY` | `IN_PROGRESS` | `COMPLETED` | `CLOSED`
-  - `startedAt`은 게임이 시작(`IN_PROGRESS`로 전환)되기 전에는 `null`이다.
+  - `targetBingoCount`는 `BATTLE` 모드에서만 값이 있고, 그 외 모드에서는 `null`이다.
+  - `targetStepCount`는 `SINGLE`/`COOPERATE` 모드에서만 값이 있고, `BATTLE`에서는 `null`이다.
+  - `status`: `ACTIVE` | `CLOSED`
+  - `startedAt`은 게임 회차가 아직 시작되지 않았으면 `null`이다.
   - `members`는 참여 시각(`joinedAt`) 오름차순으로 정렬된다.
   - `members[].bingoBoardId`는 대결 모드에서 각 참가자의 개인 빙고판 ID이며, 싱글·협동 모드에서는 `null`이다.
 
