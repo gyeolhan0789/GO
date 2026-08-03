@@ -1,9 +1,11 @@
 package com.wecandoit.ranking.service;
 
+import com.wecandoit.avatar.service.AvatarReadService;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
@@ -13,6 +15,9 @@ import com.wecandoit.item.controller.response.CharacterResponse;
 import com.wecandoit.item.controller.response.EquippedItemResponse;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
+import com.wecandoit.member.domain.Member;
+import com.wecandoit.member.domain.Region;
+import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.ranking.controller.response.FriendRankingResponse;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +30,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @DisplayName("친구 랭킹 조회 서비스")
 @ExtendWith(MockitoExtension.class)
@@ -33,7 +39,9 @@ class FriendRankingReadServiceTest {
     @Mock
     private MemberHistoryRepository memberHistoryRepository;
     @Mock
-    private RankingCharacterReadService rankingCharacterReadService;
+    private MemberRepository memberRepository;
+    @Mock
+    private AvatarReadService avatarReadService;
     @InjectMocks
     private FriendRankingReadService friendRankingReadService;
 
@@ -42,6 +50,8 @@ class FriendRankingReadServiceTest {
     void getFriendRankingsReturnsGlobalRanksAcrossPages() {
         // given
         PageRequest pageable = PageRequest.of(1, 2);
+        Member friend = member(3L, "친구3", Gender.FEMALE);
+        Member loginMember = member(4L, "로그인회원", Gender.MALE);
         given(memberHistoryRepository.findPagedWeeklyFriendRankings(
                 org.mockito.ArgumentMatchers.eq(4L),
                 any(),
@@ -60,7 +70,9 @@ class FriendRankingReadServiceTest {
                 any(),
                 any()
         )).willReturn(Optional.of(summary(4, 4L, "로그인회원", 12_500)));
-        given(rankingCharacterReadService.getCharactersByMemberIds(List.of(3L, 4L)))
+        given(memberRepository.findAllById(List.of(3L, 4L)))
+                .willReturn(List.of(friend, loginMember));
+        given(avatarReadService.getAvatars(List.of(friend, loginMember)))
                 .willReturn(Map.of(
                         3L,
                         new CharacterResponse(
@@ -106,6 +118,8 @@ class FriendRankingReadServiceTest {
         assertThat(response.rankings().content().get(1).equippedItems()).hasSize(1);
         assertThat(response.rankings().totalElements()).isEqualTo(5);
         assertThat(response.rankings().currentPage()).isEqualTo(1);
+        then(memberRepository).should().findAllById(List.of(3L, 4L));
+        then(avatarReadService).should().getAvatars(List.of(friend, loginMember));
     }
 
     @Test
@@ -114,6 +128,7 @@ class FriendRankingReadServiceTest {
         // given
         PageRequest pageable = PageRequest.of(0, 20);
         RankedWeeklyRankingSummary loginMember = summary(1, 1L, "로그인회원", 0);
+        Member loginMemberEntity = member(1L, "로그인회원", Gender.MALE);
         given(memberHistoryRepository.findPagedWeeklyFriendRankings(
                 org.mockito.ArgumentMatchers.eq(1L),
                 any(),
@@ -125,7 +140,8 @@ class FriendRankingReadServiceTest {
                 any(),
                 any()
         )).willReturn(Optional.of(loginMember));
-        given(rankingCharacterReadService.getCharactersByMemberIds(List.of(1L)))
+        given(memberRepository.findAllById(List.of(1L))).willReturn(List.of(loginMemberEntity));
+        given(avatarReadService.getAvatars(List.of(loginMemberEntity)))
                 .willReturn(Map.of(
                         1L,
                         new CharacterResponse(
@@ -205,5 +221,17 @@ class FriendRankingReadServiceTest {
                 return weeklySteps;
             }
         };
+    }
+
+    private Member member(Long id, String nickname, Gender gender) {
+        Member member = Member.create(
+                nickname + "@example.com",
+                "password",
+                nickname,
+                Region.SEOUL,
+                gender
+        );
+        ReflectionTestUtils.setField(member, "id", id);
+        return member;
     }
 }

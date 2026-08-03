@@ -1,4 +1,4 @@
-package com.wecandoit.ranking.service;
+package com.wecandoit.avatar.service;
 
 import com.wecandoit.character.domain.CharacterImage;
 import com.wecandoit.character.repository.CharacterImageRepository;
@@ -14,7 +14,6 @@ import com.wecandoit.item.repository.MemberEquippedItemRepository;
 import com.wecandoit.item.repository.MemberItemRepository;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
-import com.wecandoit.member.repository.MemberRepository;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -26,18 +25,21 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class RankingCharacterReadService {
+public class AvatarReadService {
 
-    private final MemberRepository memberRepository;
     private final CharacterImageRepository characterImageRepository;
     private final MemberEquippedItemRepository memberEquippedItemRepository;
     private final MemberItemRepository memberItemRepository;
     private final ItemRepository itemRepository;
 
-    public Map<Long, CharacterResponse> getCharactersByMemberIds(
-            List<Long> memberIds
-    ) {
-        List<Member> members = memberRepository.findAllById(memberIds);
+    public Map<Long, CharacterResponse> getAvatars(List<Member> members) {
+        if (members.isEmpty()) {
+            return Map.of();
+        }
+
+        List<Long> memberIds = members.stream()
+                .map(Member::getId)
+                .toList();
         Map<Gender, String> defaultImageUrlsByGender =
                 characterImageRepository.findAllByOrderByGenderAsc().stream()
                         .collect(Collectors.toMap(

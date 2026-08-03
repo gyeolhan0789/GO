@@ -1,5 +1,6 @@
 package com.wecandoit.friend.service;
 
+import com.wecandoit.avatar.service.AvatarReadService;
 import com.wecandoit.friend.domain.FriendRequest;
 import com.wecandoit.friend.domain.FriendRequestStatus;
 import com.wecandoit.friend.repository.FriendRequestRepository;
@@ -20,7 +21,6 @@ import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
-import com.wecandoit.ranking.service.RankingCharacterReadService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -43,7 +43,7 @@ class FriendRequestReadServiceTest {
     @Mock
     private MemberRepository memberRepository;
     @Mock
-    private RankingCharacterReadService rankingCharacterReadService;
+    private AvatarReadService avatarReadService;
     private FriendRequestReadService friendRequestReadService;
 
     @BeforeEach
@@ -51,7 +51,7 @@ class FriendRequestReadServiceTest {
         friendRequestReadService = new FriendRequestReadService(
                 friendRequestRepository,
                 memberRepository,
-                rankingCharacterReadService
+                avatarReadService
         );
     }
 
@@ -78,7 +78,7 @@ class FriendRequestReadServiceTest {
                 ItemCategory.HAT,
                 "https://example.com/blue-hat.png"
         );
-        given(rankingCharacterReadService.getCharactersByMemberIds(List.of(1L)))
+        given(avatarReadService.getAvatars(List.of(inviter)))
                 .willReturn(Map.of(1L, new CharacterResponse(
                         1L,
                         "보낸사람",
@@ -104,7 +104,8 @@ class FriendRequestReadServiceTest {
                 )
         );
         assertThat(responses.hasNext()).isFalse();
-        then(rankingCharacterReadService).should().getCharactersByMemberIds(List.of(1L));
+        then(avatarReadService).should().getAvatars(List.of(inviter));
+        then(memberRepository).shouldHaveNoInteractions();
     }
 
     @Test

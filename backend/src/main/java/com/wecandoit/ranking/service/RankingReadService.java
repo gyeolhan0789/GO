@@ -1,5 +1,6 @@
 package com.wecandoit.ranking.service;
 
+import com.wecandoit.avatar.service.AvatarReadService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.PageResponse;
@@ -13,6 +14,8 @@ import com.wecandoit.ranking.controller.response.RankingItemResponse;
 import com.wecandoit.ranking.controller.response.RankingResponse;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -30,7 +33,7 @@ public class RankingReadService {
 
     private final MemberRepository memberRepository;
     private final MemberHistoryRepository memberHistoryRepository;
-    private final RankingCharacterReadService rankingCharacterReadService;
+    private final AvatarReadService avatarReadService;
 
     public RankingResponse getRankings(Long memberId, Pageable pageable) {
         Member loginMember = memberRepository.findById(memberId)
@@ -57,12 +60,18 @@ public class RankingReadService {
                                 weekRange.endDate()
                         )
                         .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
-        Map<Long, CharacterResponse> charactersByMemberId =
-                rankingCharacterReadService.getCharactersByMemberIds(
-                        summaries.stream()
-                                .map(RankedWeeklyRankingSummary::getMemberId)
-                                .toList()
-                );
+        List<Long> rankingMemberIds = summaries.stream()
+                .map(RankedWeeklyRankingSummary::getMemberId)
+                .toList();
+        List<Member> rankingMembers = new ArrayList<>(memberRepository.findAllById(
+                rankingMemberIds.stream()
+                        .filter(rankingMemberId -> !rankingMemberId.equals(memberId))
+                        .toList()
+        ));
+        if (rankingMemberIds.contains(memberId)) {
+            rankingMembers.add(loginMember);
+        }
+        Map<Long, CharacterResponse> charactersByMemberId = avatarReadService.getAvatars(rankingMembers);
 
         return new RankingResponse(
                 region,

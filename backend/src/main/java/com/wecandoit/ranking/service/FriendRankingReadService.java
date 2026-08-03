@@ -1,15 +1,19 @@
 package com.wecandoit.ranking.service;
 
+import com.wecandoit.avatar.service.AvatarReadService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.PageResponse;
 import com.wecandoit.history.repository.MemberHistoryRepository;
 import com.wecandoit.history.repository.RankedWeeklyRankingSummary;
 import com.wecandoit.item.controller.response.CharacterResponse;
+import com.wecandoit.member.domain.Member;
+import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.ranking.controller.response.FriendRankingResponse;
 import com.wecandoit.ranking.controller.response.RankingItemResponse;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -26,7 +30,8 @@ public class FriendRankingReadService {
     private static final ZoneId SERVICE_ZONE_ID = ZoneId.of("Asia/Seoul");
 
     private final MemberHistoryRepository memberHistoryRepository;
-    private final RankingCharacterReadService rankingCharacterReadService;
+    private final MemberRepository memberRepository;
+    private final AvatarReadService avatarReadService;
 
     public FriendRankingResponse getFriendRankings(Long memberId, Pageable pageable) {
         CurrentWeekRange weekRange = CurrentWeekRange.from(LocalDate.now(SERVICE_ZONE_ID));
@@ -45,12 +50,11 @@ public class FriendRankingReadService {
                                 weekRange.endDate()
                         )
                         .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
-        Map<Long, CharacterResponse> charactersByMemberId =
-                rankingCharacterReadService.getCharactersByMemberIds(
-                        summaries.stream()
-                                .map(RankedWeeklyRankingSummary::getMemberId)
-                                .toList()
-                );
+        List<Long> rankingMemberIds = summaries.stream()
+                .map(RankedWeeklyRankingSummary::getMemberId)
+                .toList();
+        List<Member> rankingMembers = memberRepository.findAllById(rankingMemberIds);
+        Map<Long, CharacterResponse> charactersByMemberId = avatarReadService.getAvatars(rankingMembers);
 
         return new FriendRankingResponse(
                 myRanking.getRanking(),
