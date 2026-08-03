@@ -16,7 +16,7 @@ export type GameResultParticipantResponse = {
   memberId: number;
   nickname: string;
   completedMissionCount: number;
-  rewardCash: number;
+  rewardPoint: number;
   /** 승패가 갈리는 대결에서만 채워진다. */
   result: boolean | null;
   /**
@@ -45,14 +45,14 @@ export type GameResultResponse = {
   targetStepCount: number | null;
   bingoCount: number;
   completedMissionCount: number;
-  rewardCash: number;
+  rewardPoint: number;
   /** 'yyyy-MM-ddTHH:mm:ss'. 서버 LocalDateTime이라 시간대가 없다. */
   startedAt: string | null;
   completedAt: string | null;
   /** 게임에 깔린 모든 빙고판의 칸 수 합계. 대결에서는 사람 수만큼 커진다. */
   totalMissionCount: number;
   myCompletedMissionCount: number;
-  myRewardCash: number;
+  myRewardPoint: number;
   /** 대결에서만 채워진다. */
   myResult: boolean | null;
   participants: GameResultParticipantResponse[];

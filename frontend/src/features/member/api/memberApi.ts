@@ -30,8 +30,8 @@ export type MyCharacterResponse = {
   equippedItems: EquippedItem[];
 };
 
-export type CashResponse = {
-  cash: number;
+export type PointResponse = {
+  point: number;
 };
 
 export type MyPageResponse = {
@@ -40,7 +40,7 @@ export type MyPageResponse = {
   nickname: string;
   gender: Gender;
   region: Region;
-  cash: number;
+  point: number;
 };
 
 export function getMyCharacter() {
@@ -51,8 +51,8 @@ export function getMyPage() {
   return apiClient.get<MyPageResponse>('/members/me');
 }
 
-export function getMyCash() {
-  return apiClient.get<CashResponse>('/members/cash');
+export function getMyPoint() {
+  return apiClient.get<PointResponse>('/members/point');
 }
 
 /** category를 생략하면 보유한 전체 아이템을 내려준다. */

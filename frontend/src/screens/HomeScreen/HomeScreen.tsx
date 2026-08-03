@@ -13,7 +13,7 @@ import type {
 import { BoardRenewalSheet } from '../../features/bingo/components/BoardRenewalSheet/BoardRenewalSheet';
 import { useActiveBingoBoardQuery } from '../../features/bingo/hooks/useActiveBingoBoardQuery';
 import { MISSION_TYPE_ICONS } from '../../features/bingo/model/missionType';
-import { useMyCashQuery } from '../../features/member/hooks/useMyCashQuery';
+import { useMyPointQuery } from '../../features/member/hooks/useMyPointQuery';
 import { useMyCharacterQuery } from '../../features/member/hooks/useMyCharacterQuery';
 import {
   selectLayerItems,
@@ -41,7 +41,7 @@ type HomeNavigation = NativeStackNavigationProp<RootStackParamList, 'Main'>;
 
 // TODO: 목표 걸음수 연동 전까지의 임시 목업 데이터.
 // 걸음/거리/칼로리는 useSamsungHealthToday, 포인트·캐릭터는 각각
-// useMyCashQuery·useMyCharacterQuery로 실측값을 따로 받아온다.
+// useMyPointQuery·useMyCharacterQuery로 실측값을 따로 받아온다.
 const MOCK_HOME_SUMMARY = {
   goalSteps: 10000,
   canRewardHint: '1,000보 더 걸으면 캔 1개를 더 모아요',
@@ -71,8 +71,8 @@ export function HomeScreen() {
   } | null>(null);
 
   // 로딩/실패 중에는 가짜 숫자·이름 대신 빈 값을 보여준다.
-  const cash = useMyCashQuery();
-  const points = cash.data?.cash ?? 0;
+  const point = useMyPointQuery();
+  const points = point.data?.point ?? 0;
   const character = useMyCharacterQuery();
   const characterName = character.data?.nickname ?? '';
   // 마이페이지·상점과 같은 순서로 겹쳐야 같은 조합이 화면마다 똑같이 보인다.

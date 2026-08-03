@@ -67,7 +67,7 @@ const CASH = 4000;
 const PURCHASE = {
   memberItemId: 11,
   itemId: CHEAP_HAT.itemId,
-  remainingCash: CASH - CHEAP_HAT.price,
+  remainingPoint: CASH - CHEAP_HAT.price,
 };
 
 let renderer: ReactTestRenderer.ReactTestRenderer | null = null;
@@ -80,8 +80,8 @@ beforeEach(() => {
     if (url.includes('/members/character')) {
       return jsonResponse(200, CHARACTER);
     }
-    if (url.includes('/members/cash')) {
-      return jsonResponse(200, { cash: CASH });
+    if (url.includes('/members/point')) {
+      return jsonResponse(200, { point: CASH });
     }
     if (url.includes('/members/items')) {
       return jsonResponse(200, [MY_HAT] as never);
@@ -318,8 +318,8 @@ describe('ShopScreen', () => {
       if (url.includes('/members/character')) {
         return jsonResponse(200, CHARACTER);
       }
-      if (url.includes('/members/cash')) {
-        return jsonResponse(200, { cash: CASH });
+      if (url.includes('/members/point')) {
+        return jsonResponse(200, { point: CASH });
       }
       if (url.includes('/members/items')) {
         return jsonResponse(200, [MY_HAT] as never);
@@ -401,8 +401,8 @@ describe('ShopScreen', () => {
       if (url.includes('/shop/items')) {
         return jsonResponse(500, { message: '상점을 불러올 수 없습니다.' });
       }
-      if (url.includes('/members/cash')) {
-        return jsonResponse(200, { cash: CASH });
+      if (url.includes('/members/point')) {
+        return jsonResponse(200, { point: CASH });
       }
       if (url.includes('/members/character')) {
         return jsonResponse(200, CHARACTER);

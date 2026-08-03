@@ -44,7 +44,7 @@ jest.mock('../src/features/member/api/memberApi', () => ({
       equippedItems: [],
     }),
   ),
-  getMyCash: jest.fn(() => Promise.resolve({ cash: 0 })),
+  getMyPoint: jest.fn(() => Promise.resolve({ point: 0 })),
   updateMyProfile: jest.fn(() => Promise.resolve()),
 }));
 
