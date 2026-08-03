@@ -17,10 +17,12 @@ import com.wecandoit.game.repository.GameParticipantRepository;
 import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
+import com.wecandoit.mission.domain.Mission;
 import com.wecandoit.mission.repository.MissionRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -51,7 +53,7 @@ class BingoReadServiceTest {
     private BingoReadService bingoReadService;
 
     @Test
-    @DisplayName("활성 보드 조회는 보드에 저장된 판 크기와 목표값을 반환한다")
+    @DisplayName("활성 공유 보드는 목표 빙고 수 없이 판 크기와 목표 걸음 수를 반환한다")
     void getActiveBoardReturnsBoardSettings() {
         Room room = room(10L, 1L);
         Game game = game(20L, LocalDateTime.now());
@@ -61,7 +63,7 @@ class BingoReadServiceTest {
         BingoBoardResponse response = bingoReadService.getActiveBoard(1L, 10L);
 
         assertThat(response.boardSize()).isEqualTo(4);
-        assertThat(response.targetBingoCount()).isEqualTo(3);
+        assertThat(response.targetBingoCount()).isNull();
         assertThat(response.targetStepCount()).isEqualTo(12_000);
         assertThat(response.renewalRequired()).isFalse();
     }
@@ -94,6 +96,37 @@ class BingoReadServiceTest {
         assertThat(response.canRenew()).isFalse();
     }
 
+    @Test
+    @DisplayName("목표 빙고 줄을 완성해도 빈 셀이 있으면 조기 갱신할 수 없다")
+    void getActiveBoardDoesNotAllowRenewalWithIncompleteCells() {
+        Room room = room(10L, 1L);
+        Game game = game(20L, LocalDateTime.now().minusDays(1));
+        BingoBoard board = board(30L, game.getId());
+        List<BingoCell> cells = cellsWithApprovedCount(30L, 16, 4);
+        givenRoomContext(1L, room, game, board, cells);
+
+        BingoBoardResponse response = bingoReadService.getActiveBoard(1L, 10L);
+
+        assertThat(response.completedBingoCount()).isEqualTo(1);
+        assertThat(response.completed()).isFalse();
+        assertThat(response.canRenew()).isFalse();
+    }
+
+    @Test
+    @DisplayName("전체 셀을 완료한 공유 보드는 호스트가 조기 갱신할 수 있다")
+    void getActiveBoardAllowsRenewalWhenAllCellsCompleted() {
+        Room room = room(10L, 1L);
+        Game game = game(20L, LocalDateTime.now().minusDays(1));
+        BingoBoard board = board(30L, game.getId());
+        List<BingoCell> cells = cellsWithApprovedCount(30L, 16, 16);
+        givenRoomContext(1L, room, game, board, cells);
+
+        BingoBoardResponse response = bingoReadService.getActiveBoard(1L, 10L);
+
+        assertThat(response.completed()).isTrue();
+        assertThat(response.canRenew()).isTrue();
+    }
+
     private void givenRoomContext(
             Long memberId,
             Room room,
@@ -111,6 +144,10 @@ class BingoReadServiceTest {
                 List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED)
         )).willReturn(Optional.of(board));
         given(bingoCellRepository.findAllByBoardId(board.getId())).willReturn(cells);
+        if (!cells.isEmpty()) {
+            List<Long> missionIds = cells.stream().map(BingoCell::getMissionId).toList();
+            given(missionRepository.findAllById(missionIds)).willReturn(missions(missionIds));
+        }
     }
 
     private Room room(Long roomId, Long hostId) {
@@ -127,8 +164,39 @@ class BingoReadServiceTest {
     }
 
     private BingoBoard board(Long boardId, Long gameId) {
-        BingoBoard board = BingoBoard.create(gameId, 4, 3, 12_000);
+        BingoBoard board = BingoBoard.create(gameId, 4, 12_000);
         ReflectionTestUtils.setField(board, "id", boardId);
         return board;
+    }
+
+    private List<BingoCell> cellsWithApprovedCount(Long boardId, int totalCount, int approvedCount) {
+        return IntStream.range(0, totalCount)
+                .mapToObj(index -> {
+                    BingoCell cell = BingoCell.create(boardId, (long) index + 1, index / 4, index % 4);
+                    ReflectionTestUtils.setField(cell, "id", (long) index + 1);
+                    if (index < approvedCount) {
+                        cell.submit(1L, "https://example.com/proof.png");
+                        ReflectionTestUtils.setField(cell, "submittedAt", LocalDateTime.now().minusHours(1));
+                        cell.approve();
+                    }
+                    return cell;
+                })
+                .toList();
+    }
+
+    private List<Mission> missions(List<Long> missionIds) {
+        return missionIds.stream()
+                .map(missionId -> {
+                    Mission mission = Mission.create(
+                            "https://example.com/mission.png",
+                            "OBJECT",
+                            "미션",
+                            "설명",
+                            null
+                    );
+                    ReflectionTestUtils.setField(mission, "id", missionId);
+                    return mission;
+                })
+                .toList();
     }
 }

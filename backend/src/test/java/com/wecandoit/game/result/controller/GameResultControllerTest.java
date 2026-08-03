@@ -2,6 +2,7 @@ package com.wecandoit.game.result.controller;
 
 import static io.restassured.module.mockmvc.RestAssuredMockMvc.given;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -110,7 +111,7 @@ class GameResultControllerTest {
                 .body("roomStatus", equalTo("CLOSED"))
                 .body("result", equalTo(true))
                 .body("boardSize", equalTo(3))
-                .body("targetBingoCount", equalTo(3))
+                .body("targetBingoCount", nullValue())
                 .body("targetStepCount", equalTo(10000))
                 .body("bingoCount", equalTo(3))
                 .body("completedMissionCount", equalTo(5))
@@ -156,7 +157,8 @@ class GameResultControllerTest {
                                 fieldWithPath("roomStatus").description("게임방 상태"),
                                 fieldWithPath("result").description("완료 결과"),
                                 fieldWithPath("boardSize").description("빙고판 한 변 길이"),
-                                fieldWithPath("targetBingoCount").description("목표 빙고 수"),
+                                fieldWithPath("targetBingoCount").optional()
+                                        .description("목표 빙고 수(공유 모드는 null, 대결 모드만 사용)"),
                                 fieldWithPath("targetStepCount")
                                         .optional()
                                         .description("공유 빙고판 목표 걸음 수. 대결 모드는 null"),
@@ -281,7 +283,7 @@ class GameResultControllerTest {
                 .body("content[0].roomStatus", equalTo("CLOSED"))
                 .body("content[0].result", equalTo(true))
                 .body("content[0].boardSize", equalTo(3))
-                .body("content[0].targetBingoCount", equalTo(3))
+                .body("content[0].targetBingoCount", nullValue())
                 .body("content[0].targetStepCount", equalTo(10000))
                 .body("content[0].bingoCount", equalTo(3))
                 .body("content[0].completedMissionCount", equalTo(5))
@@ -302,7 +304,8 @@ class GameResultControllerTest {
                                 fieldWithPath("content[].roomStatus").description("게임방 상태"),
                                 fieldWithPath("content[].result").description("완료 결과"),
                                 fieldWithPath("content[].boardSize").description("빙고판 한 변 길이"),
-                                fieldWithPath("content[].targetBingoCount").description("목표 빙고 수"),
+                                fieldWithPath("content[].targetBingoCount").optional()
+                                        .description("목표 빙고 수(공유 모드는 null, 대결 모드만 사용)"),
                                 fieldWithPath("content[].targetStepCount")
                                         .optional()
                                         .description("공유 빙고판 목표 걸음 수. 대결 모드는 null"),
@@ -355,7 +358,7 @@ class GameResultControllerTest {
                 RoomStatus.CLOSED,
                 true,
                 3,
-                3,
+                null,
                 10_000,
                 3,
                 5,
@@ -414,7 +417,7 @@ class GameResultControllerTest {
                 RoomStatus.CLOSED,
                 true,
                 3,
-                3,
+                null,
                 10_000,
                 3,
                 5,

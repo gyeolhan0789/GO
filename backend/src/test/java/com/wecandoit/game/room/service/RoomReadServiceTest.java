@@ -136,7 +136,7 @@ class RoomReadServiceTest {
         RoomMember host = roomMember(10L, 1L);
         RoomMember guest = roomMember(10L, 2L);
         Game game = game(100L, 10L);
-        BingoBoard board = sharedBoard(200L, 100L, 4, 3, 12_000);
+        BingoBoard board = sharedBoard(200L, 100L, 4, 12_000);
         List<BingoCell> cells = List.of(
                 approvedCell(200L, 1L, 1L),
                 approvedCell(200L, 2L, 2L),
@@ -147,7 +147,7 @@ class RoomReadServiceTest {
         RoomDetailResponse response = roomReadService.getRoomDetail(1L, 10L);
 
         assertThat(response.boardSize()).isEqualTo(4);
-        assertThat(response.targetBingoCount()).isEqualTo(3);
+        assertThat(response.targetBingoCount()).isNull();
         assertThat(response.targetStepCount()).isEqualTo(12_000);
         assertThat(response.totalMissionCount()).isEqualTo(3);
         assertThat(response.completedMissionCount()).isEqualTo(2);
@@ -204,7 +204,7 @@ class RoomReadServiceTest {
         RoomMember teammate = roomMember(10L, 2L);
         Game cooperateGame = game(100L, 10L);
         Game battleGame = game(101L, 11L);
-        BingoBoard cooperateBoard = sharedBoard(200L, 100L, 4, 3, 12_000);
+        BingoBoard cooperateBoard = sharedBoard(200L, 100L, 4, 12_000);
         BingoBoard battleBoard = battleBoard(201L, 101L, 301L);
 
         given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
@@ -228,7 +228,7 @@ class RoomReadServiceTest {
         assertThat(responses).singleElement().satisfies(response -> {
             assertThat(response.roomId()).isEqualTo(10L);
             assertThat(response.boardSize()).isEqualTo(4);
-            assertThat(response.targetBingoCount()).isEqualTo(3);
+            assertThat(response.targetBingoCount()).isNull();
             assertThat(response.completedMissionCount()).isEqualTo(1);
         });
         assertThat(battleGame).isNotNull();
@@ -255,7 +255,7 @@ class RoomReadServiceTest {
         RoomMember host = roomMember(10L, 1L);
         RoomMember guest = roomMember(10L, 2L);
         Game game = game(100L, 10L);
-        BingoBoard board = sharedBoard(200L, 100L, 4, 3, 12_000);
+        BingoBoard board = sharedBoard(200L, 100L, 4, 12_000);
         ReflectionTestUtils.setField(board, "createdAt", LocalDateTime.of(2026, 7, 31, 9, 0));
         given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
                 .willReturn(List.of(host));
@@ -336,11 +336,10 @@ class RoomReadServiceTest {
             Long id,
             Long gameId,
             int boardSize,
-            int targetBingoCount,
             int targetStepCount
     ) {
         BingoBoard board =
-                BingoBoard.create(gameId, boardSize, targetBingoCount, targetStepCount);
+                BingoBoard.create(gameId, boardSize, targetStepCount);
         ReflectionTestUtils.setField(board, "id", id);
         return board;
     }

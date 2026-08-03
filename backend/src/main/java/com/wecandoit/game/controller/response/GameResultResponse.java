@@ -34,7 +34,7 @@ public record GameResultResponse(
             GameResult gameResult,
             Room room,
             int boardSize,
-            int targetBingoCount,
+            Integer targetBingoCount,
             Integer targetStepCount,
             LocalDateTime startedAt,
             LocalDateTime completedAt,

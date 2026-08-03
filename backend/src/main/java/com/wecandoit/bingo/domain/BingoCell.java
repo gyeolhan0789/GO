@@ -95,4 +95,10 @@ public class BingoCell extends BaseEntity {
         this.rejectionReason = rejectionReason;
         this.completedAt = null;
     }
+
+    public boolean isCompletedBy(LocalDateTime endedAt) {
+        return verificationStatus == BingoCellVerificationStatus.APPROVED
+                && submittedAt != null
+                && !submittedAt.isAfter(endedAt);
+    }
 }

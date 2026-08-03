@@ -102,7 +102,7 @@ class GameResultReadServiceTest {
         assertThat(response.gameId()).isEqualTo(100L);
         assertThat(response.roomId()).isEqualTo(10L);
         assertThat(response.boardSize()).isEqualTo(3);
-        assertThat(response.targetBingoCount()).isEqualTo(2);
+        assertThat(response.targetBingoCount()).isNull();
         assertThat(response.targetStepCount()).isEqualTo(12_000);
         assertThat(response.startedAt()).isEqualTo(fixture.game().getStartedAt());
         assertThat(response.completedAt()).isEqualTo(fixture.game().getCompletedAt());
@@ -181,7 +181,7 @@ class GameResultReadServiceTest {
         assertThat(response.content()).singleElement().satisfies(result -> {
             assertThat(result.gameId()).isEqualTo(100L);
             assertThat(result.boardSize()).isEqualTo(3);
-            assertThat(result.targetBingoCount()).isEqualTo(2);
+            assertThat(result.targetBingoCount()).isNull();
             assertThat(result.totalMissionCount()).isEqualTo(2);
             assertThat(result.myCompletedMissionCount()).isEqualTo(1);
             assertThat(result.myResult()).isTrue();
@@ -210,7 +210,7 @@ class GameResultReadServiceTest {
         Game game = endedGame();
         GameResult result = result();
         List<GameResultParticipant> participants = participants();
-        BingoBoard board = BingoBoard.create(100L, 3, 2, 12_000);
+        BingoBoard board = BingoBoard.create(100L, 3, 12_000);
         ReflectionTestUtils.setField(board, "id", 200L);
         board.completeAt(game.getCompletedAt());
         return new Fixture(
