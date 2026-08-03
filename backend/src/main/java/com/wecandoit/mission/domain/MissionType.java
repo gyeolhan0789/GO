@@ -8,7 +8,17 @@ public enum MissionType {
     OBJECT,
     ATTRIBUTE,
     RELATION,
-    ORDINARY;
+    ORDINARY,
+    STEP_TOTAL,
+    STEP_CONTINUOUS,
+    STEP_UPHILL,
+    STEP_DAILY,
+    WALKING_TIME_TOTAL,
+    WALKING_TIME_CONTINUOUS,
+    STEADY_PACE,
+    DISTANCE_TOTAL,
+    CALORIES_TOTAL,
+    AVERAGE_SPEED;
 
     public static boolean contains(String type) {
         return Arrays.stream(values())

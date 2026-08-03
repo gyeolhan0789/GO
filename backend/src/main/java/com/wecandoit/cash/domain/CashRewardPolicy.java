@@ -24,7 +24,17 @@ public enum CashRewardPolicy {
             case OBJECT -> BINGO_CELL_OBJECT.point;
             case ATTRIBUTE -> BINGO_CELL_ATTRIBUTE.point;
             case RELATION -> BINGO_CELL_RELATION.point;
-            case ORDINARY -> BINGO_CELL_ORDINARY.point;
+            case ORDINARY,
+                 STEP_TOTAL,
+                 STEP_CONTINUOUS,
+                 STEP_UPHILL,
+                 STEP_DAILY,
+                 WALKING_TIME_TOTAL,
+                 WALKING_TIME_CONTINUOUS,
+                 STEADY_PACE,
+                 DISTANCE_TOTAL,
+                 CALORIES_TOTAL,
+                 AVERAGE_SPEED -> BINGO_CELL_ORDINARY.point;
         };
     }
 }
