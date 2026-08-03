@@ -208,7 +208,7 @@ public class GameCycleCommandService {
     private BingoBoard findActiveSharedBoardForUpdate(Long gameId) {
         return bingoBoardRepository.findActiveBoardForUpdate(
                         gameId,
-                        List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED)
+                        BingoBoardStatus.inactiveStatuses()
                 )
                 .filter(BingoBoard::isShared)
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));

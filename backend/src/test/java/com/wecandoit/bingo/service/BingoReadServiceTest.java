@@ -143,7 +143,7 @@ class BingoReadServiceTest {
                 .willReturn(Optional.of(game));
         given(bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(
                 game.getId(),
-                List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED)
+                BingoBoardStatus.inactiveStatuses()
         )).willReturn(Optional.of(board));
         given(bingoCellRepository.findAllByBoardId(board.getId())).willReturn(cells);
         if (!cells.isEmpty()) {

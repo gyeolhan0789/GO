@@ -40,9 +40,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class BingoReadService {
 
-    private static final List<BingoBoardStatus> INACTIVE_BOARD_STATUSES =
-            List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED);
-
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
     private final GameRepository gameRepository;
@@ -157,7 +154,7 @@ public class BingoReadService {
     private BingoBoard findActiveBoard(Long gameId) {
         return bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(
                         gameId,
-                        INACTIVE_BOARD_STATUSES
+                        BingoBoardStatus.inactiveStatuses()
                 )
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
     }

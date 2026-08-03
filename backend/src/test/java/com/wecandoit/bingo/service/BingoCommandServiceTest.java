@@ -46,8 +46,6 @@ import org.springframework.web.multipart.MultipartFile;
 @DisplayName("빙고판 명령 서비스")
 class BingoCommandServiceTest {
 
-    private static final List<BingoBoardStatus> INACTIVE_STATUSES =
-            List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED);
     private static final String STORED_SUBMIT_URL = "/uploads/test/bingo-cells/1000/stored.png";
 
     @Mock
@@ -93,7 +91,7 @@ class BingoCommandServiceTest {
                 10L,
                 GameStatus.ACTIVE
         )).willReturn(Optional.of(game));
-        given(bingoBoardRepository.findActiveBoardForUpdate(game.getId(), INACTIVE_STATUSES))
+        given(bingoBoardRepository.findActiveBoardForUpdate(game.getId(), BingoBoardStatus.inactiveStatuses()))
                 .willReturn(Optional.of(board));
         given(bingoCellRepository.findByIdForUpdate(50L)).willReturn(Optional.of(cell));
         given(bingoCellRepository.save(cell)).willReturn(cell);
@@ -124,7 +122,7 @@ class BingoCommandServiceTest {
                 10L,
                 GameStatus.ACTIVE
         )).willReturn(Optional.of(game));
-        given(bingoBoardRepository.findActiveBoardForUpdate(game.getId(), INACTIVE_STATUSES))
+        given(bingoBoardRepository.findActiveBoardForUpdate(game.getId(), BingoBoardStatus.inactiveStatuses()))
                 .willReturn(Optional.of(board));
         given(bingoCellRepository.findByIdForUpdate(50L)).willReturn(Optional.of(cell));
         given(bingoCellRepository.save(cell)).willReturn(cell);

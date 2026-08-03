@@ -49,9 +49,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 @DisplayName("게임방 조회 서비스")
 class RoomReadServiceTest {
 
-    private static final List<BingoBoardStatus> INACTIVE_BOARD_STATUSES =
-            List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED);
-
     @Mock
     private RoomRepository roomRepository;
 
@@ -343,7 +340,7 @@ class RoomReadServiceTest {
                 .willReturn(List.of(game));
         given(bingoBoardRepository.findAllByGameIdInAndStatusNotInOrderByIdAsc(
                 List.of(100L),
-                INACTIVE_BOARD_STATUSES
+                BingoBoardStatus.inactiveStatuses()
         )).willReturn(List.of(board));
         given(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(10L)))
                 .willReturn(List.of(host, guest));
