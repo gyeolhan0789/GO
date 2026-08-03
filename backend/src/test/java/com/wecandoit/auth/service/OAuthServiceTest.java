@@ -91,7 +91,7 @@ class OAuthServiceTest {
     @DisplayName("기존 소셜 사용자는 로그인 상태로 토큰을 발급받는다")
     void verifyLogsInExistingUser() {
         // given
-        Member existingMember = Member.createSocial("existing@gmail.com", "기존유저", AuthProvider.GOOGLE);
+        Member existingMember = Member.createSocial("existing@gmail.com", "기존유저", AuthProvider.GOOGLE, Gender.MALE);
         ReflectionTestUtils.setField(existingMember, "id", 2L);
 
         given(oAuthApiClient.verifyAndExtract(AuthProvider.GOOGLE, "valid-id-token"))
@@ -114,7 +114,7 @@ class OAuthServiceTest {
     @DisplayName("동일 이메일이 다른 provider로 가입되어 있으면 OAUTH_PROVIDER_MISMATCH 오류를 반환한다")
     void verifyRejectsProviderMismatchForSameEmail() {
         // given
-        Member localMember = Member.create("user@gmail.com", "encoded-password", "로컬유저");
+        Member localMember = Member.create("user@gmail.com", "encoded-password", "로컬유저", null, Gender.MALE);
         ReflectionTestUtils.setField(localMember, "id", 3L);
 
         given(oAuthApiClient.verifyAndExtract(AuthProvider.GOOGLE, "valid-id-token"))
@@ -205,7 +205,7 @@ class OAuthServiceTest {
         // given
         given(oAuthSignupStateRepository.find("signup-token-1"))
                 .willReturn(Optional.of(new OAuthSignupState("existing@gmail.com", AuthProvider.GOOGLE, "이미가입유저")));
-        Member alreadyRegistered = Member.createSocial("existing@gmail.com", "이미가입유저", AuthProvider.GOOGLE);
+        Member alreadyRegistered = Member.createSocial("existing@gmail.com", "이미가입유저", AuthProvider.GOOGLE, Gender.MALE);
         given(memberRepository.findByEmail("existing@gmail.com")).willReturn(Optional.of(alreadyRegistered));
 
         // when & then

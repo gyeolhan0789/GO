@@ -1,4 +1,4 @@
-import { REGION_CENTROIDS } from '../constants/regionCentroids';
+import { REGION_ANCHORS } from '../constants/regionAnchors';
 import type { Region } from '../constants/regions';
 
 const EARTH_RADIUS_KM = 6371;
@@ -27,26 +27,26 @@ function haversineKm(
 }
 
 /**
- * GPS 좌표에서 가장 가까운 중심점을 가진 시·도를 반환한다.
+ * GPS 좌표에서 가장 가까운 대표 도시(앵커)가 속한 시·도를 반환한다.
  * 경계 부근에서는 인접 시·도로 잡힐 수 있어 사용자가 직접 수정할 수 있어야 한다.
  */
 export function resolveRegionByCoords(
   latitude: number,
   longitude: number,
 ): Region {
-  let nearest: Region = REGION_CENTROIDS[0].region;
+  let nearest: Region = REGION_ANCHORS[0].region;
   let minDistance = Infinity;
 
-  for (const centroid of REGION_CENTROIDS) {
+  for (const anchor of REGION_ANCHORS) {
     const distance = haversineKm(
       latitude,
       longitude,
-      centroid.latitude,
-      centroid.longitude,
+      anchor.latitude,
+      anchor.longitude,
     );
     if (distance < minDistance) {
       minDistance = distance;
-      nearest = centroid.region;
+      nearest = anchor.region;
     }
   }
 

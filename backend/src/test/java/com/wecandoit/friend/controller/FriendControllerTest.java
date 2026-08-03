@@ -15,6 +15,7 @@ import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.friend.dto.FriendResponse;
 import com.wecandoit.item.controller.response.EquippedItemResponse;
 import com.wecandoit.item.domain.ItemCategory;
+import com.wecandoit.member.domain.Gender;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,7 +61,7 @@ class FriendControllerTest {
     }
 
     @Test
-    @DisplayName("친구 목록을 조회하면 친구 회원 ID와 닉네임을 반환한다")
+    @DisplayName("친구 목록을 조회하면 친구의 걸음 수와 아바타 정보를 반환한다")
     void getFriendsReturnsFriendResponses() throws Exception {
         // given
         given(friendReadService.getFriends(
@@ -71,6 +72,8 @@ class FriendControllerTest {
                         2L,
                         "친구",
                         12_500,
+                        Gender.FEMALE,
+                        "https://example.com/female.png",
                         List.of(new EquippedItemResponse(
                                 10L,
                                 100L,
@@ -88,6 +91,9 @@ class FriendControllerTest {
                 .andExpect(jsonPath("$.content[0].memberId").value(2L))
                 .andExpect(jsonPath("$.content[0].nickname").value("친구"))
                 .andExpect(jsonPath("$.content[0].weeklySteps").value(12_500))
+                .andExpect(jsonPath("$.content[0].gender").value("FEMALE"))
+                .andExpect(jsonPath("$.content[0].defaultImageUrl")
+                        .value("https://example.com/female.png"))
                 .andExpect(jsonPath("$.content[0].equippedItems[0].memberItemId").value(10L))
                 .andExpect(jsonPath("$.content[0].equippedItems[0].itemId").value(100L))
                 .andExpect(jsonPath("$.content[0].equippedItems[0].name").value("빨간 모자"))

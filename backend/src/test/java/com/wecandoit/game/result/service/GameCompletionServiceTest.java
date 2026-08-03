@@ -10,7 +10,7 @@ import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
-import com.wecandoit.cash.repository.CashHistoryRepository;
+import com.wecandoit.point.repository.PointHistoryRepository;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameParticipant;
@@ -69,7 +69,7 @@ class GameCompletionServiceTest {
     private MemberRepository memberRepository;
 
     @Mock
-    private CashHistoryRepository cashHistoryRepository;
+    private PointHistoryRepository pointHistoryRepository;
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
@@ -87,7 +87,7 @@ class GameCompletionServiceTest {
                 bingoBoardRepository,
                 bingoCellRepository,
                 memberRepository,
-                cashHistoryRepository,
+                pointHistoryRepository,
                 eventPublisher,
                 new NotificationMessageFactory()
         );
@@ -101,7 +101,7 @@ class GameCompletionServiceTest {
         given(gameRepository.findByIdForUpdate(200L)).willReturn(Optional.of(game));
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
 
-        gameCompletionService.evaluateAndCompleteIfNeeded(200L, 100L);
+        gameCompletionService.evaluateAndCompleteIfNeeded(200L);
 
         assertThat(game.getStatus()).isEqualTo(GameStatus.ACTIVE);
         then(gameResultRepository).shouldHaveNoInteractions();
@@ -122,7 +122,7 @@ class GameCompletionServiceTest {
                 emptyCell(101L, 8L, 1, 1)
         ));
 
-        gameCompletionService.evaluateAndCompleteIfNeeded(200L, 100L);
+        gameCompletionService.evaluateAndCompleteIfNeeded(200L);
 
         assertThat(fixture.game().getStatus()).isEqualTo(GameStatus.ACTIVE);
         then(gameResultRepository).shouldHaveNoInteractions();
@@ -148,7 +148,7 @@ class GameCompletionServiceTest {
         given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(member(1L)));
         given(memberRepository.findByIdForUpdate(2L)).willReturn(Optional.of(member(2L)));
 
-        gameCompletionService.evaluateAndCompleteIfNeeded(200L, 100L);
+        gameCompletionService.evaluateAndCompleteIfNeeded(200L);
 
         assertThat(fixture.game().getStatus()).isEqualTo(GameStatus.ENDED);
         assertThat(fixture.room().getStatus()).isEqualTo(RoomStatus.ACTIVE);
@@ -185,7 +185,7 @@ class GameCompletionServiceTest {
                 pending
         ));
 
-        gameCompletionService.evaluateAndCompleteIfNeeded(200L, 100L);
+        gameCompletionService.evaluateAndCompleteIfNeeded(200L);
 
         assertThat(fixture.game().getStatus()).isEqualTo(GameStatus.ACTIVE);
         then(gameResultRepository).shouldHaveNoInteractions();

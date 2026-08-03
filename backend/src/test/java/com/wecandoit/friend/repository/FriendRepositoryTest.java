@@ -5,6 +5,7 @@ import com.wecandoit.friend.domain.Friend;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import java.util.List;
@@ -93,6 +94,6 @@ class FriendRepositoryTest {
     }
 
     private Member saveMember(String email, String nickname) {
-        return memberRepository.save(Member.create(email, "password", nickname));
+        return memberRepository.save(Member.create(email, "password", nickname, null, Gender.MALE));
     }
 }

@@ -40,7 +40,7 @@ function resolveIsWin(response: GameResultResponse): boolean {
 
 export function toWalkRecord(response: GameResultResponse): WalkRecord {
   return {
-    roomId: response.roomId,
+    gameId: response.gameId,
     title: response.roomName,
     mode: response.mode,
     startedAt: response.startedAt,
@@ -53,6 +53,9 @@ export function toWalkRecord(response: GameResultResponse): WalkRecord {
     participants: response.participants.map(participant => ({
       memberId: participant.memberId,
       nickname: participant.nickname,
+      gender: participant.gender,
+      defaultImageUrl: participant.defaultImageUrl,
+      equippedItems: participant.equippedItems,
     })),
   };
 }
@@ -97,6 +100,9 @@ function toDetailParticipants(
   const participants = response.participants.map(participant => ({
     memberId: participant.memberId,
     nickname: participant.nickname,
+    gender: participant.gender,
+    defaultImageUrl: participant.defaultImageUrl,
+    equippedItems: participant.equippedItems,
     isMe: participant.memberId === myMemberId,
     completedMissionCount: participant.completedMissionCount,
   }));
@@ -114,7 +120,7 @@ export function toWalkDetail(
   const board = selectMyBoard(response.bingoBoards, myMemberId);
 
   return {
-    roomId: response.roomId,
+    gameId: response.gameId,
     title: response.roomName,
     mode: response.mode,
     startedAt: response.startedAt,

@@ -1,5 +1,6 @@
 package com.wecandoit.friend.service;
 
+import com.wecandoit.avatar.service.AvatarReadService;
 import com.wecandoit.friend.domain.FriendRequest;
 import com.wecandoit.friend.domain.FriendRequestStatus;
 import com.wecandoit.friend.repository.FriendRequestRepository;
@@ -7,16 +8,22 @@ import com.wecandoit.friend.repository.FriendRequestRepository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.friend.dto.ReceivedFriendRequestResponse;
 import com.wecandoit.friend.dto.SentFriendRequestResponse;
+import com.wecandoit.item.controller.response.AvatarResponse;
+import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.item.domain.ItemCategory;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,18 +42,21 @@ class FriendRequestReadServiceTest {
     private FriendRequestRepository friendRequestRepository;
     @Mock
     private MemberRepository memberRepository;
+    @Mock
+    private AvatarReadService avatarReadService;
     private FriendRequestReadService friendRequestReadService;
 
     @BeforeEach
     void setUp() {
         friendRequestReadService = new FriendRequestReadService(
                 friendRequestRepository,
-                memberRepository
+                memberRepository,
+                avatarReadService
         );
     }
 
     @Test
-    @DisplayName("받은 대기 친구 요청을 최신순 응답으로 반환한다")
+    @DisplayName("받은 대기 친구 요청을 요청자의 아바타 정보와 함께 반환한다")
     void getReceivedRequestsReturnsPendingRequests() {
         // given
         Member inviter = member(1L, "보낸사람");
@@ -61,6 +71,21 @@ class FriendRequestReadServiceTest {
                 FriendRequestStatus.PENDING,
                 pageable
         )).willReturn(new SliceImpl<>(List.of(friendRequest), pageable, false));
+        EquippedItemResponse equippedItem = new EquippedItemResponse(
+                11L,
+                101L,
+                "파란 모자",
+                ItemCategory.HAT,
+                "https://example.com/blue-hat.png"
+        );
+        given(avatarReadService.getAvatars(List.of(inviter)))
+                .willReturn(Map.of(1L, new AvatarResponse(
+                        1L,
+                        "보낸사람",
+                        Gender.MALE,
+                        "https://example.com/male.png",
+                        List.of(equippedItem)
+                )));
 
         // when
         SliceResponse<ReceivedFriendRequestResponse> responses =
@@ -68,9 +93,19 @@ class FriendRequestReadServiceTest {
 
         // then
         assertThat(responses.content()).containsExactly(
-                new ReceivedFriendRequestResponse(10L, 1L, "보낸사람", createdAt)
+                new ReceivedFriendRequestResponse(
+                        10L,
+                        1L,
+                        "보낸사람",
+                        createdAt,
+                        Gender.MALE,
+                        "https://example.com/male.png",
+                        List.of(equippedItem)
+                )
         );
         assertThat(responses.hasNext()).isFalse();
+        then(avatarReadService).should().getAvatars(List.of(inviter));
+        then(memberRepository).shouldHaveNoInteractions();
     }
 
     @Test
@@ -132,7 +167,7 @@ class FriendRequestReadServiceTest {
     }
 
     private Member member(Long id, String nickname) {
-        Member member = Member.create(nickname + "@example.com", "password", nickname);
+        Member member = Member.create(nickname + "@example.com", "password", nickname, null, Gender.MALE);
         ReflectionTestUtils.setField(member, "id", id);
         return member;
     }

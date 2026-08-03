@@ -1,20 +1,14 @@
 package com.wecandoit.game.domain;
 
 public enum GameMode {
-    SINGLE(1, 1),
-    COOPERATE(2, 4),
-    BATTLE(2, 2);
+    SINGLE(1),
+    COOPERATE(4),
+    BATTLE(2);
 
-    private final int minimumParticipants;
     private final int maximumParticipants;
 
-    GameMode(int minimumParticipants, int maximumParticipants) {
-        this.minimumParticipants = minimumParticipants;
+    GameMode(int maximumParticipants) {
         this.maximumParticipants = maximumParticipants;
-    }
-
-    public int getMinimumParticipants() {
-        return minimumParticipants;
     }
 
     public int getMaximumParticipants() {

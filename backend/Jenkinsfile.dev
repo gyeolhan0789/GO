@@ -12,7 +12,6 @@ pipeline {
     environment {
         COMPOSE_FILE = 'docker-compose.dev.yml'
         SERVICE_NAME = 'backend'
-        HEALTH_CHECK_URL = 'https://i15a506.p.ssafy.io/dev/actuator/health'
     }
 
     stages {
@@ -92,8 +91,10 @@ pipeline {
 
         stage('Check Deploy') {
             steps {
-                script {
-                    waitForHealth('final deployment')
+                dir('backend') {
+                    script {
+                        waitForHealth('final deployment')
+                    }
                 }
             }
         }
@@ -120,13 +121,17 @@ def deployBackend(String ddlAuto, String sqlInitMode, boolean forceRecreate) {
 }
 
 def waitForHealth(String phase) {
+    // Jenkins는 컨테이너로 실행되어 호스트 loopback에 도달하지 못하므로(docker-outside-of-docker),
+    // URL 기반 헬스체크 대신 docker 소켓으로 컨테이너 자체의 헬스 상태를 조회한다. 배포가 컨테이너를
+    // 재생성하므로 이름이 아니라 배포 직후의 ID로 조회해 이전 컨테이너의 stale healthy를 피한다.
     sh """
     docker ps
-    for i in \$(seq 1 30); do
-      STATUS=\$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 ${env.HEALTH_CHECK_URL} || echo "000")
-      echo "${phase} health check attempt \$i/30 status: \$STATUS"
+    CID=\$(docker compose -f \$COMPOSE_FILE ps -q \$SERVICE_NAME)
+    for i in \$(seq 1 60); do
+      STATUS=\$(docker inspect --format '{{.State.Health.Status}}' \$CID 2>/dev/null || echo "unknown")
+      echo "${phase} health check attempt \$i/60 status: \$STATUS"
 
-      if [ "\$STATUS" = "200" ]; then
+      if [ "\$STATUS" = "healthy" ]; then
         exit 0
       fi
 

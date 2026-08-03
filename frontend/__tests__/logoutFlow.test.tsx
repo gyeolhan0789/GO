@@ -36,7 +36,7 @@ const {
 // 회원 조회까지 네트워크를 타면 auth 요청 기록에 섞인다. 이 테스트가 보는 건
 // 로그아웃 후 어느 화면으로 가는지뿐이다.
 jest.mock('../src/features/member/api/memberApi', () => ({
-  getMyCharacter: jest.fn(() =>
+  getMyAvatar: jest.fn(() =>
     Promise.resolve({
       memberId: 1,
       nickname: '멍멍이',
@@ -44,7 +44,7 @@ jest.mock('../src/features/member/api/memberApi', () => ({
       equippedItems: [],
     }),
   ),
-  getMyCash: jest.fn(() => Promise.resolve({ cash: 0 })),
+  getMyPoint: jest.fn(() => Promise.resolve({ point: 0 })),
   updateMyProfile: jest.fn(() => Promise.resolve()),
 }));
 
@@ -162,8 +162,8 @@ describe('로그아웃 후 진입 화면', () => {
   test('로그아웃하면 온보딩이 아니라 로그인 화면으로 간다', async () => {
     const tree = await renderAppSignedIn();
     // 캐러셀 안쪽은 onLayout으로 폭을 받은 뒤에야 그려지므로(테스트 렌더러는
-    // 레이아웃 이벤트를 내지 않는다) 홈에 있다는 표식은 산책하기 버튼으로 본다.
-    expect(collectTexts(tree.root)).toContain('산책하기');
+    // 레이아웃 이벤트를 내지 않는다) 홈에 있다는 표식은 혼자하기 버튼으로 본다.
+    expect(collectTexts(tree.root)).toContain('혼자하기');
 
     await openMyPage(tree);
     fetchMock.mockResolvedValueOnce(jsonResponse(204));

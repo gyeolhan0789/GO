@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-CANARY_UPSTREAM="${1:-127.0.0.1:8082}"
+CANARY_UPSTREAM="${1:-backend-canary:8080}"
 MIN_REQUESTS="${2:-1}"
 MAX_5XX_RATE="${3:-1.0}"
 MAX_AVG_RESPONSE_TIME="${4:-1.0}"

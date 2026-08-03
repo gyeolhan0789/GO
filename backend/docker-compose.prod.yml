@@ -19,6 +19,24 @@ x-backend-common: &backend-common
       condition: service_healthy
   volumes:
     - ./uploads:/app/uploads
+  logging:
+    driver: json-file
+    options:
+      max-size: "100m"
+      max-file: "3"
+  healthcheck:
+    # eclipse-temurin:21-jre에 curl이 있음을 확인했다(docker run으로 직접 검증).
+    # management 포트(9091, 미publish)의 /actuator/health를 실제로 호출해 응답까지 확인한다 —
+    # TCP 연결만 보는 것과 달리 앱이 응답 불가 상태에 빠져도 소켓만 열려 있으면 통과하는
+    # 오탐을 막는다.
+    test: ["CMD", "curl", "-f", "http://127.0.0.1:9091/actuator/health"]
+    interval: 5s
+    timeout: 3s
+    retries: 3
+    start_period: 60s
+  # 호스트 메모리 고갈 시 OOM-killer가 prod backend부터 죽이지 않도록 우선순위를 낮춘다.
+  # JVM 힙 크기는 바꾸지 않는다(mem_limit과 달리 커널의 kill 대상 선택만 재지정한다).
+  oom_score_adj: -500
 
 services:
   mysql:
@@ -39,6 +57,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    # prod backend(-500)보다는 낮지만 dev backend보다는 높은 우선순위를 준다 — backend를
+    # 보호한 결과로 mysql이 다음 표적이 되는 것을 막는 등급 구조(oom_score_adj: -500).
+    oom_score_adj: -300
 
   redis:
     image: redis:7-alpine
@@ -54,6 +75,34 @@ services:
       timeout: 5s
       retries: 10
 
+  nginx:
+    image: ${NGINX_IMAGE:-wecandoit-nginx-prod:latest}
+    container_name: wecandoit-nginx-prod
+    restart: unless-stopped
+    depends_on:
+      backend-stable:
+        condition: service_started
+    ports:
+      - "${NGINX_BIND_ADDRESS:-127.0.0.1}:${NGINX_HTTP_PORT:-18080}:80"
+      - "${NGINX_BIND_ADDRESS:-127.0.0.1}:${NGINX_HTTPS_PORT:-18443}:443"
+    volumes:
+      - nginx-routing:/etc/nginx/runtime
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/wecandoit-admin:/var/www/wecandoit-admin:ro
+      - /var/www/certbot:/var/www/certbot:ro
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8088/nginx-health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
   backend-stable:
     <<: *backend-common
     image: ${STABLE_IMAGE:-wecandoit-backend-prod:stable}
@@ -64,6 +113,9 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
     ports:
       - "127.0.0.1:8080:8080"
+    networks:
+      - default
+      - edge
 
   backend-canary:
     <<: *backend-common
@@ -75,7 +127,16 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: validate
     ports:
       - "127.0.0.1:8082:8080"
+    networks:
+      - default
+      - edge
 
 volumes:
   mysql-data:
   redis-data:
+  nginx-routing:
+
+networks:
+  edge:
+    name: wecandoit-edge
+    external: true

@@ -90,6 +90,10 @@ public class Room extends BaseEntity {
         return hostId.equals(memberId);
     }
 
+    public boolean isActive() {
+        return status == RoomStatus.ACTIVE;
+    }
+
     public boolean isClosed() {
         return status == RoomStatus.CLOSED;
     }

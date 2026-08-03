@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { getMyRooms } from '../api/roomApi';
+import { getMyRooms, type GameMode } from '../api/roomApi';
 
-export function useMyRoomsQuery() {
+export function useMyRoomsQuery(mode?: GameMode) {
   return useQuery({
-    queryKey: ['rooms', 'my'],
-    queryFn: () => getMyRooms(),
+    queryKey: ['rooms', 'mine', mode ?? 'all'],
+    queryFn: () => getMyRooms(mode),
   });
 }

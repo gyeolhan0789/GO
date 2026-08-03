@@ -16,15 +16,17 @@ import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
+import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Region;
-import com.wecandoit.member.dto.MemberProfileUpdateRequest;
-import com.wecandoit.member.dto.MemberRelationshipStatus;
-import com.wecandoit.member.dto.MemberSearchResponse;
-import com.wecandoit.member.dto.MyPageResponse;
-import com.wecandoit.member.dto.PasswordChangeRequest;
+import com.wecandoit.member.controller.request.MemberProfileUpdateRequest;
+import com.wecandoit.member.controller.request.PasswordChangeRequest;
+import com.wecandoit.member.controller.response.MemberSearchResponse;
+import com.wecandoit.member.controller.response.MyPageResponse;
+import com.wecandoit.member.domain.MemberRelationshipStatus;
+import com.wecandoit.member.service.MemberCommandService;
 import com.wecandoit.member.service.MemberReadService;
-import com.wecandoit.member.service.MemberService;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,7 +49,7 @@ class MemberControllerTest {
     @Mock
     private MemberReadService memberReadService;
     @Mock
-    private MemberService memberService;
+    private MemberCommandService memberService;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private MockMvc mockMvc;
 
@@ -91,7 +93,7 @@ class MemberControllerTest {
                 .andExpect(jsonPath("$.nickname").value("산책러"))
                 .andExpect(jsonPath("$.gender").value("MALE"))
                 .andExpect(jsonPath("$.region").value("SEOUL"))
-                .andExpect(jsonPath("$.cash").value(100L));
+                .andExpect(jsonPath("$.point").value(100L));
         then(memberReadService).should().getMyPage(1L);
     }
 
@@ -108,7 +110,7 @@ class MemberControllerTest {
     }
 
     @Test
-    @DisplayName("닉네임 검색 결과에 회원 ID, 닉네임, 관계 상태를 반환한다")
+    @DisplayName("닉네임 검색 결과에 관계 상태와 아바타 정보를 반환한다")
     void searchMembersReturnsRelationshipStatus() throws Exception {
         // given
         given(memberReadService.searchMembers(eq(1L), eq("산책"), any())).willReturn(
@@ -116,7 +118,16 @@ class MemberControllerTest {
                         List.of(new MemberSearchResponse(
                                 2L,
                                 "산책친구",
-                                MemberRelationshipStatus.FRIEND
+                                MemberRelationshipStatus.FRIEND,
+                                Gender.FEMALE,
+                                "https://example.com/female.png",
+                                List.of(new EquippedItemResponse(
+                                        10L,
+                                        100L,
+                                        "빨간 모자",
+                                        ItemCategory.HAT,
+                                        "https://example.com/hat.png"
+                                ))
                         )),
                         false
                 )
@@ -131,6 +142,15 @@ class MemberControllerTest {
                 .andExpect(jsonPath("$.content[0].memberId").value(2L))
                 .andExpect(jsonPath("$.content[0].nickname").value("산책친구"))
                 .andExpect(jsonPath("$.content[0].relationshipStatus").value("FRIEND"))
+                .andExpect(jsonPath("$.content[0].gender").value("FEMALE"))
+                .andExpect(jsonPath("$.content[0].defaultImageUrl")
+                        .value("https://example.com/female.png"))
+                .andExpect(jsonPath("$.content[0].equippedItems[0].memberItemId").value(10L))
+                .andExpect(jsonPath("$.content[0].equippedItems[0].itemId").value(100L))
+                .andExpect(jsonPath("$.content[0].equippedItems[0].name").value("빨간 모자"))
+                .andExpect(jsonPath("$.content[0].equippedItems[0].category").value("HAT"))
+                .andExpect(jsonPath("$.content[0].equippedItems[0].imageUrl")
+                        .value("https://example.com/hat.png"))
                 .andExpect(jsonPath("$.hasNext").value(false))
                 .andExpect(jsonPath("$.totalElements").doesNotExist());
         then(memberReadService).should().searchMembers(eq(1L), eq("산책"), any());

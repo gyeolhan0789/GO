@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { MemberAvatar } from '../../../member/components/MemberAvatar';
 import { AppText } from '../../../../shared/components/AppText/AppText';
 import { AvatarStack } from '../../../../shared/components/AvatarStack/AvatarStack';
 import { Card } from '../../../../shared/components/Card/Card';
@@ -53,6 +54,14 @@ export function WalkCard({ walk, onPress }: WalkCardProps) {
           <AvatarStack
             members={walk.participants.map(participant => ({
               id: String(participant.memberId),
+              avatar: (
+                <MemberAvatar
+                  gender={participant.gender}
+                  defaultImageUrl={participant.defaultImageUrl}
+                  equippedItems={participant.equippedItems}
+                  style={styles.avatar}
+                />
+              ),
             }))}
             size={AVATAR_SIZE}
           />
@@ -100,5 +109,10 @@ const styles = StyleSheet.create({
     lineHeight: lineHeights[12],
     color: colors.ink,
     opacity: 0.6,
+  },
+  // AvatarStack이 만든 원을 흉상이 꽉 채운다. 자르기는 원(overflow: hidden)이 한다.
+  avatar: {
+    width: '100%',
+    height: '100%',
   },
 });

@@ -1,15 +1,20 @@
 package com.wecandoit.game.room.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
+import com.wecandoit.common.exception.CustomException;
+import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.controller.response.MyRoomResponse;
 import com.wecandoit.game.controller.response.RoomDetailResponse;
+import com.wecandoit.game.controller.response.RoomMemberResponse;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameParticipant;
@@ -21,7 +26,11 @@ import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.RoomReadService;
-import com.wecandoit.game.service.RoomReadService.StepGoalRewardTarget;
+import com.wecandoit.game.service.StepGoalRewardTarget;
+import com.wecandoit.item.controller.response.AvatarResponse;
+import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.item.domain.ItemCategory;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.service.MemberReadService;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -39,9 +48,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 @ExtendWith(MockitoExtension.class)
 @DisplayName("게임방 조회 서비스")
 class RoomReadServiceTest {
-
-    private static final List<BingoBoardStatus> INACTIVE_BOARD_STATUSES =
-            List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED);
 
     @Mock
     private RoomRepository roomRepository;
@@ -89,7 +95,7 @@ class RoomReadServiceTest {
         given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L))
                 .willReturn(List.of(host));
         given(gameRepository.findFirstByRoomIdOrderByIdDesc(10L)).willReturn(Optional.empty());
-        given(memberReadService.getNicknamesByIds(List.of(1L))).willReturn(Map.of(1L, "방장"));
+        given(memberReadService.getAvatarsByIds(List.of(1L))).willReturn(avatars(List.of(host)));
 
         RoomDetailResponse response = roomReadService.getRoomDetail(1L, 10L);
 
@@ -98,6 +104,66 @@ class RoomReadServiceTest {
         assertThat(response.totalMissionCount()).isEqualTo(9);
         assertThat(response.completedMissionCount()).isZero();
         assertThat(response.startedAt()).isNull();
+        assertThat(response.members()).singleElement().satisfies(member -> {
+            assertThat(member.gender()).isEqualTo(Gender.MALE);
+            assertThat(member.defaultImageUrl()).isEqualTo("https://example.com/male.png");
+            assertThat(member.equippedItems()).hasSize(1);
+        });
+    }
+
+    @Test
+    @DisplayName("닫힌 방 상세는 멤버 여부와 관계없이 조회할 수 없다")
+    void getRoomDetailRejectsClosedRoom() {
+        Room room = room(10L, GameMode.COOPERATE, 3, 1, 10_000);
+        room.close();
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+
+        assertThatThrownBy(() -> roomReadService.getRoomDetail(1L, 10L))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ROOM_CLOSED);
+    }
+
+    @Test
+    @DisplayName("닫힌 방의 멤버 목록은 조회할 수 없다")
+    void getRoomMembersRejectsClosedRoom() {
+        Room room = room(10L, GameMode.COOPERATE, 3, 1, 10_000);
+        room.close();
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+
+        assertThatThrownBy(() -> roomReadService.getRoomMembers(1L, 10L))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ROOM_CLOSED);
+    }
+
+    @Test
+    @DisplayName("게임방 멤버 목록에 현재 아바타 정보를 반환한다")
+    void getRoomMembersReturnsAvatars() {
+        // given
+        Room room = room(10L, GameMode.COOPERATE, 3, 1, 10_000);
+        RoomMember host = roomMember(10L, 1L);
+        RoomMember guest = roomMember(10L, 2L);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L))
+                .willReturn(List.of(host, guest));
+        given(gameRepository.findFirstByRoomIdOrderByIdDesc(10L)).willReturn(Optional.empty());
+        given(memberReadService.getAvatarsByIds(List.of(1L, 2L)))
+                .willReturn(avatars(List.of(host, guest)));
+
+        // when
+        List<RoomMemberResponse> responses = roomReadService.getRoomMembers(1L, 10L);
+
+        // then
+        assertThat(responses).hasSize(2);
+        assertThat(responses).first().satisfies(member -> {
+            assertThat(member.gender()).isEqualTo(Gender.MALE);
+            assertThat(member.defaultImageUrl()).isEqualTo("https://example.com/male.png");
+            assertThat(member.equippedItems()).hasSize(1);
+        });
+        assertThat(responses).element(1)
+                .satisfies(member -> assertThat(member.equippedItems()).isEmpty());
     }
 
     @Test
@@ -107,7 +173,7 @@ class RoomReadServiceTest {
         RoomMember host = roomMember(10L, 1L);
         RoomMember guest = roomMember(10L, 2L);
         Game game = game(100L, 10L);
-        BingoBoard board = sharedBoard(200L, 100L, 4, 3, 12_000);
+        BingoBoard board = sharedBoard(200L, 100L, 4, 12_000);
         List<BingoCell> cells = List.of(
                 approvedCell(200L, 1L, 1L),
                 approvedCell(200L, 2L, 2L),
@@ -118,13 +184,18 @@ class RoomReadServiceTest {
         RoomDetailResponse response = roomReadService.getRoomDetail(1L, 10L);
 
         assertThat(response.boardSize()).isEqualTo(4);
-        assertThat(response.targetBingoCount()).isEqualTo(3);
+        assertThat(response.targetBingoCount()).isNull();
         assertThat(response.targetStepCount()).isEqualTo(12_000);
         assertThat(response.totalMissionCount()).isEqualTo(3);
         assertThat(response.completedMissionCount()).isEqualTo(2);
         assertThat(response.members())
                 .extracting(member -> member.completedMissionCount())
                 .containsExactly(1, 1);
+        assertThat(response.members()).first().satisfies(member -> {
+            assertThat(member.gender()).isEqualTo(Gender.MALE);
+            assertThat(member.defaultImageUrl()).isEqualTo("https://example.com/male.png");
+            assertThat(member.equippedItems()).hasSize(1);
+        });
     }
 
     @Test
@@ -175,7 +246,7 @@ class RoomReadServiceTest {
         RoomMember teammate = roomMember(10L, 2L);
         Game cooperateGame = game(100L, 10L);
         Game battleGame = game(101L, 11L);
-        BingoBoard cooperateBoard = sharedBoard(200L, 100L, 4, 3, 12_000);
+        BingoBoard cooperateBoard = sharedBoard(200L, 100L, 4, 12_000);
         BingoBoard battleBoard = battleBoard(201L, 101L, 301L);
 
         given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
@@ -184,8 +255,8 @@ class RoomReadServiceTest {
                 .willReturn(List.of(cooperate, battle));
         given(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(10L)))
                 .willReturn(List.of(myCooperate, teammate));
-        given(memberReadService.getNicknamesByIds(List.of(1L, 2L)))
-                .willReturn(Map.of(1L, "방장", 2L, "참여자"));
+        given(memberReadService.getAvatarsByIds(List.of(1L, 2L)))
+                .willReturn(avatars(List.of(myCooperate, teammate)));
         given(gameRepository.findAllByRoomIdIn(List.of(10L)))
                 .willReturn(List.of(cooperateGame));
         given(bingoBoardRepository.findAllByGameIdInOrderByIdAsc(List.of(100L)))
@@ -199,11 +270,45 @@ class RoomReadServiceTest {
         assertThat(responses).singleElement().satisfies(response -> {
             assertThat(response.roomId()).isEqualTo(10L);
             assertThat(response.boardSize()).isEqualTo(4);
-            assertThat(response.targetBingoCount()).isEqualTo(3);
+            assertThat(response.targetBingoCount()).isNull();
             assertThat(response.completedMissionCount()).isEqualTo(1);
+            assertThat(response.members()).first().satisfies(member -> {
+                assertThat(member.gender()).isEqualTo(Gender.MALE);
+                assertThat(member.defaultImageUrl()).isEqualTo("https://example.com/male.png");
+                assertThat(member.equippedItems()).hasSize(1);
+            });
         });
         assertThat(battleGame).isNotNull();
         assertThat(battleBoard).isNotNull();
+    }
+
+    @Test
+    @DisplayName("여러 방에 중복된 회원의 아바타는 한 번만 조회한다")
+    void getMyRoomsFetchesDuplicateMemberAvatarOnce() {
+        // given
+        Room firstRoom = room(10L, GameMode.COOPERATE, 3, 1, 10_000);
+        Room secondRoom = room(11L, GameMode.COOPERATE, 3, 1, 10_000);
+        RoomMember myFirstRoomMember = roomMember(10L, 1L);
+        RoomMember mySecondRoomMember = roomMember(11L, 1L);
+        RoomMember firstGuest = roomMember(10L, 2L);
+        RoomMember secondGuest = roomMember(11L, 3L);
+
+        given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
+                .willReturn(List.of(myFirstRoomMember, mySecondRoomMember));
+        given(roomRepository.findAllById(List.of(10L, 11L)))
+                .willReturn(List.of(firstRoom, secondRoom));
+        given(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(10L, 11L)))
+                .willReturn(List.of(myFirstRoomMember, firstGuest, mySecondRoomMember, secondGuest));
+        given(memberReadService.getAvatarsByIds(List.of(1L, 2L, 3L)))
+                .willReturn(avatars(List.of(myFirstRoomMember, firstGuest, secondGuest)));
+        given(gameRepository.findAllByRoomIdIn(List.of(10L, 11L))).willReturn(List.of());
+
+        // when
+        List<MyRoomResponse> responses = roomReadService.getMyRooms(1L, null);
+
+        // then
+        assertThat(responses).hasSize(2);
+        then(memberReadService).should().getAvatarsByIds(List.of(1L, 2L, 3L));
     }
 
     @Test
@@ -226,7 +331,7 @@ class RoomReadServiceTest {
         RoomMember host = roomMember(10L, 1L);
         RoomMember guest = roomMember(10L, 2L);
         Game game = game(100L, 10L);
-        BingoBoard board = sharedBoard(200L, 100L, 4, 3, 12_000);
+        BingoBoard board = sharedBoard(200L, 100L, 4, 12_000);
         ReflectionTestUtils.setField(board, "createdAt", LocalDateTime.of(2026, 7, 31, 9, 0));
         given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
                 .willReturn(List.of(host));
@@ -235,7 +340,7 @@ class RoomReadServiceTest {
                 .willReturn(List.of(game));
         given(bingoBoardRepository.findAllByGameIdInAndStatusNotInOrderByIdAsc(
                 List.of(100L),
-                INACTIVE_BOARD_STATUSES
+                BingoBoardStatus.inactiveStatuses()
         )).willReturn(List.of(board));
         given(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(10L)))
                 .willReturn(List.of(host, guest));
@@ -270,12 +375,9 @@ class RoomReadServiceTest {
         given(bingoCellRepository.findAllByBoardIdIn(
                 boards.stream().map(BingoBoard::getId).toList()
         )).willReturn(cells);
-        given(memberReadService.getNicknamesByIds(
+        given(memberReadService.getAvatarsByIds(
                 roomMembers.stream().map(RoomMember::getMemberId).toList()
-        )).willReturn(roomMembers.stream().collect(Collectors.toMap(
-                RoomMember::getMemberId,
-                member -> "회원" + member.getMemberId()
-        )));
+        )).willReturn(avatars(roomMembers));
     }
 
     private Room room(
@@ -307,11 +409,10 @@ class RoomReadServiceTest {
             Long id,
             Long gameId,
             int boardSize,
-            int targetBingoCount,
             int targetStepCount
     ) {
         BingoBoard board =
-                BingoBoard.create(gameId, boardSize, targetBingoCount, targetStepCount);
+                BingoBoard.create(gameId, boardSize, targetStepCount);
         ReflectionTestUtils.setField(board, "id", id);
         return board;
     }
@@ -337,5 +438,28 @@ class RoomReadServiceTest {
         cell.submit(memberId, "https://example.com/proof.png");
         cell.approve();
         return cell;
+    }
+
+    private Map<Long, AvatarResponse> avatars(List<RoomMember> roomMembers) {
+        EquippedItemResponse equippedItem = new EquippedItemResponse(
+                10L,
+                100L,
+                "빨간 모자",
+                ItemCategory.HAT,
+                "https://example.com/hat.png"
+        );
+        return roomMembers.stream()
+                .collect(Collectors.toMap(
+                        RoomMember::getMemberId,
+                        roomMember -> new AvatarResponse(
+                                roomMember.getMemberId(),
+                                "회원" + roomMember.getMemberId(),
+                                roomMember.getMemberId() == 1L ? Gender.MALE : Gender.FEMALE,
+                                roomMember.getMemberId() == 1L
+                                        ? "https://example.com/male.png"
+                                        : "https://example.com/female.png",
+                                roomMember.getMemberId() == 1L ? List.of(equippedItem) : List.of()
+                        )
+                ));
     }
 }

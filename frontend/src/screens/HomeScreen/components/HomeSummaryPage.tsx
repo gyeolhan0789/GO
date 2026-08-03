@@ -1,6 +1,7 @@
 import type { ImageSourcePropType } from 'react-native';
 import { StyleSheet, View } from 'react-native';
 
+import type { CharacterLayer } from '../../../features/member/model/character';
 import { AppText } from '../../../shared/components/AppText/AppText';
 import { colors } from '../../../shared/constants/colors';
 import { spacing } from '../../../shared/constants/spacing';
@@ -13,20 +14,30 @@ type HomeSummaryPageProps = {
   steps: number;
   goalSteps: number;
   characterName: string;
-  characterImageSource?: ImageSourcePropType;
+  characterBaseImage: ImageSourcePropType | null;
+  characterFallbackImage?: ImageSourcePropType | null;
+  characterItems: CharacterLayer[];
   distanceKm: number;
   calories: number;
   rewardHint: string;
+  isWalking?: boolean;
+  walkElapsedLabel?: string;
+  onPressWalkBadge?: () => void;
 };
 
 export function HomeSummaryPage({
   steps,
   goalSteps,
   characterName,
-  characterImageSource,
+  characterBaseImage,
+  characterFallbackImage,
+  characterItems,
   distanceKm,
   calories,
   rewardHint,
+  isWalking,
+  walkElapsedLabel,
+  onPressWalkBadge,
 }: HomeSummaryPageProps) {
   return (
     <View style={styles.page}>
@@ -34,7 +45,12 @@ export function HomeSummaryPage({
       <CharacterCard
         style={styles.character}
         name={characterName}
-        characterImageSource={characterImageSource}
+        baseImage={characterBaseImage}
+        fallbackImage={characterFallbackImage}
+        items={characterItems}
+        isWalking={isWalking}
+        walkElapsedLabel={walkElapsedLabel}
+        onPressWalkBadge={onPressWalkBadge}
       />
       <StatsBoxes distanceKm={distanceKm} calories={calories} />
       <AppText style={styles.rewardHint}>{rewardHint}</AppText>

@@ -8,6 +8,8 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
+import com.wecandoit.bingo.domain.BingoBoardStatus;
+import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.controller.request.CreateRoomRequest;
@@ -24,8 +26,10 @@ import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.GameCycleCommandService;
 import com.wecandoit.game.service.RoomCommandService;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,6 +55,9 @@ class RoomCommandServiceTest {
     private GameRepository gameRepository;
 
     @Mock
+    private BingoBoardRepository bingoBoardRepository;
+
+    @Mock
     private GameCycleCommandService gameCycleCommandService;
 
     @Mock
@@ -64,6 +71,7 @@ class RoomCommandServiceTest {
                 roomRepository,
                 roomMemberRepository,
                 gameRepository,
+                bingoBoardRepository,
                 gameCycleCommandService,
                 memberRepository
         );
@@ -72,6 +80,7 @@ class RoomCommandServiceTest {
     @Test
     @DisplayName("협동 방 생성 시 방과 방장을 저장하고 첫 공유 회차를 시작한다")
     void createCooperateRoomStartsSharedCycle() {
+        given(memberRepository.existsById(1L)).willReturn(true);
         given(roomRepository.save(any(Room.class))).willAnswer(invocation -> {
             Room room = invocation.getArgument(0);
             ReflectionTestUtils.setField(room, "id", 10L);
@@ -91,7 +100,7 @@ class RoomCommandServiceTest {
         Room room = roomCaptor.getValue();
         assertThat(room.getStatus()).isEqualTo(RoomStatus.ACTIVE);
         assertThat(room.getBoardSize()).isEqualTo(4);
-        assertThat(room.getTargetBingoCount()).isEqualTo(3);
+        assertThat(room.getTargetBingoCount()).isNull();
         assertThat(room.getTargetStepCount()).isEqualTo(12_000);
         assertThat(response.roomId()).isEqualTo(10L);
         then(gameCycleCommandService).should()
@@ -101,6 +110,7 @@ class RoomCommandServiceTest {
     @Test
     @DisplayName("대결 방 생성 시 첫 회차를 만들지 않는다")
     void createBattleRoomWaitsForSecondMember() {
+        given(memberRepository.existsById(1L)).willReturn(true);
         given(roomRepository.save(any(Room.class))).willAnswer(invocation -> {
             Room room = invocation.getArgument(0);
             ReflectionTestUtils.setField(room, "id", 10L);
@@ -119,23 +129,28 @@ class RoomCommandServiceTest {
     }
 
     @Test
-    @DisplayName("활성 SINGLE 회차가 있으면 기존 방을 반환한다")
+    @DisplayName("활성 SINGLE 회차가 만료됐어도 기존 방을 반환한다")
     void createSingleRoomReturnsExistingActiveRoom() {
         Room existingRoom = room(10L, 1L, GameMode.SINGLE);
         Game activeGame = Game.start(10L);
         ReflectionTestUtils.setField(activeGame, "id", 100L);
+        ReflectionTestUtils.setField(activeGame, "startedAt", LocalDateTime.now().minusDays(8));
         given(memberRepository.findByIdForUpdate(1L))
                 .willReturn(Optional.of(Member.create(
                         "host@example.com",
                         "encoded-password",
-                        "host"
+                        "host",
+                        null,
+                        Gender.MALE
                 )));
-        given(roomRepository.findFirstByMemberIdAndModeAndStatus(
+        given(roomRepository.findFirstByHostIdAndModeAndStatusOrderByIdDesc(
                 1L, GameMode.SINGLE, RoomStatus.ACTIVE
         )).willReturn(Optional.of(existingRoom));
         given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(
                 10L, GameStatus.ACTIVE
         )).willReturn(Optional.of(activeGame));
+        given(bingoBoardRepository.existsByGameIdAndStatus(100L, BingoBoardStatus.ACTIVE))
+                .willReturn(true);
 
         CreateRoomResponse response = roomCommandService.createRoom(
                 1L,
@@ -148,11 +163,103 @@ class RoomCommandServiceTest {
     }
 
     @Test
-    @DisplayName("판 크기에 비해 목표 빙고 수가 크면 생성하지 않는다")
+    @DisplayName("활성 SINGLE 방의 게임이 없으면 새 방을 만들지 않는다")
+    void createSingleRoomRejectsMissingActiveGame() {
+        Room existingRoom = room(10L, 1L, GameMode.SINGLE);
+        given(memberRepository.findByIdForUpdate(1L))
+                .willReturn(Optional.of(Member.create(
+                        "host@example.com",
+                        "encoded-password",
+                        "host",
+                        null,
+                        Gender.MALE
+                )));
+        given(roomRepository.findFirstByHostIdAndModeAndStatusOrderByIdDesc(
+                1L, GameMode.SINGLE, RoomStatus.ACTIVE
+        )).willReturn(Optional.of(existingRoom));
+        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(
+                10L, GameStatus.ACTIVE
+        )).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> roomCommandService.createRoom(
+                1L,
+                new CreateRoomRequest("새 방", GameMode.SINGLE, 2, 10_000, 3)
+        ))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ROOM_CYCLE_INVALID);
+
+        then(roomRepository).should(never()).save(any(Room.class));
+    }
+
+    @Test
+    @DisplayName("활성 SINGLE 방의 빙고판이 없으면 새 방을 만들지 않는다")
+    void createSingleRoomRejectsMissingActiveBoard() {
+        Room existingRoom = room(10L, 1L, GameMode.SINGLE);
+        Game activeGame = Game.start(10L);
+        ReflectionTestUtils.setField(activeGame, "id", 100L);
+        given(memberRepository.findByIdForUpdate(1L))
+                .willReturn(Optional.of(Member.create(
+                        "host@example.com",
+                        "encoded-password",
+                        "host",
+                        null,
+                        Gender.MALE
+                )));
+        given(roomRepository.findFirstByHostIdAndModeAndStatusOrderByIdDesc(
+                1L, GameMode.SINGLE, RoomStatus.ACTIVE
+        )).willReturn(Optional.of(existingRoom));
+        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(
+                10L, GameStatus.ACTIVE
+        )).willReturn(Optional.of(activeGame));
+        given(bingoBoardRepository.existsByGameIdAndStatus(100L, BingoBoardStatus.ACTIVE))
+                .willReturn(false);
+
+        assertThatThrownBy(() -> roomCommandService.createRoom(
+                1L,
+                new CreateRoomRequest("새 방", GameMode.SINGLE, 2, 10_000, 3)
+        ))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ROOM_CYCLE_INVALID);
+
+        then(roomRepository).should(never()).save(any(Room.class));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 회원은 협동 방을 생성할 수 없다")
+    void createCooperateRoomRejectsMissingMember() {
+        given(memberRepository.existsById(1L)).willReturn(false);
+
+        assertThatThrownBy(() -> roomCommandService.createRoom(
+                1L,
+                new CreateRoomRequest("협동 방", GameMode.COOPERATE, 2, 10_000, 3)
+        ))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
+
+        then(roomRepository).should(never()).save(any(Room.class));
+    }
+
+    @Test
+    @DisplayName("대결 모드에서 판 크기에 비해 목표 빙고 수가 크면 생성하지 않는다")
     void createRoomRejectsInvalidTargetBingoCount() {
         assertThatThrownBy(() -> roomCommandService.createRoom(
                 1L,
-                new CreateRoomRequest("잘못된 방", GameMode.COOPERATE, 9, 10_000, 3)
+                new CreateRoomRequest("잘못된 방", GameMode.BATTLE, 9, null, 3)
+        ))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.BINGO_TARGET_COUNT_INVALID);
+    }
+
+    @Test
+    @DisplayName("대결 모드에 목표 빙고 수가 없으면 생성하지 않는다")
+    void createBattleRoomRejectsMissingTargetBingoCount() {
+        assertThatThrownBy(() -> roomCommandService.createRoom(
+                1L,
+                new CreateRoomRequest("잘못된 방", GameMode.BATTLE, null, null, 3)
         ))
                 .isInstanceOf(CustomException.class)
                 .extracting(exception -> ((CustomException) exception).getErrorCode())

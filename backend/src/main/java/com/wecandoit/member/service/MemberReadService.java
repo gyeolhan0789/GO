@@ -1,15 +1,17 @@
 package com.wecandoit.member.service;
 
+import com.wecandoit.avatar.service.AvatarReadService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.friend.repository.FriendRepository;
 import com.wecandoit.friend.domain.FriendRequest;
 import com.wecandoit.friend.repository.FriendRequestRepository;
+import com.wecandoit.item.controller.response.AvatarResponse;
 import com.wecandoit.member.domain.Member;
-import com.wecandoit.member.dto.MemberRelationshipStatus;
-import com.wecandoit.member.dto.MemberSearchResponse;
-import com.wecandoit.member.dto.MyPageResponse;
+import com.wecandoit.member.controller.response.MemberSearchResponse;
+import com.wecandoit.member.controller.response.MyPageResponse;
+import com.wecandoit.member.domain.MemberRelationshipStatus;
 import com.wecandoit.member.repository.MemberRepository;
 import java.util.Collection;
 import java.util.HashMap;
@@ -33,6 +35,7 @@ public class MemberReadService {
     private final MemberRepository memberRepository;
     private final FriendRepository friendRepository;
     private final FriendRequestRepository friendRequestRepository;
+    private final AvatarReadService avatarReadService;
 
     public SliceResponse<MemberSearchResponse> searchMembers(
             Long memberId,
@@ -51,25 +54,30 @@ public class MemberReadService {
                         fixedPageable
                 );
         if (members.isEmpty()) {
-            return SliceResponse.from(members.map(member -> MemberSearchResponse.of(
-                    member,
-                    MemberRelationshipStatus.NONE
-            )));
+            return new SliceResponse<>(List.of(), false);
         }
 
-        Set<Long> candidateIds = members.getContent().stream()
+        List<Long> candidateMemberIds = members.getContent().stream()
                 .map(Member::getId)
-                .collect(Collectors.toSet());
+                .toList();
+        Set<Long> candidateIds = new HashSet<>(candidateMemberIds);
         Set<Long> friendIds = new HashSet<>(
                 friendRepository.findFriendMemberIds(memberId, candidateIds)
         );
         Map<Long, MemberRelationshipStatus> requestStatuses = getRequestStatuses(memberId, candidateIds);
+        Map<Long, AvatarResponse> avatarsByMemberId =
+                avatarReadService.getAvatars(members.getContent());
 
         Slice<MemberSearchResponse> responses = members
-                .map(member -> MemberSearchResponse.of(
-                        member,
-                        getRelationshipStatus(member.getId(), friendIds, requestStatuses)
-                ));
+                .map(member -> {
+                    AvatarResponse avatar = avatarsByMemberId.get(member.getId());
+                    return MemberSearchResponse.of(
+                            member,
+                            getRelationshipStatus(member.getId(), friendIds, requestStatuses),
+                            avatar.defaultImageUrl(),
+                            avatar.equippedItems()
+                    );
+                });
         return SliceResponse.from(responses);
     }
 
@@ -80,17 +88,29 @@ public class MemberReadService {
     }
 
     public Map<Long, String> getNicknamesByIds(Collection<Long> memberIds) {
-        Set<Long> targetMemberIds = new HashSet<>(memberIds);
-        if (targetMemberIds.isEmpty()) {
+        return getMembersByIds(memberIds).stream()
+                .collect(Collectors.toMap(Member::getId, Member::getNickname));
+    }
+
+    public Map<Long, AvatarResponse> getAvatarsByIds(Collection<Long> memberIds) {
+        List<Member> members = getMembersByIds(memberIds);
+        if (members.isEmpty()) {
             return Map.of();
         }
+        return avatarReadService.getAvatars(members);
+    }
 
-        Map<Long, String> nicknamesById = memberRepository.findAllById(targetMemberIds).stream()
-                .collect(Collectors.toMap(Member::getId, Member::getNickname));
-        if (nicknamesById.size() != targetMemberIds.size()) {
+    private List<Member> getMembersByIds(Collection<Long> memberIds) {
+        Set<Long> targetMemberIds = new HashSet<>(memberIds);
+        if (targetMemberIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<Member> members = memberRepository.findAllById(targetMemberIds);
+        if (members.size() != targetMemberIds.size()) {
             throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
         }
-        return nicknamesById;
+        return members;
     }
 
     private Map<Long, MemberRelationshipStatus> getRequestStatuses(
@@ -99,11 +119,11 @@ public class MemberReadService {
     ) {
         Map<Long, MemberRelationshipStatus> statuses = new HashMap<>();
         for (FriendRequest request : friendRequestRepository.findPendingRelatedTo(memberId, candidateIds)) {
-            if (request.getInviter().getId().equals(memberId)) {
-                statuses.put(request.getInvitee().getId(), MemberRelationshipStatus.REQUEST_SENT);
+            if (request.getInviterId().equals(memberId)) {
+                statuses.put(request.getInviteeId(), MemberRelationshipStatus.REQUEST_SENT);
                 continue;
             }
-            statuses.put(request.getInviter().getId(), MemberRelationshipStatus.REQUEST_RECEIVED);
+            statuses.put(request.getInviterId(), MemberRelationshipStatus.REQUEST_RECEIVED);
         }
         return statuses;
     }

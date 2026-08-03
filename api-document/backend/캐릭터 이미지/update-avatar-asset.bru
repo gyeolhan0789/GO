@@ -1,0 +1,66 @@
+meta {
+  name: 기본 아바타 이미지 변경
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{backendBaseUrl}}/admin/avatar-assets/MALE
+  body: multipartForm
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+body:multipart-form {
+  image: @file(C:\path\to\male.png)
+}
+
+docs {
+  ## 기본 아바타 이미지 변경 (관리자)
+
+  `MALE` 또는 `FEMALE` 기본 아바타 이미지를 변경한다. `ADMIN` 권한이 필요하다. 이미지는 기존 업로드 정책에 따라 로컬 볼륨에 저장되고 DB에는 경로만 저장된다. 해당 성별 이미지가 없으면 최초 생성한다.
+
+  ### Request 필드
+  | 필드 | 필수 | 제약조건 |
+  |---|---|---|
+  | image | Y | JPEG 또는 PNG, 최대 5MB |
+
+  ### 성공 응답 (200 OK)
+  ```json
+  {
+    "avatarAssetId": 1,
+    "gender": "MALE",
+    "imageUrl": "/uploads/dev/avatars/male/550e8400-e29b-41d4-a716-446655440000.png",
+    "updatedAt": "2026-07-29T12:00:00"
+  }
+  ```
+
+  ### 에러 케이스
+
+  **지원하지 않는 이미지 형식**
+  ```json
+  {
+    "status": 400,
+    "message": "이미지 파일 형식은 JPEG 또는 PNG만 지원합니다."
+  }
+  ```
+
+  **5MB 초과 이미지**
+  ```json
+  {
+    "status": 400,
+    "message": "이미지 파일 크기는 5MB를 초과할 수 없습니다."
+  }
+  ```
+
+  **ADMIN 권한 없음**
+  ```json
+  {
+    "status": 403,
+    "message": "접근 권한이 없습니다."
+  }
+  ```
+}

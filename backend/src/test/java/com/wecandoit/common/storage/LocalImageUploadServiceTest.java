@@ -71,6 +71,19 @@ class LocalImageUploadServiceTest {
     }
 
     @Test
+    @DisplayName("Content-Type이 없는 파일을 업로드하면 예외가 발생한다")
+    void uploadRejectsFileWithoutContentType() {
+        // given
+        MockMultipartFile file = new MockMultipartFile("image", "flower.jpg", null, "jpg-bytes".getBytes());
+
+        // when & then
+        assertThatThrownBy(() -> localImageUploadService.upload(file, "missions", "resource-1"))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_IMAGE_TYPE);
+    }
+
+    @Test
     @DisplayName("최대 크기를 초과한 파일을 업로드하면 예외가 발생한다")
     void uploadRejectsOversizedFile() {
         // given

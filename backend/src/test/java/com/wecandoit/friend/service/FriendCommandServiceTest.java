@@ -9,6 +9,7 @@ import static org.mockito.BDDMockito.then;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,7 +61,7 @@ class FriendCommandServiceTest {
     }
 
     private Member member(Long id, String nickname) {
-        Member member = Member.create(nickname + "@example.com", "password", nickname);
+        Member member = Member.create(nickname + "@example.com", "password", nickname, null, Gender.MALE);
         ReflectionTestUtils.setField(member, "id", id);
         return member;
     }

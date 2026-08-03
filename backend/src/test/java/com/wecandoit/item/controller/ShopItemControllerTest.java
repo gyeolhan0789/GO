@@ -17,6 +17,7 @@ import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.item.controller.response.ItemPurchaseResponse;
 import com.wecandoit.item.controller.response.ShopItemResponse;
+import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.item.service.ShopItemCommandService;
 import com.wecandoit.item.service.ShopItemReadService;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
@@ -75,14 +76,14 @@ class ShopItemControllerTest {
                 new ShopItemResponse(
                         100L,
                         "빨간 모자",
-                        "HAT",
+                        ItemCategory.HAT,
                         1_000L,
                         "https://example.com/hat.png"
                 ),
                 new ShopItemResponse(
                         200L,
                         "파란 상의",
-                        "TOP",
+                        ItemCategory.TOP,
                         2_000L,
                         "https://example.com/top.png"
                 )
@@ -144,7 +145,7 @@ class ShopItemControllerTest {
                 new ShopItemResponse(
                         100L,
                         "빨간 모자",
-                        "HAT",
+                        ItemCategory.HAT,
                         1_000L,
                         "https://example.com/hat.png"
                 )
@@ -241,7 +242,7 @@ class ShopItemControllerTest {
     }
 
     @Test
-    @DisplayName("아이템을 구매하면 생성된 보유 아이템과 남은 캐시를 반환한다")
+    @DisplayName("아이템을 구매하면 생성된 보유 아이템과 남은 포인트를 반환한다")
     void purchaseItemReturnsCreatedMemberItem() {
         // given
         BDDMockito.given(shopItemCommandService.purchaseItem(1L, 100L))
@@ -255,7 +256,7 @@ class ShopItemControllerTest {
                 .statusCode(HttpStatus.CREATED.value())
                 .body("memberItemId", equalTo(15))
                 .body("itemId", equalTo(100))
-                .body("remainingCash", equalTo(4_000))
+                .body("remainingPoint", equalTo(4_000))
                 .apply(document("shop-item-purchase",
                         pathParameters(
                                 parameterWithName("itemId").description("구매할 아이템 ID")
@@ -263,18 +264,18 @@ class ShopItemControllerTest {
                         responseFields(
                                 fieldWithPath("memberItemId").description("생성된 보유 아이템 ID"),
                                 fieldWithPath("itemId").description("구매한 아이템 ID"),
-                                fieldWithPath("remainingCash").description("구매 후 남은 캐시")
+                                fieldWithPath("remainingPoint").description("구매 후 남은 포인트")
                         )
                 ));
         BDDMockito.then(shopItemCommandService).should().purchaseItem(1L, 100L);
     }
 
     @Test
-    @DisplayName("캐시가 부족하면 잘못된 요청으로 처리한다")
-    void purchaseItemRejectsInsufficientCash() {
+    @DisplayName("포인트가 부족하면 잘못된 요청으로 처리한다")
+    void purchaseItemRejectsInsufficientPoint() {
         // given
         BDDMockito.given(shopItemCommandService.purchaseItem(1L, 100L))
-                .willThrow(new CustomException(ErrorCode.INSUFFICIENT_CASH));
+                .willThrow(new CustomException(ErrorCode.INSUFFICIENT_POINT));
 
         // when & then
         given()
@@ -283,8 +284,8 @@ class ShopItemControllerTest {
                 .then()
                 .statusCode(HttpStatus.BAD_REQUEST.value())
                 .body("status", equalTo(HttpStatus.BAD_REQUEST.value()))
-                .body("message", equalTo(ErrorCode.INSUFFICIENT_CASH.getMessage()))
-                .apply(document("shop-item-purchase-insufficient-cash",
+                .body("message", equalTo(ErrorCode.INSUFFICIENT_POINT.getMessage()))
+                .apply(document("shop-item-purchase-insufficient-point",
                         pathParameters(
                                 parameterWithName("itemId").description("구매할 아이템 ID")
                         ),

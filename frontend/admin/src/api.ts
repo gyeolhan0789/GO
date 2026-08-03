@@ -22,10 +22,20 @@ export type Mission = {
   missionId: number
   missionImageUrl: string
   type: string
+  difficulty: string
   title: string | null
   detail: string | null
   decisionCondition: string | null
+  isActive: boolean
   createdAt: string
+}
+
+export type MissionInput = {
+  type: string
+  difficulty: string
+  title: string
+  detail: string
+  decisionCondition: string
 }
 
 export type CharacterAsset = {
@@ -232,18 +242,41 @@ export function getMissions() {
   return request<Mission[]>('/admin/missions')
 }
 
-export function createMission(input: Omit<Mission, 'missionId' | 'createdAt'>) {
-  return request<void>('/admin/missions', { method: 'POST', body: JSON.stringify(input) })
+function missionForm(input: MissionInput, image?: File) {
+  const form = new FormData()
+  form.append('type', input.type)
+  form.append('difficulty', input.difficulty)
+  form.append('title', input.title)
+  form.append('detail', input.detail)
+  form.append('decisionCondition', input.decisionCondition)
+  if (image) form.append('image', image)
+  return form
+}
+
+export function createMission(input: MissionInput, image: File) {
+  return request<void>('/admin/missions', { method: 'POST', body: missionForm(input, image) })
+}
+
+export function updateMission(missionId: number, input: MissionInput, image?: File) {
+  return request<void>(`/admin/missions/${missionId}`, { method: 'PUT', body: missionForm(input, image) })
+}
+
+export function deactivateMission(missionId: number) {
+  return request<void>(`/admin/missions/${missionId}`, { method: 'DELETE' })
+}
+
+export function activateMission(missionId: number) {
+  return request<void>(`/admin/missions/${missionId}/activate`, { method: 'PATCH' })
 }
 
 export function getCharacterAssets() {
-  return request<CharacterAsset[]>('/admin/character-assets')
+  return request<CharacterAsset[]>('/admin/avatar-assets')
 }
 
 export function updateCharacterAsset(gender: CharacterAsset['gender'], image: File) {
   const form = new FormData()
   form.append('image', image)
-  return request<CharacterAsset>(`/admin/character-assets/${gender}`, { method: 'PUT', body: form })
+  return request<CharacterAsset>(`/admin/avatar-assets/${gender}`, { method: 'PUT', body: form })
 }
 
 export function getItems() {

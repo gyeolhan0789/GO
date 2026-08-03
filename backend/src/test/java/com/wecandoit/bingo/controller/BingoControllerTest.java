@@ -37,6 +37,7 @@ import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.game.domain.RoomStatus;
 import com.wecandoit.mission.controller.response.MissionResponse;
+import com.wecandoit.mission.domain.MissionType;
 import io.restassured.http.ContentType;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import java.time.LocalDateTime;
@@ -106,10 +107,11 @@ class BingoControllerTest {
         MissionResponse mission = new MissionResponse(
                 1L,
                 "https://example.com/mission.png",
-                "OBJECT",
+                MissionType.OBJECT,
                 "미션 제목",
                 "미션 설명",
                 null,
+                50L,
                 LocalDateTime.of(2026, 7, 22, 10, 0)
         );
         BingoBoardResponse response = new BingoBoardResponse(
@@ -117,7 +119,7 @@ class BingoControllerTest {
                 200L,
                 10L,
                 3,
-                3,
+                null,
                 10_000,
                 1,
                 9,
@@ -134,6 +136,7 @@ class BingoControllerTest {
                 )),
                 true,
                 true,
+                true,
                 false,
                 null,
                 null
@@ -148,12 +151,13 @@ class BingoControllerTest {
                 .statusCode(HttpStatus.OK.value())
                 .body("bingoBoardId", equalTo(100))
                 .body("gameId", equalTo(200))
-                .body("targetBingoCount", equalTo(3))
+                .body("targetBingoCount", nullValue())
                 .body("targetStepCount", equalTo(10_000))
                 .body("completedBingoCount", equalTo(1))
                 .body("totalCellCount", equalTo(9))
                 .body("approvedCellCount", equalTo(3))
                 .body("completed", equalTo(true))
+                .body("isHost", equalTo(true))
                 .body("canRenew", equalTo(true))
                 .body("renewalRequired", equalTo(false))
                 .body("renewalMessage", nullValue())
@@ -170,7 +174,8 @@ class BingoControllerTest {
                                 fieldWithPath("gameId").description("게임 회차 ID"),
                                 fieldWithPath("roomId").description("게임방 ID"),
                                 fieldWithPath("boardSize").description("빙고판 크기"),
-                                fieldWithPath("targetBingoCount").description("게임 목표 빙고 수"),
+                                fieldWithPath("targetBingoCount").optional()
+                                        .description("목표 빙고 수(공유 모드는 null, 대결 모드만 사용)"),
                                 fieldWithPath("targetStepCount").description("해당 빙고판의 목표 걸음 수"),
                                 fieldWithPath("completedBingoCount").description("현재 완성된 빙고 수"),
                                 fieldWithPath("totalCellCount").description("전체 셀 수"),
@@ -185,11 +190,13 @@ class BingoControllerTest {
                                 fieldWithPath("cells[].mission.title").description("미션 제목"),
                                 fieldWithPath("cells[].mission.detail").description("미션 설명"),
                                 fieldWithPath("cells[].mission.decisionCondition").description("미션 판정 조건"),
+                                fieldWithPath("cells[].mission.point").description("미션 완료 시 지급되는 포인트"),
                                 fieldWithPath("cells[].mission.createdAt").description("미션 생성 시각"),
                                 fieldWithPath("cells[].verificationStatus").description("미션 인증 상태"),
                                 fieldWithPath("cells[].submittedByMemberId").description("미션 제출 참여자 ID"),
                                 fieldWithPath("cells[].rejectionReason").description("미션 거절 사유"),
                                 fieldWithPath("completed").description("빙고판 100% 완료 여부"),
+                                fieldWithPath("isHost").description("현재 로그인 사용자의 방장 여부"),
                                 fieldWithPath("canRenew").description("빙고판 갱신 가능 여부"),
                                 fieldWithPath("renewalRequired").description("빙고판 생성 후 7일 경과로 인한 갱신 필요 여부"),
                                 fieldWithPath("renewalMessage").description("갱신 필요 안내 메시지(필요하지 않으면 null)"),
@@ -205,10 +212,11 @@ class BingoControllerTest {
         MissionResponse mission = new MissionResponse(
                 1L,
                 "https://example.com/mission.png",
-                "OBJECT",
+                MissionType.OBJECT,
                 "미션 제목",
                 "미션 설명",
                 null,
+                50L,
                 LocalDateTime.of(2026, 7, 22, 10, 0)
         );
         BingoBoardResponse response = new BingoBoardResponse(
@@ -232,6 +240,7 @@ class BingoControllerTest {
                         null
                 )),
                 false,
+                true,
                 false,
                 false,
                 null,
@@ -252,6 +261,7 @@ class BingoControllerTest {
                 .then()
                 .statusCode(HttpStatus.OK.value())
                 .body("bingoBoardId", equalTo(201))
+                .body("isHost", equalTo(true))
                 .body("cells[0].submittedByMemberId", equalTo(1))
                 .body("battleProgress.roomStatus", equalTo("ACTIVE"))
                 .body("battleProgress.gameStatus", equalTo("ACTIVE"))
@@ -288,10 +298,11 @@ class BingoControllerTest {
         MissionResponse mission = new MissionResponse(
                 1L,
                 "https://example.com/mission.png",
-                "OBJECT",
+                MissionType.OBJECT,
                 "미션 제목",
                 "미션 설명",
                 null,
+                50L,
                 LocalDateTime.of(2026, 7, 22, 10, 0)
         );
         BingoCellSubmitResponse response = new BingoCellSubmitResponse(
@@ -313,7 +324,7 @@ class BingoControllerTest {
                 .body("col", equalTo(0))
                 .body("mission.missionId", equalTo(1))
                 .body("verificationStatus", equalTo("APPROVED"))
-                .body("rewardCash", equalTo(30))
+                .body("rewardPoint", equalTo(30))
                 .apply(document("bingo-cells-submit",
                         pathParameters(
                                 parameterWithName("roomId").description("칸을 제출할 게임방 ID"),
@@ -332,11 +343,12 @@ class BingoControllerTest {
                                 fieldWithPath("mission.title").description("미션 제목"),
                                 fieldWithPath("mission.detail").description("미션 설명"),
                                 fieldWithPath("mission.decisionCondition").description("미션 판정 조건"),
+                                fieldWithPath("mission.point").description("미션 완료 시 지급되는 포인트"),
                                 fieldWithPath("mission.createdAt").description("미션 생성 시각"),
                                 fieldWithPath("verificationStatus").description("AI 검증 후 인증 상태(APPROVED/REJECTED)"),
                                 fieldWithPath("submittedByMemberId").description("미션 제출 참여자 ID"),
                                 fieldWithPath("rejectionReason").description("거절 사유(승인 시 null)"),
-                                fieldWithPath("rewardCash").description("이번 인증으로 지급된 캐시")
+                                fieldWithPath("rewardPoint").description("이번 인증으로 지급된 포인트")
                         )
                 ));
     }
@@ -411,10 +423,11 @@ class BingoControllerTest {
         MissionResponse mission = new MissionResponse(
                 2L,
                 "https://example.com/mission2.png",
-                "OBJECT",
+                MissionType.OBJECT,
                 "새 미션 제목",
                 "새 미션 설명",
                 null,
+                50L,
                 LocalDateTime.of(2026, 7, 22, 11, 0)
         );
         BingoBoardResponse response = new BingoBoardResponse(
@@ -422,7 +435,7 @@ class BingoControllerTest {
                 200L,
                 10L,
                 3,
-                3,
+                null,
                 12_000,
                 0,
                 1,
@@ -430,6 +443,7 @@ class BingoControllerTest {
                 BingoBoardStatus.ACTIVE,
                 List.of(new BingoCellResponse(1001L, 0, 0, mission, null, null, null)),
                 false,
+                true,
                 false,
                 false,
                 null,
@@ -437,7 +451,7 @@ class BingoControllerTest {
         );
         willReturn(response)
                 .given(bingoCommandService)
-                .renewBoard(1L, 10L, 3, 2, 12_000);
+                .renewBoard(1L, 10L, 3, 12_000);
 
         // when & then
         given()
@@ -445,7 +459,6 @@ class BingoControllerTest {
                 .body("""
                         {
                           "boardSize": 3,
-                          "targetBingoCount": 2,
                           "targetStepCount": 12000
                         }
                         """)
@@ -455,7 +468,9 @@ class BingoControllerTest {
                 .statusCode(HttpStatus.CREATED.value())
                 .body("bingoBoardId", equalTo(101))
                 .body("gameId", equalTo(200))
+                .body("targetBingoCount", nullValue())
                 .body("targetStepCount", equalTo(12_000))
+                .body("isHost", equalTo(true))
                 .body("status", equalTo("ACTIVE"))
                 .apply(document("bingo-boards-renewal",
                         pathParameters(
@@ -463,7 +478,6 @@ class BingoControllerTest {
                         ),
                         requestFields(
                                 fieldWithPath("boardSize").description("새 빙고판 한 변의 크기"),
-                                fieldWithPath("targetBingoCount").description("새 회차의 목표 빙고 수"),
                                 fieldWithPath("targetStepCount").description("새 빙고판에 설정할 목표 걸음 수")
                         ),
                         responseFields(
@@ -471,7 +485,8 @@ class BingoControllerTest {
                                 fieldWithPath("gameId").description("게임 회차 ID"),
                                 fieldWithPath("roomId").description("게임방 ID"),
                                 fieldWithPath("boardSize").description("빙고판 크기"),
-                                fieldWithPath("targetBingoCount").description("게임 목표 빙고 수"),
+                                fieldWithPath("targetBingoCount").optional()
+                                        .description("목표 빙고 수(공유 모드는 null, 대결 모드만 사용)"),
                                 fieldWithPath("targetStepCount").description("해당 빙고판의 목표 걸음 수"),
                                 fieldWithPath("completedBingoCount").description("현재 완성된 빙고 수"),
                                 fieldWithPath("totalCellCount").description("전체 셀 수"),
@@ -486,11 +501,13 @@ class BingoControllerTest {
                                 fieldWithPath("cells[].mission.title").description("미션 제목"),
                                 fieldWithPath("cells[].mission.detail").description("미션 설명"),
                                 fieldWithPath("cells[].mission.decisionCondition").description("미션 판정 조건"),
+                                fieldWithPath("cells[].mission.point").description("미션 완료 시 지급되는 포인트"),
                                 fieldWithPath("cells[].mission.createdAt").description("미션 생성 시각"),
                                 fieldWithPath("cells[].verificationStatus").description("미션 인증 상태"),
                                 fieldWithPath("cells[].submittedByMemberId").description("미션 제출 참여자 ID"),
                                 fieldWithPath("cells[].rejectionReason").description("미션 거절 사유"),
                                 fieldWithPath("completed").description("빙고판 100% 완료 여부"),
+                                fieldWithPath("isHost").description("현재 로그인 사용자의 방장 여부"),
                                 fieldWithPath("canRenew").description("빙고판 갱신 가능 여부"),
                                 fieldWithPath("renewalRequired").description("빙고판 생성 후 7일 경과로 인한 갱신 필요 여부"),
                                 fieldWithPath("renewalMessage").description("갱신 필요 안내 메시지(필요하지 않으면 null)"),
@@ -505,7 +522,7 @@ class BingoControllerTest {
         // given
         willThrow(new CustomException(ErrorCode.BINGO_BOARD_NOT_COMPLETED))
                 .given(bingoCommandService)
-                .renewBoard(1L, 10L, 3, 2, 12_000);
+                .renewBoard(1L, 10L, 3, 12_000);
 
         // when & then
         given()
@@ -513,7 +530,6 @@ class BingoControllerTest {
                 .body("""
                         {
                           "boardSize": 3,
-                          "targetBingoCount": 2,
                           "targetStepCount": 12000
                         }
                         """)
@@ -529,7 +545,7 @@ class BingoControllerTest {
         // given
         willThrow(new CustomException(ErrorCode.BINGO_BOARD_RENEWAL_FORBIDDEN))
                 .given(bingoCommandService)
-                .renewBoard(1L, 10L, 3, 2, 12_000);
+                .renewBoard(1L, 10L, 3, 12_000);
 
         // when & then
         given()
@@ -537,7 +553,6 @@ class BingoControllerTest {
                 .body("""
                         {
                           "boardSize": 3,
-                          "targetBingoCount": 2,
                           "targetStepCount": 12000
                         }
                         """)
@@ -576,6 +591,7 @@ class BingoControllerTest {
                 BingoBoardStatus.ACTIVE,
                 List.of(),
                 false,
+                true,
                 false,
                 false,
                 null,
@@ -595,6 +611,7 @@ class BingoControllerTest {
                 .then()
                 .statusCode(HttpStatus.CREATED.value())
                 .body("gameId", equalTo(401))
+                .body("isHost", equalTo(true))
                 .body("status", equalTo("ACTIVE"))
                 .body("battleProgress.gameStatus", equalTo("ACTIVE"))
                 .apply(document("battle-rematch",
@@ -607,6 +624,7 @@ class BingoControllerTest {
                                 fieldWithPath("roomId").description("게임방 ID"),
                                 fieldWithPath("boardSize").description("재사용된 빙고판 크기"),
                                 fieldWithPath("targetBingoCount").description("재사용된 목표 빙고 수"),
+                                fieldWithPath("isHost").description("현재 로그인 사용자의 방장 여부"),
                                 fieldWithPath("status").description("새 빙고판 상태"),
                                 fieldWithPath("battleProgress.gameStatus").description("새 게임 회차 상태")
                         )

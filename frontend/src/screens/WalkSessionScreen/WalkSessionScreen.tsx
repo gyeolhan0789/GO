@@ -10,25 +10,31 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
+import { useFriendsQuery } from '../../features/friend/hooks/useFriendsQuery';
 import { todayIso } from '../../features/history/model/period';
 import { useHistoriesQuery } from '../../features/history/hooks/useHistoriesQuery';
+import { useSaveHistoryMutation } from '../../features/history/hooks/useSaveHistoryMutation';
+import { useMyMemberIdQuery } from '../../features/member/hooks/useMyMemberIdQuery';
+import { useMyPageQuery } from '../../features/member/hooks/useMyPageQuery';
 import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
 import { useWalkSession } from '../../features/walk-session/hooks/useWalkSession';
 import {
   confirmWalkSessionStart,
   endWalkSession,
+  stopWalkSession,
 } from '../../features/walk-session/model/walkSessionStore';
 import { AppText } from '../../shared/components/AppText/AppText';
 import { Button } from '../../shared/components/Button/Button';
 import { MemberProgressBar } from '../../shared/components/MemberProgressBar/MemberProgressBar';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { controlHeight } from '../../shared/constants/sizing';
-import { colors, participantColors } from '../../shared/constants/colors';
-import { useSamsungHealthToday } from '../../shared/hooks/useSamsungHealthToday';
+import { colors } from '../../shared/constants/colors';
+import { getParticipantColor } from '../../shared/lib/participantColor';
 import { radius } from '../../shared/constants/radius';
 import { shadow } from '../../shared/constants/shadow';
 import { spacing } from '../../shared/constants/spacing';
@@ -66,51 +72,82 @@ export function WalkSessionScreen() {
   // 상태. 뒤로가기로 나갔다 들어와도 0으로 리셋되지 않는다. isStarted가
   // false인 동안은 카운트다운이 아직 안 끝난 것이라 경과 시간이 0으로
   // 고정된다.
-  const { roomId, startHealthSummary, elapsedSeconds, isPaused, isStarted, togglePause } =
-    useWalkSession();
+  const {
+    roomId,
+    elapsedSeconds,
+    isPaused,
+    isStarted,
+    steps,
+    distanceMeters,
+    calories,
+    togglePause,
+  } = useWalkSession();
+  // 종료 처리 중(stopWalkSession이 네이티브 세션을 끝내면 isStarted가 먼저
+  // false가 된다)에는 카운트다운을 다시 보여주면 안 된다 — 화면을 벗어나기
+  // 전까지 이 화면을 그대로 유지한다.
+  const isEndingRef = useRef(false);
   // 카운트다운이 끝나야 진짜 시작이므로, 그 전까지는 경로도 기록하지 않는다.
-  const showCountdown = !isStarted;
-  // 일시정지하면 경로도 같이 멈춘다. 지금까지 찍은 좌표는 그대로 남는다.
-  const { route, initialCoords } = useRouteTracking(isStarted && !isPaused);
+  const showCountdown = !isStarted && !isEndingRef.current;
+  // GPS 추적·일시정지는 네이티브 세션 상태가 그대로 반영하므로 이 훅은
+  // 파라미터가 필요 없다.
+  const { route, initialCoords } = useRouteTracking();
+  const myPageQuery = useMyPageQuery();
 
   const roomQuery = useRoomDetailQuery(roomId);
   const room = roomQuery.data ?? null;
-  // 방 목표 걸음수는 "이번 주" 단위라 주간 누적으로 비교한다. 팀원별 걸음수를
-  // 내려주는 API가 없어(다른 사람 헬스 데이터라 프라이버시 이슈도 있다),
-  // 지금은 내 걸음수만 반영한다.
-  const weeklyStepsQuery = useHistoriesQuery('WEEK', todayIso());
+  const members = room?.members ?? [];
+  // 방 목표 걸음수는 "이번 주" 단위라 주간 누적으로 비교한다.
+  const weeklyStepsQuery = useHistoriesQuery('WEEK', todayIso(), {
+    refetchInterval: HEALTH_POLL_INTERVAL_MS,
+    enabled: !isPaused,
+  });
   const weeklySteps = weeklyStepsQuery.data?.totalStep ?? 0;
   const targetStepCount = room?.targetStepCount ?? null;
-  const remainingSteps =
-    targetStepCount !== null ? Math.max(0, targetStepCount - weeklySteps) : 0;
-  const stepSegments = [{ value: weeklySteps, color: participantColors[0] }];
 
-  // 걷는 동안 화면에 뜬 값이 계속 갱신되도록 주기적으로 다시 읽는다.
-  const health = useSamsungHealthToday({ refetchInterval: HEALTH_POLL_INTERVAL_MS });
-  const healthSummary =
-    health.data?.status === 'ok' ? health.data.summary : null;
-  // 오늘 누적치에서 세션 시작 시점 기준값을 빼서 "이 산책에서" 걷고 쓴
-  // 양만 보여준다. 기준값을 아직 못 읽었으면(권한 문제 등) 0을 빼는 셈이라
-  // 오늘 누적치가 그대로 나온다.
-  const sessionSteps = healthSummary
-    ? Math.max(0, healthSummary.steps - (startHealthSummary?.steps ?? 0))
-    : 0;
-  const sessionDistanceKm = healthSummary
-    ? Math.round(
-        Math.max(
-          0,
-          healthSummary.distanceMeters - (startHealthSummary?.distanceMeters ?? 0),
-        ) / 100,
-      ) / 10
-    : 0;
-  const sessionCalories = healthSummary
-    ? Math.round(
-        Math.max(
-          0,
-          healthSummary.activeCalories - (startHealthSummary?.activeCalories ?? 0),
-        ),
-      )
-    : 0;
+  // 팀원별 걸음수를 직접 내려주는 API는 아직 없어서, 이미 있는 친구 목록
+  // API(친구별 이번 주 걸음수 포함)로 대신한다. 이 목록은 "나(로그인한 사람)의
+  // 친구"라서, 방을 만든 사람이 자기 친구들을 초대해 방 멤버가 곧 자기 친구
+  // 목록과 겹치는 방장 시점에서만 정확하다 — 방장이 아닌 멤버가 볼 때는
+  // 다른 멤버가 나와 친구가 아닐 수 있어(방장의 친구일 뿐) 그 사람 걸음수는
+  // 0으로 보일 수 있다. 제대로 하려면 "이 방 멤버들의 걸음수"를 직접 내려주는
+  // 백엔드 엔드포인트가 필요하다(현재 memberHistoryRepository는 임의의
+  // memberId 목록을 이미 받을 수 있어 서비스단만 추가하면 됨) — 지금은 범위
+  // 밖이라 남겨둔다.
+  const friendsQuery = useFriendsQuery({
+    enabled: room !== null && room.mode !== 'SINGLE',
+  });
+  const myMemberIdQuery = useMyMemberIdQuery();
+  const weeklyStepsByMemberId = new Map(
+    (friendsQuery.data?.content ?? []).map(friend => [
+      friend.memberId,
+      friend.weeklySteps,
+    ]),
+  );
+  const stepSegments = members.map(member => ({
+    value:
+      member.memberId === myMemberIdQuery.data
+        ? weeklySteps
+        : weeklyStepsByMemberId.get(member.memberId) ?? 0,
+    color: getParticipantColor(member.memberId, myMemberIdQuery.data ?? null, members),
+  }));
+  const teamWeeklySteps = stepSegments.reduce(
+    (sum, segment) => sum + segment.value,
+    0,
+  );
+  const remainingSteps =
+    targetStepCount !== null
+      ? Math.max(0, targetStepCount - teamWeeklySteps)
+      : 0;
+  const weeklyPercent =
+    targetStepCount !== null
+      ? Math.min(100, Math.round((teamWeeklySteps / targetStepCount) * 100))
+      : 0;
+
+  // 걸음수·거리·칼로리는 네이티브 세션이 직접 집계해서 내려준다(20초 간격
+  // 갱신, 일시정지 중에는 고정). 화면 표시용으로 반올림만 한다.
+  const sessionSteps = Math.round(steps);
+  const sessionDistanceKm = Math.round(distanceMeters / 100) / 10;
+  const sessionCalories = Math.round(calories);
   const mapRef = useRef<WalkRouteMapHandle>(null);
   // 현위치 버튼을 패널의 현재 노출 높이 바로 위에 띄우려면 패널의 실측
   // 높이가 필요하다(콘텐츠에 따라 늘어나서 고정값을 쓸 수 없다). 패널을
@@ -169,29 +206,88 @@ export function WalkSessionScreen() {
     }),
   ).current;
 
+  const saveHistoryMutation = useSaveHistoryMutation();
+  const queryClient = useQueryClient();
+
   const handleEndWalk = useCallback(() => {
     Alert.alert('산책 종료', '지금 산책을 종료할까요?', [
       { text: '취소', style: 'cancel' },
       {
         text: '종료',
         style: 'destructive',
-        onPress: () => {
+        onPress: async () => {
+          // stopWalkSession이 네이티브 세션을 끝내면 isStarted가 곧바로
+          // false가 되는데, 그 뒤로도 기록 저장 등 비동기 작업이 남아있어
+          // 이 화면이 한동안 더 떠있는다 — 그 사이 카운트다운이 다시 뜨지
+          // 않도록 지금 미리 표시해둔다.
+          isEndingRef.current = true;
+
           // 방은 파괴하지 않는 한 계속 유지된다. 빙고판 갱신은 다 채웠거나
           // 일주일이 지났을 때 방장이 직접 트리거해야 한다(자동 초기화 없음).
           // 여기서는 이 화면의 로컬 세션(경과 시간 타이머)만 끝낸다.
-          endWalkSession();
-          navigation.goBack();
+          // TODO: 홈 화면의 빙고판 쿼리(useActiveBingoBoardQuery)도 함께
+          // 무효화/refetch해서 산책 중 인증한 미션이 홈 화면 미리보기에 바로
+          // 반영되게 한다.
+          if (roomId === null) {
+            endWalkSession();
+            navigation.goBack();
+            return;
+          }
+
+          // 네이티브 세션을 종료해 서비스·알림·GPS를 정지시키고 확정된
+          // 최종 수치를 받아온다.
+          const final = await stopWalkSession();
+          const finalSteps = Math.round(final.steps);
+          const finalDistanceKm = Math.round(final.distanceMeters / 100) / 10;
+          const finalCalories = Math.round(final.calories);
+          const finalElapsedSeconds = Math.floor(final.activeElapsedMs / 1000);
+
+          // 오늘 걸음/거리/칼로리를 서버에 올린다. 실패해도 이 세션 자체를
+          // 못 끝내게 막을 이유는 없어서(내 기기에서 이미 다 계산해둔
+          // 값이라 결과 화면은 그대로 보여줄 수 있다), 실패는 알림만 띄우고
+          // 계속 진행한다.
+          try {
+            await saveHistoryMutation.mutateAsync({
+              historyDate: todayIso(),
+              step: finalSteps,
+              distance: Math.round(finalDistanceKm * 1000),
+              calories: finalCalories,
+            });
+          } catch (error) {
+            Alert.alert(
+              '기록 저장에 실패했어요',
+              error instanceof Error ? error.message : '잠시 후 다시 시도해주세요.',
+            );
+          }
+
+          // 기록 화면은 탭에 계속 살아 있어 다시 마운트되지 않는다. 여기서
+          // 비워주지 않으면 방금 끝낸 산책이 최근 산책·전체 기록에 앱을 다시
+          // 열기 전까지 안 보인다.
+          queryClient.invalidateQueries({ queryKey: ['game-results'] });
+
+          const resultParams = {
+            roomId,
+            roomName: room?.name ?? '',
+            mode: room?.mode ?? ('SINGLE' as const),
+            steps: finalSteps,
+            distanceKm: finalDistanceKm,
+            calories: finalCalories,
+            elapsedSeconds: finalElapsedSeconds,
+          };
+          navigation.replace('WalkResult', resultParams);
         },
       },
     ]);
-  }, [navigation]);
+  }, [navigation, roomId, room, saveHistoryMutation, queryClient]);
 
   // 카운트다운이 끝나기 전까지는 지도를 아예 안 띄운다(지도가 살짝
   // 비치는 오버레이보다 완전히 가려진 화면이 낫다는 판단).
   if (showCountdown) {
     return (
       <Screen edges={['top', 'bottom']}>
-        <WalkCountdownScreen onFinish={confirmWalkSessionStart} />
+        <WalkCountdownScreen
+          onFinish={() => confirmWalkSessionStart(myPageQuery.data?.gender ?? null)}
+        />
       </Screen>
     );
   }
@@ -276,46 +372,75 @@ export function WalkSessionScreen() {
           <View style={styles.dragHandle} />
         </View>
 
+        <AppText style={styles.sessionTitle}>이번 산책</AppText>
+        <View style={styles.sessionStatsRow}>
+          <View style={styles.sessionPrimaryStat}>
+            <AppText style={styles.sessionPrimaryValue}>
+              {sessionSteps.toLocaleString()}
+            </AppText>
+            <AppText style={styles.sessionPrimaryUnit}>보</AppText>
+          </View>
+          <View style={styles.sessionSecondaryStats}>
+            <View style={styles.sessionSecondaryStat}>
+              <AppText style={styles.sessionSecondaryValue}>
+                {sessionCalories}
+                <AppText style={styles.sessionSecondaryUnit}> kcal</AppText>
+              </AppText>
+              <AppText style={styles.sessionSecondaryLabel}>소모 칼로리</AppText>
+            </View>
+            <View style={styles.sessionSecondaryStat}>
+              <AppText style={styles.sessionSecondaryValue}>
+                {sessionDistanceKm}
+                <AppText style={styles.sessionSecondaryUnit}> km</AppText>
+              </AppText>
+              <AppText style={styles.sessionSecondaryLabel}>이동 거리</AppText>
+            </View>
+          </View>
+        </View>
+
         {targetStepCount !== null ? (
           <>
-            <AppText style={styles.sectionLabel}>이번 주 목표</AppText>
-            <View style={styles.teamGoalRow}>
-              <AppText style={styles.teamGoalValue}>
-                {weeklySteps.toLocaleString()}
-              </AppText>
-              <AppText style={styles.teamGoalTarget}>
-                {' '}
-                / {targetStepCount.toLocaleString()}보
+            <View style={styles.dividerDotted} />
+            <View style={styles.weeklyHeaderRow}>
+              <View style={styles.weeklyLabelRow}>
+                <Ionicons name="flag" size={16} color={colors.primary} />
+                <AppText style={styles.weeklyLabel}>
+                  이번 주 {teamWeeklySteps.toLocaleString()}보
+                </AppText>
+              </View>
+              <AppText style={styles.weeklyTarget}>
+                목표 {targetStepCount.toLocaleString()}보
               </AppText>
             </View>
             <MemberProgressBar segments={stepSegments} total={targetStepCount} />
-            <AppText style={styles.remainingText}>
-              {remainingSteps.toLocaleString()}보 남았어요
+            <AppText style={styles.weeklyCaption}>
+              {remainingSteps > 0
+                ? `${weeklyPercent}% 달성 · ${remainingSteps.toLocaleString()}보 남음`
+                : '이번 주 목표를 달성했어요!'}
             </AppText>
+            {members.length > 1 ? (
+              <View style={styles.legendRow}>
+                {members.map(member => (
+                  <View key={member.memberId} style={styles.legendItem}>
+                    <View
+                      style={[
+                        styles.legendDot,
+                        {
+                          backgroundColor: getParticipantColor(
+                            member.memberId,
+                            myMemberIdQuery.data ?? null,
+                            members,
+                          ),
+                        },
+                      ]}
+                    />
+                    <AppText style={styles.legendText}>{member.nickname}</AppText>
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </>
         ) : null}
-
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <AppText style={styles.statLabel}>이번 산책 걸음</AppText>
-            <AppText style={[styles.statValue, styles.statValueAccent]}>
-              {sessionSteps.toLocaleString()}
-            </AppText>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <AppText style={styles.statLabel}>칼로리</AppText>
-            <AppText style={styles.statValue}>{sessionCalories}</AppText>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <AppText style={styles.statLabel}>거리</AppText>
-            <AppText style={styles.statValue}>
-              {sessionDistanceKm}
-              <AppText style={styles.statUnit}>km</AppText>
-            </AppText>
-          </View>
-        </View>
 
         <View style={[styles.panelFooter, { paddingBottom: spacing.lg + insets.bottom }]}>
           <View style={styles.footerRow}>
@@ -453,80 +578,129 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.muted,
   },
-  sectionLabel: {
-    fontFamily: fontFamily.regular,
-    fontSize: 14,
-    lineHeight: lineHeights[14],
-    color: colors.ink,
-    opacity: 0.6,
-  },
-  teamGoalRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginTop: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-  teamGoalValue: {
-    fontFamily: fontFamily.bold,
-    fontSize: 30,
-    lineHeight: lineHeights[30],
-    color: colors.ink,
-  },
-  teamGoalTarget: {
+  sessionTitle: {
     fontFamily: fontFamily.bold,
     fontSize: 15,
     lineHeight: lineHeights[15],
     color: colors.ink,
-    opacity: 0.6,
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  sessionStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: spacing.md,
+  },
+  sessionPrimaryStat: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: spacing.xs,
+  },
+  sessionPrimaryValue: {
+    fontFamily: fontFamily.bold,
+    fontSize: 30,
+    lineHeight: lineHeights[30],
+    color: colors.primary,
+  },
+  sessionPrimaryUnit: {
+    fontFamily: fontFamily.bold,
+    fontSize: 15,
+    lineHeight: lineHeights[15],
+    color: colors.primary,
     marginBottom: 4,
   },
-  remainingText: {
+  sessionSecondaryStats: {
+    flexDirection: 'row',
+    gap: spacing.lg,
+  },
+  sessionSecondaryStat: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  sessionSecondaryValue: {
+    fontFamily: fontFamily.bold,
+    fontSize: 17,
+    lineHeight: lineHeights[17],
+    color: colors.ink,
+  },
+  sessionSecondaryUnit: {
+    fontFamily: fontFamily.regular,
+    fontSize: 12,
+    lineHeight: lineHeights[12],
+    color: colors.ink,
+    opacity: 0.6,
+  },
+  sessionSecondaryLabel: {
+    fontFamily: fontFamily.regular,
+    fontSize: 12,
+    lineHeight: lineHeights[12],
+    color: colors.ink,
+    opacity: 0.6,
+  },
+  dividerDotted: {
+    borderTopWidth: 1,
+    borderStyle: 'dotted',
+    borderColor: colors.border,
+    marginBottom: spacing.md,
+  },
+  weeklyHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  weeklyLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  weeklyLabel: {
+    fontFamily: fontFamily.bold,
+    fontSize: 15,
+    lineHeight: lineHeights[15],
+    color: colors.ink,
+  },
+  weeklyTarget: {
+    fontFamily: fontFamily.regular,
+    fontSize: 13,
+    lineHeight: lineHeights[13],
+    color: colors.ink,
+    opacity: 0.6,
+  },
+  weeklyCaption: {
     fontFamily: fontFamily.regular,
     fontSize: 13,
     lineHeight: lineHeights[13],
     color: colors.ink,
     opacity: 0.6,
     marginTop: spacing.xs,
+  },
+  legendRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    marginTop: spacing.sm,
     marginBottom: spacing.md,
   },
-  statsRow: {
+  legendItem: {
     flexDirection: 'row',
-    borderWidth: 2,
-    borderColor: colors.ink,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-  },
-  statItem: {
-    flex: 1,
     alignItems: 'center',
     gap: spacing.xs,
   },
-  statDivider: {
-    width: 1,
-    backgroundColor: colors.neutralBg,
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: radius.xs,
+    borderWidth: 1,
+    borderColor: colors.ink,
   },
-  statLabel: {
+  legendText: {
     fontFamily: fontFamily.regular,
     fontSize: 12,
     lineHeight: lineHeights[12],
     color: colors.ink,
-    opacity: 0.6,
-  },
-  statValue: {
-    fontFamily: fontFamily.bold,
-    fontSize: 17,
-    lineHeight: lineHeights[17],
-    color: colors.ink,
-  },
-  statValueAccent: {
-    color: colors.successText,
-  },
-  statUnit: {
-    fontFamily: fontFamily.regular,
-    fontSize: 12,
-    lineHeight: lineHeights[12],
-    color: colors.ink,
-    opacity: 0.6,
+    opacity: 0.7,
   },
   panelFooter: {
     paddingTop: spacing.lg,

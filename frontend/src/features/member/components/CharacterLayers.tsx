@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import type { ImageSourcePropType, StyleProp, ViewStyle } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -6,8 +7,13 @@ import { colors } from '../../../shared/constants/colors';
 import type { CharacterLayer } from '../model/character';
 
 type CharacterLayersProps = {
-  /** 없으면 사람 아이콘으로 대신한다. */
+  /** 없으면 fallbackImage, 그것도 없으면 사람 아이콘으로 대신한다. */
   baseImage: ImageSourcePropType | null;
+  /**
+   * 서버 이미지가 URL은 내려왔는데 로드에 실패할 때(dev의 /uploads 서빙 장애
+   * 등) 대신 그릴 번들 에셋. 캐릭터 자리가 통째로 비는 것을 막는다.
+   */
+  fallbackImage?: ImageSourcePropType | null;
   /** 아래에 깔릴 것부터 정렬된 착용 아이템(`selectLayerItems` 결과). */
   items: CharacterLayer[];
   /** 캐릭터가 설 상자. 배경마다 자리가 달라 바깥에서 정한다. */
@@ -25,9 +31,18 @@ const FALLBACK_ICON_SIZE = 64;
  */
 export function CharacterLayers({
   baseImage,
+  fallbackImage,
   items,
   style,
 }: CharacterLayersProps) {
+  const [baseImageFailed, setBaseImageFailed] = useState(false);
+
+  // 캐시 갱신 등으로 이미지가 바뀌면 실패 기록을 버리고 새 이미지로 다시 시도한다.
+  useEffect(() => {
+    setBaseImageFailed(false);
+  }, [baseImage]);
+
+  const resolvedBase = baseImageFailed ? fallbackImage ?? null : baseImage;
   const layers = items.filter(
     (item): item is CharacterLayer & { image: ImageSourcePropType } =>
       item.image != null,
@@ -35,12 +50,13 @@ export function CharacterLayers({
 
   return (
     <View style={style}>
-      {baseImage ? (
+      {resolvedBase ? (
         <Image
-          source={baseImage}
+          source={resolvedBase}
           style={styles.layer}
           resizeMode="contain"
           accessibilityIgnoresInvertColors
+          onError={() => setBaseImageFailed(true)}
         />
       ) : (
         <View style={[styles.layer, styles.fallback]}>

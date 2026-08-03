@@ -1,5 +1,9 @@
 import { useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
+import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 
 import type {
   FriendResponse,
@@ -37,6 +41,8 @@ import { lineHeights } from '../../shared/constants/typography';
 
 type CompanionTab = 'walkRooms' | 'friends';
 
+type CompanionNavigation = NativeStackNavigationProp<RootStackParamList, 'Main'>;
+
 // 산책방 일정(scheduleLabel) 개념은 백엔드에 아직 없어 채우지 못한다.
 function toMyWalkRoom(room: MyRoomResponse): MyWalkRoom {
   return {
@@ -46,10 +52,12 @@ function toMyWalkRoom(room: MyRoomResponse): MyWalkRoom {
     bingoCompleted: room.completedMissionCount,
     bingoTotal: room.totalMissionCount,
     memberCount: room.members.length,
+    members: room.members,
   };
 }
 
 export function CompanionScreen() {
+  const navigation = useNavigation<CompanionNavigation>();
   const [tab, setTab] = useState<CompanionTab>('walkRooms');
   const [isAddFriendVisible, setAddFriendVisible] = useState(false);
   const [isCreateRoomVisible, setCreateRoomVisible] = useState(false);
@@ -263,13 +271,23 @@ export function CompanionScreen() {
                 )
               }
               renderItem={({ item }) => (
-                <WalkRoomCard room={item} onPress={() => {}} />
+                <WalkRoomCard
+                  room={item}
+                  onPress={() =>
+                    navigation.navigate('WalkRoomDetail', {
+                      roomId: Number(item.id),
+                    })
+                  }
+                />
               )}
               style={styles.list}
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
-              refreshing={myRoomsQuery.isRefetching}
-              onRefresh={() => myRoomsQuery.refetch()}
+              refreshing={myRoomsQuery.isRefetching || receivedInvitesQuery.isRefetching}
+              onRefresh={() => {
+                myRoomsQuery.refetch();
+                receivedInvitesQuery.refetch();
+              }}
             />
           )
         ) : friendsQuery.isLoading ? (
@@ -310,8 +328,11 @@ export function CompanionScreen() {
             style={styles.list}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
-            refreshing={friendsQuery.isRefetching}
-            onRefresh={() => friendsQuery.refetch()}
+            refreshing={friendsQuery.isRefetching || receivedRequestsQuery.isRefetching}
+            onRefresh={() => {
+              friendsQuery.refetch();
+              receivedRequestsQuery.refetch();
+            }}
           />
         )}
       </View>

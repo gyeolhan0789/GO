@@ -22,7 +22,19 @@ docs {
   ### 성공 응답 (200 OK)
   ```json
   [
-    { "memberId": 1, "nickname": "host_nick", "host": true, "completedMissionCount": 2, "joinedAt": "2026-07-24T10:00:00" }
+    {
+      "memberId": 1,
+      "nickname": "host_nick",
+      "gender": "MALE",
+      "defaultImageUrl": "https://example.com/images/default.png",
+      "equippedItems": [
+        { "memberItemId": 10, "itemId": 5, "name": "기본 모자", "category": "HAT", "imageUrl": "https://example.com/images/hat.png" }
+      ],
+      "host": true,
+      "completedMissionCount": 2,
+      "joinedAt": "2026-07-24T10:00:00",
+      "bingoBoardId": 101
+    }
   ]
   ```
 

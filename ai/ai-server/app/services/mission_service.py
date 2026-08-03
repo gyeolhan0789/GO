@@ -29,15 +29,6 @@ class MissionService:
     ) -> MissionResponse:
 
         # -----------------------------
-        # Prompt 생성
-        # -----------------------------
-
-        prompt = PromptBuilder.build(
-            mission_type=mission_type,
-            decision_condition=decision_condition
-        )
-
-        # -----------------------------
         # 이미지 품질 검사
         # -----------------------------
 
@@ -50,6 +41,16 @@ class MissionService:
             return MissionValidator.validate(
                 quality_result
             )
+
+
+        # -----------------------------
+        # Prompt 생성
+        # -----------------------------
+
+        prompt = PromptBuilder.build(
+            mission_type=mission_type,
+            decision_condition=decision_condition
+        )
 
         # -----------------------------
         # Gemini 판정

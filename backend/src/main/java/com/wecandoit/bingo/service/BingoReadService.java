@@ -40,9 +40,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class BingoReadService {
 
-    private static final List<BingoBoardStatus> INACTIVE_BOARD_STATUSES =
-            List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED);
-
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
     private final GameRepository gameRepository;
@@ -66,9 +63,14 @@ public class BingoReadService {
         List<BingoCellResponse> cellResponses = toCellResponses(cells);
         int approvedCellCount = countApprovedCells(cells);
         int completedBingoCount = BingoLineCounter.countCompletedLines(board.getBoardSize(), cells);
-        boolean completed = completedBingoCount >= board.getTargetBingoCount();
-        boolean renewalRequired = GameCycleCommandService.isRenewalPeriodPassed(game, LocalDateTime.now());
-        boolean canRenew = (completed || renewalRequired) && room.isHost(memberId);
+        LocalDateTime now = LocalDateTime.now();
+        boolean renewalRequired = GameCycleCommandService.isRenewalPeriodPassed(game, now);
+        LocalDateTime completionCutoff = renewalRequired
+                ? game.getStartedAt().plusDays(GameCycleCommandService.RENEWAL_PERIOD_DAYS)
+                : now;
+        boolean completed = isBoardCompleted(board, cells, completionCutoff);
+        boolean isHost = room.isHost(memberId);
+        boolean canRenew = (completed || renewalRequired) && isHost;
 
         return BingoBoardResponse.of(
                 board,
@@ -77,6 +79,7 @@ public class BingoReadService {
                 completedBingoCount,
                 approvedCellCount,
                 completed,
+                isHost,
                 canRenew,
                 renewalRequired
         );
@@ -123,6 +126,7 @@ public class BingoReadService {
                 myProgress.completedBingoCount(),
                 myProgress.approvedCellCount(),
                 myProgress.targetReached(),
+                room.isHost(memberId),
                 new BattleProgressResponse(
                         room.getStatus(),
                         game.getStatus(),
@@ -150,7 +154,7 @@ public class BingoReadService {
     private BingoBoard findActiveBoard(Long gameId) {
         return bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(
                         gameId,
-                        INACTIVE_BOARD_STATUSES
+                        BingoBoardStatus.inactiveStatuses()
                 )
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
     }
@@ -184,6 +188,12 @@ public class BingoReadService {
         return (int) cells.stream()
                 .filter(cell -> cell.getCompletedAt() != null)
                 .count();
+    }
+
+    private boolean isBoardCompleted(BingoBoard board, List<BingoCell> cells, LocalDateTime endedAt) {
+        int totalCellCount = board.getBoardSize() * board.getBoardSize();
+        return cells.size() == totalCellCount
+                && cells.stream().filter(cell -> cell.isCompletedBy(endedAt)).count() == totalCellCount;
     }
 
     private List<BingoCellResponse> toCellResponses(List<BingoCell> cells) {

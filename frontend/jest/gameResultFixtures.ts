@@ -16,6 +16,7 @@ export const MY_MEMBER_ID = 1;
 export const MY_CHARACTER_RESPONSE = {
   memberId: MY_MEMBER_ID,
   nickname: '걷는곰',
+  gender: 'MALE',
   defaultImageUrl: null,
   equippedItems: [],
 };
@@ -43,17 +44,19 @@ export function buildGameResultResponse(index: number): GameResultResponse {
 
   return {
     gameId: index + 1,
-    roomId: index + 1,
+    // 방 하나가 판을 여러 번 돌리므로 두 값은 절대 같지 않다. 같은 숫자로
+    // 두면 상세를 방 번호로 조회하는 버그가 테스트를 그냥 통과한다.
+    roomId: 4000 + index,
     roomName: TITLES[index % TITLES.length],
     mode: friends.length === 0 ? 'SINGLE' : 'COOPERATE',
-    roomStatus: 'COMPLETED',
+    roomStatus: 'CLOSED',
     result: true,
     boardSize: BOARD_SIZE,
     targetBingoCount: 2,
     targetStepCount: 5_000,
     bingoCount: 2,
     completedMissionCount: 6,
-    rewardCash: 300,
+    rewardPoint: 300,
     startedAt: `2026-07-${String(20 - (index % 20)).padStart(2, '0')}T20:00:00`,
     completedAt: `2026-07-${String(20 - (index % 20)).padStart(
       2,
@@ -61,20 +64,20 @@ export function buildGameResultResponse(index: number): GameResultResponse {
     )}T20:12:31`,
     totalMissionCount: CELL_COUNT,
     myCompletedMissionCount: 4,
-    myRewardCash: 120,
+    myRewardPoint: 120,
     myResult: null,
     participants: [
       {
         memberId: MY_MEMBER_ID,
         nickname: '걷는곰',
         completedMissionCount: 4,
-        rewardCash: 120,
+        rewardPoint: 120,
         result: null,
       },
       ...friends.map(friend => ({
         ...friend,
         completedMissionCount: 1,
-        rewardCash: 90,
+        rewardPoint: 90,
         result: null,
       })),
     ],
@@ -124,32 +127,32 @@ function buildCells(): GameResultBingoCellResponse[] {
 
 /** 참가자 셋이 판 하나를 같이 쓰는 협동 산책. */
 export function buildGameResultDetailResponse(
-  roomId: number,
+  gameId: number,
 ): GameResultDetailResponse {
   return {
     ...buildGameResultResponse(0),
-    roomId,
+    gameId,
     mode: 'COOPERATE',
     participants: [
       {
         memberId: 102,
         nickname: '민서',
         completedMissionCount: 1,
-        rewardCash: 90,
+        rewardPoint: 90,
         result: null,
       },
       {
         memberId: MY_MEMBER_ID,
         nickname: '걷는곰',
         completedMissionCount: 4,
-        rewardCash: 120,
+        rewardPoint: 120,
         result: null,
       },
       {
         memberId: 110,
         nickname: '민지',
         completedMissionCount: 1,
-        rewardCash: 90,
+        rewardPoint: 90,
         result: null,
       },
     ],

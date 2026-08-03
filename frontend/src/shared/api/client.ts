@@ -13,6 +13,13 @@ type SendOptions = {
    * 회전되는 값을 바디에 싣는 요청은 이 스위치를 끄고 직접 재시도해야 한다.
    */
   retryOnUnauthorized?: boolean;
+  /**
+   * 저장된 액세스 토큰 대신 이 요청에만 쓸 토큰. 아직 세션을 시작하지 않은
+   * 상태에서 방금 발급받은 토큰으로 한 번 호출해야 할 때만 쓴다(소셜 가입
+   * 마무리의 프로필 반영). 재발급에 쓸 리프레시 토큰이 저장되기 전이라 401
+   * 재시도는 하지 않는다.
+   */
+  accessToken?: string;
 };
 
 async function readErrorMessage(response: Response) {
@@ -32,23 +39,30 @@ function send(
   options: RequestOptions,
   accessToken: string | null,
 ) {
+  // FormData는 JSON으로 감싸면 안 되고, Content-Type도 boundary를 포함해
+  // fetch가 자동으로 채워야 하므로 여기서 강제로 지정하지 않는다.
+  const isFormData = options.body instanceof FormData;
   return fetch(`${BASE_URL}${path}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? null : { 'Content-Type': 'application/json' }),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : null),
       ...options.headers,
     },
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    body: isFormData
+      ? (options.body as FormData)
+      : options.body !== undefined
+      ? JSON.stringify(options.body)
+      : undefined,
   });
 }
 
 async function request<T>(
   path: string,
   options: RequestOptions = {},
-  { retryOnUnauthorized = true }: SendOptions = {},
+  { retryOnUnauthorized = true, accessToken: overrideToken }: SendOptions = {},
 ): Promise<T> {
-  const accessToken = getAccessToken();
+  const accessToken = overrideToken ?? getAccessToken();
 
   let response = await send(path, options, accessToken);
 
@@ -57,6 +71,7 @@ async function request<T>(
   // 없었다면(로그인 실패 등) 재발급할 이유가 없어 그대로 에러를 낸다.
   if (
     retryOnUnauthorized &&
+    overrideToken === undefined &&
     accessToken !== null &&
     response.status === UNAUTHORIZED_STATUS
   ) {
@@ -83,9 +98,11 @@ export const apiClient = {
   get: <T>(path: string) => request<T>(path, { method: 'GET' }),
   post: <T>(path: string, body?: unknown, sendOptions?: SendOptions) =>
     request<T>(path, { method: 'POST', body }, sendOptions),
+  postForm: <T>(path: string, form: FormData, sendOptions?: SendOptions) =>
+    request<T>(path, { method: 'POST', body: form }, sendOptions),
   put: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'PUT', body }),
-  patch: <T>(path: string, body?: unknown) =>
-    request<T>(path, { method: 'PATCH', body }),
+  patch: <T>(path: string, body?: unknown, sendOptions?: SendOptions) =>
+    request<T>(path, { method: 'PATCH', body }, sendOptions),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 };

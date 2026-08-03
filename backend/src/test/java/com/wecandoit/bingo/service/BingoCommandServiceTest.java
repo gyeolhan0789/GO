@@ -46,8 +46,6 @@ import org.springframework.web.multipart.MultipartFile;
 @DisplayName("빙고판 명령 서비스")
 class BingoCommandServiceTest {
 
-    private static final List<BingoBoardStatus> INACTIVE_STATUSES =
-            List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED);
     private static final String STORED_SUBMIT_URL = "/uploads/test/bingo-cells/1000/stored.png";
 
     @Mock
@@ -93,7 +91,7 @@ class BingoCommandServiceTest {
                 10L,
                 GameStatus.ACTIVE
         )).willReturn(Optional.of(game));
-        given(bingoBoardRepository.findActiveBoardForUpdate(game.getId(), INACTIVE_STATUSES))
+        given(bingoBoardRepository.findActiveBoardForUpdate(game.getId(), BingoBoardStatus.inactiveStatuses()))
                 .willReturn(Optional.of(board));
         given(bingoCellRepository.findByIdForUpdate(50L)).willReturn(Optional.of(cell));
         given(bingoCellRepository.save(cell)).willReturn(cell);
@@ -124,7 +122,7 @@ class BingoCommandServiceTest {
                 10L,
                 GameStatus.ACTIVE
         )).willReturn(Optional.of(game));
-        given(bingoBoardRepository.findActiveBoardForUpdate(game.getId(), INACTIVE_STATUSES))
+        given(bingoBoardRepository.findActiveBoardForUpdate(game.getId(), BingoBoardStatus.inactiveStatuses()))
                 .willReturn(Optional.of(board));
         given(bingoCellRepository.findByIdForUpdate(50L)).willReturn(Optional.of(cell));
         given(bingoCellRepository.save(cell)).willReturn(cell);
@@ -175,15 +173,16 @@ class BingoCommandServiceTest {
                 BingoBoardStatus.ACTIVE,
                 List.of(),
                 false,
+                true,
                 false,
                 false,
                 null,
                 null
         );
-        given(gameCycleCommandService.renewSharedCycle(1L, 10L, 4, 3, 12_000))
+        given(gameCycleCommandService.renewSharedCycle(1L, 10L, 4, 12_000))
                 .willReturn(expected);
 
-        BingoBoardResponse result = bingoCommandService.renewBoard(1L, 10L, 4, 3, 12_000);
+        BingoBoardResponse result = bingoCommandService.renewBoard(1L, 10L, 4, 12_000);
 
         assertThat(result).isSameAs(expected);
     }
@@ -210,7 +209,7 @@ class BingoCommandServiceTest {
     }
 
     private BingoBoard board(Long boardId, Long gameId) {
-        BingoBoard board = BingoBoard.create(gameId, 3, 2, 10_000);
+        BingoBoard board = BingoBoard.create(gameId, 3, 10_000);
         ReflectionTestUtils.setField(board, "id", boardId);
         return board;
     }

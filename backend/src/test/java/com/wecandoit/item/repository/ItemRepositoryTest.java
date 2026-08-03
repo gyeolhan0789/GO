@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.wecandoit.item.domain.Item;
+import com.wecandoit.item.domain.ItemCategory;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Optional;
@@ -30,7 +31,7 @@ class ItemRepositoryTest {
     @DisplayName("아이템을 저장하고 ID로 모든 필드를 조회한다")
     void saveAndFindItem() {
         // given
-        Item item = saveItem("검은 모자", "HAT", 1000L, "https://example.com/hat.png");
+        Item item = saveItem("검은 모자", ItemCategory.HAT, 1000L, "https://example.com/hat.png");
         clearPersistenceContext();
 
         // when
@@ -39,7 +40,7 @@ class ItemRepositoryTest {
         // then
         assertThat(found).isPresent();
         assertThat(found.get().getName()).isEqualTo("검은 모자");
-        assertThat(found.get().getCategory()).isEqualTo("HAT");
+        assertThat(found.get().getCategory()).isEqualTo(ItemCategory.HAT);
         assertThat(found.get().getPrice()).isEqualTo(1000L);
         assertThat(found.get().getImageUrl()).isEqualTo("https://example.com/hat.png");
         assertThat(found.get().isAvailableForSale()).isTrue();
@@ -49,8 +50,8 @@ class ItemRepositoryTest {
     @DisplayName("전체 아이템 목록을 조회한다")
     void findAllReturnsItems() {
         // given
-        saveItem("검은 모자", "HAT", 1000L, "https://example.com/hat.png");
-        saveItem("흰 운동화", "SHOES", 2000L, "https://example.com/shoes.png");
+        saveItem("검은 모자", ItemCategory.HAT, 1000L, "https://example.com/hat.png");
+        saveItem("흰 운동화", ItemCategory.SHOES, 2000L, "https://example.com/shoes.png");
         clearPersistenceContext();
 
         // when
@@ -73,16 +74,16 @@ class ItemRepositoryTest {
     }
 
     @Test
-    @DisplayName("문자열 카테고리로 아이템 목록을 조회한다")
+    @DisplayName("카테고리로 아이템 목록을 조회한다")
     void findAllByCategoryAndAvailableForSaleTrueReturnsMatchingItems() {
         // given
-        saveItem("검은 모자", "HAT", 1000L, "https://example.com/black-hat.png");
-        saveItem("흰 모자", "HAT", 1200L, "https://example.com/white-hat.png");
-        saveItem("흰 운동화", "SHOES", 2000L, "https://example.com/shoes.png");
+        saveItem("검은 모자", ItemCategory.HAT, 1000L, "https://example.com/black-hat.png");
+        saveItem("흰 모자", ItemCategory.HAT, 1200L, "https://example.com/white-hat.png");
+        saveItem("흰 운동화", ItemCategory.SHOES, 2000L, "https://example.com/shoes.png");
         clearPersistenceContext();
 
         // when
-        List<Item> items = itemRepository.findAllByCategoryAndAvailableForSaleTrue("HAT");
+        List<Item> items = itemRepository.findAllByCategoryAndAvailableForSaleTrue(ItemCategory.HAT);
 
         // then
         assertThat(items)
@@ -94,8 +95,8 @@ class ItemRepositoryTest {
     @DisplayName("상점 조회에서는 판매 가능한 아이템만 반환한다")
     void findAllByAvailableForSaleTrueExcludesStoppedItems() {
         // given
-        saveItem("판매 모자", "HAT", 1000L, "https://example.com/available.png");
-        Item stoppedItem = saveItem("판매 중지 모자", "HAT", 1200L, "https://example.com/stopped.png");
+        saveItem("판매 모자", ItemCategory.HAT, 1000L, "https://example.com/available.png");
+        Item stoppedItem = saveItem("판매 중지 모자", ItemCategory.HAT, 1200L, "https://example.com/stopped.png");
         stoppedItem.stopSale();
         itemRepository.flush();
         clearPersistenceContext();
@@ -113,7 +114,7 @@ class ItemRepositoryTest {
     @DisplayName("아이템 이름은 필수이다")
     void saveRejectsNullName() {
         // given
-        Item item = item(null, "HAT", 1000L, "https://example.com/hat.png");
+        Item item = item(null, ItemCategory.HAT, 1000L, "https://example.com/hat.png");
 
         // when & then
         assertThatThrownBy(() -> itemRepository.saveAndFlush(item))
@@ -131,7 +132,7 @@ class ItemRepositoryTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
-    private Item saveItem(String name, String category, long price, String imageUrl) {
+    private Item saveItem(String name, ItemCategory category, long price, String imageUrl) {
         return itemRepository.saveAndFlush(item(name, category, price, imageUrl));
     }
 

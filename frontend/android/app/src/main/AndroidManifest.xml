@@ -11,13 +11,18 @@
     <!-- 위치 (산책 경로 지도 표시) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <!-- 잠금화면 실시간 통계 상주 알림용 포그라운드 서비스 (서비스 구현은 이후) -->
+    <!-- 잠금화면 실시간 산책 기록 상주 알림용 포그라운드 서비스 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
 
     <!-- 카메라 없는 기기도 설치 허용 -->
     <uses-feature
       android:name="android.hardware.camera"
+      android:required="false" />
+    <!-- 걸음 센서 없는 기기도 설치 허용 -->
+    <uses-feature
+      android:name="android.hardware.sensor.stepcounter"
       android:required="false" />
 
     <application
@@ -47,5 +52,28 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
+      <!-- 카카오 로그인이 카카오톡/브라우저에서 돌아올 때 받는 리다이렉트 창구.
+           스킴의 키는 app/build.gradle이 local.properties의
+           KAKAO_NATIVE_APP_KEY에서 채운다(없으면 빈 값이라 로그인만 실패한다). -->
+      <activity
+        android:name="com.kakao.sdk.auth.AuthCodeHandlerActivity"
+        android:exported="true">
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data
+              android:host="oauth"
+              android:scheme="kakao${KAKAO_NATIVE_APP_KEY}" />
+        </intent-filter>
+      </activity>
+
+      <service
+        android:name=".walktracking.WalkForegroundService"
+        android:exported="false"
+        android:foregroundServiceType="location" />
+      <receiver
+        android:name=".walktracking.WalkActionReceiver"
+        android:exported="false" />
     </application>
 </manifest>

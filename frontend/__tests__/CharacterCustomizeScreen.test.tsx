@@ -13,14 +13,6 @@ import { CharacterCustomizeScreen } from '../src/screens/CharacterCustomizeScree
 import { installFetchMock, jsonResponse } from '../jest/fetchMock';
 import type { FetchMock } from '../jest/fetchMock';
 
-// 이 파일은 서버와 주고받는 계약을 확인한다. 앱은 지금 목업 모드로 돌고 있어
-// (characterMocks.USE_MOCK_CHARACTER) 요청이 나가지 않으므로 그 스위치를 끈다.
-// 목업 모드의 동작은 characterMockMode.test.tsx가 맡는다.
-jest.mock('../src/features/member/mocks/characterMocks', () => ({
-  ...jest.requireActual('../src/features/member/mocks/characterMocks'),
-  USE_MOCK_CHARACTER: false,
-}));
-
 const INITIAL_METRICS = {
   frame: { x: 0, y: 0, width: 400, height: 800 },
   insets: { top: 0, left: 0, right: 0, bottom: 0 },
@@ -51,6 +43,7 @@ const TOP = {
 const CHARACTER = {
   memberId: 1,
   nickname: '산책이 좋아',
+  gender: 'MALE',
   defaultImageUrl: '/uploads/characters/male.png',
   equippedItems: [HAT],
 };
@@ -62,13 +55,13 @@ let fetchMock: FetchMock;
 beforeEach(() => {
   fetchMock = installFetchMock();
   fetchMock.mockImplementation(async url => {
-    if (url.includes('/members/character')) {
+    if (url.includes('/members/avatar')) {
       return jsonResponse(200, CHARACTER);
     }
     if (url.includes('/members/items')) {
       return jsonResponse(200, [HAT, OTHER_HAT, TOP] as never);
     }
-    if (url.includes('/character-items')) {
+    if (url.includes('/avatar-items')) {
       return jsonResponse(204);
     }
     throw new Error(`unexpected request: ${url}`);
@@ -172,9 +165,39 @@ async function renderScreen() {
   return renderer;
 }
 
+function itemGrid(root: ReactTestInstance) {
+  const [list] = root.findAll(
+    node => typeof node.props.onScroll === 'function' && !!node.props.data,
+  );
+
+  if (!list) {
+    throw new Error('아이템 목록을 찾지 못했다.');
+  }
+  return list;
+}
+
+/** 테스트 렌더러는 실제 스크롤을 못 하므로 onScroll을 직접 쏜다. */
+async function scrollTo(root: ReactTestInstance, offsetY: number) {
+  await act(async () => {
+    itemGrid(root).props.onScroll({
+      nativeEvent: { contentOffset: { y: offsetY } },
+    });
+  });
+}
+
+/**
+ * accessibilityLabel은 Fab -> Pressable -> View로 그대로 내려가 한 버튼이 여러
+ * 노드로 잡힌다. 개수를 세면 구조가 바뀔 때마다 깨지므로 유무만 본다.
+ */
+function hasScrollToTopButton(root: ReactTestInstance): boolean {
+  return (
+    root.findAll(node => node.props.accessibilityLabel === '맨 위로').length > 0
+  );
+}
+
 function savedMemberItemIds() {
   const [, options] =
-    fetchMock.mock.calls.find(([url]) => url.includes('/character-items')) ?? [];
+    fetchMock.mock.calls.find(([url]) => url.includes('/avatar-items')) ?? [];
 
   return JSON.parse(String(options?.body)).memberItemIds;
 }
@@ -234,5 +257,28 @@ describe('CharacterCustomizeScreen', () => {
     const texts = collectTexts(tree.root);
     expect(texts).toContain(TOP.name);
     expect(texts).not.toContain(HAT.name);
+  });
+
+  test('한참 내려가면 맨 위로 버튼이 나왔다가, 올라오면 사라진다', async () => {
+    const tree = await renderScreen();
+    expect(hasScrollToTopButton(tree.root)).toBe(false);
+
+    await scrollTo(tree.root, 900);
+    expect(hasScrollToTopButton(tree.root)).toBe(true);
+
+    await scrollTo(tree.root, 0);
+    expect(hasScrollToTopButton(tree.root)).toBe(false);
+  });
+
+  test('맨 위로 버튼을 누르면 목록을 처음으로 되돌린다', async () => {
+    const tree = await renderScreen();
+    await scrollTo(tree.root, 900);
+
+    const scrollToOffset = jest.fn();
+    itemGrid(tree.root).instance.scrollToOffset = scrollToOffset;
+
+    await press(tree.root, '맨 위로');
+
+    expect(scrollToOffset).toHaveBeenCalledWith({ offset: 0, animated: true });
   });
 });

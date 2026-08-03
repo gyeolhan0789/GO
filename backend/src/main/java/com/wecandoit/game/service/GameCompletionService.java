@@ -6,9 +6,9 @@ import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
 import com.wecandoit.bingo.domain.BingoLineCounter;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
-import com.wecandoit.cash.domain.CashHistory;
-import com.wecandoit.cash.domain.CashRewardPolicy;
-import com.wecandoit.cash.repository.CashHistoryRepository;
+import com.wecandoit.point.domain.PointHistory;
+import com.wecandoit.point.domain.PointRewardPolicy;
+import com.wecandoit.point.repository.PointHistoryRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
@@ -49,11 +49,11 @@ public class GameCompletionService {
     private final BingoBoardRepository bingoBoardRepository;
     private final BingoCellRepository bingoCellRepository;
     private final MemberRepository memberRepository;
-    private final CashHistoryRepository cashHistoryRepository;
+    private final PointHistoryRepository pointHistoryRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final NotificationMessageFactory notificationMessageFactory;
 
-    public void evaluateAndCompleteIfNeeded(Long gameId, Long completedBoardId) {
+    public void evaluateAndCompleteIfNeeded(Long gameId) {
         Game game = gameRepository.findByIdForUpdate(gameId)
                 .orElseThrow(() -> new CustomException(ErrorCode.GAME_NOT_FOUND));
         if (game.getStatus() != GameStatus.ACTIVE) {
@@ -106,7 +106,7 @@ public class GameCompletionService {
                 true,
                 winnerLineCount,
                 winnerCompletedMissionCount,
-                CashRewardPolicy.BATTLE_WINNER_GAME_GOAL.getPoint()
+                PointRewardPolicy.BATTLE_WINNER_GAME_GOAL.getPoint()
         ));
 
         List<GameResultParticipant> results = participants.stream()
@@ -131,15 +131,15 @@ public class GameCompletionService {
             int completedMissionCount
     ) {
         boolean result = participant.getMemberId().equals(winnerMemberId);
-        long rewardCash = result
-                ? CashRewardPolicy.BATTLE_WINNER_GAME_GOAL.getPoint()
-                : CashRewardPolicy.BATTLE_LOSER_GAME_GOAL.getPoint();
-        grantReward(participant.getMemberId(), game.getId(), room.getId(), rewardCash);
+        long rewardPoint = result
+                ? PointRewardPolicy.BATTLE_WINNER_GAME_GOAL.getPoint()
+                : PointRewardPolicy.BATTLE_LOSER_GAME_GOAL.getPoint();
+        grantReward(participant.getMemberId(), game.getId(), room.getId(), rewardPoint);
         return GameResultParticipant.create(
                 game.getId(),
                 participant.getMemberId(),
                 completedMissionCount,
-                rewardCash,
+                rewardPoint,
                 result
         );
     }
@@ -180,11 +180,11 @@ public class GameCompletionService {
                 .orElseThrow(() -> new CustomException(ErrorCode.GAME_PARTICIPANT_NOT_FOUND));
     }
 
-    private void grantReward(Long memberId, Long gameId, Long roomId, long rewardCash) {
+    private void grantReward(Long memberId, Long gameId, Long roomId, long rewardPoint) {
         Member member = memberRepository.findByIdForUpdate(memberId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
-        member.addCash(rewardCash);
-        cashHistoryRepository.save(CashHistory.gameGoalReward(memberId, gameId, roomId, rewardCash));
-        eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, rewardCash));
+        member.addPoint(rewardPoint);
+        pointHistoryRepository.save(PointHistory.gameGoalReward(memberId, gameId, roomId, rewardPoint));
+        eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, rewardPoint));
     }
 }

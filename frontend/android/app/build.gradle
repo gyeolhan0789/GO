@@ -85,9 +85,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.frontend"
+    namespace "com.wecandoit"
     defaultConfig {
-        applicationId "com.frontend"
+        applicationId "com.wecandoit"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -95,7 +95,22 @@ android {
         // local.properties에 MAPS_API_KEY=... 를 추가하면 AndroidManifest의
         // ${MAPS_API_KEY} 자리로 들어간다. 키가 없으면 빈 문자열이라 지도가
         // 회색 화면으로만 뜨고 크래시는 나지 않는다.
-        manifestPlaceholders = [MAPS_API_KEY: localProperties.getProperty('MAPS_API_KEY', '')]
+        //
+        // 카카오 네이티브 앱 키는 AndroidManifest의 리다이렉트 스킴과 카카오 SDK가
+        // 읽는 문자열 리소스(kakao_app_key), 두 곳에 들어간다. 백엔드가 ID 토큰의
+        // aud를 검증할 때 쓰는 `oauth.providers.kakao.client-id`와 같은 값이다.
+        //
+        // Maps 키와 달리 기본값을 커밋한다. APK와 리다이렉트 스킴에 그대로 노출되는
+        // 공개 식별자라 숨길 이유가 없고, 팀원이 각자 설정하지 않아도 카카오 로그인이
+        // 되어야 하기 때문이다. 다른 카카오 앱으로 붙일 때만 local.properties에서
+        // 덮어쓴다.
+        def kakaoNativeAppKey = localProperties.getProperty(
+            'KAKAO_NATIVE_APP_KEY', 'fbced36af5aff1bbd08073540fea816c')
+        manifestPlaceholders = [
+            MAPS_API_KEY: localProperties.getProperty('MAPS_API_KEY', ''),
+            KAKAO_NATIVE_APP_KEY: kakaoNativeAppKey,
+        ]
+        resValue "string", "kakao_app_key", kakaoNativeAppKey
     }
     signingConfigs {
         debug {
@@ -129,6 +144,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     // SDK의 @Parcelize Parcelable 역직렬화에 필요 (kotlinx.parcelize.Parceler)
     implementation("org.jetbrains.kotlin:kotlin-parcelize-runtime:2.1.20")
+
+    // 산책 세션 포그라운드 서비스의 GPS 추적(FusedLocationProviderClient)에 사용.
+    implementation("com.google.android.gms:play-services-location:21.3.0")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

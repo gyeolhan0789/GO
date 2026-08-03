@@ -5,9 +5,13 @@ meta {
 }
 
 get {
-  url: {{backendBaseUrl}}/rooms
+  url: {{backendBaseUrl}}/rooms?mode=SINGLE
   body: none
   auth: inherit
+}
+
+params:query {
+  mode: SINGLE
 }
 
 headers {
@@ -19,30 +23,47 @@ docs {
 
   로그인한 회원이 참여 중인, 아직 종료(CLOSED)되지 않은 게임방 목록을 반환한다.
 
+  `mode` 쿼리 파라미터(선택)로 `GameMode`(`SINGLE`/`COOPERATE`/`BATTLE`) 필터링이 가능하다. 생략하면 모드 구분 없이 전체 목록을 반환한다.
+
   ### 성공 응답 (200 OK)
   ```json
   [
     {
       "roomId": 1,
+      "name": "테스트 방",
       "mode": "SINGLE",
-      "status": "WAITING",
-      "targetBingoCount": 3,
+      "status": "ACTIVE",
+      "boardSize": 4,
+      "targetBingoCount": null,
+      "targetStepCount": 10000,
+      "totalMissionCount": 16,
+      "completedMissionCount": 3,
       "hostId": 1,
       "joinedAt": "2026-07-24T10:00:00",
       "members": [
-        { "memberId": 1, "nickname": "host_nick", "host": true }
+        {
+          "memberId": 1,
+          "nickname": "host_nick",
+          "gender": "MALE",
+          "defaultImageUrl": "https://example.com/images/default.png",
+          "equippedItems": [
+            { "memberItemId": 10, "itemId": 5, "name": "기본 모자", "category": "HAT", "imageUrl": "https://example.com/images/hat.png" }
+          ],
+          "host": true
+        }
       ]
     }
   ]
   ```
   `mode`: `SINGLE` | `COOPERATE` | `BATTLE`
-  `status`: `CREATED` | `WAITING` | `READY` | `IN_PROGRESS` | `COMPLETED` | `CLOSED`
+  `status`: `ACTIVE` | `CLOSED`
   최상위 `joinedAt`은 응답을 요청한 로그인 회원 본인이 해당 게임방에 참여한 시각이다. `members[].joinedAt`은 제공되지 않는다(참여자별 참여 시각이 필요하면 게임방 참여자 목록 조회를 사용한다).
 
   ### 비즈니스 규칙
 
   - 목록은 로그인 회원의 참여 기준 `joinedAt` 내림차순(최근 참여 순)으로 정렬된다.
   - 회원이 속한 게임방 중 상태가 `CLOSED`인 게임방은 결과에서 제외된다.
+  - `mode`를 지정하면 해당 모드의 게임방만 반환한다.
 
   ### 에러 케이스
 

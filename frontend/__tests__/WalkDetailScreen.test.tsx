@@ -27,7 +27,7 @@ const INITIAL_METRICS = {
   insets: { top: 0, left: 0, right: 0, bottom: 0 },
 };
 
-const ROOM_ID = 12;
+const GAME_ID = 12;
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -38,11 +38,11 @@ let fetchMock: FetchMock;
 beforeEach(() => {
   fetchMock = installFetchMock();
   fetchMock.mockImplementation(async url => {
-    if (url.includes('/members/character')) {
+    if (url.includes('/members/avatar')) {
       return jsonResponse(200, MY_CHARACTER_RESPONSE);
     }
-    if (url.includes(`/game-results/${ROOM_ID}`)) {
-      return jsonResponse(200, buildGameResultDetailResponse(ROOM_ID));
+    if (url.includes(`/game-results/${GAME_ID}`)) {
+      return jsonResponse(200, buildGameResultDetailResponse(GAME_ID));
     }
     throw new Error(`예상하지 못한 요청: ${url}`);
   });
@@ -113,7 +113,7 @@ async function renderScreen() {
               <Stack.Screen
                 name="WalkDetail"
                 component={WalkDetailScreen}
-                initialParams={{ roomId: ROOM_ID }}
+                initialParams={{ gameId: GAME_ID }}
               />
             </Stack.Navigator>
           </NavigationContainer>
@@ -211,7 +211,7 @@ describe('WalkDetailScreen', () => {
 
   test('불러오지 못하면 오류를 알린다', async () => {
     fetchMock.mockImplementation(async url =>
-      url.includes('/members/character')
+      url.includes('/members/avatar')
         ? jsonResponse(200, MY_CHARACTER_RESPONSE)
         : jsonResponse(500, null),
     );

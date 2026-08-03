@@ -2,13 +2,13 @@ package com.wecandoit.member.controller;
 
 import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.common.security.LoginMemberId;
-import com.wecandoit.member.dto.FcmTokenUpdateRequest;
-import com.wecandoit.member.dto.MemberProfileUpdateRequest;
-import com.wecandoit.member.dto.MemberSearchResponse;
-import com.wecandoit.member.dto.MyPageResponse;
-import com.wecandoit.member.dto.PasswordChangeRequest;
+import com.wecandoit.member.controller.request.FcmTokenUpdateRequest;
+import com.wecandoit.member.controller.request.MemberProfileUpdateRequest;
+import com.wecandoit.member.controller.request.PasswordChangeRequest;
+import com.wecandoit.member.controller.response.MemberSearchResponse;
+import com.wecandoit.member.controller.response.MyPageResponse;
+import com.wecandoit.member.service.MemberCommandService;
 import com.wecandoit.member.service.MemberReadService;
-import com.wecandoit.member.service.MemberService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class MemberController {
 
     private final MemberReadService memberReadService;
-    private final MemberService memberService;
+    private final MemberCommandService memberService;
 
     @GetMapping("/me")
     public ResponseEntity<MyPageResponse> getMyPage(@LoginMemberId Long memberId) {

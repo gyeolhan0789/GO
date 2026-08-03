@@ -7,6 +7,7 @@ import com.wecandoit.friend.domain.FriendRequest;
 import com.wecandoit.friend.repository.FriendRepository;
 import com.wecandoit.friend.repository.FriendRequestRepository;
 import com.wecandoit.history.domain.MemberHistory;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.domain.Region;
 import com.wecandoit.member.repository.MemberRepository;
@@ -278,7 +279,7 @@ class WeeklyFriendRankingRepositoryTest {
 
     private Member saveMember(String nickname, Region region) {
         return memberRepository.saveAndFlush(
-                Member.create(nickname + "@example.com", "password", nickname, region)
+                Member.create(nickname + "@example.com", "password", nickname, region, Gender.MALE)
         );
     }
 
