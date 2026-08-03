@@ -53,9 +53,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 @ExtendWith(MockitoExtension.class)
 class GameCycleCommandServiceTest {
 
-    private static final List<BingoBoardStatus> INACTIVE_BOARD_STATUSES =
-            List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED);
-
     @Mock
     private RoomRepository roomRepository;
     @Mock
@@ -186,7 +183,7 @@ class GameCycleCommandServiceTest {
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
         given(gameRepository.findActiveGameForUpdate(10L, GameStatus.ACTIVE)).willReturn(Optional.of(game));
         given(gameResultRepository.existsByGameId(200L)).willReturn(false);
-        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, BingoBoardStatus.inactiveStatuses()))
                 .willReturn(Optional.of(board));
         given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
 
@@ -207,7 +204,7 @@ class GameCycleCommandServiceTest {
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
         given(gameRepository.findActiveGameForUpdate(10L, GameStatus.ACTIVE)).willReturn(Optional.of(game));
         given(gameResultRepository.existsByGameId(200L)).willReturn(false);
-        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, BingoBoardStatus.inactiveStatuses()))
                 .willReturn(Optional.of(board));
         given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
 
@@ -235,7 +232,7 @@ class GameCycleCommandServiceTest {
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
         given(gameRepository.findActiveGameForUpdate(10L, GameStatus.ACTIVE)).willReturn(Optional.of(game));
         given(gameResultRepository.existsByGameId(200L)).willReturn(false);
-        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, BingoBoardStatus.inactiveStatuses()))
                 .willReturn(Optional.of(board));
         given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
         given(gameParticipantRepository.findAllByGameIdOrderByJoinedAtAsc(200L))

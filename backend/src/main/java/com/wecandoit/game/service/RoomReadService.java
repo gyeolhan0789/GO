@@ -40,9 +40,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class RoomReadService {
 
-    private static final List<BingoBoardStatus> INACTIVE_BOARD_STATUSES =
-            List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED);
-
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
     private final GameRepository gameRepository;
@@ -151,7 +148,7 @@ public class RoomReadService {
         Map<Long, BingoBoard> activeBoardsByGameId = bingoBoardRepository
                 .findAllByGameIdInAndStatusNotInOrderByIdAsc(
                         activeGamesByRoomId.values().stream().map(Game::getId).toList(),
-                        INACTIVE_BOARD_STATUSES
+                        BingoBoardStatus.inactiveStatuses()
                 )
                 .stream()
                 .filter(BingoBoard::isShared)

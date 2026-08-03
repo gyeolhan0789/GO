@@ -26,7 +26,6 @@ import com.wecandoit.notification.event.NotificationMessageFactory;
 import com.wecandoit.notification.repository.NotificationRepository;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -38,8 +37,6 @@ import org.springframework.web.multipart.MultipartFile;
 @Transactional
 public class BingoCommandService {
 
-    private static final List<BingoBoardStatus> INACTIVE_BOARD_STATUSES =
-            List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED);
     private static final ZoneId SERVICE_ZONE_ID = ZoneId.of("Asia/Seoul");
     private static final String BINGO_CELL_IMAGE_DOMAIN = "bingo-cells";
 
@@ -143,11 +140,11 @@ public class BingoCommandService {
             return bingoBoardRepository.findActiveBoardForUpdate(
                             gameId,
                             participant.getId(),
-                            INACTIVE_BOARD_STATUSES
+                            BingoBoardStatus.inactiveStatuses()
                     )
                     .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
         }
-        return bingoBoardRepository.findActiveBoardForUpdate(gameId, INACTIVE_BOARD_STATUSES)
+        return bingoBoardRepository.findActiveBoardForUpdate(gameId, BingoBoardStatus.inactiveStatuses())
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
     }
 
@@ -165,7 +162,7 @@ public class BingoCommandService {
     private boolean hasActiveBoard(Game game) {
         return bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(
                 game.getId(),
-                INACTIVE_BOARD_STATUSES
+                BingoBoardStatus.inactiveStatuses()
         ).isPresent();
     }
 
