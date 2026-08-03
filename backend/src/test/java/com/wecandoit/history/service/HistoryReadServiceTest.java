@@ -8,7 +8,6 @@ import com.wecandoit.history.controller.response.HistoryResponse;
 import com.wecandoit.history.domain.HistoryPeriod;
 import com.wecandoit.history.domain.MemberHistory;
 import com.wecandoit.history.repository.MemberHistoryRepository;
-import com.wecandoit.history.service.HistoryReadService.StepRecord;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
