@@ -43,6 +43,15 @@ const CHARACTER = {
   equippedItems: [],
 };
 
+const MY_PAGE = {
+  id: 1,
+  email: 'walker@example.com',
+  nickname: NICKNAME,
+  gender: 'MALE',
+  region: 'SEOUL',
+  cash: 0,
+};
+
 const CUSTOMIZE_MARKER = '꾸미기 화면';
 const SENT_REQUESTS_MARKER = '친구 추가 내역 화면';
 
@@ -62,12 +71,15 @@ let fetchMock: FetchMock;
 
 beforeEach(() => {
   fetchMock = installFetchMock();
-  fetchMock.mockImplementation(async url => {
-    if (url.includes('/members/character')) {
+  fetchMock.mockImplementation(async (url, init) => {
+    if (url.includes('/members/avatar')) {
       return jsonResponse(200, CHARACTER);
     }
     if (url.includes('/members/me')) {
-      return jsonResponse(204);
+      // PATCH는 프로필 저장, GET은 성별/지역을 채우는 마이페이지 조회다.
+      return init?.method === 'PATCH'
+        ? jsonResponse(204)
+        : jsonResponse(200, MY_PAGE);
     }
     throw new Error(`unexpected request: ${url}`);
   });
@@ -175,7 +187,9 @@ async function renderScreen() {
 
 function patchedNickname() {
   const [, options] =
-    fetchMock.mock.calls.find(([url]) => url.includes('/members/me')) ?? [];
+    fetchMock.mock.calls.find(
+      ([url, init]) => url.includes('/members/me') && init?.method === 'PATCH',
+    ) ?? [];
 
   return JSON.parse(String(options?.body)).nickname;
 }

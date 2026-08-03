@@ -43,7 +43,7 @@ export type MyPageResponse = {
 };
 
 export function getMyCharacter() {
-  return apiClient.get<MyCharacterResponse>('/members/character');
+  return apiClient.get<MyCharacterResponse>('/members/avatar');
 }
 
 export function getMyPage() {
@@ -51,7 +51,9 @@ export function getMyPage() {
 }
 
 export function getMyCash() {
-  return apiClient.get<CashResponse>('/members/cash');
+  return apiClient
+    .get<{ point: number }>('/members/point')
+    .then(({ point }) => ({ cash: point }));
 }
 
 /** category를 생략하면 보유한 전체 아이템을 내려준다. */
@@ -72,6 +74,7 @@ export function saveEquippedItems(memberItemIds: number[]) {
 export type ProfileUpdateRequest = {
   nickname?: string;
   region?: Region;
+  gender?: Gender;
 };
 
 /**

@@ -67,7 +67,7 @@ let fetchMock: FetchMock;
 beforeEach(() => {
   fetchMock = installFetchMock();
   fetchMock.mockImplementation(async url => {
-    if (url.includes('/members/character')) {
+    if (url.includes('/members/avatar')) {
       return jsonResponse(200, CHARACTER_RESPONSE);
     }
     throw new Error(`목업 모드에서는 나가지 않아야 하는 요청: ${url}`);
@@ -243,7 +243,7 @@ describe('목업 캐릭터 모드', () => {
     // 보유 아이템 목록과 장착 저장은 서버로 나가지 않는다. 나가는 요청은
     // 닉네임을 얻기 위한 캐릭터 조회뿐이다.
     expect(
-      requestedPaths().filter(url => !url.includes('/members/character')),
+      requestedPaths().filter(url => !url.includes('/members/avatar')),
     ).toEqual([]);
   });
 });
