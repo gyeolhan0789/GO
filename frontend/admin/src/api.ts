@@ -29,7 +29,12 @@ export type Mission = {
   createdAt: string
 }
 
-export type MissionInput = Omit<Mission, 'missionId' | 'createdAt' | 'isActive'>
+export type MissionInput = {
+  type: string
+  title: string
+  detail: string
+  decisionCondition: string
+}
 
 export type CharacterAsset = {
   characterAssetId: number
@@ -235,12 +240,22 @@ export function getMissions() {
   return request<Mission[]>('/admin/missions')
 }
 
-export function createMission(input: MissionInput) {
-  return request<void>('/admin/missions', { method: 'POST', body: JSON.stringify(input) })
+function missionForm(input: MissionInput, image?: File) {
+  const form = new FormData()
+  form.append('type', input.type)
+  form.append('title', input.title)
+  form.append('detail', input.detail)
+  form.append('decisionCondition', input.decisionCondition)
+  if (image) form.append('image', image)
+  return form
 }
 
-export function updateMission(missionId: number, input: MissionInput) {
-  return request<void>(`/admin/missions/${missionId}`, { method: 'PUT', body: JSON.stringify(input) })
+export function createMission(input: MissionInput, image: File) {
+  return request<void>('/admin/missions', { method: 'POST', body: missionForm(input, image) })
+}
+
+export function updateMission(missionId: number, input: MissionInput, image?: File) {
+  return request<void>(`/admin/missions/${missionId}`, { method: 'PUT', body: missionForm(input, image) })
 }
 
 export function deactivateMission(missionId: number) {
