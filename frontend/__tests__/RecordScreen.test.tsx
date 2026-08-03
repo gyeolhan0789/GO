@@ -375,7 +375,8 @@ describe('RecordScreen 차트 구간 기록', () => {
       '',
     );
 
-    expect(collectTexts(tree.root)).not.toContain('이 구간의 산책');
+    // 누르기 전에는 시트가 없다.
+    expect(collectTexts(tree.root)).not.toContain('칼로리');
 
     await act(async () => {
       firstSlot.props.onPress();
@@ -383,9 +384,11 @@ describe('RecordScreen 차트 구간 기록', () => {
     await flushQueries();
 
     const texts = collectTexts(tree.root);
-    // 누른 구간이 시트 제목으로 그대로 나온다.
+    // 누른 구간이 시트 제목으로 그대로 나오고, 그 구간의 활동 수치가 붙는다.
     expect(texts).toContain(dayLabel);
-    expect(texts).toContain('이 구간의 산책');
+    expect(texts).toContain('걸음');
+    expect(texts).toContain('거리');
+    expect(texts).toContain('칼로리');
   });
 
   test('일간에서는 3시간 묶음으로 누른다', async () => {

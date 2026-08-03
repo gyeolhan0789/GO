@@ -154,11 +154,6 @@ export function RecordScreen() {
       <SegmentDetailSheet
         segment={selectedSegment}
         onClose={() => setSelectedSegment(null)}
-        onSelectWalk={gameId => {
-          // 시트를 닫고 나가야 돌아왔을 때 시트가 남아 있지 않다.
-          setSelectedSegment(null);
-          navigation.navigate('WalkDetail', { gameId });
-        }}
       />
 
       <PeriodPicker

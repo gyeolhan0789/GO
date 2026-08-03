@@ -12,12 +12,7 @@ import {
   maxValue,
   resolveChartCeiling,
 } from '../src/features/history/model/chartScale';
-import type { ChartSegment } from '../src/features/history/model/chartSegments';
-import {
-  buildChartSegments,
-  selectWalksInSegment,
-  startsBeforeSegment,
-} from '../src/features/history/model/chartSegments';
+import { buildChartSegments } from '../src/features/history/model/chartSegments';
 import {
   buildHourlyChartData,
   buildStepChartData,
@@ -40,26 +35,10 @@ import {
   toWalkDetail,
   toWalkRecord,
 } from '../src/features/history/model/gameResult';
-import type { WalkRecord } from '../src/features/history/types';
 import {
   BAR_SLOT_RATIO,
   resolveBarPercentage,
 } from '../src/screens/RecordScreen/chartConfig';
-
-/** 구간에 드는지는 시작 시각만으로 갈린다. 나머지 값은 자리만 채운다. */
-function buildWalkRecord(gameId: number, startedAt: string | null): WalkRecord {
-  return {
-    gameId,
-    title: `산책 ${gameId}`,
-    mode: 'SINGLE',
-    startedAt,
-    completedAt: startedAt,
-    myCompletedMissionCount: 4,
-    boardCellCount: 9,
-    isWin: true,
-    participants: [{ memberId: 1, nickname: '걷는곰' }],
-  };
-}
 
 describe('resolvePeriodRange', () => {
   test('주는 월요일에 시작해 일요일에 끝난다', () => {
@@ -812,7 +791,6 @@ describe('buildChartSegments', () => {
         index: 0,
         label: '7.20 (월)',
         dateRange: { startDate: '2026-07-20', endDate: '2026-07-20' },
-        hourRange: null,
         step: 1_000,
         distance: 700,
         calories: 40,
@@ -821,7 +799,6 @@ describe('buildChartSegments', () => {
         index: 1,
         label: '7.21 (화)',
         dateRange: { startDate: '2026-07-21', endDate: '2026-07-21' },
-        hourRange: null,
         step: 2_000,
         distance: 1_400,
         calories: 80,
@@ -855,7 +832,6 @@ describe('buildChartSegments', () => {
         index: 0,
         label: '7.1 (수) - 7.7 (화)',
         dateRange: { startDate: '2026-07-01', endDate: '2026-07-07' },
-        hourRange: null,
         // 1일과 7일을 더한 값.
         step: 300,
         distance: 210,
@@ -925,7 +901,6 @@ describe('buildChartSegments', () => {
         index: 2,
         label: '06시 - 09시',
         dateRange: { startDate: '2026-07-20', endDate: '2026-07-20' },
-        hourRange: { startHour: 6, endHour: 9 },
         step: 300,
         // 시간대별로는 걸음만 읽을 수 있다.
         distance: null,
@@ -942,111 +917,6 @@ describe('buildChartSegments', () => {
   test('기록이 비어 있으면 구간이 없다', () => {
     expect(buildChartSegments('WEEK', [], [])).toEqual([]);
     expect(buildChartSegments('MONTH', [], [])).toEqual([]);
-  });
-});
-
-describe('selectWalksInSegment', () => {
-  /** 서버가 주는 순서대로. 최신 산책이 앞에 온다. */
-  const walks: WalkRecord[] = [
-    buildWalkRecord(3, '2026-07-21T07:00:00'),
-    buildWalkRecord(2, '2026-07-20T20:10:00'),
-    buildWalkRecord(1, '2026-07-20T07:30:00'),
-  ];
-
-  const daySegment: ChartSegment = {
-    index: 0,
-    label: '7.20 (월)',
-    dateRange: { startDate: '2026-07-20', endDate: '2026-07-20' },
-    hourRange: null,
-    step: 8_000,
-    distance: 0,
-    calories: 0,
-  };
-
-  test('구간 안에서 시작한 산책만 받은 순서로 준다', () => {
-    expect(
-      selectWalksInSegment(walks, daySegment).map(walk => walk.gameId),
-    ).toEqual([2, 1]);
-  });
-
-  test('시각 구간이 있으면 그 시간대에 시작한 산책만 남긴다', () => {
-    const morning: ChartSegment = {
-      ...daySegment,
-      label: '06시 - 09시',
-      hourRange: { startHour: 6, endHour: 9 },
-      distance: null,
-      calories: null,
-    };
-
-    expect(
-      selectWalksInSegment(walks, morning).map(walk => walk.gameId),
-    ).toEqual([1]);
-  });
-
-  test('시각 구간의 끝 시각은 포함하지 않는다', () => {
-    const beforeMorning: ChartSegment = {
-      ...daySegment,
-      label: '03시 - 06시',
-      hourRange: { startHour: 3, endHour: 6 },
-      distance: null,
-      calories: null,
-    };
-
-    // 07:30 산책이 06시 구간에도 세어지면 같은 산책이 두 구간에 걸친다.
-    expect(selectWalksInSegment(walks, beforeMorning)).toEqual([]);
-  });
-
-  test('7일 묶음은 그 안의 모든 날을 모은다', () => {
-    const bucket: ChartSegment = {
-      ...daySegment,
-      label: '7.15 (수) - 7.21 (화)',
-      dateRange: { startDate: '2026-07-15', endDate: '2026-07-21' },
-    };
-
-    expect(
-      selectWalksInSegment(walks, bucket).map(walk => walk.gameId),
-    ).toEqual([3, 2, 1]);
-  });
-
-  test('시작 시각이 없는 산책은 어느 구간에도 넣지 않는다', () => {
-    // 방이 열리기만 하고 시작 시각이 안 남은 판. 자리를 정할 수 없다.
-    expect(
-      selectWalksInSegment([buildWalkRecord(9, null)], daySegment),
-    ).toEqual([]);
-  });
-
-  describe('startsBeforeSegment', () => {
-    test('구간 시작보다 이른 산책이면 참이다', () => {
-      // 최신순으로 훑던 useSegmentWalksQuery가 여기서 멈춘다.
-      expect(
-        startsBeforeSegment(
-          buildWalkRecord(4, '2026-07-19T20:00:00'),
-          daySegment,
-        ),
-      ).toBe(true);
-    });
-
-    test('구간 안이나 그 뒤의 산책이면 거짓이다', () => {
-      expect(
-        startsBeforeSegment(
-          buildWalkRecord(5, '2026-07-20T00:00:00'),
-          daySegment,
-        ),
-      ).toBe(false);
-      expect(
-        startsBeforeSegment(
-          buildWalkRecord(6, '2026-07-25T00:00:00'),
-          daySegment,
-        ),
-      ).toBe(false);
-    });
-
-    test('시작 시각이 없으면 훑기를 멈추지 않는다', () => {
-      // 순서를 알 수 없는 항목 하나로 끊으면 뒤 페이지를 놓친다.
-      expect(startsBeforeSegment(buildWalkRecord(7, null), daySegment)).toBe(
-        false,
-      );
-    });
   });
 });
 

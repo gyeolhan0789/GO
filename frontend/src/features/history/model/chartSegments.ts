@@ -1,16 +1,8 @@
 import type { HistoryDateResponse, HistoryPeriod } from '../api/historyApi';
-import type { HourlyStep, WalkRecord } from '../types';
+import type { HourlyStep } from '../types';
 import { DAYS_PER_CHART_BUCKET, monthBucketIndex } from './histories';
 import type { PeriodRange } from './period';
 import { formatShortDate, resolvePeriodRange } from './period';
-
-/** 일간 차트에서 한 번에 고르는 시각 구간. endHour는 포함하지 않는다. */
-export type HourRange = {
-  /** 0~23. */
-  startHour: number;
-  /** startHour보다 크고 24까지. */
-  endHour: number;
-};
 
 /**
  * 차트에서 누른 자리 하나가 가리키는 구간.
@@ -21,10 +13,8 @@ export type ChartSegment = {
   index: number;
   /** '7.21 (화)' / '7.1 (수) - 7.7 (화)' / '06시 - 09시'. */
   label: string;
-  /** 이 구간에 속한 산책을 고르는 데 쓴다. */
+  /** 이 구간이 덮는 날짜. */
   dateRange: PeriodRange;
-  /** 일간에서만 채운다. 나머지는 하루 단위라 시각 제한이 없다. */
-  hourRange: HourRange | null;
   step: number;
   /** 시간대별로는 걸음만 읽을 수 있어서 일간에서는 null이다. */
   distance: number | null;
@@ -45,11 +35,6 @@ const HOURS_PER_DAY = 24;
  * 붙으므로(buildHourlyChartData) 같은 간격으로 묶어야 누른 자리와 라벨이 맞는다.
  */
 const HOURS_PER_SEGMENT = 3;
-
-// 'yyyy-MM-ddTHH:mm:ss'를 Date로 파싱하지 않고 자리로 잘라 쓴다(format.ts와 같은 방식).
-const DATE_LENGTH = 'yyyy-MM-dd'.length;
-const HOUR_OFFSET = 'yyyy-MM-ddT'.length;
-const HOUR_LENGTH = 'HH'.length;
 
 /**
  * 차트에 그려진 순서와 1:1로 맞물리는 구간 목록. 차트 폭을 이 배열 길이로 균등
@@ -73,7 +58,6 @@ export function buildChartSegments(
       index,
       label: formatShortDate(day.historyDate),
       dateRange: { startDate: day.historyDate, endDate: day.historyDate },
-      hourRange: null,
       step: day.step,
       distance: day.distance,
       calories: day.calories,
@@ -125,7 +109,6 @@ function buildMonthSegments(histories: HistoryDateResponse[]): ChartSegment[] {
       index: bucket,
       label: `${formatShortDate(startDate)} - ${formatShortDate(endDate)}`,
       dateRange: { startDate, endDate },
-      hourRange: null,
       ...(totalsByBucket.get(bucket) ?? EMPTY_TOTALS),
     };
   });
@@ -151,7 +134,6 @@ function buildHourSegments(
       index,
       label: `${padHour(startHour)}시 - ${padHour(endHour)}시`,
       dateRange: { startDate: isoDate, endDate: isoDate },
-      hourRange: { startHour, endHour },
       step: hourlySteps
         .filter(entry => entry.hour >= startHour && entry.hour < endHour)
         .reduce((total, entry) => total + entry.step, 0),
@@ -163,48 +145,4 @@ function buildHourSegments(
 
 function padHour(hour: number): string {
   return `${hour}`.padStart(2, '0');
-}
-
-/** 구간 안에서 시작한 산책만. 받은 순서(서버가 주는 최신순)를 지킨다. */
-export function selectWalksInSegment(
-  walks: WalkRecord[],
-  segment: ChartSegment,
-): WalkRecord[] {
-  return walks.filter(walk => startsInSegment(walk, segment));
-}
-
-function startsInSegment(walk: WalkRecord, segment: ChartSegment): boolean {
-  // 시작 시각이 없으면 어느 구간에도 넣을 수 없다.
-  if (walk.startedAt === null) {
-    return false;
-  }
-
-  const date = walk.startedAt.slice(0, DATE_LENGTH);
-  if (date < segment.dateRange.startDate || date > segment.dateRange.endDate) {
-    return false;
-  }
-
-  const { hourRange } = segment;
-  if (hourRange === null) {
-    return true;
-  }
-
-  const hour = Number(
-    walk.startedAt.slice(HOUR_OFFSET, HOUR_OFFSET + HOUR_LENGTH),
-  );
-  return hour >= hourRange.startHour && hour < hourRange.endHour;
-}
-
-/**
- * 최신순으로 훑다가 이 산책부터는 구간을 지나쳤는지. 서버에 기간 조건이 없어서
- * 위에서부터 받아오는 useSegmentWalksQuery가 멈출 자리를 여기서 판단한다.
- */
-export function startsBeforeSegment(
-  walk: WalkRecord,
-  segment: ChartSegment,
-): boolean {
-  return (
-    walk.startedAt !== null &&
-    walk.startedAt.slice(0, DATE_LENGTH) < segment.dateRange.startDate
-  );
 }
