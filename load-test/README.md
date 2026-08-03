@@ -114,16 +114,57 @@ k6 run --env VUS=50 --env DURATION=1m scripts/load-test.js
 k6 run --env BASE_URL=https://i15a506.p.ssafy.io/dev --env CONFIRM_DEV=yes scripts/load-test.js
 ```
 
-- **실행 위치**: 반드시 로컬(내 PC)에서 실행하세요. dev/prod가 같은 EC2 인스턴스에서 돌아가므로, 그 인스턴스 안에서 k6를 돌리면 부하 생성기 자체가 prod와 자원을 직접 경합하게 됩니다.
+- **실행 위치**: 반드시 로컬(내 PC)에서 실행하세요. dev/prod가 같은 EC2 인스턴스에서 돌아가므로, 그 인스턴스 안에서 k6를 돌리면 부하 생성기 자체가 prod와 자원을 직접 경합하게 됩니다. (예외: 그라파나로 관측할 때만 아래 "그라파나에서 실시간으로 보기" 참고)
 - `CONFIRM_DEV=yes`가 없으면 스크립트가 바로 종료됩니다 — dev DB는 팀이 공유하는 자원이라 실수 실행을 막기 위한 안전장치입니다.
 - **실행 전 확인**: dev DB에 `missions`가 9개 이상 있는지 확인하세요 (`boardSize=3` 방 생성에 필요). 부족하면 방 생성이 전부 실패(409)합니다.
 - **VUS를 낮게 유지하세요** (예: 5~10). dev는 팀이 같이 쓰는 환경이고, 방/게임 관련 로우가 소프트 삭제 없이 계속 쌓입니다(아래 "알려진 제한" 참조) — 로컬과 달리 재기동으로 초기화되지 않습니다.
 - **`stress-test.js`/`spike-test.js`는 100 VU까지 램프업합니다.** dev 공유 DB에 그만큼 데이터가 쌓이고 다른 사용자 트래픽에도 영향을 줄 수 있으니, dev 대상 실행은 `load-test.js`(낮은 VUS)로 제한하고 stress/spike는 로컬에서만 돌리는 걸 권장합니다.
 - 팀에 미리 알리고 실행하는 걸 권장합니다.
 
+## 그라파나에서 실시간으로 보기
+
+EC2 호스트에서 k6를 컨테이너로 직접 실행하면 결과를 Prometheus remote-write로 push해서 dev Grafana의 k6 대시보드(`/grafana-dev/`, `testid=dev-live` 필터)에서 VU/요청률/p95/에러율을 실시간으로 볼 수 있습니다. EC2 호스트에 로그인된 셸에서 실행하세요.
+
+```bash
+docker run --rm -i \
+  --network wecandoit-obs-dev_default \
+  -e K6_PROMETHEUS_RW_SERVER_URL=http://prometheus:9090/api/v1/write \
+  -e K6_PROMETHEUS_RW_TREND_STATS='p(95),p(99),min,max,avg' \
+  -e K6_PROMETHEUS_RW_STALE_MARKERS=true \
+  -e K6_SYSTEM_TAGS='proto,status,method,group,check,error_code,tls_version,scenario,service,expected_response' \
+  -e BASE_URL=https://i15a506.p.ssafy.io/dev \
+  -e CONFIRM_DEV=yes \
+  -v "$(git rev-parse --show-toplevel)/load-test:/scripts" -w /scripts \
+  grafana/k6:1.1.0 run -o experimental-prometheus-rw --tag testid=dev-live scripts/load-test.js
+```
+
+- `BASE_URL`/`CONFIRM_DEV`는 절대 생략하지 마세요 — 생략하면 요청이 전부 실패합니다(고장 신호와 헷갈리지 마세요).
+- `K6_SYSTEM_TAGS`에서 `url`/`name`/`error`를 뺀 이유: 매 iteration 새 `roomId`로 동적 경로가 생겨서, 안 빼면 dev Prometheus가 감당 못할 만큼 지표 종류가 늘어납니다.
+- 이 경로는 EC2 호스트에서 직접 실행하는 예외이므로 `load-test.js` 기본값 정도로만 쓰고, stress/spike급은 로컬에서 돌리세요.
+
+공개 도메인(`i15a506.p.ssafy.io`) 접속이 막혀 있으면 아래처럼 Prometheus 컨테이너에 직접 붙습니다:
+
+```bash
+PROM_IP=$(docker inspect -f '{{(index .NetworkSettings.Networks "wecandoit-obs-dev_default").IPAddress}}' wecandoit-prometheus-dev)
+docker run --rm -i --network host \
+  -e K6_PROMETHEUS_RW_SERVER_URL=http://$PROM_IP:9090/api/v1/write \
+  -e K6_PROMETHEUS_RW_TREND_STATS='p(95),p(99),min,max,avg' \
+  -e K6_PROMETHEUS_RW_STALE_MARKERS=true \
+  -e K6_SYSTEM_TAGS='proto,status,method,group,check,error_code,tls_version,scenario,service,expected_response' \
+  -e BASE_URL=http://localhost:8081 -e CONFIRM_DEV=yes \
+  -v "$(git rev-parse --show-toplevel)/load-test:/scripts" -w /scripts \
+  grafana/k6:1.1.0 run -o experimental-prometheus-rw --tag testid=dev-live scripts/load-test.js
+```
+
+이 경로는 nginx를 거치지 않으므로 두 경로의 p95를 서로 비교하지 마세요.
+
+실행 후에는 일반 dev 실행과 동일하게 아래 "정리 (Cleanup)"을 수행하세요(Ctrl-C로 중단했어도 마찬가지).
+
 ## 결과 확인
 
 k6 콘솔 요약에서 `http_req_failed`(에러율 < 1%)와 `http_req_duration`(p95 < 500ms) 통과 여부를 확인하면 됩니다. 별도 리포트 파일이나 대시보드는 없습니다.
+
+아래 "그라파나에서 실시간으로 보기"로 실행한 경우에 한해, dev Grafana 대시보드(`/grafana-dev/`, `testid=dev-live` 필터)에서도 실시간으로 확인할 수 있습니다. p95 등 trend 컬럼이 비어 보이면 `$quantile_stat` 변수를 확인하세요.
 
 ## 정리 (Cleanup)
 
