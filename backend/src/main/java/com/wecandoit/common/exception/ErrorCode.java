@@ -55,17 +55,22 @@ public enum ErrorCode {
     GAME_PARTICIPANT_NOT_FOUND(HttpStatus.NOT_FOUND, "게임 참가자를 찾을 수 없습니다."),
 
     // Mission
-    INVALID_MISSION_TYPE(HttpStatus.BAD_REQUEST, "미션 타입은 OBJECT, ATTRIBUTE, RELATION, ORDINARY 중 하나여야 합니다."),
+    INVALID_MISSION_TYPE(HttpStatus.BAD_REQUEST,
+            "미션 타입은 OBJECT, ATTRIBUTE, RELATION, ORDINARY, STEP_TOTAL, STEP_CONTINUOUS, STEP_UPHILL, STEP_DAILY, "
+                    + "WALKING_TIME_TOTAL, WALKING_TIME_CONTINUOUS, STEADY_PACE, DISTANCE_TOTAL, CALORIES_TOTAL, "
+                    + "AVERAGE_SPEED 중 하나여야 합니다."),
+    INVALID_MISSION_DIFFICULTY(HttpStatus.BAD_REQUEST, "미션 난이도는 LOW, MEDIUM, HIGH 중 하나여야 합니다."),
     MISSION_NOT_FOUND(HttpStatus.NOT_FOUND, "미션을 찾을 수 없습니다."),
+    INVALID_DECISION_CONDITION(HttpStatus.BAD_REQUEST, "결정 조건은 올바른 JSON이어야 합니다."),
 
     // Item
     ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "아이템을 찾을 수 없습니다."),
-    DEFAULT_CHARACTER_ASSET_NOT_FOUND(HttpStatus.NOT_FOUND, "기본 캐릭터 에셋을 찾을 수 없습니다."),
+    DEFAULT_AVATAR_ASSET_NOT_FOUND(HttpStatus.NOT_FOUND, "기본 아바타 에셋을 찾을 수 없습니다."),
     INVALID_ITEM_CATEGORY(HttpStatus.BAD_REQUEST, "유효하지 않은 아이템 카테고리입니다."),
     DUPLICATE_ITEM_CATEGORY(HttpStatus.BAD_REQUEST, "같은 카테고리의 아이템을 중복 장착할 수 없습니다."),
     ITEM_ALREADY_OWNED(HttpStatus.CONFLICT, "이미 보유한 아이템입니다."),
     ITEM_NOT_AVAILABLE_FOR_SALE(HttpStatus.CONFLICT, "판매 중지된 아이템은 구매할 수 없습니다."),
-    INSUFFICIENT_CASH(HttpStatus.BAD_REQUEST, "캐시가 부족합니다."),
+    INSUFFICIENT_POINT(HttpStatus.BAD_REQUEST, "포인트가 부족합니다."),
 
     // Bingo Board
     BINGO_BOARD_GENERATE_FORBIDDEN(HttpStatus.FORBIDDEN, "빙고판 생성 권한이 없습니다."),
@@ -102,6 +107,8 @@ public enum ErrorCode {
     OAUTH_ALREADY_REGISTERED(HttpStatus.CONFLICT, "이미 가입된 이메일입니다."),
 
     // AI Verification
+    AI_VERIFICATION_REQUEST_INVALID(HttpStatus.BAD_GATEWAY, "AI 검증 요청이 올바르지 않습니다."),
+    AI_VERIFICATION_SERVER_ERROR(HttpStatus.BAD_GATEWAY, "AI 검증 서버에서 오류가 발생했습니다."),
     AI_VERIFICATION_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "AI 검증 서버 호출에 실패했습니다."),
 
     // Notification

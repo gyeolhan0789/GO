@@ -1,15 +1,18 @@
 import { useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, Image, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Ionicons from '@react-native-vector-icons/ionicons';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
+import type { BingoMissionResponse } from '../../features/bingo/api/bingoApi';
 import type {
   BingoBoardCell,
   BingoBoardSize,
 } from '../../features/bingo/components/BingoBoard/BingoBoard';
 import { BoardRenewalSheet } from '../../features/bingo/components/BoardRenewalSheet/BoardRenewalSheet';
 import { useActiveBingoBoardQuery } from '../../features/bingo/hooks/useActiveBingoBoardQuery';
+import { MISSION_TYPE_ICONS } from '../../features/bingo/model/missionType';
 import { useMyCashQuery } from '../../features/member/hooks/useMyCashQuery';
 import { useMyCharacterQuery } from '../../features/member/hooks/useMyCharacterQuery';
 import {
@@ -24,11 +27,14 @@ import {
 } from '../../features/walk-session/model/walkSessionStore';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { Button } from '../../shared/components/Button/Button';
+import { colors } from '../../shared/constants/colors';
+import { radius } from '../../shared/constants/radius';
 import { spacing } from '../../shared/constants/spacing';
-import { useSamsungHealthToday } from '../../shared/hooks/useSamsungHealthToday';
+import { useStepDataToday } from '../../shared/hooks/useStepDataToday';
 import { CreateSoloWalkSheet } from './components/CreateSoloWalkSheet';
 import { HomeHeader } from './components/HomeHeader';
 import { HomeCarousel } from './components/HomeCarousel';
+import { MissionInfoModal } from './components/MissionInfoModal';
 import { WalkRoomSelectSheet } from './components/WalkRoomSelectSheet';
 
 type HomeNavigation = NativeStackNavigationProp<RootStackParamList, 'Main'>;
@@ -42,6 +48,7 @@ const MOCK_HOME_SUMMARY = {
 };
 
 const DEFAULT_BINGO_SIZE: BingoBoardSize = 5;
+const NO_BINGO_BOARD_HINT = '산책을 시작하고 이번 주 빙고에 도전해보세요!';
 
 function formatElapsed(totalSeconds: number) {
   const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
@@ -54,6 +61,8 @@ export function HomeScreen() {
   const navigation = useNavigation<HomeNavigation>();
   const [isRoomSheetVisible, setRoomSheetVisible] = useState(false);
   const [isSoloSheetVisible, setSoloSheetVisible] = useState(false);
+  const [selectedMission, setSelectedMission] =
+    useState<BingoMissionResponse | null>(null);
   // 협동 방을 고른 뒤 빙고판 갱신이 필요하고 내가 방장일 때만 채워진다.
   const [groupRenewal, setGroupRenewal] = useState<{
     roomId: number;
@@ -106,18 +115,47 @@ export function HomeScreen() {
   const bingoSize =
     (activeSoloBoardQuery.data?.boardSize as BingoBoardSize | undefined) ??
     DEFAULT_BINGO_SIZE;
-  const bingoCells: BingoBoardCell[] = [
-    ...(activeSoloBoardQuery.data?.cells ?? []),
-  ]
+  const rawBingoCells = activeSoloBoardQuery.data?.cells ?? [];
+  const bingoCells: BingoBoardCell[] = [...rawBingoCells]
     .sort((a, b) => a.row - b.row || a.col - b.col)
-    .map(cell => ({
-      id: String(cell.cellId),
-      completed: cell.verificationStatus === 'APPROVED',
-    }));
+    .map(cell => {
+      const completed = cell.verificationStatus === 'APPROVED';
+      return {
+        id: String(cell.cellId),
+        completed,
+        icon: cell.mission.missionImageUrl ? (
+          <Image
+            source={{ uri: cell.mission.missionImageUrl }}
+            style={styles.missionThumbnail}
+          />
+        ) : (
+          <Ionicons
+            name={MISSION_TYPE_ICONS[cell.mission.type]}
+            size={20}
+            color={completed ? colors.surface : colors.ink}
+          />
+        ),
+      };
+    });
+
+  // 로딩 중에는 아직 없다고 단정할 수 없으니 안내 문구를 잠깐이라도 잘못
+  // 보여주지 않도록 로딩이 끝난 뒤에만 "이번 주 빙고판 없음"으로 판단한다.
+  const isBingoBoardLoading =
+    mySoloRoomsQuery.isLoading ||
+    (activeSoloRoom !== null && activeSoloBoardQuery.isLoading);
+  const showNoBingoBoardHint =
+    !isBingoBoardLoading && rawBingoCells.length === 0;
+
+  const handleBingoCellPress = (cell: BingoBoardCell) => {
+    const rawCell = rawBingoCells.find(c => String(c.cellId) === cell.id);
+    if (rawCell) {
+      setSelectedMission(rawCell.mission);
+    }
+  };
 
   // 사용 불가/미허용/조회 실패 시 실측값이 없다는 뜻이므로 가짜 숫자 대신 0을
   // 보여준다.
-  const health = useSamsungHealthToday();
+  const health = useStepDataToday();
   const healthSummary =
     health.data?.status === 'ok' ? health.data.summary : null;
   const todaySteps = healthSummary?.steps ?? 0;
@@ -148,6 +186,8 @@ export function HomeScreen() {
           rewardHint={summary.canRewardHint}
           bingoSize={bingoSize}
           bingoCells={bingoCells}
+          bingoHint={showNoBingoBoardHint ? NO_BINGO_BOARD_HINT : undefined}
+          onBingoCellPress={handleBingoCellPress}
           isWalking={walkSession.isActive}
           walkElapsedLabel={formatElapsed(walkSession.elapsedSeconds)}
           onPressWalkBadge={() => navigation.navigate('WalkSession')}
@@ -270,6 +310,11 @@ export function HomeScreen() {
           }}
         />
       )}
+
+      <MissionInfoModal
+        mission={selectedMission}
+        onClose={() => setSelectedMission(null)}
+      />
     </Screen>
   );
 }
@@ -289,5 +334,10 @@ const styles = StyleSheet.create({
   },
   startButton: {
     flex: 1,
+  },
+  missionThumbnail: {
+    width: 20,
+    height: 20,
+    borderRadius: radius.xs,
   },
 });

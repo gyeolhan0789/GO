@@ -80,7 +80,7 @@ function collectTexts(root: ReactTestInstance): string[] {
  * 렌더된 WalkCard를 세면 안 된다 — FlatList는 initialNumToRender(기본 10)만 그리고
  * 테스트 렌더러엔 뷰포트가 없어 그 이상 늘지 않는다. data가 진실이다.
  */
-function loadedWalks(root: ReactTestInstance): { roomId: number }[] {
+function loadedWalks(root: ReactTestInstance): { gameId: number }[] {
   const [list] = root.findAll(
     node => typeof node.props.onEndReached === 'function' && !!node.props.data,
   );
@@ -214,7 +214,7 @@ describe('WalkListScreen', () => {
     await scrollToEnd(tree.root);
     await scrollToEnd(tree.root);
 
-    const ids = loadedWalks(tree.root).map(walk => walk.roomId);
+    const ids = loadedWalks(tree.root).map(walk => walk.gameId);
 
     expect(ids).toHaveLength(27);
     expect(new Set(ids).size).toBe(ids.length);

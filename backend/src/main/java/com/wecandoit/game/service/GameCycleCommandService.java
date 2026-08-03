@@ -9,9 +9,9 @@ import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
 import com.wecandoit.bingo.domain.BingoLineCounter;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
-import com.wecandoit.cash.domain.CashHistory;
-import com.wecandoit.cash.domain.CashRewardPolicy;
-import com.wecandoit.cash.repository.CashHistoryRepository;
+import com.wecandoit.point.domain.PointHistory;
+import com.wecandoit.point.domain.PointRewardPolicy;
+import com.wecandoit.point.repository.PointHistoryRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
@@ -61,7 +61,7 @@ public class GameCycleCommandService {
     private final BingoCellRepository bingoCellRepository;
     private final MissionRepository missionRepository;
     private final MemberRepository memberRepository;
-    private final CashHistoryRepository cashHistoryRepository;
+    private final PointHistoryRepository pointHistoryRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final NotificationMessageFactory notificationMessageFactory;
 
@@ -72,7 +72,6 @@ public class GameCycleCommandService {
                 room.getId(),
                 game.getId(),
                 room.getBoardSize(),
-                room.getTargetBingoCount(),
                 room.getTargetStepCount()
         );
     }
@@ -96,10 +95,9 @@ public class GameCycleCommandService {
             Long memberId,
             Long roomId,
             int boardSize,
-            int targetBingoCount,
             int targetStepCount
     ) {
-        validateBoardSettings(boardSize, targetBingoCount, targetStepCount);
+        validateBoardSettings(boardSize, targetStepCount);
         Room room = findActiveRoomForUpdate(roomId);
         validateRenewalRoom(memberId, room);
 
@@ -111,8 +109,8 @@ public class GameCycleCommandService {
 
         LocalDateTime now = LocalDateTime.now();
         boolean renewalPeriodPassed = isRenewalPeriodPassed(game, now);
-        boolean targetReachedNow = countBingoLines(activeBoard, cells, now) >= activeBoard.getTargetBingoCount();
-        if (!targetReachedNow && !renewalPeriodPassed) {
+        boolean boardCompleted = isBoardCompleted(activeBoard, cells, now);
+        if (!boardCompleted && !renewalPeriodPassed) {
             throw new CustomException(ErrorCode.BINGO_BOARD_NOT_COMPLETED);
         }
 
@@ -125,7 +123,6 @@ public class GameCycleCommandService {
                 roomId,
                 nextGame.getId(),
                 boardSize,
-                targetBingoCount,
                 targetStepCount
         );
     }
@@ -235,12 +232,9 @@ public class GameCycleCommandService {
         }
     }
 
-    private void validateBoardSettings(int boardSize, int targetBingoCount, int targetStepCount) {
+    private void validateBoardSettings(int boardSize, int targetStepCount) {
         if (boardSize < 3 || boardSize > 5) {
             throw new CustomException(ErrorCode.BINGO_BOARD_SIZE_INVALID);
-        }
-        if (targetBingoCount < 1 || targetBingoCount > 2 * boardSize + 2) {
-            throw new CustomException(ErrorCode.BINGO_TARGET_COUNT_INVALID);
         }
         if (targetStepCount < 1) {
             throw new CustomException(ErrorCode.ROOM_TARGET_STEP_COUNT_REQUIRED);
@@ -273,7 +267,7 @@ public class GameCycleCommandService {
             LocalDateTime endedAt
     ) {
         int bingoCount = countBingoLines(board, cells, endedAt);
-        boolean result = bingoCount >= board.getTargetBingoCount();
+        boolean result = isBoardCompleted(board, cells, endedAt);
         int completedMissionCount = countCompletedCells(cells, endedAt);
 
         game.completeAt(endedAt);
@@ -289,7 +283,7 @@ public class GameCycleCommandService {
                 result,
                 bingoCount,
                 completedMissionCount,
-                result ? CashRewardPolicy.GAME_GOAL.getPoint() : 0L
+                result ? PointRewardPolicy.GAME_GOAL.getPoint() : 0L
         ));
         gameResultParticipantRepository.saveAll(createSharedResultParticipants(
                 room,
@@ -308,23 +302,23 @@ public class GameCycleCommandService {
             boolean result
     ) {
         Map<Long, Integer> completedCountByMember = cells.stream()
-                .filter(cell -> isCompletedBy(cell, endedAt))
+                .filter(cell -> cell.isCompletedBy(endedAt))
                 .filter(cell -> cell.getMemberId() != null)
                 .collect(Collectors.groupingBy(
                         BingoCell::getMemberId,
                         Collectors.collectingAndThen(Collectors.counting(), Long::intValue)
                 ));
-        long rewardCash = result ? CashRewardPolicy.GAME_GOAL.getPoint() : 0L;
+        long rewardPoint = result ? PointRewardPolicy.GAME_GOAL.getPoint() : 0L;
         return gameParticipantRepository.findAllByGameIdOrderByJoinedAtAsc(game.getId()).stream()
                 .map(participant -> {
-                    if (rewardCash > 0) {
-                        grantReward(participant.getMemberId(), game.getId(), room.getId(), rewardCash);
+                    if (rewardPoint > 0) {
+                        grantReward(participant.getMemberId(), game.getId(), room.getId(), rewardPoint);
                     }
                     return GameResultParticipant.create(
                             game.getId(),
                             participant.getMemberId(),
                             completedCountByMember.getOrDefault(participant.getMemberId(), 0),
-                            rewardCash,
+                            rewardPoint,
                             result
                     );
                 })
@@ -364,7 +358,7 @@ public class GameCycleCommandService {
                 true,
                 winnerBingoCount,
                 winnerCompletedCount,
-                CashRewardPolicy.BATTLE_WINNER_GAME_GOAL.getPoint()
+                PointRewardPolicy.BATTLE_WINNER_GAME_GOAL.getPoint()
         ));
 
         List<GameResultParticipant> results = participants.stream()
@@ -389,15 +383,15 @@ public class GameCycleCommandService {
             int completedMissionCount
     ) {
         boolean result = participant.getMemberId().equals(winnerMemberId);
-        long rewardCash = result
-                ? CashRewardPolicy.BATTLE_WINNER_GAME_GOAL.getPoint()
-                : CashRewardPolicy.BATTLE_LOSER_GAME_GOAL.getPoint();
-        grantReward(participant.getMemberId(), game.getId(), room.getId(), rewardCash);
+        long rewardPoint = result
+                ? PointRewardPolicy.BATTLE_WINNER_GAME_GOAL.getPoint()
+                : PointRewardPolicy.BATTLE_LOSER_GAME_GOAL.getPoint();
+        grantReward(participant.getMemberId(), game.getId(), room.getId(), rewardPoint);
         return GameResultParticipant.create(
                 game.getId(),
                 participant.getMemberId(),
                 completedMissionCount,
-                rewardCash,
+                rewardPoint,
                 result
         );
     }
@@ -450,14 +444,12 @@ public class GameCycleCommandService {
             Long roomId,
             Long gameId,
             int boardSize,
-            int targetBingoCount,
             int targetStepCount
     ) {
         List<Mission> missions = findMissions(boardSize);
         BingoBoard board = bingoBoardRepository.save(BingoBoard.create(
                 gameId,
                 boardSize,
-                targetBingoCount,
                 targetStepCount
         ));
         return BingoBoardResponse.of(
@@ -529,27 +521,27 @@ public class GameCycleCommandService {
         return BingoLineCounter.countCompletedLines(
                 board.getBoardSize(),
                 cells,
-                cell -> isCompletedBy(cell, endedAt)
+                cell -> cell.isCompletedBy(endedAt)
         );
     }
 
     private int countCompletedCells(List<BingoCell> cells, LocalDateTime endedAt) {
         return (int) cells.stream()
-                .filter(cell -> isCompletedBy(cell, endedAt))
+                .filter(cell -> cell.isCompletedBy(endedAt))
                 .count();
     }
 
-    private boolean isCompletedBy(BingoCell cell, LocalDateTime endedAt) {
-        return cell.getVerificationStatus() == BingoCellVerificationStatus.APPROVED
-                && cell.getSubmittedAt() != null
-                && !cell.getSubmittedAt().isAfter(endedAt);
+    private boolean isBoardCompleted(BingoBoard board, List<BingoCell> cells, LocalDateTime endedAt) {
+        int totalCellCount = board.getBoardSize() * board.getBoardSize();
+        return cells.size() == totalCellCount
+                && countCompletedCells(cells, endedAt) == totalCellCount;
     }
 
-    private void grantReward(Long memberId, Long gameId, Long roomId, long rewardCash) {
+    private void grantReward(Long memberId, Long gameId, Long roomId, long rewardPoint) {
         Member member = memberRepository.findByIdForUpdate(memberId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
-        member.addCash(rewardCash);
-        cashHistoryRepository.save(CashHistory.gameGoalReward(memberId, gameId, roomId, rewardCash));
-        eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, rewardCash));
+        member.addPoint(rewardPoint);
+        pointHistoryRepository.save(PointHistory.gameGoalReward(memberId, gameId, roomId, rewardPoint));
+        eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, rewardPoint));
     }
 }

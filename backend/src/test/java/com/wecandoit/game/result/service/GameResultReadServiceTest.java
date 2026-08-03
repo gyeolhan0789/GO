@@ -3,7 +3,9 @@ package com.wecandoit.game.result.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
+import com.wecandoit.avatar.service.AvatarReadService;
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
@@ -25,12 +27,17 @@ import com.wecandoit.game.repository.GameResultParticipantRepository;
 import com.wecandoit.game.repository.GameResultRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.GameResultReadService;
+import com.wecandoit.item.controller.response.AvatarResponse;
+import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.item.domain.ItemCategory;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.Mission;
 import com.wecandoit.mission.repository.MissionRepository;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -66,6 +73,9 @@ class GameResultReadServiceTest {
     private MemberRepository memberRepository;
 
     @Mock
+    private AvatarReadService avatarReadService;
+
+    @Mock
     private BingoBoardRepository bingoBoardRepository;
 
     @Mock
@@ -85,6 +95,7 @@ class GameResultReadServiceTest {
                 gameRepository,
                 roomRepository,
                 memberRepository,
+                avatarReadService,
                 bingoBoardRepository,
                 bingoCellRepository,
                 missionRepository
@@ -102,13 +113,19 @@ class GameResultReadServiceTest {
         assertThat(response.gameId()).isEqualTo(100L);
         assertThat(response.roomId()).isEqualTo(10L);
         assertThat(response.boardSize()).isEqualTo(3);
-        assertThat(response.targetBingoCount()).isEqualTo(2);
+        assertThat(response.targetBingoCount()).isNull();
         assertThat(response.targetStepCount()).isEqualTo(12_000);
         assertThat(response.startedAt()).isEqualTo(fixture.game().getStartedAt());
         assertThat(response.completedAt()).isEqualTo(fixture.game().getCompletedAt());
         assertThat(response.myCompletedMissionCount()).isEqualTo(1);
+        assertThat(response.participants()).first().satisfies(participant -> {
+            assertThat(participant.gender()).isEqualTo(Gender.MALE);
+            assertThat(participant.defaultImageUrl()).isEqualTo("https://example.com/male.png");
+            assertThat(participant.equippedItems()).hasSize(1);
+        });
         assertThat(response.bingoBoards()).singleElement()
                 .satisfies(board -> assertThat(board.owners()).hasSize(2));
+        then(avatarReadService).should().getAvatars(fixture.members());
     }
 
     @Test
@@ -171,6 +188,7 @@ class GameResultReadServiceTest {
         given(gameResultParticipantRepository.findAllByGameIdInOrderByIdAsc(List.of(100L)))
                 .willReturn(fixture.participants());
         given(memberRepository.findAllById(List.of(1L, 2L))).willReturn(fixture.members());
+        given(avatarReadService.getAvatars(fixture.members())).willReturn(avatars(fixture.members()));
         given(bingoBoardRepository.findAllByGameIdInOrderByIdAsc(List.of(100L)))
                 .willReturn(fixture.boards());
         given(bingoCellRepository.findAllByBoardIdIn(List.of(200L))).willReturn(fixture.cells());
@@ -181,11 +199,19 @@ class GameResultReadServiceTest {
         assertThat(response.content()).singleElement().satisfies(result -> {
             assertThat(result.gameId()).isEqualTo(100L);
             assertThat(result.boardSize()).isEqualTo(3);
-            assertThat(result.targetBingoCount()).isEqualTo(2);
+            assertThat(result.targetBingoCount()).isNull();
             assertThat(result.totalMissionCount()).isEqualTo(2);
             assertThat(result.myCompletedMissionCount()).isEqualTo(1);
             assertThat(result.myResult()).isTrue();
+            assertThat(result.participants()).first().satisfies(participant -> {
+                assertThat(participant.gender()).isEqualTo(Gender.MALE);
+                assertThat(participant.defaultImageUrl()).isEqualTo("https://example.com/male.png");
+                assertThat(participant.equippedItems()).hasSize(1);
+            });
+            assertThat(result.participants()).element(1)
+                    .satisfies(participant -> assertThat(participant.equippedItems()).isEmpty());
         });
+        then(avatarReadService).should().getAvatars(fixture.members());
     }
 
     private void givenDetailContext(Fixture fixture) {
@@ -199,6 +225,7 @@ class GameResultReadServiceTest {
         given(bingoBoardRepository.findAllByGameIdOrderByIdAsc(100L))
                 .willReturn(fixture.boards());
         given(memberRepository.findAllById(List.of(1L, 2L))).willReturn(fixture.members());
+        given(avatarReadService.getAvatars(fixture.members())).willReturn(avatars(fixture.members()));
         given(bingoCellRepository.findAllByBoardIdIn(
                 fixture.boards().stream().map(BingoBoard::getId).toList()
         )).willReturn(fixture.cells());
@@ -210,7 +237,7 @@ class GameResultReadServiceTest {
         Game game = endedGame();
         GameResult result = result();
         List<GameResultParticipant> participants = participants();
-        BingoBoard board = BingoBoard.create(100L, 3, 2, 12_000);
+        BingoBoard board = BingoBoard.create(100L, 3, 12_000);
         ReflectionTestUtils.setField(board, "id", 200L);
         board.completeAt(game.getCompletedAt());
         return new Fixture(
@@ -309,9 +336,36 @@ class GameResultReadServiceTest {
         Member member = Member.builder()
                 .email(id + "@example.com")
                 .nickname("member" + id)
+                .gender(id == 1L ? Gender.MALE : Gender.FEMALE)
                 .build();
         ReflectionTestUtils.setField(member, "id", id);
         return member;
+    }
+
+    private Map<Long, AvatarResponse> avatars(List<Member> members) {
+        EquippedItemResponse equippedItem = new EquippedItemResponse(
+                10L,
+                100L,
+                "빨간 모자",
+                ItemCategory.HAT,
+                "https://example.com/hat.png"
+        );
+        Member firstMember = members.getFirst();
+        Member secondMember = members.get(1);
+        return Map.of(
+                firstMember.getId(),
+                AvatarResponse.of(
+                        firstMember,
+                        "https://example.com/male.png",
+                        List.of(equippedItem)
+                ),
+                secondMember.getId(),
+                AvatarResponse.of(
+                        secondMember,
+                        "https://example.com/female.png",
+                        List.of()
+                )
+        );
     }
 
     private List<Mission> missions() {

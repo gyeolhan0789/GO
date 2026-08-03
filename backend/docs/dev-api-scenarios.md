@@ -197,7 +197,6 @@ OAuth 가입 완료 요청 예시:
 {
   "name": "새 협력방",
   "mode": "COOPERATE",
-  "targetBingoCount": 1,
   "targetStepCount": 8000,
   "boardSize": 3
 }
@@ -248,7 +247,6 @@ REJECTED 결과는 실제 AI 서버 응답에 따라 달라집니다.
 ```json
 {
   "boardSize": 3,
-  "targetBingoCount": 1,
   "targetStepCount": 10000
 }
 ```

@@ -26,6 +26,8 @@ import java.util.function.Consumer
 /**
  * Samsung Health Data SDK 네이티브 모듈 (읽기 전용).
  * 코루틴 대신 *Async(AsyncSingleFuture) API + setCallback으로 Promise에 연결.
+ * hasPermissions/readToday의 실제 SDK 호출은 SamsungHealthReader로 분리해
+ * WalkForegroundService(Activity 없는 컨텍스트)와 공유한다.
  */
 class SamsungHealthModule(private val reactContext: ReactApplicationContext) :
   ReactContextBaseJavaModule(reactContext) {
@@ -41,6 +43,8 @@ class SamsungHealthModule(private val reactContext: ReactApplicationContext) :
     Permission.of(DataTypes.STEPS, AccessType.READ),
     Permission.of(DataTypes.ACTIVITY_SUMMARY, AccessType.READ),
   )
+
+  private val reader = SamsungHealthReader(reactContext)
 
   @ReactMethod
   fun requestPermissions(promise: Promise) {
@@ -62,67 +66,26 @@ class SamsungHealthModule(private val reactContext: ReactApplicationContext) :
 
   @ReactMethod
   fun hasPermissions(promise: Promise) {
-    try {
-      store.getGrantedPermissionsAsync(readPermissions).setCallback(
-        executor,
-        Consumer { granted -> promise.resolve(granted.containsAll(readPermissions)) },
-        Consumer { t -> promise.reject("CHECK_FAILED", t) },
-      )
-    } catch (t: Throwable) {
-      promise.reject("CHECK_ERROR", t)
-    }
+    reader.hasPermissions(
+      onResult = { granted -> promise.resolve(granted) },
+      onError = { t -> promise.reject("CHECK_FAILED", t) },
+    )
   }
 
   @ReactMethod
   fun readToday(promise: Promise) {
-    try {
-      val filter = LocalTimeFilter.of(
-        LocalDateTime.of(LocalDate.now(), LocalTime.MIN),
-        LocalDateTime.now(),
-      )
-
-      val stepsRequest = DataType.StepsType.TOTAL.requestBuilder
-        .setLocalTimeFilter(filter)
-        .build()
-      store.aggregateDataAsync(stepsRequest).setCallback(
-        executor,
-        Consumer { stepsResponse ->
-          val steps = stepsResponse.dataList.firstOrNull()?.value ?: 0L
-
-          val distanceRequest = DataType.ActivitySummaryType.TOTAL_DISTANCE.requestBuilder
-            .setLocalTimeFilter(filter)
-            .build()
-          store.aggregateDataAsync(distanceRequest).setCallback(
-            executor,
-            Consumer { distanceResponse ->
-              val distance = distanceResponse.dataList.firstOrNull()?.value ?: 0f
-
-              val caloriesRequest =
-                DataType.ActivitySummaryType.TOTAL_ACTIVE_CALORIES_BURNED.requestBuilder
-                  .setLocalTimeFilter(filter)
-                  .build()
-              store.aggregateDataAsync(caloriesRequest).setCallback(
-                executor,
-                Consumer { caloriesResponse ->
-                  val calories = caloriesResponse.dataList.firstOrNull()?.value ?: 0f
-                  val result = Arguments.createMap().apply {
-                    putDouble("steps", steps.toDouble())
-                    putDouble("distanceMeters", distance.toDouble())
-                    putDouble("activeCalories", calories.toDouble())
-                  }
-                  promise.resolve(result)
-                },
-                Consumer { t -> promise.reject("CALORIES_FAILED", t) },
-              )
-            },
-            Consumer { t -> promise.reject("DISTANCE_FAILED", t) },
-          )
-        },
-        Consumer { t -> promise.reject("STEPS_FAILED", t) },
-      )
-    } catch (t: Throwable) {
-      promise.reject("READ_ERROR", t)
-    }
+    reader.readToday(
+      onResult = { summary ->
+        promise.resolve(
+          Arguments.createMap().apply {
+            putDouble("steps", summary.steps)
+            putDouble("distanceMeters", summary.distanceMeters)
+            putDouble("activeCalories", summary.activeCalories)
+          },
+        )
+      },
+      onError = { t -> promise.reject("READ_ERROR", t) },
+    )
   }
 
   /**

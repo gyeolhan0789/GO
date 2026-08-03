@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -19,12 +20,13 @@ import { todayIso } from '../../features/history/model/period';
 import { useHistoriesQuery } from '../../features/history/hooks/useHistoriesQuery';
 import { useSaveHistoryMutation } from '../../features/history/hooks/useSaveHistoryMutation';
 import { useMyMemberIdQuery } from '../../features/member/hooks/useMyMemberIdQuery';
+import { useMyPageQuery } from '../../features/member/hooks/useMyPageQuery';
 import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
 import { useWalkSession } from '../../features/walk-session/hooks/useWalkSession';
 import {
   confirmWalkSessionStart,
   endWalkSession,
-  setWalkSessionStartHealthSummary,
+  stopWalkSession,
 } from '../../features/walk-session/model/walkSessionStore';
 import { AppText } from '../../shared/components/AppText/AppText';
 import { Button } from '../../shared/components/Button/Button';
@@ -32,7 +34,6 @@ import { MemberProgressBar } from '../../shared/components/MemberProgressBar/Mem
 import { Screen } from '../../shared/components/Screen/Screen';
 import { controlHeight } from '../../shared/constants/sizing';
 import { colors } from '../../shared/constants/colors';
-import { useSamsungHealthToday } from '../../shared/hooks/useSamsungHealthToday';
 import { getParticipantColor } from '../../shared/lib/participantColor';
 import { radius } from '../../shared/constants/radius';
 import { shadow } from '../../shared/constants/shadow';
@@ -71,12 +72,26 @@ export function WalkSessionScreen() {
   // 상태. 뒤로가기로 나갔다 들어와도 0으로 리셋되지 않는다. isStarted가
   // false인 동안은 카운트다운이 아직 안 끝난 것이라 경과 시간이 0으로
   // 고정된다.
-  const { roomId, startHealthSummary, elapsedSeconds, isPaused, isStarted, togglePause } =
-    useWalkSession();
+  const {
+    roomId,
+    elapsedSeconds,
+    isPaused,
+    isStarted,
+    steps,
+    distanceMeters,
+    calories,
+    togglePause,
+  } = useWalkSession();
+  // 종료 처리 중(stopWalkSession이 네이티브 세션을 끝내면 isStarted가 먼저
+  // false가 된다)에는 카운트다운을 다시 보여주면 안 된다 — 화면을 벗어나기
+  // 전까지 이 화면을 그대로 유지한다.
+  const isEndingRef = useRef(false);
   // 카운트다운이 끝나야 진짜 시작이므로, 그 전까지는 경로도 기록하지 않는다.
-  const showCountdown = !isStarted;
-  // 일시정지하면 경로도 같이 멈춘다. 지금까지 찍은 좌표는 그대로 남는다.
-  const { route, initialCoords } = useRouteTracking(isStarted && !isPaused);
+  const showCountdown = !isStarted && !isEndingRef.current;
+  // GPS 추적·일시정지는 네이티브 세션 상태가 그대로 반영하므로 이 훅은
+  // 파라미터가 필요 없다.
+  const { route, initialCoords } = useRouteTracking();
+  const myPageQuery = useMyPageQuery();
 
   const roomQuery = useRoomDetailQuery(roomId);
   const room = roomQuery.data ?? null;
@@ -128,45 +143,11 @@ export function WalkSessionScreen() {
       ? Math.min(100, Math.round((teamWeeklySteps / targetStepCount) * 100))
       : 0;
 
-  // 걷는 동안 화면에 뜬 값이 계속 갱신되도록 주기적으로 다시 읽는다. 일시정지
-  // 중에는(경로 추적도 같이 멈추는 것과 동일하게) 다시 읽지 않고 멈춘
-  // 시점 값을 그대로 보여준다.
-  const health = useSamsungHealthToday({
-    refetchInterval: HEALTH_POLL_INTERVAL_MS,
-    enabled: !isPaused,
-  });
-  const healthSummary =
-    health.data?.status === 'ok' ? health.data.summary : null;
-  // 이 폴링에서 처음 성공한 값을 세션 걸음 기준값으로 등록한다(한 번
-  // 등록되면 store가 이후 호출을 무시한다). 단발성 조회 대신 이미 도는
-  // 폴링에 얹어서, 첫 시도가 실패해도 다음 폴링 때 자연히 재시도된다.
-  useEffect(() => {
-    if (isStarted && startHealthSummary === null && healthSummary) {
-      setWalkSessionStartHealthSummary(healthSummary);
-    }
-  }, [isStarted, startHealthSummary, healthSummary]);
-  // 오늘 누적치에서 세션 시작 시점 기준값을 빼서 "이 산책에서" 걷고 쓴
-  // 양만 보여준다. 기준값을 아직 못 읽었으면(권한 문제 등) 0을 빼는 셈이라
-  // 오늘 누적치가 그대로 나온다.
-  const sessionSteps = healthSummary
-    ? Math.max(0, healthSummary.steps - (startHealthSummary?.steps ?? 0))
-    : 0;
-  const sessionDistanceKm = healthSummary
-    ? Math.round(
-        Math.max(
-          0,
-          healthSummary.distanceMeters - (startHealthSummary?.distanceMeters ?? 0),
-        ) / 100,
-      ) / 10
-    : 0;
-  const sessionCalories = healthSummary
-    ? Math.round(
-        Math.max(
-          0,
-          healthSummary.activeCalories - (startHealthSummary?.activeCalories ?? 0),
-        ),
-      )
-    : 0;
+  // 걸음수·거리·칼로리는 네이티브 세션이 직접 집계해서 내려준다(20초 간격
+  // 갱신, 일시정지 중에는 고정). 화면 표시용으로 반올림만 한다.
+  const sessionSteps = Math.round(steps);
+  const sessionDistanceKm = Math.round(distanceMeters / 100) / 10;
+  const sessionCalories = Math.round(calories);
   const mapRef = useRef<WalkRouteMapHandle>(null);
   // 현위치 버튼을 패널의 현재 노출 높이 바로 위에 띄우려면 패널의 실측
   // 높이가 필요하다(콘텐츠에 따라 늘어나서 고정값을 쓸 수 없다). 패널을
@@ -226,6 +207,7 @@ export function WalkSessionScreen() {
   ).current;
 
   const saveHistoryMutation = useSaveHistoryMutation();
+  const queryClient = useQueryClient();
 
   const handleEndWalk = useCallback(() => {
     Alert.alert('산책 종료', '지금 산책을 종료할까요?', [
@@ -234,6 +216,12 @@ export function WalkSessionScreen() {
         text: '종료',
         style: 'destructive',
         onPress: async () => {
+          // stopWalkSession이 네이티브 세션을 끝내면 isStarted가 곧바로
+          // false가 되는데, 그 뒤로도 기록 저장 등 비동기 작업이 남아있어
+          // 이 화면이 한동안 더 떠있는다 — 그 사이 카운트다운이 다시 뜨지
+          // 않도록 지금 미리 표시해둔다.
+          isEndingRef.current = true;
+
           // 방은 파괴하지 않는 한 계속 유지된다. 빙고판 갱신은 다 채웠거나
           // 일주일이 지났을 때 방장이 직접 트리거해야 한다(자동 초기화 없음).
           // 여기서는 이 화면의 로컬 세션(경과 시간 타이머)만 끝낸다.
@@ -246,6 +234,14 @@ export function WalkSessionScreen() {
             return;
           }
 
+          // 네이티브 세션을 종료해 서비스·알림·GPS를 정지시키고 확정된
+          // 최종 수치를 받아온다.
+          const final = await stopWalkSession();
+          const finalSteps = Math.round(final.steps);
+          const finalDistanceKm = Math.round(final.distanceMeters / 100) / 10;
+          const finalCalories = Math.round(final.calories);
+          const finalElapsedSeconds = Math.floor(final.activeElapsedMs / 1000);
+
           // 오늘 걸음/거리/칼로리를 서버에 올린다. 실패해도 이 세션 자체를
           // 못 끝내게 막을 이유는 없어서(내 기기에서 이미 다 계산해둔
           // 값이라 결과 화면은 그대로 보여줄 수 있다), 실패는 알림만 띄우고
@@ -253,9 +249,9 @@ export function WalkSessionScreen() {
           try {
             await saveHistoryMutation.mutateAsync({
               historyDate: todayIso(),
-              step: sessionSteps,
-              distance: Math.round(sessionDistanceKm * 1000),
-              calories: sessionCalories,
+              step: finalSteps,
+              distance: Math.round(finalDistanceKm * 1000),
+              calories: finalCalories,
             });
           } catch (error) {
             Alert.alert(
@@ -264,37 +260,34 @@ export function WalkSessionScreen() {
             );
           }
 
+          // 기록 화면은 탭에 계속 살아 있어 다시 마운트되지 않는다. 여기서
+          // 비워주지 않으면 방금 끝낸 산책이 최근 산책·전체 기록에 앱을 다시
+          // 열기 전까지 안 보인다.
+          queryClient.invalidateQueries({ queryKey: ['game-results'] });
+
           const resultParams = {
             roomId,
             roomName: room?.name ?? '',
             mode: room?.mode ?? ('SINGLE' as const),
-            steps: sessionSteps,
-            distanceKm: sessionDistanceKm,
-            calories: sessionCalories,
-            elapsedSeconds,
+            steps: finalSteps,
+            distanceKm: finalDistanceKm,
+            calories: finalCalories,
+            elapsedSeconds: finalElapsedSeconds,
           };
-          endWalkSession();
           navigation.replace('WalkResult', resultParams);
         },
       },
     ]);
-  }, [
-    navigation,
-    roomId,
-    room,
-    sessionSteps,
-    sessionDistanceKm,
-    sessionCalories,
-    elapsedSeconds,
-    saveHistoryMutation,
-  ]);
+  }, [navigation, roomId, room, saveHistoryMutation, queryClient]);
 
   // 카운트다운이 끝나기 전까지는 지도를 아예 안 띄운다(지도가 살짝
   // 비치는 오버레이보다 완전히 가려진 화면이 낫다는 판단).
   if (showCountdown) {
     return (
       <Screen edges={['top', 'bottom']}>
-        <WalkCountdownScreen onFinish={confirmWalkSessionStart} />
+        <WalkCountdownScreen
+          onFinish={() => confirmWalkSessionStart(myPageQuery.data?.gender ?? null)}
+        />
       </Screen>
     );
   }

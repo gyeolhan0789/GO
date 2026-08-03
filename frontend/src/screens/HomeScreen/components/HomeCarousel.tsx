@@ -31,6 +31,8 @@ type HomeCarouselProps = {
   rewardHint: string;
   bingoSize: BingoBoardSize;
   bingoCells: BingoBoardCell[];
+  bingoHint?: string;
+  onBingoCellPress?: (cell: BingoBoardCell) => void;
   style?: StyleProp<ViewStyle>;
   isWalking?: boolean;
   walkElapsedLabel?: string;
@@ -51,6 +53,8 @@ export function HomeCarousel({
   rewardHint,
   bingoSize,
   bingoCells,
+  bingoHint,
+  onBingoCellPress,
   style,
   isWalking,
   walkElapsedLabel,
@@ -105,7 +109,12 @@ export function HomeCarousel({
               />
             </View>
             <View style={{ width: pageWidth }}>
-              <BingoPreviewPage size={bingoSize} cells={bingoCells} />
+              <BingoPreviewPage
+                size={bingoSize}
+                cells={bingoCells}
+                hint={bingoHint}
+                onCellPress={onBingoCellPress}
+              />
             </View>
           </ScrollView>
         ) : null}

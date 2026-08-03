@@ -17,6 +17,8 @@ class MainApplication : Application(), ReactApplication {
           // Packages that cannot be autolinked yet can be added manually here, for example:
           // add(MyReactNativePackage())
           add(com.wecandoit.samsunghealth.SamsungHealthPackage())
+          add(com.wecandoit.stepsensor.StepSensorPackage())
+          add(com.wecandoit.walktracking.WalkTrackingPackage())
         },
     )
   }

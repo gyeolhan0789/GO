@@ -5,7 +5,7 @@ INSERT INTO member (
     nickname,
     region,
     gender,
-    cash,
+    point,
     onboarding_completed,
     role,
     auth_provider,
@@ -39,31 +39,31 @@ INSERT INTO missions (
     updated_at
 )
 VALUES
-    (2001, 'https://placehold.co/512x512/png?text=Mission+01', 'OBJECT', '파란 물건 찾기', '파란색 물건이 보이도록 촬영하세요.', '{"type":"OBJECT","value":"blue"}', NOW(6), NOW(6)),
-    (2002, 'https://placehold.co/512x512/png?text=Mission+02', 'OBJECT', '빨간 물건 찾기', '빨간색 물건이 보이도록 촬영하세요.', '{"type":"OBJECT","value":"red"}', NOW(6), NOW(6)),
-    (2003, 'https://placehold.co/512x512/png?text=Mission+03', 'OBJECT', '초록 물건 찾기', '초록색 물건이 보이도록 촬영하세요.', '{"type":"OBJECT","value":"green"}', NOW(6), NOW(6)),
-    (2004, 'https://placehold.co/512x512/png?text=Mission+04', 'OBJECT', '노란 물건 찾기', '노란색 물건이 보이도록 촬영하세요.', '{"type":"OBJECT","value":"yellow"}', NOW(6), NOW(6)),
-    (2005, 'https://placehold.co/512x512/png?text=Mission+05', 'OBJECT', '의자 찾기', '의자가 보이도록 촬영하세요.', '{"type":"OBJECT","value":"chair"}', NOW(6), NOW(6)),
-    (2006, 'https://placehold.co/512x512/png?text=Mission+06', 'OBJECT', '나무 찾기', '나무가 보이도록 촬영하세요.', '{"type":"OBJECT","value":"tree"}', NOW(6), NOW(6)),
-    (2007, 'https://placehold.co/512x512/png?text=Mission+07', 'OBJECT', '자동차 찾기', '자동차가 보이도록 촬영하세요.', '{"type":"OBJECT","value":"car"}', NOW(6), NOW(6)),
-    (2008, 'https://placehold.co/512x512/png?text=Mission+08', 'OBJECT', '가방 찾기', '가방이 보이도록 촬영하세요.', '{"type":"OBJECT","value":"bag"}', NOW(6), NOW(6)),
-    (2009, 'https://placehold.co/512x512/png?text=Mission+09', 'OBJECT', '꽃 찾기', '꽃이 보이도록 촬영하세요.', '{"type":"OBJECT","value":"flower"}', NOW(6), NOW(6)),
-    (2010, 'https://placehold.co/512x512/png?text=Mission+10', 'ATTRIBUTE', '둥근 물건 찾기', '둥근 형태의 물건을 촬영하세요.', '{"type":"ATTRIBUTE","value":"round"}', NOW(6), NOW(6)),
-    (2011, 'https://placehold.co/512x512/png?text=Mission+11', 'ATTRIBUTE', '네모난 물건 찾기', '네모난 형태의 물건을 촬영하세요.', '{"type":"ATTRIBUTE","value":"square"}', NOW(6), NOW(6)),
-    (2012, 'https://placehold.co/512x512/png?text=Mission+12', 'ATTRIBUTE', '긴 물건 찾기', '길쭉한 물건을 촬영하세요.', '{"type":"ATTRIBUTE","value":"long"}', NOW(6), NOW(6)),
-    (2013, 'https://placehold.co/512x512/png?text=Mission+13', 'ATTRIBUTE', '작은 물건 찾기', '손바닥보다 작은 물건을 촬영하세요.', '{"type":"ATTRIBUTE","value":"small"}', NOW(6), NOW(6)),
-    (2014, 'https://placehold.co/512x512/png?text=Mission+14', 'ATTRIBUTE', '큰 물건 찾기', '사람보다 큰 물건을 촬영하세요.', '{"type":"ATTRIBUTE","value":"large"}', NOW(6), NOW(6)),
-    (2015, 'https://placehold.co/512x512/png?text=Mission+15', 'ATTRIBUTE', '빛나는 물건 찾기', '빛을 반사하는 물건을 촬영하세요.', '{"type":"ATTRIBUTE","value":"shiny"}', NOW(6), NOW(6)),
-    (2016, 'https://placehold.co/512x512/png?text=Mission+16', 'ATTRIBUTE', '부드러운 물건 찾기', '부드러운 재질의 물건을 촬영하세요.', '{"type":"ATTRIBUTE","value":"soft"}', NOW(6), NOW(6)),
-    (2017, 'https://placehold.co/512x512/png?text=Mission+17', 'ATTRIBUTE', '투명한 물건 찾기', '투명한 물건을 촬영하세요.', '{"type":"ATTRIBUTE","value":"transparent"}', NOW(6), NOW(6)),
-    (2018, 'https://placehold.co/512x512/png?text=Mission+18', 'RELATION', '나무 옆에서 촬영', '나무 옆에 서서 촬영하세요.', '{"type":"RELATION","value":"beside_tree"}', NOW(6), NOW(6)),
-    (2019, 'https://placehold.co/512x512/png?text=Mission+19', 'RELATION', '벤치 앞에서 촬영', '벤치 앞에 서서 촬영하세요.', '{"type":"RELATION","value":"in_front_of_bench"}', NOW(6), NOW(6)),
-    (2020, 'https://placehold.co/512x512/png?text=Mission+20', 'RELATION', '친구와 함께 촬영', '친구 한 명과 함께 촬영하세요.', '{"type":"RELATION","value":"with_friend"}', NOW(6), NOW(6)),
-    (2021, 'https://placehold.co/512x512/png?text=Mission+21', 'RELATION', '건물 앞에서 촬영', '건물 입구 앞에서 촬영하세요.', '{"type":"RELATION","value":"in_front_of_building"}', NOW(6), NOW(6)),
-    (2022, 'https://placehold.co/512x512/png?text=Mission+22', 'RELATION', '횡단보도 옆에서 촬영', '횡단보도 옆에서 안전하게 촬영하세요.', '{"type":"RELATION","value":"beside_crosswalk"}', NOW(6), NOW(6)),
-    (2023, 'https://placehold.co/512x512/png?text=Mission+23', 'RELATION', '표지판 아래에서 촬영', '표지판 아래에 서서 촬영하세요.', '{"type":"RELATION","value":"under_sign"}', NOW(6), NOW(6)),
-    (2024, 'https://placehold.co/512x512/png?text=Mission+24', 'RELATION', '계단 위에서 촬영', '계단 위에 서서 촬영하세요.', '{"type":"RELATION","value":"on_stairs"}', NOW(6), NOW(6)),
-    (2025, 'https://placehold.co/512x512/png?text=Mission+25', 'RELATION', '문 옆에서 촬영', '문 옆에 서서 촬영하세요.', '{"type":"RELATION","value":"beside_door"}', NOW(6), NOW(6));
+    (2001, 'https://placehold.co/512x512/png?text=Mission+01', 'OBJECT', '파란 물건 찾기', '파란색 물건이 보이도록 촬영하세요.', '{"target": "파란 물건"}', NOW(6), NOW(6)),
+    (2002, 'https://placehold.co/512x512/png?text=Mission+02', 'OBJECT', '빨간 물건 찾기', '빨간색 물건이 보이도록 촬영하세요.', '{"target": "빨간 물건"}', NOW(6), NOW(6)),
+    (2003, 'https://placehold.co/512x512/png?text=Mission+03', 'OBJECT', '초록 물건 찾기', '초록색 물건이 보이도록 촬영하세요.', '{"target": "초록 물건"}', NOW(6), NOW(6)),
+    (2004, 'https://placehold.co/512x512/png?text=Mission+04', 'OBJECT', '노란 물건 찾기', '노란색 물건이 보이도록 촬영하세요.', '{"target": "노란 물건"}', NOW(6), NOW(6)),
+    (2005, 'https://placehold.co/512x512/png?text=Mission+05', 'OBJECT', '의자 찾기', '의자가 보이도록 촬영하세요.', '{"target": "의자"}', NOW(6), NOW(6)),
+    (2006, 'https://placehold.co/512x512/png?text=Mission+06', 'OBJECT', '나무 찾기', '나무가 보이도록 촬영하세요.', '{"target": "나무"}', NOW(6), NOW(6)),
+    (2007, 'https://placehold.co/512x512/png?text=Mission+07', 'OBJECT', '자동차 찾기', '자동차가 보이도록 촬영하세요.', '{"target": "자동차"}', NOW(6), NOW(6)),
+    (2008, 'https://placehold.co/512x512/png?text=Mission+08', 'OBJECT', '가방 찾기', '가방이 보이도록 촬영하세요.', '{"target": "가방"}', NOW(6), NOW(6)),
+    (2009, 'https://placehold.co/512x512/png?text=Mission+09', 'OBJECT', '꽃 찾기', '꽃이 보이도록 촬영하세요.', '{"target": "꽃"}', NOW(6), NOW(6)),
+    (2010, 'https://placehold.co/512x512/png?text=Mission+10', 'ATTRIBUTE', '둥근 물건 찾기', '둥근 형태의 물건을 촬영하세요.', '{"target": "물건", "constraints": {"shape": "둥근"}}', NOW(6), NOW(6)),
+    (2011, 'https://placehold.co/512x512/png?text=Mission+11', 'ATTRIBUTE', '네모난 물건 찾기', '네모난 형태의 물건을 촬영하세요.', '{"target": "물건", "constraints": {"shape": "네모난"}}', NOW(6), NOW(6)),
+    (2012, 'https://placehold.co/512x512/png?text=Mission+12', 'ATTRIBUTE', '긴 물건 찾기', '길쭉한 물건을 촬영하세요.', '{"target": "물건", "constraints": {"shape": "긴"}}', NOW(6), NOW(6)),
+    (2013, 'https://placehold.co/512x512/png?text=Mission+13', 'ATTRIBUTE', '작은 물건 찾기', '손바닥보다 작은 물건을 촬영하세요.', '{"target": "물건", "constraints": {"size": "작은"}}', NOW(6), NOW(6)),
+    (2014, 'https://placehold.co/512x512/png?text=Mission+14', 'ATTRIBUTE', '큰 물건 찾기', '사람보다 큰 물건을 촬영하세요.', '{"target": "물건", "constraints": {"size": "큰"}}', NOW(6), NOW(6)),
+    (2015, 'https://placehold.co/512x512/png?text=Mission+15', 'ATTRIBUTE', '빛나는 물건 찾기', '빛을 반사하는 물건을 촬영하세요.', '{"target": "물건", "constraints": {"appearance": "빛나는"}}', NOW(6), NOW(6)),
+    (2016, 'https://placehold.co/512x512/png?text=Mission+16', 'ATTRIBUTE', '부드러운 물건 찾기', '부드러운 재질의 물건을 촬영하세요.', '{"target": "물건", "constraints": {"texture": "부드러운"}}', NOW(6), NOW(6)),
+    (2017, 'https://placehold.co/512x512/png?text=Mission+17', 'ATTRIBUTE', '투명한 물건 찾기', '투명한 물건을 촬영하세요.', '{"target": "물건", "constraints": {"appearance": "투명한"}}', NOW(6), NOW(6)),
+    (2018, 'https://placehold.co/512x512/png?text=Mission+18', 'RELATION', '나무 옆에서 촬영', '나무 옆에 서서 촬영하세요.', '{"target": {"subject": "사람", "object": "나무"}, "constraints": {"relation": "옆"}}', NOW(6), NOW(6)),
+    (2019, 'https://placehold.co/512x512/png?text=Mission+19', 'RELATION', '벤치 앞에서 촬영', '벤치 앞에 서서 촬영하세요.', '{"target": {"subject": "사람", "object": "벤치"}, "constraints": {"relation": "앞"}}', NOW(6), NOW(6)),
+    (2020, 'https://placehold.co/512x512/png?text=Mission+20', 'RELATION', '친구와 함께 촬영', '친구 한 명과 함께 촬영하세요.', '{"target": {"subject": "사람", "object": "친구"}, "constraints": {"relation": "함께"}}', NOW(6), NOW(6)),
+    (2021, 'https://placehold.co/512x512/png?text=Mission+21', 'RELATION', '건물 앞에서 촬영', '건물 입구 앞에서 촬영하세요.', '{"target": {"subject": "사람", "object": "건물 입구"}, "constraints": {"relation": "앞"}}', NOW(6), NOW(6)),
+    (2022, 'https://placehold.co/512x512/png?text=Mission+22', 'RELATION', '횡단보도 옆에서 촬영', '횡단보도 옆에서 안전하게 촬영하세요.', '{"target": {"subject": "사람", "object": "횡단보도"}, "constraints": {"relation": "옆"}}', NOW(6), NOW(6)),
+    (2023, 'https://placehold.co/512x512/png?text=Mission+23', 'RELATION', '표지판 아래에서 촬영', '표지판 아래에 서서 촬영하세요.', '{"target": {"subject": "사람", "object": "표지판"}, "constraints": {"relation": "아래"}}', NOW(6), NOW(6)),
+    (2024, 'https://placehold.co/512x512/png?text=Mission+24', 'RELATION', '계단 위에서 촬영', '계단 위에 서서 촬영하세요.', '{"target": {"subject": "사람", "object": "계단"}, "constraints": {"relation": "위"}}', NOW(6), NOW(6)),
+    (2025, 'https://placehold.co/512x512/png?text=Mission+25', 'RELATION', '문 옆에서 촬영', '문 옆에 서서 촬영하세요.', '{"target": {"subject": "사람", "object": "문"}, "constraints": {"relation": "옆"}}', NOW(6), NOW(6));
 
 INSERT INTO items (
     id,
@@ -85,7 +85,7 @@ VALUES
     (2107, 'Dev Premium Hat', 'HAT', 10000, 'https://placehold.co/512x512/png?text=Premium+Hat', true, NOW(6), NOW(6)),
     (2108, 'Dev Retired Top', 'TOP', 100, 'https://placehold.co/512x512/png?text=Retired+Top', false, NOW(6), NOW(6));
 
-INSERT INTO default_character_assets (
+INSERT INTO default_avatar_assets (
     id,
     gender,
     image_url,
@@ -93,8 +93,8 @@ INSERT INTO default_character_assets (
     updated_at
 )
 VALUES
-    (2201, 'MALE', 'https://placehold.co/512x512/png?text=Male+Character', NOW(6), NOW(6)),
-    (2202, 'FEMALE', 'https://placehold.co/512x512/png?text=Female+Character', NOW(6), NOW(6));
+    (2201, 'MALE', 'https://placehold.co/512x512/png?text=Male+Avatar', NOW(6), NOW(6)),
+    (2202, 'FEMALE', 'https://placehold.co/512x512/png?text=Female+Avatar', NOW(6), NOW(6));
 
 INSERT INTO friends (
     id,
@@ -174,7 +174,7 @@ VALUES
     (3603, 'BOTTOM', 1001, 3503, DATE_SUB(NOW(6), INTERVAL 3 DAY), NOW(6)),
     (3604, 'SUNGLASSES', 1002, 3504, DATE_SUB(NOW(6), INTERVAL 2 DAY), NOW(6));
 
-INSERT INTO cash_histories (
+INSERT INTO point_histories (
     id,
     member_id,
     transaction_type,
@@ -223,12 +223,12 @@ INSERT INTO rooms (
     updated_at
 )
 VALUES
-    (4001, '4인 협력 진행방', 1001, 'COOPERATE', 'ACTIVE', 2, 10000, 3, DATE_SUB(NOW(6), INTERVAL 1 DAY), NOW(6)),
-    (4002, '중간 참여 협력방', 1001, 'COOPERATE', 'ACTIVE', 1, 8000, 3, DATE_SUB(NOW(6), INTERVAL 2 DAY), NOW(6)),
-    (4003, '갱신 필요 협력방', 1001, 'COOPERATE', 'ACTIVE', 2, 12000, 3, DATE_SUB(NOW(6), INTERVAL 8 DAY), NOW(6)),
-    (4004, '목표 달성 협력방', 1001, 'COOPERATE', 'ACTIVE', 1, 9000, 3, DATE_SUB(NOW(6), INTERVAL 1 DAY), NOW(6)),
-    (4005, '검증 대기 협력방', 1001, 'COOPERATE', 'ACTIVE', 2, 11000, 3, DATE_SUB(NOW(6), INTERVAL 8 DAY), NOW(6)),
-    (4006, '싱글 진행방', 1009, 'SINGLE', 'ACTIVE', 1, 7000, 3, DATE_SUB(NOW(6), INTERVAL 1 DAY), NOW(6)),
+    (4001, '4인 협력 진행방', 1001, 'COOPERATE', 'ACTIVE', NULL, 10000, 3, DATE_SUB(NOW(6), INTERVAL 1 DAY), NOW(6)),
+    (4002, '중간 참여 협력방', 1001, 'COOPERATE', 'ACTIVE', NULL, 8000, 3, DATE_SUB(NOW(6), INTERVAL 2 DAY), NOW(6)),
+    (4003, '갱신 필요 협력방', 1001, 'COOPERATE', 'ACTIVE', NULL, 12000, 3, DATE_SUB(NOW(6), INTERVAL 8 DAY), NOW(6)),
+    (4004, '전체 완료 협력방', 1001, 'COOPERATE', 'ACTIVE', NULL, 9000, 3, DATE_SUB(NOW(6), INTERVAL 1 DAY), NOW(6)),
+    (4005, '검증 대기 협력방', 1001, 'COOPERATE', 'ACTIVE', NULL, 11000, 3, DATE_SUB(NOW(6), INTERVAL 8 DAY), NOW(6)),
+    (4006, '싱글 진행방', 1009, 'SINGLE', 'ACTIVE', NULL, 7000, 3, DATE_SUB(NOW(6), INTERVAL 1 DAY), NOW(6)),
     (4007, '대결 대기방', 1010, 'BATTLE', 'ACTIVE', 2, NULL, 3, DATE_SUB(NOW(6), INTERVAL 1 DAY), NOW(6)),
     (4008, '대결 진행방', 1010, 'BATTLE', 'ACTIVE', 2, NULL, 3, DATE_SUB(NOW(6), INTERVAL 2 HOUR), NOW(6));
 
@@ -315,12 +315,12 @@ INSERT INTO bingo_boards (
     updated_at
 )
 VALUES
-    (7001, 5001, NULL, 'SHARED', 3, 2, 10000, 'ACTIVE', NULL, DATE_SUB(NOW(6), INTERVAL 1 DAY), NOW(6)),
-    (7002, 5002, NULL, 'SHARED', 3, 1, 8000, 'ACTIVE', NULL, DATE_SUB(NOW(6), INTERVAL 2 DAY), NOW(6)),
-    (7003, 5003, NULL, 'SHARED', 3, 2, 12000, 'ACTIVE', NULL, DATE_SUB(NOW(6), INTERVAL 8 DAY), NOW(6)),
-    (7004, 5004, NULL, 'SHARED', 3, 1, 9000, 'ACTIVE', NULL, DATE_SUB(NOW(6), INTERVAL 1 DAY), NOW(6)),
-    (7005, 5005, NULL, 'SHARED', 3, 2, 11000, 'ACTIVE', NULL, DATE_SUB(NOW(6), INTERVAL 8 DAY), NOW(6)),
-    (7006, 5006, NULL, 'SHARED', 3, 1, 7000, 'ACTIVE', NULL, DATE_SUB(NOW(6), INTERVAL 1 DAY), NOW(6)),
+    (7001, 5001, NULL, 'SHARED', 3, NULL, 10000, 'ACTIVE', NULL, DATE_SUB(NOW(6), INTERVAL 1 DAY), NOW(6)),
+    (7002, 5002, NULL, 'SHARED', 3, NULL, 8000, 'ACTIVE', NULL, DATE_SUB(NOW(6), INTERVAL 2 DAY), NOW(6)),
+    (7003, 5003, NULL, 'SHARED', 3, NULL, 12000, 'ACTIVE', NULL, DATE_SUB(NOW(6), INTERVAL 8 DAY), NOW(6)),
+    (7004, 5004, NULL, 'SHARED', 3, NULL, 9000, 'ACTIVE', NULL, DATE_SUB(NOW(6), INTERVAL 1 DAY), NOW(6)),
+    (7005, 5005, NULL, 'SHARED', 3, NULL, 11000, 'ACTIVE', NULL, DATE_SUB(NOW(6), INTERVAL 8 DAY), NOW(6)),
+    (7006, 5006, NULL, 'SHARED', 3, NULL, 7000, 'ACTIVE', NULL, DATE_SUB(NOW(6), INTERVAL 1 DAY), NOW(6)),
     (7007, 5007, 6014, 'PERSONAL', 3, 2, NULL, 'ACTIVE', NULL, DATE_SUB(NOW(6), INTERVAL 2 HOUR), NOW(6)),
     (7008, 5007, 6015, 'PERSONAL', 3, 2, NULL, 'ACTIVE', NULL, DATE_SUB(NOW(6), INTERVAL 2 HOUR), NOW(6));
 
@@ -373,12 +373,12 @@ VALUES
     (8031, 7004, 2001, 0, 0, DATE_SUB(NOW(6), INTERVAL 20 HOUR), DATE_SUB(NOW(6), INTERVAL 21 HOUR), 'APPROVED', NULL, 1001, 'https://placehold.co/512x512/png?text=Target+1', DATE_SUB(NOW(6), INTERVAL 1 DAY), DATE_SUB(NOW(6), INTERVAL 20 HOUR)),
     (8032, 7004, 2002, 0, 1, DATE_SUB(NOW(6), INTERVAL 18 HOUR), DATE_SUB(NOW(6), INTERVAL 19 HOUR), 'APPROVED', NULL, 1004, 'https://placehold.co/512x512/png?text=Target+2', DATE_SUB(NOW(6), INTERVAL 1 DAY), DATE_SUB(NOW(6), INTERVAL 18 HOUR)),
     (8033, 7004, 2003, 0, 2, DATE_SUB(NOW(6), INTERVAL 16 HOUR), DATE_SUB(NOW(6), INTERVAL 17 HOUR), 'APPROVED', NULL, 1001, 'https://placehold.co/512x512/png?text=Target+3', DATE_SUB(NOW(6), INTERVAL 1 DAY), DATE_SUB(NOW(6), INTERVAL 16 HOUR)),
-    (8034, 7004, 2004, 1, 0, NULL, NULL, NULL, NULL, NULL, NULL, DATE_SUB(NOW(6), INTERVAL 1 DAY), DATE_SUB(NOW(6), INTERVAL 1 DAY)),
-    (8035, 7004, 2005, 1, 1, NULL, NULL, NULL, NULL, NULL, NULL, DATE_SUB(NOW(6), INTERVAL 1 DAY), DATE_SUB(NOW(6), INTERVAL 1 DAY)),
-    (8036, 7004, 2006, 1, 2, NULL, NULL, NULL, NULL, NULL, NULL, DATE_SUB(NOW(6), INTERVAL 1 DAY), DATE_SUB(NOW(6), INTERVAL 1 DAY)),
-    (8037, 7004, 2007, 2, 0, NULL, NULL, NULL, NULL, NULL, NULL, DATE_SUB(NOW(6), INTERVAL 1 DAY), DATE_SUB(NOW(6), INTERVAL 1 DAY)),
-    (8038, 7004, 2008, 2, 1, NULL, NULL, NULL, NULL, NULL, NULL, DATE_SUB(NOW(6), INTERVAL 1 DAY), DATE_SUB(NOW(6), INTERVAL 1 DAY)),
-    (8039, 7004, 2009, 2, 2, NULL, NULL, NULL, NULL, NULL, NULL, DATE_SUB(NOW(6), INTERVAL 1 DAY), DATE_SUB(NOW(6), INTERVAL 1 DAY)),
+    (8034, 7004, 2004, 1, 0, DATE_SUB(NOW(6), INTERVAL 15 HOUR), DATE_SUB(NOW(6), INTERVAL 16 HOUR), 'APPROVED', NULL, 1004, 'https://placehold.co/512x512/png?text=Complete+4', DATE_SUB(NOW(6), INTERVAL 1 DAY), DATE_SUB(NOW(6), INTERVAL 15 HOUR)),
+    (8035, 7004, 2005, 1, 1, DATE_SUB(NOW(6), INTERVAL 14 HOUR), DATE_SUB(NOW(6), INTERVAL 15 HOUR), 'APPROVED', NULL, 1001, 'https://placehold.co/512x512/png?text=Complete+5', DATE_SUB(NOW(6), INTERVAL 1 DAY), DATE_SUB(NOW(6), INTERVAL 14 HOUR)),
+    (8036, 7004, 2006, 1, 2, DATE_SUB(NOW(6), INTERVAL 13 HOUR), DATE_SUB(NOW(6), INTERVAL 14 HOUR), 'APPROVED', NULL, 1004, 'https://placehold.co/512x512/png?text=Complete+6', DATE_SUB(NOW(6), INTERVAL 1 DAY), DATE_SUB(NOW(6), INTERVAL 13 HOUR)),
+    (8037, 7004, 2007, 2, 0, DATE_SUB(NOW(6), INTERVAL 12 HOUR), DATE_SUB(NOW(6), INTERVAL 13 HOUR), 'APPROVED', NULL, 1001, 'https://placehold.co/512x512/png?text=Complete+7', DATE_SUB(NOW(6), INTERVAL 1 DAY), DATE_SUB(NOW(6), INTERVAL 12 HOUR)),
+    (8038, 7004, 2008, 2, 1, DATE_SUB(NOW(6), INTERVAL 11 HOUR), DATE_SUB(NOW(6), INTERVAL 12 HOUR), 'APPROVED', NULL, 1004, 'https://placehold.co/512x512/png?text=Complete+8', DATE_SUB(NOW(6), INTERVAL 1 DAY), DATE_SUB(NOW(6), INTERVAL 11 HOUR)),
+    (8039, 7004, 2009, 2, 2, DATE_SUB(NOW(6), INTERVAL 10 HOUR), DATE_SUB(NOW(6), INTERVAL 11 HOUR), 'APPROVED', NULL, 1001, 'https://placehold.co/512x512/png?text=Complete+9', DATE_SUB(NOW(6), INTERVAL 1 DAY), DATE_SUB(NOW(6), INTERVAL 10 HOUR)),
 
     (8041, 7005, 2001, 0, 0, NULL, DATE_SUB(NOW(6), INTERVAL 2 DAY), 'PENDING', NULL, 1001, 'https://placehold.co/512x512/png?text=Pending', DATE_SUB(NOW(6), INTERVAL 8 DAY), DATE_SUB(NOW(6), INTERVAL 2 DAY)),
     (8042, 7005, 2002, 0, 1, DATE_SUB(NOW(6), INTERVAL 6 DAY), DATE_SUB(NOW(6), INTERVAL 6 DAY), 'APPROVED', NULL, 1005, 'https://placehold.co/512x512/png?text=Pending+Room+Approved', DATE_SUB(NOW(6), INTERVAL 8 DAY), DATE_SUB(NOW(6), INTERVAL 6 DAY)),
@@ -451,8 +451,8 @@ INSERT INTO rooms (
 )
 VALUES
     (4010, '대결 재대결방', 1010, 'BATTLE', 'ACTIVE', 1, NULL, 3, DATE_SUB(NOW(6), INTERVAL 6 DAY), NOW(6)),
-    (4011, '4인 협력 성공 기록', 1001, 'COOPERATE', 'CLOSED', 1, 10000, 3, DATE_SUB(NOW(6), INTERVAL 10 DAY), DATE_SUB(NOW(6), INTERVAL 3 DAY)),
-    (4012, '협력 실패 기록', 1001, 'COOPERATE', 'CLOSED', 2, 12000, 3, DATE_SUB(NOW(6), INTERVAL 12 DAY), DATE_SUB(NOW(6), INTERVAL 5 DAY));
+    (4011, '4인 협력 성공 기록', 1001, 'COOPERATE', 'CLOSED', NULL, 10000, 3, DATE_SUB(NOW(6), INTERVAL 10 DAY), DATE_SUB(NOW(6), INTERVAL 3 DAY)),
+    (4012, '협력 실패 기록', 1001, 'COOPERATE', 'CLOSED', NULL, 12000, 3, DATE_SUB(NOW(6), INTERVAL 12 DAY), DATE_SUB(NOW(6), INTERVAL 5 DAY));
 
 INSERT INTO room_members (
     id,
@@ -514,8 +514,8 @@ INSERT INTO bingo_boards (
 VALUES
     (7101, 5101, 6101, 'PERSONAL', 3, 1, NULL, 'COMPLETED', DATE_SUB(NOW(6), INTERVAL 5 DAY), DATE_SUB(NOW(6), INTERVAL 6 DAY), DATE_SUB(NOW(6), INTERVAL 5 DAY)),
     (7102, 5101, 6102, 'PERSONAL', 3, 1, NULL, 'COMPLETED', DATE_SUB(NOW(6), INTERVAL 5 DAY), DATE_SUB(NOW(6), INTERVAL 6 DAY), DATE_SUB(NOW(6), INTERVAL 5 DAY)),
-    (7103, 5102, NULL, 'SHARED', 3, 1, 10000, 'COMPLETED', DATE_SUB(NOW(6), INTERVAL 3 DAY), DATE_SUB(NOW(6), INTERVAL 10 DAY), DATE_SUB(NOW(6), INTERVAL 3 DAY)),
-    (7104, 5103, NULL, 'SHARED', 3, 2, 12000, 'EXPIRED', DATE_SUB(NOW(6), INTERVAL 5 DAY), DATE_SUB(NOW(6), INTERVAL 12 DAY), DATE_SUB(NOW(6), INTERVAL 5 DAY));
+    (7103, 5102, NULL, 'SHARED', 3, NULL, 10000, 'COMPLETED', DATE_SUB(NOW(6), INTERVAL 3 DAY), DATE_SUB(NOW(6), INTERVAL 10 DAY), DATE_SUB(NOW(6), INTERVAL 3 DAY)),
+    (7104, 5103, NULL, 'SHARED', 3, NULL, 12000, 'EXPIRED', DATE_SUB(NOW(6), INTERVAL 5 DAY), DATE_SUB(NOW(6), INTERVAL 12 DAY), DATE_SUB(NOW(6), INTERVAL 5 DAY));
 
 INSERT INTO bingo_cells (
     id,
@@ -559,9 +559,9 @@ VALUES
     (8124, 7103, 2004, 1, 0, DATE_SUB(NOW(6), INTERVAL 4 DAY), DATE_SUB(NOW(6), INTERVAL 4 DAY), 'APPROVED', NULL, 1001, 'https://placehold.co/512x512/png?text=Coop+Host+3', DATE_SUB(NOW(6), INTERVAL 10 DAY), DATE_SUB(NOW(6), INTERVAL 4 DAY)),
     (8125, 7103, 2005, 1, 1, DATE_SUB(NOW(6), INTERVAL 4 DAY), DATE_SUB(NOW(6), INTERVAL 4 DAY), 'APPROVED', NULL, 1002, 'https://placehold.co/512x512/png?text=Coop+Friend1+2', DATE_SUB(NOW(6), INTERVAL 10 DAY), DATE_SUB(NOW(6), INTERVAL 4 DAY)),
     (8126, 7103, 2006, 1, 2, DATE_SUB(NOW(6), INTERVAL 4 DAY), DATE_SUB(NOW(6), INTERVAL 4 DAY), 'APPROVED', NULL, 1003, 'https://placehold.co/512x512/png?text=Coop+Friend2+1', DATE_SUB(NOW(6), INTERVAL 10 DAY), DATE_SUB(NOW(6), INTERVAL 4 DAY)),
-    (8127, 7103, 2007, 2, 0, NULL, NULL, NULL, NULL, NULL, NULL, DATE_SUB(NOW(6), INTERVAL 10 DAY), DATE_SUB(NOW(6), INTERVAL 10 DAY)),
-    (8128, 7103, 2008, 2, 1, NULL, NULL, NULL, NULL, NULL, NULL, DATE_SUB(NOW(6), INTERVAL 10 DAY), DATE_SUB(NOW(6), INTERVAL 10 DAY)),
-    (8129, 7103, 2009, 2, 2, NULL, NULL, NULL, NULL, NULL, NULL, DATE_SUB(NOW(6), INTERVAL 10 DAY), DATE_SUB(NOW(6), INTERVAL 10 DAY)),
+    (8127, 7103, 2007, 2, 0, DATE_SUB(NOW(6), INTERVAL 4 DAY), DATE_SUB(NOW(6), INTERVAL 4 DAY), 'APPROVED', NULL, 1003, 'https://placehold.co/512x512/png?text=Coop+Friend2+2', DATE_SUB(NOW(6), INTERVAL 10 DAY), DATE_SUB(NOW(6), INTERVAL 4 DAY)),
+    (8128, 7103, 2008, 2, 1, DATE_SUB(NOW(6), INTERVAL 4 DAY), DATE_SUB(NOW(6), INTERVAL 4 DAY), 'APPROVED', NULL, 1004, 'https://placehold.co/512x512/png?text=Coop+Friend3+1', DATE_SUB(NOW(6), INTERVAL 10 DAY), DATE_SUB(NOW(6), INTERVAL 4 DAY)),
+    (8129, 7103, 2009, 2, 2, DATE_SUB(NOW(6), INTERVAL 4 DAY), DATE_SUB(NOW(6), INTERVAL 4 DAY), 'APPROVED', NULL, 1004, 'https://placehold.co/512x512/png?text=Coop+Friend3+2', DATE_SUB(NOW(6), INTERVAL 10 DAY), DATE_SUB(NOW(6), INTERVAL 4 DAY)),
 
     (8131, 7104, 2001, 0, 0, DATE_SUB(NOW(6), INTERVAL 8 DAY), DATE_SUB(NOW(6), INTERVAL 8 DAY), 'APPROVED', NULL, 1001, 'https://placehold.co/512x512/png?text=Failed+Coop+1', DATE_SUB(NOW(6), INTERVAL 12 DAY), DATE_SUB(NOW(6), INTERVAL 8 DAY)),
     (8132, 7104, 2002, 0, 1, NULL, DATE_SUB(NOW(6), INTERVAL 7 DAY), 'REJECTED', '미션 조건이 확인되지 않았습니다.', 1002, 'https://placehold.co/512x512/png?text=Failed+Coop+Rejected', DATE_SUB(NOW(6), INTERVAL 12 DAY), DATE_SUB(NOW(6), INTERVAL 7 DAY)),
@@ -580,13 +580,13 @@ INSERT INTO game_results (
     result,
     bingo_count,
     completed_mission_count,
-    reward_cash,
+    reward_point,
     created_at,
     updated_at
 )
 VALUES
     (7201, 5101, 4010, true, 1, 3, 300, DATE_SUB(NOW(6), INTERVAL 5 DAY), DATE_SUB(NOW(6), INTERVAL 5 DAY)),
-    (7202, 5102, 4011, true, 2, 6, 200, DATE_SUB(NOW(6), INTERVAL 3 DAY), DATE_SUB(NOW(6), INTERVAL 3 DAY)),
+    (7202, 5102, 4011, true, 8, 9, 200, DATE_SUB(NOW(6), INTERVAL 3 DAY), DATE_SUB(NOW(6), INTERVAL 3 DAY)),
     (7203, 5103, 4012, false, 0, 2, 0, DATE_SUB(NOW(6), INTERVAL 5 DAY), DATE_SUB(NOW(6), INTERVAL 5 DAY));
 
 INSERT INTO game_result_participants (
@@ -594,7 +594,7 @@ INSERT INTO game_result_participants (
     game_id,
     member_id,
     completed_mission_count,
-    reward_cash,
+    reward_point,
     result,
     created_at,
     updated_at
@@ -604,7 +604,7 @@ VALUES
     (7302, 5101, 1011, 1, 50, false, DATE_SUB(NOW(6), INTERVAL 5 DAY), DATE_SUB(NOW(6), INTERVAL 5 DAY)),
     (7303, 5102, 1001, 3, 200, true, DATE_SUB(NOW(6), INTERVAL 3 DAY), DATE_SUB(NOW(6), INTERVAL 3 DAY)),
     (7304, 5102, 1002, 2, 200, true, DATE_SUB(NOW(6), INTERVAL 3 DAY), DATE_SUB(NOW(6), INTERVAL 3 DAY)),
-    (7305, 5102, 1003, 1, 200, true, DATE_SUB(NOW(6), INTERVAL 3 DAY), DATE_SUB(NOW(6), INTERVAL 3 DAY)),
-    (7306, 5102, 1004, 0, 200, true, DATE_SUB(NOW(6), INTERVAL 3 DAY), DATE_SUB(NOW(6), INTERVAL 3 DAY)),
+    (7305, 5102, 1003, 2, 200, true, DATE_SUB(NOW(6), INTERVAL 3 DAY), DATE_SUB(NOW(6), INTERVAL 3 DAY)),
+    (7306, 5102, 1004, 2, 200, true, DATE_SUB(NOW(6), INTERVAL 3 DAY), DATE_SUB(NOW(6), INTERVAL 3 DAY)),
     (7307, 5103, 1001, 1, 0, false, DATE_SUB(NOW(6), INTERVAL 5 DAY), DATE_SUB(NOW(6), INTERVAL 5 DAY)),
     (7308, 5103, 1002, 1, 0, false, DATE_SUB(NOW(6), INTERVAL 5 DAY), DATE_SUB(NOW(6), INTERVAL 5 DAY));

@@ -34,8 +34,21 @@ export type CashResponse = {
   cash: number;
 };
 
+export type MyPageResponse = {
+  id: number;
+  email: string;
+  nickname: string;
+  gender: Gender;
+  region: Region;
+  cash: number;
+};
+
 export function getMyCharacter() {
   return apiClient.get<MyCharacterResponse>('/members/character');
+}
+
+export function getMyPage() {
+  return apiClient.get<MyPageResponse>('/members/me');
 }
 
 export function getMyCash() {

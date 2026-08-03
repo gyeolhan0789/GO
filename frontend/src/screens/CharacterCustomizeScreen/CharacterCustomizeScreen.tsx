@@ -22,11 +22,16 @@ import {
 import { resolveApiErrorMessage } from '../../shared/api/resolveApiErrorMessage';
 import { Button } from '../../shared/components/Button/Button';
 import { Card } from '../../shared/components/Card/Card';
+import { Fab } from '../../shared/components/Fab/Fab';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { Toast } from '../../shared/components/Toast/Toast';
 import { colors } from '../../shared/constants/colors';
 import { spacing } from '../../shared/constants/spacing';
 import { textStyles } from '../../shared/constants/typography';
+import {
+  SCROLL_THROTTLE_MS,
+  useScrollTopButton,
+} from '../../shared/hooks/useScrollTopButton';
 import { CategoryTabs } from '../../features/member/components/CategoryTabs';
 import { OwnedItemCard } from './components/OwnedItemCard';
 import { UndressButton } from './components/UndressButton';
@@ -48,6 +53,8 @@ export function CharacterCustomizeScreen() {
   // null이면 아직 손대지 않았다는 뜻. 조회가 늦게 끝나도 고른 옷을 덮어쓰지 않는다.
   const [draft, setDraft] = useState<EquippedByCategory | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const { listRef, isScrolledDown, handleScroll, scrollToTop } =
+    useScrollTopButton<CharacterItem | null>();
 
   const savedEquipped = useMemo(
     () => toEquippedByCategory(character.data?.equippedItems ?? EMPTY_ITEMS),
@@ -92,62 +99,81 @@ export function CharacterCustomizeScreen() {
 
   return (
     <Screen edges={SCREEN_EDGES}>
-      <FlatList
-        data={gridItems}
-        keyExtractor={(item, index) =>
-          item ? String(item.memberItemId) : `placeholder-${index}`
-        }
-        numColumns={COLUMN_COUNT}
-        // 착용 상태는 data 밖에 있어서, 이게 없으면 셀이 옛 상태에 멈춘다.
-        extraData={equipped}
-        ListHeaderComponent={
-          <View style={styles.listHeader}>
-            <Card style={styles.characterCard}>
-              <CharacterPreview
-                baseImage={character.data?.baseImage ?? null}
-                fallbackImage={character.data?.baseImageFallback ?? null}
-                items={selectLayerItems(equipped)}
-                style={styles.preview}
+      {/* 맨 위로 버튼을 목록 영역 안에 띄워 아래 저장 버튼과 겹치지 않게 한다. */}
+      <View style={styles.listArea}>
+        <FlatList
+          ref={listRef}
+          onScroll={handleScroll}
+          scrollEventThrottle={SCROLL_THROTTLE_MS}
+          data={gridItems}
+          keyExtractor={(item, index) =>
+            item ? String(item.memberItemId) : `placeholder-${index}`
+          }
+          numColumns={COLUMN_COUNT}
+          // 착용 상태는 data 밖에 있어서, 이게 없으면 셀이 옛 상태에 멈춘다.
+          extraData={equipped}
+          ListHeaderComponent={
+            <View style={styles.listHeader}>
+              <Card style={styles.characterCard}>
+                <CharacterPreview
+                  baseImage={character.data?.baseImage ?? null}
+                  fallbackImage={character.data?.baseImageFallback ?? null}
+                  items={selectLayerItems(equipped)}
+                  style={styles.preview}
+                />
+              </Card>
+              <UndressButton
+                onPress={() => setDraft({})}
+                disabled={!hasEquippedItem(equipped)}
               />
-            </Card>
-            <UndressButton
-              onPress={() => setDraft({})}
-              disabled={!hasEquippedItem(equipped)}
+              <CategoryTabs value={category} onChange={setCategory} />
+              {errorMessage ? (
+                <AppText
+                  style={styles.errorText}
+                  accessibilityLiveRegion="polite"
+                >
+                  {errorMessage}
+                </AppText>
+              ) : null}
+            </View>
+          }
+          ListEmptyComponent={
+            <AppText style={styles.emptyText}>
+              {myItems.isPending
+                ? '보유 아이템을 불러오는 중이에요.'
+                : '이 카테고리에 보유한 아이템이 없어요. 상점에서 먼저 구매해 주세요.'}
+            </AppText>
+          }
+          renderItem={({ item }) =>
+            item ? (
+              <OwnedItemCard
+                item={item}
+                isEquipped={isEquipped(equipped, item)}
+                onToggle={() =>
+                  setDraft(current =>
+                    toggleEquipped(current ?? savedEquipped, item),
+                  )
+                }
+              />
+            ) : (
+              <View style={styles.gridPlaceholder} />
+            )
+          }
+          columnWrapperStyle={styles.column}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+
+        {isScrolledDown ? (
+          <View style={styles.scrollToTop}>
+            <Fab
+              icon="arrow-up"
+              onPress={scrollToTop}
+              accessibilityLabel="맨 위로"
             />
-            <CategoryTabs value={category} onChange={setCategory} />
-            {errorMessage ? (
-              <AppText style={styles.errorText} accessibilityLiveRegion="polite">
-                {errorMessage}
-              </AppText>
-            ) : null}
           </View>
-        }
-        ListEmptyComponent={
-          <AppText style={styles.emptyText}>
-            {myItems.isPending
-              ? '보유 아이템을 불러오는 중이에요.'
-              : '이 카테고리에 보유한 아이템이 없어요. 상점에서 먼저 구매해 주세요.'}
-          </AppText>
-        }
-        renderItem={({ item }) =>
-          item ? (
-            <OwnedItemCard
-              item={item}
-              isEquipped={isEquipped(equipped, item)}
-              onToggle={() =>
-                setDraft(current =>
-                  toggleEquipped(current ?? savedEquipped, item),
-                )
-              }
-            />
-          ) : (
-            <View style={styles.gridPlaceholder} />
-          )
-        }
-        columnWrapperStyle={styles.column}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+        ) : null}
+      </View>
 
       <View style={styles.footer}>
         <Button
@@ -163,6 +189,9 @@ export function CharacterCustomizeScreen() {
 }
 
 const styles = StyleSheet.create({
+  listArea: {
+    flex: 1,
+  },
   listHeader: {
     gap: spacing.md,
     paddingBottom: spacing.md,
@@ -198,5 +227,10 @@ const styles = StyleSheet.create({
   footer: {
     padding: spacing.lg,
     paddingTop: spacing.sm,
+  },
+  scrollToTop: {
+    position: 'absolute',
+    right: spacing.lg,
+    bottom: spacing.md,
   },
 });

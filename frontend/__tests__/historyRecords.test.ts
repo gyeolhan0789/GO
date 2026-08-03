@@ -501,7 +501,7 @@ const gameResultResponse = {
   roomId: 12,
   roomName: '민서와의 산책',
   mode: 'COOPERATE' as const,
-  roomStatus: 'COMPLETED' as const,
+  roomStatus: 'CLOSED' as const,
   result: true,
   boardSize: 3,
   targetBingoCount: 2,
@@ -585,7 +585,8 @@ describe('toWalkRecord', () => {
   test('목록에 필요한 값으로 옮긴다', () => {
     const record = toWalkRecord(gameResultResponse);
 
-    expect(record.roomId).toBe(12);
+    // 상세 조회 키는 방(12)이 아니라 판(7)이다.
+    expect(record.gameId).toBe(7);
     expect(record.title).toBe('민서와의 산책');
     expect(record.mode).toBe('COOPERATE');
     expect(record.startedAt).toBe('2026-07-20T20:00:00');

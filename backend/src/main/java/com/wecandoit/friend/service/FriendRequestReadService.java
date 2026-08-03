@@ -1,13 +1,19 @@
 package com.wecandoit.friend.service;
 
+import com.wecandoit.avatar.service.AvatarReadService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.SliceResponse;
+import com.wecandoit.friend.domain.FriendRequest;
 import com.wecandoit.friend.domain.FriendRequestStatus;
 import com.wecandoit.friend.dto.ReceivedFriendRequestResponse;
 import com.wecandoit.friend.dto.SentFriendRequestResponse;
 import com.wecandoit.friend.repository.FriendRequestRepository;
+import com.wecandoit.item.controller.response.AvatarResponse;
+import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -22,20 +28,36 @@ public class FriendRequestReadService {
 
     private final FriendRequestRepository friendRequestRepository;
     private final MemberRepository memberRepository;
+    private final AvatarReadService avatarReadService;
 
     public SliceResponse<ReceivedFriendRequestResponse> getReceivedRequests(
             Long memberId,
             Pageable pageable
     ) {
         Pageable fixedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
-        Slice<ReceivedFriendRequestResponse> requests = friendRequestRepository
+        Slice<FriendRequest> requests = friendRequestRepository
                 .findAllByInviteeIdAndStatusOrderByCreatedAtDescIdDesc(
                         memberId,
                         FriendRequestStatus.PENDING,
                         fixedPageable
-                )
-                .map(ReceivedFriendRequestResponse::from);
-        return SliceResponse.from(requests);
+                );
+        if (requests.isEmpty()) {
+            return new SliceResponse<>(List.of(), false);
+        }
+
+        List<Member> inviters = requests.stream()
+                .map(FriendRequest::getInviter)
+                .toList();
+        Map<Long, AvatarResponse> avatarsByMemberId =
+                avatarReadService.getAvatars(inviters);
+        return SliceResponse.from(requests.map(request -> {
+            AvatarResponse avatar = avatarsByMemberId.get(request.getInviter().getId());
+            return ReceivedFriendRequestResponse.of(
+                    request,
+                    avatar.defaultImageUrl(),
+                    avatar.equippedItems()
+            );
+        }));
     }
 
     public SliceResponse<SentFriendRequestResponse> getSentRequests(

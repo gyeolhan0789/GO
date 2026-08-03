@@ -7,9 +7,11 @@ public record AdminMissionResponse(
         Long missionId,
         String missionImageUrl,
         String type,
+        String difficulty,
         String title,
         String detail,
         String decisionCondition,
+        boolean isActive,
         LocalDateTime createdAt
 ) {
 
@@ -18,9 +20,11 @@ public record AdminMissionResponse(
                 mission.getId(),
                 mission.getMissionImageUrl(),
                 mission.getType(),
+                mission.getDifficulty(),
                 mission.getTitle(),
                 mission.getDetail(),
                 mission.getDecisionCondition(),
+                mission.isActive(),
                 mission.getCreatedAt()
         );
     }

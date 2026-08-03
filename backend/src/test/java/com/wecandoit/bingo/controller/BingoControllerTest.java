@@ -117,7 +117,7 @@ class BingoControllerTest {
                 200L,
                 10L,
                 3,
-                3,
+                null,
                 10_000,
                 1,
                 9,
@@ -148,7 +148,7 @@ class BingoControllerTest {
                 .statusCode(HttpStatus.OK.value())
                 .body("bingoBoardId", equalTo(100))
                 .body("gameId", equalTo(200))
-                .body("targetBingoCount", equalTo(3))
+                .body("targetBingoCount", nullValue())
                 .body("targetStepCount", equalTo(10_000))
                 .body("completedBingoCount", equalTo(1))
                 .body("totalCellCount", equalTo(9))
@@ -170,7 +170,8 @@ class BingoControllerTest {
                                 fieldWithPath("gameId").description("게임 회차 ID"),
                                 fieldWithPath("roomId").description("게임방 ID"),
                                 fieldWithPath("boardSize").description("빙고판 크기"),
-                                fieldWithPath("targetBingoCount").description("게임 목표 빙고 수"),
+                                fieldWithPath("targetBingoCount").optional()
+                                        .description("목표 빙고 수(공유 모드는 null, 대결 모드만 사용)"),
                                 fieldWithPath("targetStepCount").description("해당 빙고판의 목표 걸음 수"),
                                 fieldWithPath("completedBingoCount").description("현재 완성된 빙고 수"),
                                 fieldWithPath("totalCellCount").description("전체 셀 수"),
@@ -313,7 +314,7 @@ class BingoControllerTest {
                 .body("col", equalTo(0))
                 .body("mission.missionId", equalTo(1))
                 .body("verificationStatus", equalTo("APPROVED"))
-                .body("rewardCash", equalTo(30))
+                .body("rewardPoint", equalTo(30))
                 .apply(document("bingo-cells-submit",
                         pathParameters(
                                 parameterWithName("roomId").description("칸을 제출할 게임방 ID"),
@@ -336,7 +337,7 @@ class BingoControllerTest {
                                 fieldWithPath("verificationStatus").description("AI 검증 후 인증 상태(APPROVED/REJECTED)"),
                                 fieldWithPath("submittedByMemberId").description("미션 제출 참여자 ID"),
                                 fieldWithPath("rejectionReason").description("거절 사유(승인 시 null)"),
-                                fieldWithPath("rewardCash").description("이번 인증으로 지급된 캐시")
+                                fieldWithPath("rewardPoint").description("이번 인증으로 지급된 포인트")
                         )
                 ));
     }
@@ -422,7 +423,7 @@ class BingoControllerTest {
                 200L,
                 10L,
                 3,
-                3,
+                null,
                 12_000,
                 0,
                 1,
@@ -437,7 +438,7 @@ class BingoControllerTest {
         );
         willReturn(response)
                 .given(bingoCommandService)
-                .renewBoard(1L, 10L, 3, 2, 12_000);
+                .renewBoard(1L, 10L, 3, 12_000);
 
         // when & then
         given()
@@ -445,7 +446,6 @@ class BingoControllerTest {
                 .body("""
                         {
                           "boardSize": 3,
-                          "targetBingoCount": 2,
                           "targetStepCount": 12000
                         }
                         """)
@@ -455,6 +455,7 @@ class BingoControllerTest {
                 .statusCode(HttpStatus.CREATED.value())
                 .body("bingoBoardId", equalTo(101))
                 .body("gameId", equalTo(200))
+                .body("targetBingoCount", nullValue())
                 .body("targetStepCount", equalTo(12_000))
                 .body("status", equalTo("ACTIVE"))
                 .apply(document("bingo-boards-renewal",
@@ -463,7 +464,6 @@ class BingoControllerTest {
                         ),
                         requestFields(
                                 fieldWithPath("boardSize").description("새 빙고판 한 변의 크기"),
-                                fieldWithPath("targetBingoCount").description("새 회차의 목표 빙고 수"),
                                 fieldWithPath("targetStepCount").description("새 빙고판에 설정할 목표 걸음 수")
                         ),
                         responseFields(
@@ -471,7 +471,8 @@ class BingoControllerTest {
                                 fieldWithPath("gameId").description("게임 회차 ID"),
                                 fieldWithPath("roomId").description("게임방 ID"),
                                 fieldWithPath("boardSize").description("빙고판 크기"),
-                                fieldWithPath("targetBingoCount").description("게임 목표 빙고 수"),
+                                fieldWithPath("targetBingoCount").optional()
+                                        .description("목표 빙고 수(공유 모드는 null, 대결 모드만 사용)"),
                                 fieldWithPath("targetStepCount").description("해당 빙고판의 목표 걸음 수"),
                                 fieldWithPath("completedBingoCount").description("현재 완성된 빙고 수"),
                                 fieldWithPath("totalCellCount").description("전체 셀 수"),
@@ -505,7 +506,7 @@ class BingoControllerTest {
         // given
         willThrow(new CustomException(ErrorCode.BINGO_BOARD_NOT_COMPLETED))
                 .given(bingoCommandService)
-                .renewBoard(1L, 10L, 3, 2, 12_000);
+                .renewBoard(1L, 10L, 3, 12_000);
 
         // when & then
         given()
@@ -513,7 +514,6 @@ class BingoControllerTest {
                 .body("""
                         {
                           "boardSize": 3,
-                          "targetBingoCount": 2,
                           "targetStepCount": 12000
                         }
                         """)
@@ -529,7 +529,7 @@ class BingoControllerTest {
         // given
         willThrow(new CustomException(ErrorCode.BINGO_BOARD_RENEWAL_FORBIDDEN))
                 .given(bingoCommandService)
-                .renewBoard(1L, 10L, 3, 2, 12_000);
+                .renewBoard(1L, 10L, 3, 12_000);
 
         // when & then
         given()
@@ -537,7 +537,6 @@ class BingoControllerTest {
                 .body("""
                         {
                           "boardSize": 3,
-                          "targetBingoCount": 2,
                           "targetStepCount": 12000
                         }
                         """)
