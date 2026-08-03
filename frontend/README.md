@@ -85,14 +85,40 @@ npm start -- --reset-cache
 | 명령                | 설명                     |
 | ------------------- | ------------------------ |
 | `npm start`         | Metro 번들러 실행        |
-| `npm run android`   | 안드로이드 앱 빌드/실행  |
+| `npm run android`   | 폰에 앱 빌드/실행        |
+| `npm run android:reverse` | 폰의 8080 포트 역방향 연결 |
 | `npm run ios`       | iOS 앱 빌드/실행 (macOS) |
 | `npm run lint`      | ESLint 검사              |
 | `npm run test`      | Jest 테스트 실행         |
-| `npm run wear:install` | 갤럭시 워치 앱 설치   |
+| `npm run wear:install` | 워치에 워치 앱 빌드/설치 |
 | `npm run wear:build`   | 갤럭시 워치 앱 빌드   |
 
 PR 올리기 전에 `lint`, `test`가 통과하는지 확인해주세요.
+
+### 폰과 워치를 같이 붙였을 때
+
+`:app`과 `:wear`는 Data Layer 통신 때문에 `applicationId`가 둘 다 `com.wecandoit`
+입니다. 그래서 대상을 지정하지 않고 설치하면 **반대쪽 앱이 덮여서 사라집니다.**
+
+`android:*`와 `wear:install`은 붙어 있는 기기 중 **폰/워치를 가려내 한 대에만**
+설치합니다. 판별은 워치 매니페스트가 요구하는 `android.hardware.type.watch`
+feature를 봅니다. 대상을 정하지 못하면(0대이거나 2대 이상) 설치하지 않고 멈춥니다 —
+잘못 덮는 것보다 실패가 낫기 때문입니다.
+
+같은 종류가 여러 대 붙어 있거나 판별이 어긋날 때는 시리얼을 직접 넘깁니다.
+
+```bash
+npm run android:dev -- --serial R3CT30ABCDE
+npm run wear:install -- --serial 192.168.0.31:41235
+adb devices   # 시리얼 확인
+```
+
+워치는 절전으로 무선 디버깅이 자주 끊깁니다. 목록에서 사라지거나 `offline`이면
+다시 붙입니다(개발자 옵션 → 무선 디버깅에서 포트가 바뀌었는지 확인).
+
+```bash
+adb disconnect <워치주소> && adb connect <워치주소>
+```
 
 ## 디렉토리 구조
 
