@@ -15,6 +15,7 @@ import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.point.repository.PointHistoryRepository;
 import com.wecandoit.item.controller.response.ItemPurchaseResponse;
 import com.wecandoit.item.domain.Item;
+import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.item.domain.MemberItem;
 import com.wecandoit.item.repository.ItemRepository;
 import com.wecandoit.item.repository.MemberItemRepository;
@@ -59,7 +60,7 @@ class ShopItemCommandServiceTest {
     void purchaseItemDeductsPointAndCreatesMemberItem() {
         // given
         Member member = member(1L, 5_000L);
-        Item item = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
+        Item item = item(100L, "빨간 모자", ItemCategory.HAT, "https://example.com/hat.png");
         ReflectionTestUtils.setField(item, "price", 1_000L);
         MemberItem savedMemberItem = memberItem(15L, 1L, 100L);
         given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(member));
@@ -90,7 +91,7 @@ class ShopItemCommandServiceTest {
     void purchaseItemSucceedsWhenPointEqualsPrice() {
         // given
         Member member = member(1L, 1_000L);
-        Item item = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
+        Item item = item(100L, "빨간 모자", ItemCategory.HAT, "https://example.com/hat.png");
         ReflectionTestUtils.setField(item, "price", 1_000L);
         given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(member));
         given(itemRepository.findById(100L)).willReturn(Optional.of(item));
@@ -112,7 +113,7 @@ class ShopItemCommandServiceTest {
     void purchaseItemRejectsInsufficientPoint() {
         // given
         Member member = member(1L, 999L);
-        Item item = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
+        Item item = item(100L, "빨간 모자", ItemCategory.HAT, "https://example.com/hat.png");
         ReflectionTestUtils.setField(item, "price", 1_000L);
         given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(member));
         given(itemRepository.findById(100L)).willReturn(Optional.of(item));
@@ -130,7 +131,7 @@ class ShopItemCommandServiceTest {
     void purchaseItemRejectsAlreadyOwnedItem() {
         // given
         Member member = member(1L, 5_000L);
-        Item item = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
+        Item item = item(100L, "빨간 모자", ItemCategory.HAT, "https://example.com/hat.png");
         given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(member));
         given(itemRepository.findById(100L)).willReturn(Optional.of(item));
         given(memberItemRepository.existsByMemberIdAndItemId(1L, 100L)).willReturn(true);
@@ -147,7 +148,7 @@ class ShopItemCommandServiceTest {
     void purchaseItemRejectsUnavailableItem() {
         // given
         Member member = member(1L, 5_000L);
-        Item item = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
+        Item item = item(100L, "빨간 모자", ItemCategory.HAT, "https://example.com/hat.png");
         item.stopSale();
         given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(member));
         given(itemRepository.findById(100L)).willReturn(Optional.of(item));

@@ -9,11 +9,6 @@ public enum MissionDifficulty {
     MEDIUM,
     HIGH;
 
-    public static boolean contains(String difficulty) {
-        return Arrays.stream(values())
-                .anyMatch(missionDifficulty -> missionDifficulty.name().equals(difficulty));
-    }
-
     public static MissionDifficulty from(String difficulty) {
         return Arrays.stream(values())
                 .filter(missionDifficulty -> missionDifficulty.name().equals(difficulty))

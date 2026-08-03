@@ -59,7 +59,7 @@ class AvatarItemCommandServiceTest {
         MemberEquippedItem equippedBottom = MemberEquippedItem.create(1L, 30L, ItemCategory.BOTTOM);
         given(memberItemRepository.findAllByMemberId(1L)).willReturn(List.of(hat, top, bottom));
         given(itemRepository.findAllById(List.of(100L, 200L)))
-                .willReturn(List.of(item(100L, "HAT"), item(200L, "TOP")));
+                .willReturn(List.of(item(100L, ItemCategory.HAT), item(200L, ItemCategory.TOP)));
         given(memberEquippedItemRepository.findAllByMemberId(1L))
                 .willReturn(List.of(equippedHat, equippedBottom));
         given(memberEquippedItemRepository.findByMemberIdAndCategory(1L, ItemCategory.TOP))
@@ -129,7 +129,7 @@ class AvatarItemCommandServiceTest {
         MemberItem secondHat = memberItem(20L, 1L, 200L);
         given(memberItemRepository.findAllByMemberId(1L)).willReturn(List.of(firstHat, secondHat));
         given(itemRepository.findAllById(List.of(100L, 200L)))
-                .willReturn(List.of(item(100L, "HAT"), item(200L, "HAT")));
+                .willReturn(List.of(item(100L, ItemCategory.HAT), item(200L, ItemCategory.HAT)));
 
         // when & then
         assertThatThrownBy(() -> avatarItemCommandService.saveEquippedItems(
@@ -155,23 +155,6 @@ class AvatarItemCommandServiceTest {
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.ITEM_NOT_FOUND);
-        then(memberEquippedItemRepository).should(never()).findAllByMemberId(Mockito.anyLong());
-    }
-
-    @Test
-    @DisplayName("원본 아이템의 카테고리가 올바르지 않으면 변경 전에 실패한다")
-    void saveEquippedItemsRejectsInvalidCategoryBeforeChanges() {
-        // given
-        MemberItem memberItem = memberItem(10L, 1L, 100L);
-        given(memberItemRepository.findAllByMemberId(1L)).willReturn(List.of(memberItem));
-        given(itemRepository.findAllById(List.of(100L)))
-                .willReturn(List.of(item(100L, "UNKNOWN")));
-
-        // when & then
-        assertThatThrownBy(() -> avatarItemCommandService.saveEquippedItems(1L, List.of(10L)))
-                .isInstanceOf(CustomException.class)
-                .extracting("errorCode")
-                .isEqualTo(ErrorCode.INVALID_ITEM_CATEGORY);
         then(memberEquippedItemRepository).should(never()).findAllByMemberId(Mockito.anyLong());
     }
 

@@ -16,6 +16,7 @@ import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.item.controller.response.MemberItemResponse;
+import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.item.service.AvatarItemReadService;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import java.util.List;
@@ -72,7 +73,7 @@ class MemberItemControllerTest {
                         10L,
                         100L,
                         "빨간 모자",
-                        "HAT",
+                        ItemCategory.HAT,
                         "https://example.com/hat.png"
                 )
         ));
@@ -110,7 +111,7 @@ class MemberItemControllerTest {
                         10L,
                         100L,
                         "빨간 모자",
-                        "HAT",
+                        ItemCategory.HAT,
                         "https://example.com/hat.png"
                 )
         ));

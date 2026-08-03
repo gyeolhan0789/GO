@@ -1,13 +1,15 @@
 package com.wecandoit.admin.mission.controller.response;
 
 import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.domain.MissionDifficulty;
+import com.wecandoit.mission.domain.MissionType;
 import java.time.LocalDateTime;
 
 public record AdminMissionResponse(
         Long missionId,
         String missionImageUrl,
-        String type,
-        String difficulty,
+        MissionType type,
+        MissionDifficulty difficulty,
         String title,
         String detail,
         String decisionCondition,

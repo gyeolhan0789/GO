@@ -1,11 +1,12 @@
 package com.wecandoit.item.controller.response;
 
 import com.wecandoit.item.domain.Item;
+import com.wecandoit.item.domain.ItemCategory;
 
 public record ShopItemResponse(
         Long itemId,
         String name,
-        String category,
+        ItemCategory category,
         long price,
         String imageUrl
 ) {

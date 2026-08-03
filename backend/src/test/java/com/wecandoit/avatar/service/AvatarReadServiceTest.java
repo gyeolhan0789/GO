@@ -57,8 +57,8 @@ class AvatarReadServiceTest {
                 MemberEquippedItem.create(2L, 20L, ItemCategory.TOP);
         MemberItem hat = memberItem(10L, 1L, 100L);
         MemberItem top = memberItem(20L, 2L, 200L);
-        Item hatItem = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
-        Item topItem = item(200L, "파란 상의", "TOP", "https://example.com/top.png");
+        Item hatItem = item(100L, "빨간 모자", ItemCategory.HAT, "https://example.com/hat.png");
+        Item topItem = item(200L, "파란 상의", ItemCategory.TOP, "https://example.com/top.png");
         given(avatarImageRepository.findAllByOrderByGenderAsc())
                 .willReturn(List.of(
                         AvatarImage.create(

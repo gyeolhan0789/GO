@@ -7,7 +7,7 @@ public final class ItemFixture {
     private ItemFixture() {
     }
 
-    public static Item item(Long id, String category) {
+    public static Item item(Long id, ItemCategory category) {
         Item item = new Item();
         ReflectionTestUtils.setField(item, "id", id);
         ReflectionTestUtils.setField(item, "category", category);
@@ -17,7 +17,7 @@ public final class ItemFixture {
     public static Item item(
             Long id,
             String name,
-            String category,
+            ItemCategory category,
             String imageUrl
     ) {
         Item item = item(name, category, 0L, imageUrl);
@@ -27,7 +27,7 @@ public final class ItemFixture {
 
     public static Item item(
             String name,
-            String category,
+            ItemCategory category,
             long price,
             String imageUrl
     ) {

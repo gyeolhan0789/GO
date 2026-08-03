@@ -18,6 +18,7 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.mission.domain.Mission;
 import com.wecandoit.mission.domain.MissionDifficulty;
+import com.wecandoit.mission.domain.MissionType;
 import com.wecandoit.mission.repository.MissionRepository;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -205,11 +206,11 @@ class MissionVerificationFacadeTest {
     private Mission mission() {
         Mission mission = Mission.create(
                 "https://example.com/mission.png",
-                "OBJECT",
+                MissionType.OBJECT,
                 "미션 제목",
                 "미션 설명",
                 "{\"target\":\"cup\"}",
-                "LOW"
+                MissionDifficulty.LOW
         );
         ReflectionTestUtils.setField(mission, "id", MISSION_ID);
         return mission;

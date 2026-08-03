@@ -3,6 +3,8 @@ package com.wecandoit.item.domain;
 import com.wecandoit.common.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -24,8 +26,9 @@ public class Item extends BaseEntity {
     @Column(nullable = false, length = 100)
     private String name;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
-    private String category;
+    private ItemCategory category;
 
     @Column(nullable = false)
     private long price;
@@ -36,20 +39,20 @@ public class Item extends BaseEntity {
     @Column(name = "available_for_sale", nullable = false, columnDefinition = "boolean default true")
     private boolean availableForSale = true;
 
-    private Item(String name, String category, long price, String imageUrl) {
+    private Item(String name, ItemCategory category, long price, String imageUrl) {
         this.name = name;
         this.category = category;
         this.price = price;
         this.imageUrl = imageUrl;
     }
 
-    public static Item create(String name, String category, long price, String imageUrl) {
+    public static Item create(String name, ItemCategory category, long price, String imageUrl) {
         return new Item(name, category, price, imageUrl);
     }
 
     public void update(
             String name,
-            String category,
+            ItemCategory category,
             long price,
             String imageUrl,
             boolean availableForSale

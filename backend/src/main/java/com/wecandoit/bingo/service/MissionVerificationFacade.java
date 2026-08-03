@@ -39,7 +39,7 @@ public class MissionVerificationFacade {
         BingoCell submittedCell = bingoCommandService.submitCell(memberId, roomId, cellId, image);
         Mission mission = missionRepository.findById(submittedCell.getMissionId())
                 .orElseThrow(() -> new CustomException(ErrorCode.MISSION_NOT_FOUND));
-        MissionDifficulty missionDifficulty = MissionDifficulty.from(mission.getDifficulty());
+        MissionDifficulty missionDifficulty = mission.getDifficulty();
 
         AiVerificationResult result;
         try {
@@ -76,7 +76,12 @@ public class MissionVerificationFacade {
 
     private AiVerificationResult requestVerification(byte[] imageBytes, String fileName, Mission mission) {
         try {
-            return aiVerificationClient.verify(imageBytes, fileName, mission.getType(), mission.getDecisionCondition());
+            return aiVerificationClient.verify(
+                    imageBytes,
+                    fileName,
+                    mission.getType().name(),
+                    mission.getDecisionCondition()
+            );
         } catch (CustomException e) {
             throw e;
         } catch (RuntimeException e) {

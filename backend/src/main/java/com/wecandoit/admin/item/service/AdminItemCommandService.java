@@ -26,12 +26,12 @@ public class AdminItemCommandService {
     private final ImageUploadService imageUploadService;
 
     public AdminItemResponse createItem(CreateAdminItemRequest request, MultipartFile image) {
-        ItemCategory category = parseCategory(request.category());
+        ItemCategory category = ItemCategory.from(request.category());
         String resourceId = UUID.randomUUID().toString();
         String imageUrl = imageUploadService.upload(image, ITEM_IMAGE_DOMAIN, resourceId);
         Item item = itemRepository.save(Item.create(
                 request.name(),
-                category.name(),
+                category,
                 request.price(),
                 imageUrl
         ));
@@ -44,7 +44,7 @@ public class AdminItemCommandService {
             MultipartFile image
     ) {
         Item item = findItem(itemId);
-        ItemCategory category = parseCategory(request.category());
+        ItemCategory category = ItemCategory.from(request.category());
         String previousImageUrl = item.getImageUrl();
         String imageUrl = null;
         if (image != null && !image.isEmpty()) {
@@ -52,7 +52,7 @@ public class AdminItemCommandService {
         }
         item.update(
                 request.name(),
-                category.name(),
+                category,
                 request.price(),
                 imageUrl,
                 request.availableForSale()
@@ -70,13 +70,5 @@ public class AdminItemCommandService {
     private Item findItem(Long itemId) {
         return itemRepository.findById(itemId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ITEM_NOT_FOUND));
-    }
-
-    private ItemCategory parseCategory(String category) {
-        try {
-            return ItemCategory.valueOf(category);
-        } catch (IllegalArgumentException e) {
-            throw new CustomException(ErrorCode.INVALID_ITEM_CATEGORY);
-        }
     }
 }

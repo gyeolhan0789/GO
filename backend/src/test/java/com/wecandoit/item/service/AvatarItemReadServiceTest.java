@@ -65,8 +65,8 @@ class AvatarItemReadServiceTest {
         Member member = member(1L, "테스터");
         MemberItem hat = memberItem(10L, 1L, 100L);
         MemberItem top = memberItem(20L, 1L, 200L);
-        Item hatItem = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
-        Item topItem = item(200L, "파란 상의", "TOP", "https://example.com/top.png");
+        Item hatItem = item(100L, "빨간 모자", ItemCategory.HAT, "https://example.com/hat.png");
+        Item topItem = item(200L, "파란 상의", ItemCategory.TOP, "https://example.com/top.png");
         given(memberRepository.findById(1L)).willReturn(Optional.of(member));
         given(memberItemRepository.findAllByMemberId(1L)).willReturn(List.of(hat, top));
         given(itemRepository.findAllById(List.of(100L, 200L))).willReturn(List.of(hatItem, topItem));
@@ -82,14 +82,14 @@ class AvatarItemReadServiceTest {
                                 10L,
                                 100L,
                                 "빨간 모자",
-                                "HAT",
+                                ItemCategory.HAT,
                                 "https://example.com/hat.png"
                         ),
                         org.assertj.core.groups.Tuple.tuple(
                                 20L,
                                 200L,
                                 "파란 상의",
-                                "TOP",
+                                ItemCategory.TOP,
                                 "https://example.com/top.png"
                         )
                 );
@@ -134,10 +134,10 @@ class AvatarItemReadServiceTest {
         Member member = member(1L, "테스터");
         MemberItem hat = memberItem(10L, 1L, 100L);
         MemberItem top = memberItem(20L, 1L, 200L);
-        Item hatItem = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
+        Item hatItem = item(100L, "빨간 모자", ItemCategory.HAT, "https://example.com/hat.png");
         given(memberRepository.findById(1L)).willReturn(Optional.of(member));
         given(memberItemRepository.findAllByMemberId(1L)).willReturn(List.of(hat, top));
-        given(itemRepository.findAllByIdInAndCategory(List.of(100L, 200L), "HAT"))
+        given(itemRepository.findAllByIdInAndCategory(List.of(100L, 200L), ItemCategory.HAT))
                 .willReturn(List.of(hatItem));
 
         // when
@@ -146,8 +146,8 @@ class AvatarItemReadServiceTest {
         // then
         assertThat(responses)
                 .extracting(MemberItemResponse::memberItemId, MemberItemResponse::category)
-                .containsExactly(org.assertj.core.groups.Tuple.tuple(10L, "HAT"));
-        then(itemRepository).should().findAllByIdInAndCategory(List.of(100L, 200L), "HAT");
+                .containsExactly(org.assertj.core.groups.Tuple.tuple(10L, ItemCategory.HAT));
+        then(itemRepository).should().findAllByIdInAndCategory(List.of(100L, 200L), ItemCategory.HAT);
         then(itemRepository).should(never()).findAllById(Mockito.anyIterable());
     }
 
@@ -159,7 +159,7 @@ class AvatarItemReadServiceTest {
         MemberItem hat = memberItem(10L, 1L, 100L);
         given(memberRepository.findById(1L)).willReturn(Optional.of(member));
         given(memberItemRepository.findAllByMemberId(1L)).willReturn(List.of(hat));
-        given(itemRepository.findAllByIdInAndCategory(List.of(100L), "TOP"))
+        given(itemRepository.findAllByIdInAndCategory(List.of(100L), ItemCategory.TOP))
                 .willReturn(List.of());
 
         // when

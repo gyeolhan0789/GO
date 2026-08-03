@@ -34,6 +34,7 @@ import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.domain.MissionType;
 import com.wecandoit.mission.repository.MissionRepository;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -375,7 +376,7 @@ class GameResultReadServiceTest {
     private Mission mission(Long id) {
         Mission mission = Mission.create(
                 "https://example.com/mission.png",
-                "OBJECT",
+                MissionType.OBJECT,
                 "미션 " + id,
                 "설명",
                 null

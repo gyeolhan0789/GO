@@ -18,6 +18,7 @@ import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.domain.MissionType;
 import com.wecandoit.mission.repository.MissionRepository;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -191,7 +192,7 @@ class BingoReadServiceTest {
                 .map(missionId -> {
                     Mission mission = Mission.create(
                             "https://example.com/mission.png",
-                            "OBJECT",
+                            MissionType.OBJECT,
                             "미션",
                             "설명",
                             null

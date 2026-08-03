@@ -37,6 +37,7 @@ import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.game.domain.RoomStatus;
 import com.wecandoit.mission.controller.response.MissionResponse;
+import com.wecandoit.mission.domain.MissionType;
 import io.restassured.http.ContentType;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import java.time.LocalDateTime;
@@ -106,7 +107,7 @@ class BingoControllerTest {
         MissionResponse mission = new MissionResponse(
                 1L,
                 "https://example.com/mission.png",
-                "OBJECT",
+                MissionType.OBJECT,
                 "미션 제목",
                 "미션 설명",
                 null,
@@ -209,7 +210,7 @@ class BingoControllerTest {
         MissionResponse mission = new MissionResponse(
                 1L,
                 "https://example.com/mission.png",
-                "OBJECT",
+                MissionType.OBJECT,
                 "미션 제목",
                 "미션 설명",
                 null,
@@ -294,7 +295,7 @@ class BingoControllerTest {
         MissionResponse mission = new MissionResponse(
                 1L,
                 "https://example.com/mission.png",
-                "OBJECT",
+                MissionType.OBJECT,
                 "미션 제목",
                 "미션 설명",
                 null,
@@ -417,7 +418,7 @@ class BingoControllerTest {
         MissionResponse mission = new MissionResponse(
                 2L,
                 "https://example.com/mission2.png",
-                "OBJECT",
+                MissionType.OBJECT,
                 "새 미션 제목",
                 "새 미션 설명",
                 null,

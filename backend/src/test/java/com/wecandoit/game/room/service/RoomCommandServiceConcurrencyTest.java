@@ -16,6 +16,7 @@ import com.wecandoit.game.service.RoomCommandService;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.domain.MissionType;
 import com.wecandoit.mission.repository.MissionRepository;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -75,7 +76,7 @@ class RoomCommandServiceConcurrencyTest {
         missionRepository.saveAll(IntStream.range(0, 9)
                 .mapToObj(index -> Mission.create(
                         "https://example.com/mission-" + index + ".png",
-                        "OBJECT",
+                        MissionType.OBJECT,
                         "미션 " + index,
                         "설명",
                         null

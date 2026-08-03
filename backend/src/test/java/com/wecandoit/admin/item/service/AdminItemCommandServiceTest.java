@@ -14,6 +14,7 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.storage.ImageUploadService;
 import com.wecandoit.item.domain.Item;
+import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.item.repository.ItemRepository;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,7 +61,7 @@ class AdminItemCommandServiceTest {
 
         // then
         assertThat(response.name()).isEqualTo("검은 모자");
-        assertThat(response.category()).isEqualTo("HAT");
+        assertThat(response.category()).isEqualTo(ItemCategory.HAT);
         assertThat(response.price()).isEqualTo(1_000L);
         assertThat(response.imageUrl()).isEqualTo("/uploads/test/items/resource/hat.png");
         assertThat(response.availableForSale()).isTrue();
@@ -70,7 +71,7 @@ class AdminItemCommandServiceTest {
     @DisplayName("아이템 정보를 수정하면서 판매 중지 아이템을 다시 판매한다")
     void updateItemChangesFieldsAndRestartsSale() {
         // given
-        Item item = item(1L, "이전 모자", "HAT", "/old.png");
+        Item item = item(1L, "이전 모자", ItemCategory.HAT, "/old.png");
         item.stopSale();
         UpdateAdminItemRequest request =
                 new UpdateAdminItemRequest("새 모자", "ACCESSORY", 2_000L, true);
@@ -82,7 +83,7 @@ class AdminItemCommandServiceTest {
 
         // then
         assertThat(response.name()).isEqualTo("새 모자");
-        assertThat(response.category()).isEqualTo("ACCESSORY");
+        assertThat(response.category()).isEqualTo(ItemCategory.ACCESSORY);
         assertThat(response.price()).isEqualTo(2_000L);
         assertThat(response.imageUrl()).isEqualTo("/old.png");
         assertThat(response.availableForSale()).isTrue();
@@ -97,7 +98,7 @@ class AdminItemCommandServiceTest {
     @DisplayName("새 이미지로 수정하면 기존 로컬 이미지를 삭제한다")
     void updateItemReplacesImage() {
         // given
-        Item item = item(1L, "모자", "HAT", "/uploads/test/items/1/old.png");
+        Item item = item(1L, "모자", ItemCategory.HAT, "/uploads/test/items/1/old.png");
         UpdateAdminItemRequest request = new UpdateAdminItemRequest("모자", "HAT", 1_000L, true);
         given(itemRepository.findById(1L)).willReturn(Optional.of(item));
         given(image.isEmpty()).willReturn(false);
@@ -116,7 +117,7 @@ class AdminItemCommandServiceTest {
     @DisplayName("아이템 삭제 요청은 물리 삭제 대신 판매를 중지한다")
     void stopItemSaleMarksItemUnavailable() {
         // given
-        Item item = item(1L, "모자", "HAT", "/hat.png");
+        Item item = item(1L, "모자", ItemCategory.HAT, "/hat.png");
         given(itemRepository.findById(1L)).willReturn(Optional.of(item));
 
         // when
