@@ -27,19 +27,19 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
-@DisplayName("회원 서비스")
+@DisplayName("회원 커맨드 서비스")
 @ExtendWith(MockitoExtension.class)
-class MemberServiceTest {
+class MemberCommandServiceTest {
 
     @Mock
     private MemberRepository memberRepository;
     @Mock
     private PasswordEncoder passwordEncoder;
-    private MemberService memberService;
+    private MemberCommandService memberService;
 
     @BeforeEach
     void setUp() {
-        memberService = new MemberService(memberRepository, passwordEncoder);
+        memberService = new MemberCommandService(memberRepository, passwordEncoder);
     }
 
     @Test

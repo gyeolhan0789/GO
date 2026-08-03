@@ -25,8 +25,8 @@ import com.wecandoit.member.controller.request.PasswordChangeRequest;
 import com.wecandoit.member.controller.response.MemberSearchResponse;
 import com.wecandoit.member.controller.response.MyPageResponse;
 import com.wecandoit.member.domain.MemberRelationshipStatus;
+import com.wecandoit.member.service.MemberCommandService;
 import com.wecandoit.member.service.MemberReadService;
-import com.wecandoit.member.service.MemberService;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,7 +49,7 @@ class MemberControllerTest {
     @Mock
     private MemberReadService memberReadService;
     @Mock
-    private MemberService memberService;
+    private MemberCommandService memberService;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private MockMvc mockMvc;
 

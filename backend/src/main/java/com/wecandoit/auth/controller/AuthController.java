@@ -6,7 +6,7 @@ import com.wecandoit.auth.dto.AuthTokens;
 import com.wecandoit.auth.dto.LoginRequest;
 import com.wecandoit.auth.dto.RefreshTokenRequest;
 import com.wecandoit.auth.service.AuthService;
-import com.wecandoit.member.service.MemberService;
+import com.wecandoit.member.service.MemberCommandService;
 import com.wecandoit.member.controller.request.SignupRequest;
 import com.wecandoit.member.controller.response.SignupResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
-    private final MemberService memberService;
+    private final MemberCommandService memberService;
 
     @PostMapping("/signup")
     public ResponseEntity<SignupResponse> signup(@Valid @RequestBody SignupRequest request) {

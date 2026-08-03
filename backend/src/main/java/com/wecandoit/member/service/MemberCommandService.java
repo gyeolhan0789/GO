@@ -17,12 +17,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class MemberService {
+@Transactional
+public class MemberCommandService {
 
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Transactional
     public SignupResponse signup(SignupRequest request) {
         if (memberRepository.existsByEmail(request.email())) {
             throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
@@ -39,7 +39,6 @@ public class MemberService {
         return SignupResponse.from(member);
     }
 
-    @Transactional
     public void updateProfile(Long memberId, MemberProfileUpdateRequest request) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
@@ -60,7 +59,6 @@ public class MemberService {
         }
     }
 
-    @Transactional
     public void changePassword(Long memberId, PasswordChangeRequest request) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
@@ -75,7 +73,6 @@ public class MemberService {
         member.changePassword(passwordEncoder.encode(request.newPassword()));
     }
 
-    @Transactional
     public void updateFcmToken(Long memberId, FcmTokenUpdateRequest request) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
