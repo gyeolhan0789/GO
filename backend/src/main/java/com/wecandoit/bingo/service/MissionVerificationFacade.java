@@ -8,7 +8,7 @@ import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.mission.domain.Mission;
-import com.wecandoit.mission.domain.MissionType;
+import com.wecandoit.mission.domain.MissionDifficulty;
 import com.wecandoit.mission.repository.MissionRepository;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
@@ -39,13 +39,13 @@ public class MissionVerificationFacade {
         BingoCell submittedCell = bingoCommandService.submitCell(memberId, roomId, cellId, image);
         Mission mission = missionRepository.findById(submittedCell.getMissionId())
                 .orElseThrow(() -> new CustomException(ErrorCode.MISSION_NOT_FOUND));
-        MissionType missionType = MissionType.from(mission.getType());
+        MissionDifficulty missionDifficulty = MissionDifficulty.from(mission.getDifficulty());
 
         AiVerificationResult result;
         try {
             result = requestVerification(imageBytes, resolveFileName(submittedCell.getSubmitUrl()), mission);
         } catch (CustomException e) {
-            verificationResultService.applyResult(cellId, false, resolveFailureReason(e), missionType);
+            verificationResultService.applyResult(cellId, false, resolveFailureReason(e), missionDifficulty);
             throw e;
         }
 
@@ -54,7 +54,7 @@ public class MissionVerificationFacade {
                 cellId,
                 approved,
                 resolveRejectionReason(result, approved),
-                missionType
+                missionDifficulty
         );
 
         BingoCell verifiedCell = bingoCellRepository.findById(cellId)

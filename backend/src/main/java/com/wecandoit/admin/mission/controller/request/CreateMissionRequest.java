@@ -7,6 +7,9 @@ public record CreateMissionRequest(
         @NotBlank(message = "미션 타입은 필수입니다.")
         String type,
 
+        @NotBlank(message = "미션 난이도는 필수입니다.")
+        String difficulty,
+
         @Size(max = 255, message = "미션 제목은 255자 이하여야 합니다.")
         String title,
 

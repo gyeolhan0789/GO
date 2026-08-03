@@ -22,6 +22,7 @@ export type Mission = {
   missionId: number
   missionImageUrl: string
   type: string
+  difficulty: string
   title: string | null
   detail: string | null
   decisionCondition: string | null
@@ -31,6 +32,7 @@ export type Mission = {
 
 export type MissionInput = {
   type: string
+  difficulty: string
   title: string
   detail: string
   decisionCondition: string
@@ -243,6 +245,7 @@ export function getMissions() {
 function missionForm(input: MissionInput, image?: File) {
   const form = new FormData()
   form.append('type', input.type)
+  form.append('difficulty', input.difficulty)
   form.append('title', input.title)
   form.append('detail', input.detail)
   form.append('decisionCondition', input.decisionCondition)

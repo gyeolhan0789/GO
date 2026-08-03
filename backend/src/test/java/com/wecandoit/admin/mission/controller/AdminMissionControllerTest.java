@@ -53,6 +53,7 @@ class AdminMissionControllerTest {
         // when & then
         given()
                 .formParam("type", "OBJECT")
+                .formParam("difficulty", "LOW")
                 .formParam("title", "Red flower")
                 .formParam("detail", "Find a red flower")
                 .formParam("decisionCondition", "{\"target\":\"flower\",\"constraints\":{\"color\":\"red\"}}")
@@ -86,6 +87,7 @@ class AdminMissionControllerTest {
         // when & then
         given()
                 .formParam("type", "RELATION")
+                .formParam("difficulty", "HIGH")
                 .multiPart("image", "flower.png", "png-bytes".getBytes(), "image/png")
                 .when()
                 .post("/admin/missions")
@@ -103,6 +105,7 @@ class AdminMissionControllerTest {
                 1L,
                 "https://example.com/flower.png",
                 "OBJECT",
+                "LOW",
                 "Red flower",
                 "Find a red flower",
                 null,
@@ -125,6 +128,7 @@ class AdminMissionControllerTest {
         // when & then
         given()
                 .formParam("type", "OBJECT")
+                .formParam("difficulty", "LOW")
                 .formParam("title", "Red flower")
                 .formParam("detail", "Find a red flower")
                 .multiPart("placeholder", "value")
