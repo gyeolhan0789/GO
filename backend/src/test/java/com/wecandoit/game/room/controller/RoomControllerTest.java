@@ -29,6 +29,9 @@ import com.wecandoit.game.domain.RoomStatus;
 import com.wecandoit.game.service.RoomCommandService;
 import com.wecandoit.game.service.RoomCreateFacade;
 import com.wecandoit.game.service.RoomReadService;
+import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.item.domain.ItemCategory;
+import com.wecandoit.member.domain.Gender;
 import io.restassured.http.ContentType;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import java.time.LocalDateTime;
@@ -172,6 +175,9 @@ class RoomControllerTest {
                 .statusCode(HttpStatus.OK.value())
                 .body("[0].status", equalTo("ACTIVE"))
                 .body("[0].boardSize", equalTo(4))
+                .body("[0].members[0].gender", equalTo("MALE"))
+                .body("[0].members[0].defaultImageUrl", equalTo("https://example.com/male.png"))
+                .body("[0].members[0].equippedItems[0].itemId", equalTo(100))
                 .apply(document("room-list",
                         queryParameters(
                                 parameterWithName("mode")
@@ -193,6 +199,20 @@ class RoomControllerTest {
                                 fieldWithPath("[].joinedAt").description("현재 방 참여 시각"),
                                 fieldWithPath("[].members[].memberId").description("현재 방 회원 ID"),
                                 fieldWithPath("[].members[].nickname").description("현재 방 회원 닉네임"),
+                                fieldWithPath("[].members[].gender").description("회원 캐릭터 성별"),
+                                fieldWithPath("[].members[].defaultImageUrl")
+                                        .optional()
+                                        .description("성별 기본 캐릭터 이미지 URL"),
+                                fieldWithPath("[].members[].equippedItems").description("현재 장착 아이템 목록"),
+                                fieldWithPath("[].members[].equippedItems[].memberItemId")
+                                        .description("회원 보유 아이템 ID"),
+                                fieldWithPath("[].members[].equippedItems[].itemId")
+                                        .description("원본 아이템 ID"),
+                                fieldWithPath("[].members[].equippedItems[].name").description("아이템 이름"),
+                                fieldWithPath("[].members[].equippedItems[].category")
+                                        .description("장착 카테고리"),
+                                fieldWithPath("[].members[].equippedItems[].imageUrl")
+                                        .description("아이템 이미지 URL"),
                                 fieldWithPath("[].members[].host").description("방장 여부")
                         )
                 ));
@@ -209,12 +229,61 @@ class RoomControllerTest {
                 .then()
                 .statusCode(HttpStatus.OK.value())
                 .body("startedAt", equalTo("2026-07-31T09:00:00"))
+                .body("members[0].gender", equalTo("MALE"))
+                .body("members[0].defaultImageUrl", equalTo("https://example.com/male.png"))
+                .body("members[0].equippedItems[0].itemId", equalTo(100))
                 .apply(document("room-detail",
                         pathParameters(
                                 parameterWithName("roomId").description("게임방 ID")
                         ),
                         responseFields(roomDetailFields())
                 ));
+    }
+
+    @Test
+    @DisplayName("게임방 멤버 목록에 현재 아바타 정보를 반환한다")
+    void getRoomMembersReturnsAvatars() {
+        // given
+        given(roomReadService.getRoomMembers(1L, 10L))
+                .willReturn(roomDetailResponse().members());
+
+        // when & then
+        given()
+                .when()
+                .get("/rooms/{roomId}/members", 10L)
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("[0].memberId", equalTo(1))
+                .body("[0].gender", equalTo("MALE"))
+                .body("[0].defaultImageUrl", equalTo("https://example.com/male.png"))
+                .body("[0].equippedItems[0].itemId", equalTo(100))
+                .apply(document("room-members",
+                        pathParameters(
+                                parameterWithName("roomId").description("게임방 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("[].memberId").description("현재 방 회원 ID"),
+                                fieldWithPath("[].nickname").description("현재 방 회원 닉네임"),
+                                fieldWithPath("[].gender").description("회원 캐릭터 성별"),
+                                fieldWithPath("[].defaultImageUrl")
+                                        .optional()
+                                        .description("성별 기본 캐릭터 이미지 URL"),
+                                fieldWithPath("[].equippedItems").description("현재 장착 아이템 목록"),
+                                fieldWithPath("[].equippedItems[].memberItemId")
+                                        .description("회원 보유 아이템 ID"),
+                                fieldWithPath("[].equippedItems[].itemId").description("원본 아이템 ID"),
+                                fieldWithPath("[].equippedItems[].name").description("아이템 이름"),
+                                fieldWithPath("[].equippedItems[].category").description("장착 카테고리"),
+                                fieldWithPath("[].equippedItems[].imageUrl").description("아이템 이미지 URL"),
+                                fieldWithPath("[].host").description("방장 여부"),
+                                fieldWithPath("[].completedMissionCount").description("현재 회차 완료 미션 수"),
+                                fieldWithPath("[].joinedAt").description("현재 방 참여 시각"),
+                                fieldWithPath("[].bingoBoardId")
+                                        .optional()
+                                        .description("대결 개인 빙고판 ID")
+                        )
+                ));
+        then(roomReadService).should().getRoomMembers(1L, 10L);
     }
 
     @Test
@@ -272,7 +341,17 @@ class RoomControllerTest {
                 2,
                 1L,
                 startedAt,
-                List.of(new RoomMemberResponse(1L, "방장", true, 2, startedAt, null))
+                List.of(new RoomMemberResponse(
+                        1L,
+                        "방장",
+                        Gender.MALE,
+                        "https://example.com/male.png",
+                        List.of(equippedItem()),
+                        true,
+                        2,
+                        startedAt,
+                        null
+                ))
         );
     }
 
@@ -290,7 +369,24 @@ class RoomControllerTest {
                 2,
                 1L,
                 joinedAt,
-                List.of(new MyRoomMemberResponse(1L, "방장", true))
+                List.of(new MyRoomMemberResponse(
+                        1L,
+                        "방장",
+                        Gender.MALE,
+                        "https://example.com/male.png",
+                        List.of(equippedItem()),
+                        true
+                ))
+        );
+    }
+
+    private EquippedItemResponse equippedItem() {
+        return new EquippedItemResponse(
+                10L,
+                100L,
+                "빨간 모자",
+                ItemCategory.HAT,
+                "https://example.com/hat.png"
         );
     }
 
@@ -310,6 +406,17 @@ class RoomControllerTest {
                 fieldWithPath("startedAt").description("선택된 게임 회차 시작 시각"),
                 fieldWithPath("members[].memberId").description("현재 방 회원 ID"),
                 fieldWithPath("members[].nickname").description("현재 방 회원 닉네임"),
+                fieldWithPath("members[].gender").description("회원 캐릭터 성별"),
+                fieldWithPath("members[].defaultImageUrl")
+                        .optional()
+                        .description("성별 기본 캐릭터 이미지 URL"),
+                fieldWithPath("members[].equippedItems").description("현재 장착 아이템 목록"),
+                fieldWithPath("members[].equippedItems[].memberItemId")
+                        .description("회원 보유 아이템 ID"),
+                fieldWithPath("members[].equippedItems[].itemId").description("원본 아이템 ID"),
+                fieldWithPath("members[].equippedItems[].name").description("아이템 이름"),
+                fieldWithPath("members[].equippedItems[].category").description("장착 카테고리"),
+                fieldWithPath("members[].equippedItems[].imageUrl").description("아이템 이미지 URL"),
                 fieldWithPath("members[].host").description("방장 여부"),
                 fieldWithPath("members[].completedMissionCount").description("현재 회차 완료 미션 수"),
                 fieldWithPath("members[].joinedAt").description("현재 방 참여 시각"),

@@ -3,6 +3,7 @@ package com.wecandoit.game.room.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.domain.BingoBoardStatus;
@@ -13,6 +14,7 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.controller.response.MyRoomResponse;
 import com.wecandoit.game.controller.response.RoomDetailResponse;
+import com.wecandoit.game.controller.response.RoomMemberResponse;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameParticipant;
@@ -25,6 +27,10 @@ import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.RoomReadService;
 import com.wecandoit.game.service.RoomReadService.StepGoalRewardTarget;
+import com.wecandoit.item.controller.response.CharacterResponse;
+import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.item.domain.ItemCategory;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.service.MemberReadService;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -92,7 +98,7 @@ class RoomReadServiceTest {
         given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L))
                 .willReturn(List.of(host));
         given(gameRepository.findFirstByRoomIdOrderByIdDesc(10L)).willReturn(Optional.empty());
-        given(memberReadService.getNicknamesByIds(List.of(1L))).willReturn(Map.of(1L, "방장"));
+        given(memberReadService.getAvatarsByIds(List.of(1L))).willReturn(avatars(List.of(host)));
 
         RoomDetailResponse response = roomReadService.getRoomDetail(1L, 10L);
 
@@ -101,6 +107,11 @@ class RoomReadServiceTest {
         assertThat(response.totalMissionCount()).isEqualTo(9);
         assertThat(response.completedMissionCount()).isZero();
         assertThat(response.startedAt()).isNull();
+        assertThat(response.members()).singleElement().satisfies(member -> {
+            assertThat(member.gender()).isEqualTo(Gender.MALE);
+            assertThat(member.defaultImageUrl()).isEqualTo("https://example.com/male.png");
+            assertThat(member.equippedItems()).hasSize(1);
+        });
     }
 
     @Test
@@ -130,6 +141,35 @@ class RoomReadServiceTest {
     }
 
     @Test
+    @DisplayName("게임방 멤버 목록에 현재 아바타 정보를 반환한다")
+    void getRoomMembersReturnsAvatars() {
+        // given
+        Room room = room(10L, GameMode.COOPERATE, 3, 1, 10_000);
+        RoomMember host = roomMember(10L, 1L);
+        RoomMember guest = roomMember(10L, 2L);
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L))
+                .willReturn(List.of(host, guest));
+        given(gameRepository.findFirstByRoomIdOrderByIdDesc(10L)).willReturn(Optional.empty());
+        given(memberReadService.getAvatarsByIds(List.of(1L, 2L)))
+                .willReturn(avatars(List.of(host, guest)));
+
+        // when
+        List<RoomMemberResponse> responses = roomReadService.getRoomMembers(1L, 10L);
+
+        // then
+        assertThat(responses).hasSize(2);
+        assertThat(responses).first().satisfies(member -> {
+            assertThat(member.gender()).isEqualTo(Gender.MALE);
+            assertThat(member.defaultImageUrl()).isEqualTo("https://example.com/male.png");
+            assertThat(member.equippedItems()).hasSize(1);
+        });
+        assertThat(responses).element(1)
+                .satisfies(member -> assertThat(member.equippedItems()).isEmpty());
+    }
+
+    @Test
     @DisplayName("공유 회차 상세는 보드 설정과 셀 기준 진행도를 반환한다")
     void getSharedRoomDetailUsesBoardSettingsAndCells() {
         Room room = room(10L, GameMode.COOPERATE, 3, 1, 10_000);
@@ -154,6 +194,11 @@ class RoomReadServiceTest {
         assertThat(response.members())
                 .extracting(member -> member.completedMissionCount())
                 .containsExactly(1, 1);
+        assertThat(response.members()).first().satisfies(member -> {
+            assertThat(member.gender()).isEqualTo(Gender.MALE);
+            assertThat(member.defaultImageUrl()).isEqualTo("https://example.com/male.png");
+            assertThat(member.equippedItems()).hasSize(1);
+        });
     }
 
     @Test
@@ -213,8 +258,8 @@ class RoomReadServiceTest {
                 .willReturn(List.of(cooperate, battle));
         given(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(10L)))
                 .willReturn(List.of(myCooperate, teammate));
-        given(memberReadService.getNicknamesByIds(List.of(1L, 2L)))
-                .willReturn(Map.of(1L, "방장", 2L, "참여자"));
+        given(memberReadService.getAvatarsByIds(List.of(1L, 2L)))
+                .willReturn(avatars(List.of(myCooperate, teammate)));
         given(gameRepository.findAllByRoomIdIn(List.of(10L)))
                 .willReturn(List.of(cooperateGame));
         given(bingoBoardRepository.findAllByGameIdInOrderByIdAsc(List.of(100L)))
@@ -230,9 +275,43 @@ class RoomReadServiceTest {
             assertThat(response.boardSize()).isEqualTo(4);
             assertThat(response.targetBingoCount()).isNull();
             assertThat(response.completedMissionCount()).isEqualTo(1);
+            assertThat(response.members()).first().satisfies(member -> {
+                assertThat(member.gender()).isEqualTo(Gender.MALE);
+                assertThat(member.defaultImageUrl()).isEqualTo("https://example.com/male.png");
+                assertThat(member.equippedItems()).hasSize(1);
+            });
         });
         assertThat(battleGame).isNotNull();
         assertThat(battleBoard).isNotNull();
+    }
+
+    @Test
+    @DisplayName("여러 방에 중복된 회원의 아바타는 한 번만 조회한다")
+    void getMyRoomsFetchesDuplicateMemberAvatarOnce() {
+        // given
+        Room firstRoom = room(10L, GameMode.COOPERATE, 3, 1, 10_000);
+        Room secondRoom = room(11L, GameMode.COOPERATE, 3, 1, 10_000);
+        RoomMember myFirstRoomMember = roomMember(10L, 1L);
+        RoomMember mySecondRoomMember = roomMember(11L, 1L);
+        RoomMember firstGuest = roomMember(10L, 2L);
+        RoomMember secondGuest = roomMember(11L, 3L);
+
+        given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
+                .willReturn(List.of(myFirstRoomMember, mySecondRoomMember));
+        given(roomRepository.findAllById(List.of(10L, 11L)))
+                .willReturn(List.of(firstRoom, secondRoom));
+        given(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(10L, 11L)))
+                .willReturn(List.of(myFirstRoomMember, firstGuest, mySecondRoomMember, secondGuest));
+        given(memberReadService.getAvatarsByIds(List.of(1L, 2L, 3L)))
+                .willReturn(avatars(List.of(myFirstRoomMember, firstGuest, secondGuest)));
+        given(gameRepository.findAllByRoomIdIn(List.of(10L, 11L))).willReturn(List.of());
+
+        // when
+        List<MyRoomResponse> responses = roomReadService.getMyRooms(1L, null);
+
+        // then
+        assertThat(responses).hasSize(2);
+        then(memberReadService).should().getAvatarsByIds(List.of(1L, 2L, 3L));
     }
 
     @Test
@@ -299,12 +378,9 @@ class RoomReadServiceTest {
         given(bingoCellRepository.findAllByBoardIdIn(
                 boards.stream().map(BingoBoard::getId).toList()
         )).willReturn(cells);
-        given(memberReadService.getNicknamesByIds(
+        given(memberReadService.getAvatarsByIds(
                 roomMembers.stream().map(RoomMember::getMemberId).toList()
-        )).willReturn(roomMembers.stream().collect(Collectors.toMap(
-                RoomMember::getMemberId,
-                member -> "회원" + member.getMemberId()
-        )));
+        )).willReturn(avatars(roomMembers));
     }
 
     private Room room(
@@ -365,5 +441,28 @@ class RoomReadServiceTest {
         cell.submit(memberId, "https://example.com/proof.png");
         cell.approve();
         return cell;
+    }
+
+    private Map<Long, CharacterResponse> avatars(List<RoomMember> roomMembers) {
+        EquippedItemResponse equippedItem = new EquippedItemResponse(
+                10L,
+                100L,
+                "빨간 모자",
+                ItemCategory.HAT,
+                "https://example.com/hat.png"
+        );
+        return roomMembers.stream()
+                .collect(Collectors.toMap(
+                        RoomMember::getMemberId,
+                        roomMember -> new CharacterResponse(
+                                roomMember.getMemberId(),
+                                "회원" + roomMember.getMemberId(),
+                                roomMember.getMemberId() == 1L ? Gender.MALE : Gender.FEMALE,
+                                roomMember.getMemberId() == 1L
+                                        ? "https://example.com/male.png"
+                                        : "https://example.com/female.png",
+                                roomMember.getMemberId() == 1L ? List.of(equippedItem) : List.of()
+                        )
+                ));
     }
 }
