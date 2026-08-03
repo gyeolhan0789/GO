@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import {
+  activateMission,
   createItem,
   createMission,
   deactivateMission,
@@ -157,6 +158,19 @@ function MissionPage({ environment, onLogout }: { environment: Environment; onLo
     } finally { setPending(false) }
   }
 
+  async function activate(missionId: number) {
+    setPending(true)
+    setRowError('')
+    setRowSuccess('')
+    try {
+      await activateMission(missionId)
+      setRowSuccess('미션을 활성화했습니다.')
+      await load()
+    } catch (cause) {
+      setRowError(cause instanceof Error ? cause.message : '미션 활성화에 실패했습니다.')
+    } finally { setPending(false) }
+  }
+
   return <main className="admin-page"><PageHeader environment={environment} onLogout={onLogout} title="미션 관리" onRefresh={() => void load()} />
     <div className="workspace"><section className="form-panel"><h2>새 미션</h2><form onSubmit={submit}>
       <label>이미지<input required name="image" type="file" accept="image/*" /></label>
@@ -177,7 +191,7 @@ function MissionPage({ environment, onLogout }: { environment: Environment; onLo
         <label>상세<textarea name="detail" defaultValue={mission.detail ?? ''} maxLength={255} rows={3} /></label>
         <label>결정 조건 (JSON)<textarea name="decisionCondition" defaultValue={mission.decisionCondition ?? ''} rows={4} /></label>
         <div className="meta"><span>{mission.isActive ? '활성' : '비활성'}</span><time>{new Date(mission.createdAt).toLocaleString('ko-KR')}</time></div>
-        <div className="row-actions"><button disabled={pending}>수정</button>{mission.isActive && <button type="button" className="danger-button" disabled={pending} onClick={() => void deactivate(mission.missionId)}>비활성화</button>}</div>
+        <div className="row-actions"><button disabled={pending}>수정</button>{mission.isActive ? <button type="button" className="danger-button" disabled={pending} onClick={() => void deactivate(mission.missionId)}>비활성화</button> : <button type="button" disabled={pending} onClick={() => void activate(mission.missionId)}>활성화</button>}</div>
       </form></article>)}</div>}
     </section></div>
   </main>
