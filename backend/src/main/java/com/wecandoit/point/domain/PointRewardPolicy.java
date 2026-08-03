@@ -1,6 +1,6 @@
 package com.wecandoit.point.domain;
 
-import com.wecandoit.mission.domain.MissionType;
+import com.wecandoit.mission.domain.MissionDifficulty;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -12,29 +12,17 @@ public enum PointRewardPolicy {
     BATTLE_WINNER_GAME_GOAL(300L),
     BATTLE_LOSER_GAME_GOAL(50L),
     DAILY_STEP_GOAL(100L),
-    BINGO_CELL_OBJECT(30L),
-    BINGO_CELL_ATTRIBUTE(50L),
-    BINGO_CELL_RELATION(70L),
-    BINGO_CELL_ORDINARY(30L);
+    BINGO_CELL_LOW(30L),
+    BINGO_CELL_MEDIUM(50L),
+    BINGO_CELL_HIGH(70L);
 
     private final long point;
 
-    public static long getBingoCellRewardPoint(MissionType missionType) {
-        return switch (missionType) {
-            case OBJECT -> BINGO_CELL_OBJECT.point;
-            case ATTRIBUTE -> BINGO_CELL_ATTRIBUTE.point;
-            case RELATION -> BINGO_CELL_RELATION.point;
-            case ORDINARY,
-                 STEP_TOTAL,
-                 STEP_CONTINUOUS,
-                 STEP_UPHILL,
-                 STEP_DAILY,
-                 WALKING_TIME_TOTAL,
-                 WALKING_TIME_CONTINUOUS,
-                 STEADY_PACE,
-                 DISTANCE_TOTAL,
-                 CALORIES_TOTAL,
-                 AVERAGE_SPEED -> BINGO_CELL_ORDINARY.point;
+    public static long getBingoCellRewardPoint(MissionDifficulty missionDifficulty) {
+        return switch (missionDifficulty) {
+            case LOW -> BINGO_CELL_LOW.point;
+            case MEDIUM -> BINGO_CELL_MEDIUM.point;
+            case HIGH -> BINGO_CELL_HIGH.point;
         };
     }
 }

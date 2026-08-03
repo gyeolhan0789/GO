@@ -22,7 +22,7 @@ import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.GameCompletionService;
-import com.wecandoit.mission.domain.MissionType;
+import com.wecandoit.mission.domain.MissionDifficulty;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -68,17 +68,17 @@ class BingoCellVerificationResultServiceTest {
         given(gameRepository.findByIdForUpdate(200L)).willReturn(Optional.of(game));
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(inProgressRoom(10L)));
         given(bingoCellRepository.save(cell)).willReturn(cell);
-        given(pointCommandService.grantBingoCellReward(1L, 10L, 1000L, MissionType.OBJECT)).willReturn(30L);
+        given(pointCommandService.grantBingoCellReward(1L, 10L, 1000L, MissionDifficulty.LOW)).willReturn(30L);
 
         // when
-        long rewardPoint = verificationResultService.applyResult(1000L, true, null, MissionType.OBJECT);
+        long rewardPoint = verificationResultService.applyResult(1000L, true, null, MissionDifficulty.LOW);
 
         // then
         assertThat(cell.getVerificationStatus()).isEqualTo(BingoCellVerificationStatus.APPROVED);
         assertThat(cell.getRejectionReason()).isNull();
         assertThat(cell.getCompletedAt()).isNotNull();
         assertThat(rewardPoint).isEqualTo(30L);
-        then(pointCommandService).should().grantBingoCellReward(1L, 10L, 1000L, MissionType.OBJECT);
+        then(pointCommandService).should().grantBingoCellReward(1L, 10L, 1000L, MissionDifficulty.LOW);
         then(gameCompletionService).should().evaluateAndCompleteIfNeeded(200L, 100L);
     }
 
@@ -100,7 +100,7 @@ class BingoCellVerificationResultServiceTest {
                 1000L,
                 false,
                 "인증 이미지가 조건과 다릅니다.",
-                MissionType.OBJECT
+                MissionDifficulty.LOW
         );
 
         // then
@@ -127,10 +127,10 @@ class BingoCellVerificationResultServiceTest {
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(inProgressRoom(10L, GameMode.COOPERATE)));
         given(bingoCellRepository.save(changedCell)).willReturn(changedCell);
         given(bingoCellRepository.findAllByBoardId(100L)).willReturn(List.of(changedCell, approvedCell));
-        given(pointCommandService.grantBingoCellReward(1L, 10L, 1000L, MissionType.OBJECT)).willReturn(30L);
+        given(pointCommandService.grantBingoCellReward(1L, 10L, 1000L, MissionDifficulty.LOW)).willReturn(30L);
 
         // when
-        verificationResultService.applyResult(1000L, true, null, MissionType.OBJECT);
+        verificationResultService.applyResult(1000L, true, null, MissionDifficulty.LOW);
 
         // then
         ArgumentCaptor<CooperativeBingoProgressUpdatedEvent> eventCaptor =
@@ -169,7 +169,7 @@ class BingoCellVerificationResultServiceTest {
                 1000L,
                 false,
                 "인증 이미지가 조건과 다릅니다.",
-                MissionType.OBJECT
+                MissionDifficulty.LOW
         );
 
         // then
@@ -203,10 +203,10 @@ class BingoCellVerificationResultServiceTest {
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(inProgressRoom(10L, GameMode.BATTLE)));
         given(bingoCellRepository.save(changedCell)).willReturn(changedCell);
         given(bingoCellRepository.findAllByBoardId(100L)).willReturn(List.of(changedCell, approvedCell));
-        given(pointCommandService.grantBingoCellReward(1L, 10L, 1000L, MissionType.OBJECT)).willReturn(30L);
+        given(pointCommandService.grantBingoCellReward(1L, 10L, 1000L, MissionDifficulty.LOW)).willReturn(30L);
 
         // when
-        verificationResultService.applyResult(1000L, true, null, MissionType.OBJECT);
+        verificationResultService.applyResult(1000L, true, null, MissionDifficulty.LOW);
 
         // then
         ArgumentCaptor<BattleBingoProgressUpdatedEvent> eventCaptor =
@@ -244,7 +244,7 @@ class BingoCellVerificationResultServiceTest {
                 1000L,
                 false,
                 "인증 이미지가 조건과 다릅니다.",
-                MissionType.OBJECT
+                MissionDifficulty.LOW
         );
 
         // then
@@ -275,10 +275,10 @@ class BingoCellVerificationResultServiceTest {
         given(gameRepository.findByIdForUpdate(200L)).willReturn(Optional.of(game));
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(inProgressRoom(10L, GameMode.SINGLE)));
         given(bingoCellRepository.save(cell)).willReturn(cell);
-        given(pointCommandService.grantBingoCellReward(1L, 10L, 1000L, MissionType.OBJECT)).willReturn(30L);
+        given(pointCommandService.grantBingoCellReward(1L, 10L, 1000L, MissionDifficulty.LOW)).willReturn(30L);
 
         // when
-        verificationResultService.applyResult(1000L, true, null, MissionType.OBJECT);
+        verificationResultService.applyResult(1000L, true, null, MissionDifficulty.LOW);
 
         // then
         then(eventPublisher).shouldHaveNoInteractions();
@@ -300,7 +300,7 @@ class BingoCellVerificationResultServiceTest {
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(closedRoom));
 
         // when
-        long rewardPoint = verificationResultService.applyResult(1000L, true, null, MissionType.OBJECT);
+        long rewardPoint = verificationResultService.applyResult(1000L, true, null, MissionDifficulty.LOW);
 
         // then
         assertThat(cell.getVerificationStatus()).isEqualTo(BingoCellVerificationStatus.PENDING);
@@ -320,7 +320,7 @@ class BingoCellVerificationResultServiceTest {
         given(bingoBoardRepository.findById(100L)).willReturn(Optional.of(board));
         given(gameRepository.findByIdForUpdate(200L)).willReturn(Optional.of(completedGame));
 
-        long rewardPoint = verificationResultService.applyResult(1000L, true, null, MissionType.OBJECT);
+        long rewardPoint = verificationResultService.applyResult(1000L, true, null, MissionDifficulty.LOW);
 
         assertThat(cell.getVerificationStatus()).isEqualTo(BingoCellVerificationStatus.PENDING);
         assertThat(rewardPoint).isZero();
@@ -344,7 +344,7 @@ class BingoCellVerificationResultServiceTest {
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(inProgressRoom(10L)));
 
         // when
-        long rewardPoint = verificationResultService.applyResult(1000L, true, null, MissionType.OBJECT);
+        long rewardPoint = verificationResultService.applyResult(1000L, true, null, MissionDifficulty.LOW);
 
         // then
         assertThat(cell.getVerificationStatus()).isEqualTo(BingoCellVerificationStatus.REJECTED);

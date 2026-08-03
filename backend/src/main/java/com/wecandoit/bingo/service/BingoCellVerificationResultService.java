@@ -19,7 +19,7 @@ import com.wecandoit.game.domain.RoomStatus;
 import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.GameCompletionService;
-import com.wecandoit.mission.domain.MissionType;
+import com.wecandoit.mission.domain.MissionDifficulty;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -39,7 +39,7 @@ public class BingoCellVerificationResultService {
     private final GameCompletionService gameCompletionService;
     private final ApplicationEventPublisher eventPublisher;
 
-    public long applyResult(Long cellId, boolean approved, String rejectionReason, MissionType missionType) {
+    public long applyResult(Long cellId, boolean approved, String rejectionReason, MissionDifficulty missionDifficulty) {
         BingoCell cell = bingoCellRepository.findByIdForUpdate(cellId)
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND));
 
@@ -72,7 +72,7 @@ public class BingoCellVerificationResultService {
                 cell.getMemberId(),
                 room.getId(),
                 cell.getId(),
-                missionType
+                missionDifficulty
         );
         gameCompletionService.evaluateAndCompleteIfNeeded(game.getId(), board.getId());
         publishProgressEvent(room, board, cell);

@@ -2,7 +2,7 @@ package com.wecandoit.point.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.wecandoit.mission.domain.MissionType;
+import com.wecandoit.mission.domain.MissionDifficulty;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -19,11 +19,10 @@ class PointRewardPolicyTest {
     }
 
     @Test
-    @DisplayName("미션 타입별 빙고 칸 완료 보상 포인트를 반환한다")
-    void returnsBingoCellRewardPointByMissionType() {
-        assertThat(PointRewardPolicy.getBingoCellRewardPoint(MissionType.OBJECT)).isEqualTo(30L);
-        assertThat(PointRewardPolicy.getBingoCellRewardPoint(MissionType.ATTRIBUTE)).isEqualTo(50L);
-        assertThat(PointRewardPolicy.getBingoCellRewardPoint(MissionType.RELATION)).isEqualTo(70L);
-        assertThat(PointRewardPolicy.getBingoCellRewardPoint(MissionType.ORDINARY)).isEqualTo(30L);
+    @DisplayName("미션 난이도별 빙고 칸 완료 보상 포인트를 반환한다")
+    void returnsBingoCellRewardPointByMissionDifficulty() {
+        assertThat(PointRewardPolicy.getBingoCellRewardPoint(MissionDifficulty.LOW)).isEqualTo(30L);
+        assertThat(PointRewardPolicy.getBingoCellRewardPoint(MissionDifficulty.MEDIUM)).isEqualTo(50L);
+        assertThat(PointRewardPolicy.getBingoCellRewardPoint(MissionDifficulty.HIGH)).isEqualTo(70L);
     }
 }

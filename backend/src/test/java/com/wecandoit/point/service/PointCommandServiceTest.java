@@ -16,7 +16,7 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
-import com.wecandoit.mission.domain.MissionType;
+import com.wecandoit.mission.domain.MissionDifficulty;
 import com.wecandoit.notification.domain.NotificationType;
 import com.wecandoit.notification.event.NotificationMessageFactory;
 import com.wecandoit.notification.event.NotificationRequestedEvent;
@@ -59,7 +59,7 @@ class PointCommandServiceTest {
         given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(member));
 
         // when
-        long rewardPoint = pointCommandService.grantBingoCellReward(1L, 10L, 1000L, MissionType.RELATION);
+        long rewardPoint = pointCommandService.grantBingoCellReward(1L, 10L, 1000L, MissionDifficulty.HIGH);
 
         // then
         assertThat(rewardPoint).isEqualTo(70L);
@@ -87,7 +87,7 @@ class PointCommandServiceTest {
         )).willReturn(true);
 
         // when
-        long rewardPoint = pointCommandService.grantBingoCellReward(1L, 10L, 1000L, MissionType.OBJECT);
+        long rewardPoint = pointCommandService.grantBingoCellReward(1L, 10L, 1000L, MissionDifficulty.LOW);
 
         // then
         assertThat(rewardPoint).isZero();
@@ -103,7 +103,7 @@ class PointCommandServiceTest {
         given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> pointCommandService.grantBingoCellReward(1L, 10L, 1000L, MissionType.ORDINARY))
+        assertThatThrownBy(() -> pointCommandService.grantBingoCellReward(1L, 10L, 1000L, MissionDifficulty.LOW))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);

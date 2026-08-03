@@ -92,6 +92,7 @@ function MissionPage({ environment, onLogout }: { environment: Environment; onLo
     if (decisionConditionText) JSON.parse(decisionConditionText)
     return {
       type: String(form.get('type')),
+      difficulty: String(form.get('difficulty')),
       title: String(form.get('title') ?? ''),
       detail: String(form.get('detail') ?? ''),
       decisionCondition: decisionConditionText,
@@ -160,6 +161,7 @@ function MissionPage({ environment, onLogout }: { environment: Environment; onLo
     <div className="workspace"><section className="form-panel"><h2>새 미션</h2><form onSubmit={submit}>
       <label>이미지<input required name="image" type="file" accept="image/*" /></label>
       <label>타입<select required name="type" defaultValue=""><option value="" disabled>선택</option><option>OBJECT</option><option>ATTRIBUTE</option><option>RELATION</option></select></label>
+      <label>난이도<select required name="difficulty" defaultValue=""><option value="" disabled>선택</option><option value="LOW">하</option><option value="MEDIUM">중</option><option value="HIGH">상</option></select></label>
       <label>제목<input name="title" maxLength={255} /></label><label>상세<textarea name="detail" maxLength={255} rows={3} /></label>
       <label>결정 조건 (JSON)<textarea name="decisionCondition" rows={6} placeholder={'{"target":"flower","constraints":{"color":"red"}}'} /></label>
       {createError && <p className="error">{createError}</p>}{createSuccess && <p className="success">{createSuccess}</p>}
@@ -170,6 +172,7 @@ function MissionPage({ environment, onLogout }: { environment: Environment; onLo
       {loading ? <p>목록을 불러오는 중입니다.</p> : listError ? <p className="error">{listError}</p> : missions.length === 0 ? <p>등록된 미션이 없습니다.</p> : <div className="mission-list">{missions.map((mission) => <article key={mission.missionId} className="mission-row"><img src={resolveImageUrl(mission.missionImageUrl)} alt="" /><form onSubmit={(event) => void save(mission, event)}>
         <label>새 이미지 (선택)<input name="image" type="file" accept="image/*" /></label>
         <label>타입<select required name="type" defaultValue={mission.type}><option>OBJECT</option><option>ATTRIBUTE</option><option>RELATION</option></select></label>
+        <label>난이도<select required name="difficulty" defaultValue={mission.difficulty}><option value="LOW">하</option><option value="MEDIUM">중</option><option value="HIGH">상</option></select></label>
         <label>제목<input name="title" defaultValue={mission.title ?? ''} maxLength={255} /></label>
         <label>상세<textarea name="detail" defaultValue={mission.detail ?? ''} maxLength={255} rows={3} /></label>
         <label>결정 조건 (JSON)<textarea name="decisionCondition" defaultValue={mission.decisionCondition ?? ''} rows={4} /></label>

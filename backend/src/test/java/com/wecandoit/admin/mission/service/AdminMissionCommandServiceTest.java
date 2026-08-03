@@ -50,6 +50,7 @@ class AdminMissionCommandServiceTest {
         // given
         CreateMissionRequest request = new CreateMissionRequest(
                 "OBJECT",
+                "LOW",
                 "Red flower",
                 "Find a red flower",
                 "{\"target\":\"flower\",\"constraints\":{\"color\":\"red\"}}"
@@ -77,7 +78,7 @@ class AdminMissionCommandServiceTest {
     @DisplayName("일반 미션 타입을 저장할 수 있다")
     void createMissionAcceptsOrdinaryType() {
         // given
-        CreateMissionRequest request = new CreateMissionRequest("ORDINARY", "Walk", "Walk outside", null);
+        CreateMissionRequest request = new CreateMissionRequest("ORDINARY", "LOW", "Walk", "Walk outside", null);
         given(imageUploadService.upload(
                 ArgumentMatchers.eq(image), ArgumentMatchers.eq("missions"), ArgumentMatchers.anyString()))
                 .willReturn("https://example.com/walk.png");
@@ -95,7 +96,7 @@ class AdminMissionCommandServiceTest {
     @DisplayName("지원하지 않는 미션 타입이면 예외가 발생한다")
     void createMissionRejectsUnsupportedType() {
         // given
-        CreateMissionRequest request = new CreateMissionRequest("COLOR", null, null, null);
+        CreateMissionRequest request = new CreateMissionRequest("COLOR", "LOW", null, null, null);
 
         // when & then
         assertThatThrownBy(() -> adminMissionCommandService.createMission(request, image))
@@ -110,7 +111,7 @@ class AdminMissionCommandServiceTest {
     @DisplayName("결정 조건이 올바른 JSON이 아니면 예외가 발생한다")
     void createMissionRejectsInvalidDecisionCondition() {
         // given
-        CreateMissionRequest request = new CreateMissionRequest("OBJECT", null, null, "not-json");
+        CreateMissionRequest request = new CreateMissionRequest("OBJECT", "LOW", null, null, "not-json");
 
         // when & then
         assertThatThrownBy(() -> adminMissionCommandService.createMission(request, image))
@@ -128,7 +129,7 @@ class AdminMissionCommandServiceTest {
         given(adminMissionRepository.findById(1L)).willReturn(Optional.of(mission));
         given(image.isEmpty()).willReturn(true);
         UpdateMissionRequest request =
-                new UpdateMissionRequest("RELATION", "Updated flower", "Find the updated flower", null);
+                new UpdateMissionRequest("RELATION", "HIGH", "Updated flower", "Find the updated flower", null);
 
         // when
         adminMissionCommandService.updateMission(1L, request, image);
@@ -150,7 +151,7 @@ class AdminMissionCommandServiceTest {
         given(adminMissionRepository.findById(1L)).willReturn(Optional.of(mission));
         given(image.isEmpty()).willReturn(false);
         given(imageUploadService.upload(image, "missions", "1")).willReturn("https://example.com/new.png");
-        UpdateMissionRequest request = new UpdateMissionRequest("OBJECT", "Red flower", "Find it", null);
+        UpdateMissionRequest request = new UpdateMissionRequest("OBJECT", "LOW", "Red flower", "Find it", null);
 
         // when
         adminMissionCommandService.updateMission(1L, request, image);
@@ -165,7 +166,7 @@ class AdminMissionCommandServiceTest {
     void updateMissionRejectsMissingMission() {
         // given
         given(adminMissionRepository.findById(1L)).willReturn(Optional.empty());
-        UpdateMissionRequest request = new UpdateMissionRequest("OBJECT", null, null, null);
+        UpdateMissionRequest request = new UpdateMissionRequest("OBJECT", "LOW", null, null, null);
 
         // when & then
         assertThatThrownBy(() -> adminMissionCommandService.updateMission(1L, request, image))
@@ -178,7 +179,7 @@ class AdminMissionCommandServiceTest {
     @DisplayName("수정 시 지원하지 않는 미션 타입이면 예외가 발생한다")
     void updateMissionRejectsUnsupportedType() {
         // given
-        UpdateMissionRequest request = new UpdateMissionRequest("COLOR", null, null, null);
+        UpdateMissionRequest request = new UpdateMissionRequest("COLOR", "LOW", null, null, null);
 
         // when & then
         assertThatThrownBy(() -> adminMissionCommandService.updateMission(1L, request, image))

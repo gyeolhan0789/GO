@@ -56,6 +56,7 @@ public enum ErrorCode {
 
     // Mission
     INVALID_MISSION_TYPE(HttpStatus.BAD_REQUEST, "미션 타입은 OBJECT, ATTRIBUTE, RELATION, ORDINARY 중 하나여야 합니다."),
+    INVALID_MISSION_DIFFICULTY(HttpStatus.BAD_REQUEST, "미션 난이도는 LOW, MEDIUM, HIGH 중 하나여야 합니다."),
     MISSION_NOT_FOUND(HttpStatus.NOT_FOUND, "미션을 찾을 수 없습니다."),
     INVALID_DECISION_CONDITION(HttpStatus.BAD_REQUEST, "결정 조건은 올바른 JSON이어야 합니다."),
 

@@ -24,7 +24,7 @@ import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
-import com.wecandoit.mission.domain.MissionType;
+import com.wecandoit.mission.domain.MissionDifficulty;
 import com.wecandoit.notification.service.NotificationCommandService;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -230,8 +230,8 @@ class GameCompletionServiceConcurrencyTest {
 
     @Test
     void doesNotCompleteCooperateGameUntilRenewal() {
-        verificationResultService.applyResult(firstPendingCellId, true, null, MissionType.OBJECT);
-        verificationResultService.applyResult(secondPendingCellId, true, null, MissionType.OBJECT);
+        verificationResultService.applyResult(firstPendingCellId, true, null, MissionDifficulty.LOW);
+        verificationResultService.applyResult(secondPendingCellId, true, null, MissionDifficulty.LOW);
 
         assertThat(roomRepository.findById(roomId).orElseThrow().getStatus()).isEqualTo(RoomStatus.ACTIVE);
         assertThat(gameResultRepository.count()).isZero();
@@ -270,7 +270,7 @@ class GameCompletionServiceConcurrencyTest {
         readyLatch.countDown();
         try {
             startLatch.await();
-            verificationResultService.applyResult(cellId, true, null, MissionType.OBJECT);
+            verificationResultService.applyResult(cellId, true, null, MissionDifficulty.LOW);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException(e);

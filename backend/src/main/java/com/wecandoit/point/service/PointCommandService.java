@@ -8,7 +8,7 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
-import com.wecandoit.mission.domain.MissionType;
+import com.wecandoit.mission.domain.MissionDifficulty;
 import com.wecandoit.notification.event.NotificationMessageFactory;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +26,7 @@ public class PointCommandService {
     private final ApplicationEventPublisher eventPublisher;
     private final NotificationMessageFactory notificationMessageFactory;
 
-    public long grantBingoCellReward(Long memberId, Long roomId, Long cellId, MissionType missionType) {
+    public long grantBingoCellReward(Long memberId, Long roomId, Long cellId, MissionDifficulty missionDifficulty) {
         Member member = memberRepository.findByIdForUpdate(memberId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
         if (pointHistoryRepository.existsByMemberIdAndTypeAndReferenceId(
@@ -37,7 +37,7 @@ public class PointCommandService {
             return 0L;
         }
 
-        long rewardPoint = PointRewardPolicy.getBingoCellRewardPoint(missionType);
+        long rewardPoint = PointRewardPolicy.getBingoCellRewardPoint(missionDifficulty);
         member.addPoint(rewardPoint);
         pointHistoryRepository.save(PointHistory.bingoCellReward(memberId, cellId, roomId, rewardPoint));
         eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, rewardPoint));

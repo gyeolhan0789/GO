@@ -9,6 +9,7 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.storage.ImageUploadService;
 import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.domain.MissionDifficulty;
 import com.wecandoit.mission.domain.MissionType;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class AdminMissionCommandService {
 
     public void createMission(CreateMissionRequest request, MultipartFile image) {
         validateMissionType(request.type());
+        validateMissionDifficulty(request.difficulty());
         String decisionCondition = parseDecisionCondition(request.decisionCondition());
         String resourceId = UUID.randomUUID().toString();
         String imageUrl = imageUploadService.upload(image, MISSION_IMAGE_DOMAIN, resourceId);
@@ -37,12 +39,14 @@ public class AdminMissionCommandService {
                 request.type(),
                 request.title(),
                 request.detail(),
-                decisionCondition
+                decisionCondition,
+                request.difficulty()
         ));
     }
 
     public void updateMission(Long missionId, UpdateMissionRequest request, MultipartFile image) {
         validateMissionType(request.type());
+        validateMissionDifficulty(request.difficulty());
         String decisionCondition = parseDecisionCondition(request.decisionCondition());
         Mission mission = findMission(missionId);
         String previousImageUrl = mission.getMissionImageUrl();
@@ -50,7 +54,7 @@ public class AdminMissionCommandService {
         if (image != null && !image.isEmpty()) {
             imageUrl = imageUploadService.upload(image, MISSION_IMAGE_DOMAIN, missionId.toString());
         }
-        mission.update(imageUrl, request.type(), request.title(), request.detail(), decisionCondition);
+        mission.update(imageUrl, request.type(), request.title(), request.detail(), decisionCondition, request.difficulty());
         if (imageUrl != null) {
             imageUploadService.delete(previousImageUrl);
         }
@@ -68,6 +72,12 @@ public class AdminMissionCommandService {
     private void validateMissionType(String type) {
         if (!MissionType.contains(type)) {
             throw new CustomException(ErrorCode.INVALID_MISSION_TYPE);
+        }
+    }
+
+    private void validateMissionDifficulty(String difficulty) {
+        if (!MissionDifficulty.contains(difficulty)) {
+            throw new CustomException(ErrorCode.INVALID_MISSION_DIFFICULTY);
         }
     }
 
