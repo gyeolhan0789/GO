@@ -22,7 +22,7 @@ import com.wecandoit.game.repository.GameParticipantRepository;
 import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
-import com.wecandoit.item.controller.response.CharacterResponse;
+import com.wecandoit.item.controller.response.AvatarResponse;
 import com.wecandoit.member.service.MemberReadService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -91,7 +91,7 @@ public class RoomReadService {
 
         List<Long> activeRoomIds = activeRoomMembers.stream().map(RoomMember::getRoomId).distinct().toList();
         List<RoomMember> allRoomMembers = roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(activeRoomIds);
-        Map<Long, CharacterResponse> avatarsByMemberId = getAvatarsByMemberId(allRoomMembers);
+        Map<Long, AvatarResponse> avatarsByMemberId = getAvatarsByMemberId(allRoomMembers);
         Map<Long, List<MyRoomMemberResponse>> membersByRoomId =
                 getMembersByRoomId(roomsById, allRoomMembers, avatarsByMemberId);
         Map<Long, RoomCycleSnapshot> snapshotsByRoomId = getRoomCycleSnapshots(activeRoomIds, roomsById);
@@ -281,10 +281,10 @@ public class RoomReadService {
         if (roomMembers.isEmpty()) {
             return List.of();
         }
-        Map<Long, CharacterResponse> avatarsByMemberId = getAvatarsByMemberId(roomMembers);
+        Map<Long, AvatarResponse> avatarsByMemberId = getAvatarsByMemberId(roomMembers);
         return roomMembers.stream()
                 .map(roomMember -> {
-                    CharacterResponse avatar = getAvatar(avatarsByMemberId, roomMember.getMemberId());
+                    AvatarResponse avatar = getAvatar(avatarsByMemberId, roomMember.getMemberId());
                     return RoomMemberResponse.from(
                             roomMember,
                             avatar.nickname(),
@@ -334,14 +334,14 @@ public class RoomReadService {
     private Map<Long, List<MyRoomMemberResponse>> getMembersByRoomId(
             Map<Long, Room> roomsById,
             List<RoomMember> roomMembers,
-            Map<Long, CharacterResponse> avatarsByMemberId
+            Map<Long, AvatarResponse> avatarsByMemberId
     ) {
         return roomMembers.stream()
                 .collect(Collectors.groupingBy(
                         RoomMember::getRoomId,
                         Collectors.mapping(
                                 roomMember -> {
-                                    CharacterResponse avatar = getAvatar(
+                                    AvatarResponse avatar = getAvatar(
                                             avatarsByMemberId,
                                             roomMember.getMemberId()
                                     );
@@ -360,18 +360,18 @@ public class RoomReadService {
                 ));
     }
 
-    private Map<Long, CharacterResponse> getAvatarsByMemberId(List<RoomMember> roomMembers) {
+    private Map<Long, AvatarResponse> getAvatarsByMemberId(List<RoomMember> roomMembers) {
         return memberReadService.getAvatarsByIds(roomMembers.stream()
                 .map(RoomMember::getMemberId)
                 .distinct()
                 .toList());
     }
 
-    private CharacterResponse getAvatar(
-            Map<Long, CharacterResponse> avatarsByMemberId,
+    private AvatarResponse getAvatar(
+            Map<Long, AvatarResponse> avatarsByMemberId,
             Long memberId
     ) {
-        CharacterResponse avatar = avatarsByMemberId.get(memberId);
+        AvatarResponse avatar = avatarsByMemberId.get(memberId);
         if (avatar == null) {
             throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
         }

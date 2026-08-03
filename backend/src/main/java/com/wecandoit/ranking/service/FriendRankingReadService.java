@@ -6,7 +6,7 @@ import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.PageResponse;
 import com.wecandoit.history.repository.MemberHistoryRepository;
 import com.wecandoit.history.repository.RankedWeeklyRankingSummary;
-import com.wecandoit.item.controller.response.CharacterResponse;
+import com.wecandoit.item.controller.response.AvatarResponse;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.ranking.controller.response.FriendRankingResponse;
@@ -54,22 +54,22 @@ public class FriendRankingReadService {
                 .map(RankedWeeklyRankingSummary::getMemberId)
                 .toList();
         List<Member> rankingMembers = memberRepository.findAllById(rankingMemberIds);
-        Map<Long, CharacterResponse> charactersByMemberId = avatarReadService.getAvatars(rankingMembers);
+        Map<Long, AvatarResponse> avatarsByMemberId = avatarReadService.getAvatars(rankingMembers);
 
         return new FriendRankingResponse(
                 myRanking.getRanking(),
                 myRanking.getWeeklySteps(),
                 PageResponse.from(summaries.map(summary ->
-                        toRankingItemResponse(summary, charactersByMemberId)))
+                        toRankingItemResponse(summary, avatarsByMemberId)))
         );
     }
 
     private static RankingItemResponse toRankingItemResponse(
             RankedWeeklyRankingSummary summary,
-            Map<Long, CharacterResponse> charactersByMemberId
+            Map<Long, AvatarResponse> avatarsByMemberId
     ) {
-        CharacterResponse character = charactersByMemberId.get(summary.getMemberId());
-        if (character == null) {
+        AvatarResponse avatar = avatarsByMemberId.get(summary.getMemberId());
+        if (avatar == null) {
             throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
         }
         return new RankingItemResponse(
@@ -77,9 +77,9 @@ public class FriendRankingReadService {
                 summary.getMemberId(),
                 summary.getNickname(),
                 summary.getWeeklySteps(),
-                character.gender(),
-                character.defaultImageUrl(),
-                character.equippedItems()
+                avatar.gender(),
+                avatar.defaultImageUrl(),
+                avatar.equippedItems()
         );
     }
 }

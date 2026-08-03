@@ -94,7 +94,7 @@ class RankingControllerTest {
                                 "me",
                                 12_500,
                                 Gender.FEMALE,
-                                "/uploads/characters/female/default.png",
+                                "/uploads/avatars/female/default.png",
                                 List.of(new EquippedItemResponse(
                                         10L,
                                         100L,
@@ -121,7 +121,7 @@ class RankingControllerTest {
                 .andExpect(jsonPath("$.rankings.content[0].memberId").value(1L))
                 .andExpect(jsonPath("$.rankings.content[0].gender").value("FEMALE"))
                 .andExpect(jsonPath("$.rankings.content[0].defaultImageUrl")
-                        .value("/uploads/characters/female/default.png"))
+                        .value("/uploads/avatars/female/default.png"))
                 .andExpect(jsonPath("$.rankings.content[0].equippedItems[0].memberItemId")
                         .value(10L))
                 .andExpect(jsonPath("$.rankings.content[0].equippedItems[0].itemId")
@@ -155,9 +155,9 @@ class RankingControllerTest {
                                 fieldWithPath("rankings.content[].weeklySteps")
                                         .description("이번 주 걸음 수"),
                                 fieldWithPath("rankings.content[].gender")
-                                        .description("회원 캐릭터 성별"),
+                                        .description("회원 아바타 성별"),
                                 fieldWithPath("rankings.content[].defaultImageUrl")
-                                        .description("성별 기본 캐릭터 이미지 URL"),
+                                        .description("성별 기본 아바타 이미지 URL"),
                                 fieldWithPath("rankings.content[].equippedItems")
                                         .description("장착 아이템 목록"),
                                 fieldWithPath("rankings.content[].equippedItems[].memberItemId")
@@ -197,7 +197,7 @@ class RankingControllerTest {
                                         "친구",
                                         20_000,
                                         Gender.MALE,
-                                        "/uploads/characters/male/default.png",
+                                        "/uploads/avatars/male/default.png",
                                         List.of()
                                 )),
                                 2,
@@ -217,7 +217,7 @@ class RankingControllerTest {
                 .andExpect(jsonPath("$.rankings.content[0].memberId").value(2L))
                 .andExpect(jsonPath("$.rankings.content[0].gender").value("MALE"))
                 .andExpect(jsonPath("$.rankings.content[0].defaultImageUrl")
-                        .value("/uploads/characters/male/default.png"))
+                        .value("/uploads/avatars/male/default.png"))
                 .andExpect(jsonPath("$.rankings.content[0].equippedItems").isArray())
                 .andExpect(jsonPath("$.rankings.content[0].equippedItems").isEmpty())
                 .andExpect(jsonPath("$.rankings.totalElements").value(2))
@@ -242,9 +242,9 @@ class RankingControllerTest {
                                 fieldWithPath("rankings.content[].weeklySteps")
                                         .description("이번 주 걸음 수"),
                                 fieldWithPath("rankings.content[].gender")
-                                        .description("회원 캐릭터 성별"),
+                                        .description("회원 아바타 성별"),
                                 fieldWithPath("rankings.content[].defaultImageUrl")
-                                        .description("성별 기본 캐릭터 이미지 URL"),
+                                        .description("성별 기본 아바타 이미지 URL"),
                                 fieldWithPath("rankings.content[].equippedItems")
                                         .description("장착 아이템 목록"),
                                 fieldWithPath("rankings.totalElements")

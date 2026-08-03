@@ -10,7 +10,7 @@ public record MyPageResponse(
         String nickname,
         Gender gender,
         Region region,
-        long cash
+        long point
 ) {
 
     public static MyPageResponse of(Member member) {
@@ -20,7 +20,7 @@ public record MyPageResponse(
                 member.getNickname(),
                 member.getGender(),
                 member.getRegion(),
-                member.getCash()
+                member.getPoint()
         );
     }
 }

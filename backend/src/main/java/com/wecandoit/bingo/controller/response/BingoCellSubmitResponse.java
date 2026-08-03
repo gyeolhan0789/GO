@@ -13,10 +13,10 @@ public record BingoCellSubmitResponse(
         BingoCellVerificationStatus verificationStatus,
         Long submittedByMemberId,
         String rejectionReason,
-        long rewardCash
+        long rewardPoint
 ) {
 
-    public static BingoCellSubmitResponse of(BingoCell cell, Mission mission, long rewardCash) {
+    public static BingoCellSubmitResponse of(BingoCell cell, Mission mission, long rewardPoint) {
         return new BingoCellSubmitResponse(
                 cell.getId(),
                 cell.getRow(),
@@ -25,7 +25,7 @@ public record BingoCellSubmitResponse(
                 cell.getVerificationStatus(),
                 cell.getMemberId(),
                 cell.getRejectionReason(),
-                rewardCash
+                rewardPoint
         );
     }
 }

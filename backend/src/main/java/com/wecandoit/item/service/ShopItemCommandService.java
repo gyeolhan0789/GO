@@ -2,8 +2,8 @@ package com.wecandoit.item.service;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
-import com.wecandoit.cash.domain.CashHistory;
-import com.wecandoit.cash.repository.CashHistoryRepository;
+import com.wecandoit.point.domain.PointHistory;
+import com.wecandoit.point.repository.PointHistoryRepository;
 import com.wecandoit.item.controller.response.ItemPurchaseResponse;
 import com.wecandoit.item.domain.Item;
 import com.wecandoit.item.domain.MemberItem;
@@ -23,7 +23,7 @@ public class ShopItemCommandService {
     private final MemberRepository memberRepository;
     private final ItemRepository itemRepository;
     private final MemberItemRepository memberItemRepository;
-    private final CashHistoryRepository cashHistoryRepository;
+    private final PointHistoryRepository pointHistoryRepository;
 
     public ItemPurchaseResponse purchaseItem(Long memberId, Long itemId) {
         Member member = memberRepository.findByIdForUpdate(memberId)
@@ -37,9 +37,9 @@ public class ShopItemCommandService {
             throw new CustomException(ErrorCode.ITEM_ALREADY_OWNED);
         }
 
-        member.deductCash(item.getPrice());
+        member.deductPoint(item.getPrice());
         MemberItem memberItem = memberItemRepository.save(MemberItem.create(memberId, itemId));
-        cashHistoryRepository.save(CashHistory.itemPurchase(memberId, itemId, item.getName(), item.getPrice()));
-        return ItemPurchaseResponse.of(memberItem, member.getCash());
+        pointHistoryRepository.save(PointHistory.itemPurchase(memberId, itemId, item.getName(), item.getPrice()));
+        return ItemPurchaseResponse.of(memberItem, member.getPoint());
     }
 }

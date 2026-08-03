@@ -11,7 +11,7 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.history.repository.MemberHistoryRepository;
 import com.wecandoit.history.repository.RankedWeeklyRankingSummary;
-import com.wecandoit.item.controller.response.CharacterResponse;
+import com.wecandoit.item.controller.response.AvatarResponse;
 import com.wecandoit.item.controller.response.EquippedItemResponse;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
@@ -75,19 +75,19 @@ class FriendRankingReadServiceTest {
         given(avatarReadService.getAvatars(List.of(friend, loginMember)))
                 .willReturn(Map.of(
                         3L,
-                        new CharacterResponse(
+                        new AvatarResponse(
                                 3L,
                                 "친구3",
                                 Gender.FEMALE,
-                                "/uploads/characters/female/default.png",
+                                "/uploads/avatars/female/default.png",
                                 List.of()
                         ),
                         4L,
-                        new CharacterResponse(
+                        new AvatarResponse(
                                 4L,
                                 "로그인회원",
                                 Gender.MALE,
-                                "/uploads/characters/male/default.png",
+                                "/uploads/avatars/male/default.png",
                                 List.of(new EquippedItemResponse(
                                         10L,
                                         100L,
@@ -114,7 +114,7 @@ class FriendRankingReadServiceTest {
         assertThat(response.rankings().content().getFirst().equippedItems()).isEmpty();
         assertThat(response.rankings().content().getFirst().gender()).isEqualTo(Gender.FEMALE);
         assertThat(response.rankings().content().getFirst().defaultImageUrl())
-                .isEqualTo("/uploads/characters/female/default.png");
+                .isEqualTo("/uploads/avatars/female/default.png");
         assertThat(response.rankings().content().get(1).equippedItems()).hasSize(1);
         assertThat(response.rankings().totalElements()).isEqualTo(5);
         assertThat(response.rankings().currentPage()).isEqualTo(1);
@@ -144,11 +144,11 @@ class FriendRankingReadServiceTest {
         given(avatarReadService.getAvatars(List.of(loginMemberEntity)))
                 .willReturn(Map.of(
                         1L,
-                        new CharacterResponse(
+                        new AvatarResponse(
                                 1L,
                                 "로그인회원",
                                 Gender.MALE,
-                                "/uploads/characters/male/default.png",
+                                "/uploads/avatars/male/default.png",
                                 List.of()
                         )
                 ));
@@ -166,7 +166,7 @@ class FriendRankingReadServiceTest {
                     assertThat(ranking.rank()).isEqualTo(1);
                     assertThat(ranking.gender()).isEqualTo(Gender.MALE);
                     assertThat(ranking.defaultImageUrl())
-                            .isEqualTo("/uploads/characters/male/default.png");
+                            .isEqualTo("/uploads/avatars/male/default.png");
                 });
         assertThat(response.rankings().totalElements()).isEqualTo(1);
     }

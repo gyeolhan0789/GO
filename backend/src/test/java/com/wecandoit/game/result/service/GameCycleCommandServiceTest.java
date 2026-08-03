@@ -12,7 +12,7 @@ import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
-import com.wecandoit.cash.repository.CashHistoryRepository;
+import com.wecandoit.point.repository.PointHistoryRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
@@ -77,7 +77,7 @@ class GameCycleCommandServiceTest {
     @Mock
     private MemberRepository memberRepository;
     @Mock
-    private CashHistoryRepository cashHistoryRepository;
+    private PointHistoryRepository pointHistoryRepository;
     @Mock
     private ApplicationEventPublisher eventPublisher;
     @Mock
@@ -109,7 +109,7 @@ class GameCycleCommandServiceTest {
         then(gameResultRepository).should().saveAndFlush(resultCaptor.capture());
         assertThat(resultCaptor.getValue().isResult()).isTrue();
         assertThat(resultCaptor.getValue().getCompletedMissionCount()).isEqualTo(4);
-        assertThat(resultCaptor.getValue().getRewardCash()).isEqualTo(200L);
+        assertThat(resultCaptor.getValue().getRewardPoint()).isEqualTo(200L);
         assertThat(game.getCompletedAt()).isBetween(beforeRenewal, afterRenewal);
         assertThat(board.getStatus()).isEqualTo(BingoBoardStatus.COMPLETED);
         assertThat(board.getCompletedAt()).isEqualTo(game.getCompletedAt());
@@ -138,7 +138,7 @@ class GameCycleCommandServiceTest {
         then(gameResultRepository).should().saveAndFlush(resultCaptor.capture());
         assertThat(resultCaptor.getValue().isResult()).isFalse();
         assertThat(resultCaptor.getValue().getCompletedMissionCount()).isEqualTo(2);
-        assertThat(resultCaptor.getValue().getRewardCash()).isZero();
+        assertThat(resultCaptor.getValue().getRewardPoint()).isZero();
         assertThat(game.getCompletedAt()).isEqualTo(expectedCompletedAt);
         assertThat(board.getStatus()).isEqualTo(BingoBoardStatus.EXPIRED);
         assertThat(board.getCompletedAt()).isEqualTo(expectedCompletedAt);

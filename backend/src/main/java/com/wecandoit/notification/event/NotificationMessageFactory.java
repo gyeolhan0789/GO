@@ -56,7 +56,7 @@ public class NotificationMessageFactory {
                 recipientMemberId,
                 NotificationType.REWARD_EARNED,
                 "보상을 획득했어요",
-                amount + "캐시를 획득했어요."
+                amount + "포인트를 획득했어요."
         );
     }
 }

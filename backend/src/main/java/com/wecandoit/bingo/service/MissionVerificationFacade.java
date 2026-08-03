@@ -50,7 +50,7 @@ public class MissionVerificationFacade {
         }
 
         boolean approved = result.success() && result.confidence() >= CONFIDENCE_THRESHOLD;
-        long rewardCash = verificationResultService.applyResult(
+        long rewardPoint = verificationResultService.applyResult(
                 cellId,
                 approved,
                 resolveRejectionReason(result, approved),
@@ -59,7 +59,7 @@ public class MissionVerificationFacade {
 
         BingoCell verifiedCell = bingoCellRepository.findById(cellId)
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND));
-        return BingoCellSubmitResponse.of(verifiedCell, mission, rewardCash);
+        return BingoCellSubmitResponse.of(verifiedCell, mission, rewardPoint);
     }
 
     private byte[] readImageBytes(MultipartFile image) {

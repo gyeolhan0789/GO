@@ -5,7 +5,7 @@ INSERT INTO member (
     nickname,
     region,
     gender,
-    cash,
+    point,
     onboarding_completed,
     role,
     auth_provider,
@@ -85,7 +85,7 @@ VALUES
     (2107, 'Dev Premium Hat', 'HAT', 10000, 'https://placehold.co/512x512/png?text=Premium+Hat', true, NOW(6), NOW(6)),
     (2108, 'Dev Retired Top', 'TOP', 100, 'https://placehold.co/512x512/png?text=Retired+Top', false, NOW(6), NOW(6));
 
-INSERT INTO default_character_assets (
+INSERT INTO default_avatar_assets (
     id,
     gender,
     image_url,
@@ -93,8 +93,8 @@ INSERT INTO default_character_assets (
     updated_at
 )
 VALUES
-    (2201, 'MALE', 'https://placehold.co/512x512/png?text=Male+Character', NOW(6), NOW(6)),
-    (2202, 'FEMALE', 'https://placehold.co/512x512/png?text=Female+Character', NOW(6), NOW(6));
+    (2201, 'MALE', 'https://placehold.co/512x512/png?text=Male+Avatar', NOW(6), NOW(6)),
+    (2202, 'FEMALE', 'https://placehold.co/512x512/png?text=Female+Avatar', NOW(6), NOW(6));
 
 INSERT INTO friends (
     id,
@@ -174,7 +174,7 @@ VALUES
     (3603, 'BOTTOM', 1001, 3503, DATE_SUB(NOW(6), INTERVAL 3 DAY), NOW(6)),
     (3604, 'SUNGLASSES', 1002, 3504, DATE_SUB(NOW(6), INTERVAL 2 DAY), NOW(6));
 
-INSERT INTO cash_histories (
+INSERT INTO point_histories (
     id,
     member_id,
     transaction_type,
@@ -580,7 +580,7 @@ INSERT INTO game_results (
     result,
     bingo_count,
     completed_mission_count,
-    reward_cash,
+    reward_point,
     created_at,
     updated_at
 )
@@ -594,7 +594,7 @@ INSERT INTO game_result_participants (
     game_id,
     member_id,
     completed_mission_count,
-    reward_cash,
+    reward_point,
     result,
     created_at,
     updated_at

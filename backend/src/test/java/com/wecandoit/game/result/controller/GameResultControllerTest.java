@@ -118,12 +118,12 @@ class GameResultControllerTest {
                 .body("targetStepCount", equalTo(10000))
                 .body("bingoCount", equalTo(3))
                 .body("completedMissionCount", equalTo(5))
-                .body("rewardCash", equalTo(200))
+                .body("rewardPoint", equalTo(200))
                 .body("startedAt", equalTo("2026-07-01T10:00:00"))
                 .body("completedAt", equalTo("2026-07-08T10:00:00"))
                 .body("totalMissionCount", equalTo(2))
                 .body("myCompletedMissionCount", equalTo(3))
-                .body("myRewardCash", equalTo(200))
+                .body("myRewardPoint", equalTo(200))
                 .body("myResult", equalTo(true))
                 .body("participants[0].memberId", equalTo(1))
                 .body("participants[0].nickname", equalTo("host"))
@@ -131,7 +131,7 @@ class GameResultControllerTest {
                 .body("participants[0].defaultImageUrl", equalTo("https://example.com/male.png"))
                 .body("participants[0].equippedItems[0].itemId", equalTo(100))
                 .body("participants[0].completedMissionCount", equalTo(3))
-                .body("participants[0].rewardCash", equalTo(200))
+                .body("participants[0].rewardPoint", equalTo(200))
                 .body("participants[0].result", equalTo(true))
                 .body("bingoBoards[0].bingoBoardId", equalTo(201))
                 .body("bingoBoards[0].owners[0].memberId", equalTo(1))
@@ -170,19 +170,19 @@ class GameResultControllerTest {
                                         .description("공유 빙고판 목표 걸음 수. 대결 모드는 null"),
                                 fieldWithPath("bingoCount").description("달성한 빙고 수"),
                                 fieldWithPath("completedMissionCount").description("완료한 미션 수 합계"),
-                                fieldWithPath("rewardCash").description("게임 완료 기준 보상 캐시"),
+                                fieldWithPath("rewardPoint").description("게임 완료 기준 보상 포인트"),
                                 fieldWithPath("startedAt").description("게임 회차 시작 시각"),
                                 fieldWithPath("completedAt").description("게임 회차 종료 시각"),
                                 fieldWithPath("totalMissionCount").description("게임 결과 보드의 전체 미션 수"),
                                 fieldWithPath("myCompletedMissionCount").description("내 완료 미션 수"),
-                                fieldWithPath("myRewardCash").description("내가 받은 보상 캐시"),
+                                fieldWithPath("myRewardPoint").description("내가 받은 보상 포인트"),
                                 fieldWithPath("myResult").description("내 승리 또는 완료 여부"),
                                 fieldWithPath("participants[].memberId").description("참여자 ID"),
                                 fieldWithPath("participants[].nickname").description("참여자 닉네임"),
-                                fieldWithPath("participants[].gender").description("참여자 캐릭터 성별"),
+                                fieldWithPath("participants[].gender").description("참여자 아바타 성별"),
                                 fieldWithPath("participants[].defaultImageUrl")
                                         .optional()
-                                        .description("성별 기본 캐릭터 이미지 URL"),
+                                        .description("성별 기본 아바타 이미지 URL"),
                                 fieldWithPath("participants[].equippedItems").description("현재 장착 아이템 목록"),
                                 fieldWithPath("participants[].equippedItems[].memberItemId")
                                         .description("회원 보유 아이템 ID"),
@@ -195,8 +195,8 @@ class GameResultControllerTest {
                                         .description("아이템 이미지 URL"),
                                 fieldWithPath("participants[].completedMissionCount")
                                         .description("참여자가 완료한 미션 수"),
-                                fieldWithPath("participants[].rewardCash")
-                                        .description("참여자에게 지급된 보상 캐시"),
+                                fieldWithPath("participants[].rewardPoint")
+                                        .description("참여자에게 지급된 보상 포인트"),
                                 fieldWithPath("participants[].result")
                                         .description("참여자 승리 또는 완료 여부"),
                                 fieldWithPath("bingoBoards[].bingoBoardId").description("빙고판 ID"),
@@ -307,12 +307,12 @@ class GameResultControllerTest {
                 .body("content[0].targetStepCount", equalTo(10000))
                 .body("content[0].bingoCount", equalTo(3))
                 .body("content[0].completedMissionCount", equalTo(5))
-                .body("content[0].rewardCash", equalTo(200))
+                .body("content[0].rewardPoint", equalTo(200))
                 .body("content[0].startedAt", equalTo("2026-07-01T10:00:00"))
                 .body("content[0].completedAt", equalTo("2026-07-08T10:00:00"))
                 .body("content[0].totalMissionCount", equalTo(2))
                 .body("content[0].myCompletedMissionCount", equalTo(3))
-                .body("content[0].myRewardCash", equalTo(200))
+                .body("content[0].myRewardPoint", equalTo(200))
                 .body("content[0].myResult", equalTo(true))
                 .body("content[0].participants[0].gender", equalTo("MALE"))
                 .body("content[0].participants[0].defaultImageUrl", equalTo("https://example.com/male.png"))
@@ -334,21 +334,21 @@ class GameResultControllerTest {
                                         .description("공유 빙고판 목표 걸음 수. 대결 모드는 null"),
                                 fieldWithPath("content[].bingoCount").description("달성한 빙고 수"),
                                 fieldWithPath("content[].completedMissionCount").description("완료한 미션 수 합계"),
-                                fieldWithPath("content[].rewardCash")
-                                        .description("게임 완료 기준 보상 캐시"),
+                                fieldWithPath("content[].rewardPoint")
+                                        .description("게임 완료 기준 보상 포인트"),
                                 fieldWithPath("content[].startedAt").description("게임 회차 시작 시각"),
                                 fieldWithPath("content[].completedAt").description("게임 회차 종료 시각"),
                                 fieldWithPath("content[].totalMissionCount").description("게임 결과 보드의 전체 미션 수"),
                                 fieldWithPath("content[].myCompletedMissionCount").description("내 완료 미션 수"),
-                                fieldWithPath("content[].myRewardCash").description("내가 받은 보상 캐시"),
+                                fieldWithPath("content[].myRewardPoint").description("내가 받은 보상 포인트"),
                                 fieldWithPath("content[].myResult").description("내 승리 또는 완료 여부"),
                                 fieldWithPath("content[].participants[].memberId").description("참여자 ID"),
                                 fieldWithPath("content[].participants[].nickname").description("참여자 닉네임"),
                                 fieldWithPath("content[].participants[].gender")
-                                        .description("참여자 캐릭터 성별"),
+                                        .description("참여자 아바타 성별"),
                                 fieldWithPath("content[].participants[].defaultImageUrl")
                                         .optional()
-                                        .description("성별 기본 캐릭터 이미지 URL"),
+                                        .description("성별 기본 아바타 이미지 URL"),
                                 fieldWithPath("content[].participants[].equippedItems")
                                         .description("현재 장착 아이템 목록"),
                                 fieldWithPath("content[].participants[].equippedItems[].memberItemId")
@@ -363,8 +363,8 @@ class GameResultControllerTest {
                                         .description("아이템 이미지 URL"),
                                 fieldWithPath("content[].participants[].completedMissionCount")
                                         .description("참여자가 완료한 미션 수"),
-                                fieldWithPath("content[].participants[].rewardCash")
-                                        .description("참여자에게 지급된 보상 캐시"),
+                                fieldWithPath("content[].participants[].rewardPoint")
+                                        .description("참여자에게 지급된 보상 포인트"),
                                 fieldWithPath("content[].participants[].result")
                                         .description("참여자 승리 또는 완료 여부"),
                                 fieldWithPath("hasNext").description("다음 페이지 존재 여부")

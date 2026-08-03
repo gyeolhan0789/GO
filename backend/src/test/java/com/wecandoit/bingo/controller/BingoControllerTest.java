@@ -314,7 +314,7 @@ class BingoControllerTest {
                 .body("col", equalTo(0))
                 .body("mission.missionId", equalTo(1))
                 .body("verificationStatus", equalTo("APPROVED"))
-                .body("rewardCash", equalTo(30))
+                .body("rewardPoint", equalTo(30))
                 .apply(document("bingo-cells-submit",
                         pathParameters(
                                 parameterWithName("roomId").description("칸을 제출할 게임방 ID"),
@@ -337,7 +337,7 @@ class BingoControllerTest {
                                 fieldWithPath("verificationStatus").description("AI 검증 후 인증 상태(APPROVED/REJECTED)"),
                                 fieldWithPath("submittedByMemberId").description("미션 제출 참여자 ID"),
                                 fieldWithPath("rejectionReason").description("거절 사유(승인 시 null)"),
-                                fieldWithPath("rewardCash").description("이번 인증으로 지급된 캐시")
+                                fieldWithPath("rewardPoint").description("이번 인증으로 지급된 포인트")
                         )
                 ));
     }

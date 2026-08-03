@@ -26,7 +26,7 @@ import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.GameResultParticipantRepository;
 import com.wecandoit.game.repository.GameResultRepository;
 import com.wecandoit.game.repository.RoomRepository;
-import com.wecandoit.item.controller.response.CharacterResponse;
+import com.wecandoit.item.controller.response.AvatarResponse;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.Mission;
@@ -78,7 +78,7 @@ public class GameResultReadService {
                 .stream()
                 .collect(Collectors.toMap(GameParticipant::getId, Function.identity()));
         Map<Long, Member> membersById = getMembersById(participants);
-        Map<Long, CharacterResponse> avatarsByMemberId = getAvatarsByMemberId(membersById);
+        Map<Long, AvatarResponse> avatarsByMemberId = getAvatarsByMemberId(membersById);
         List<GameResultParticipantResponse> participantResponses =
                 toParticipantResponses(participants, membersById, avatarsByMemberId);
         List<GameResultBingoBoardResponse> bingoBoardResponses =
@@ -127,7 +127,7 @@ public class GameResultReadService {
                         .toList())
                 .stream()
                 .collect(Collectors.toMap(Member::getId, Function.identity()));
-        Map<Long, CharacterResponse> avatarsByMemberId = getAvatarsByMemberId(membersById);
+        Map<Long, AvatarResponse> avatarsByMemberId = getAvatarsByMemberId(membersById);
         List<BingoBoard> boards = bingoBoardRepository.findAllByGameIdInOrderByIdAsc(gameIds);
         Map<Long, List<BingoBoard>> boardsByGameId = boards.stream()
                 .collect(Collectors.groupingBy(BingoBoard::getGameId));
@@ -324,12 +324,12 @@ public class GameResultReadService {
     private List<GameResultParticipantResponse> toParticipantResponses(
             List<GameResultParticipant> participants,
             Map<Long, Member> membersById,
-            Map<Long, CharacterResponse> avatarsByMemberId
+            Map<Long, AvatarResponse> avatarsByMemberId
     ) {
         return participants.stream()
                 .map(participant -> {
                     Long memberId = participant.getMemberId();
-                    CharacterResponse avatar = getAvatar(avatarsByMemberId, memberId);
+                    AvatarResponse avatar = getAvatar(avatarsByMemberId, memberId);
                     return GameResultParticipantResponse.of(
                             participant,
                             getMember(membersById, memberId),
@@ -340,18 +340,18 @@ public class GameResultReadService {
                 .toList();
     }
 
-    private CharacterResponse getAvatar(
-            Map<Long, CharacterResponse> avatarsByMemberId,
+    private AvatarResponse getAvatar(
+            Map<Long, AvatarResponse> avatarsByMemberId,
             Long memberId
     ) {
-        CharacterResponse avatar = avatarsByMemberId.get(memberId);
+        AvatarResponse avatar = avatarsByMemberId.get(memberId);
         if (avatar == null) {
             throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
         }
         return avatar;
     }
 
-    private Map<Long, CharacterResponse> getAvatarsByMemberId(Map<Long, Member> membersById) {
+    private Map<Long, AvatarResponse> getAvatarsByMemberId(Map<Long, Member> membersById) {
         return avatarReadService.getAvatars(membersById.values().stream()
                 .sorted(Comparator.comparing(Member::getId))
                 .toList());

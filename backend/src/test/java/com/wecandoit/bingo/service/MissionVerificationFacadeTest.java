@@ -68,7 +68,7 @@ class MissionVerificationFacadeTest {
 
         // then
         verify(verificationResultService).applyResult(eq(CELL_ID), eq(true), isNull(), eq(MissionType.OBJECT));
-        assertThat(response.rewardCash()).isEqualTo(30L);
+        assertThat(response.rewardPoint()).isEqualTo(30L);
     }
 
     @Test
