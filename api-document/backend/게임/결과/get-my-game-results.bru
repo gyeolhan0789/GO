@@ -31,26 +31,43 @@ docs {
       {
         "gameId": 100,
         "roomId": 1,
+        "roomName": "테스트 방",
         "mode": "BATTLE",
+        "roomStatus": "ACTIVE",
         "result": true,
         "boardSize": 3,
         "targetBingoCount": 3,
+        "targetStepCount": null,
         "bingoCount": 3,
         "completedMissionCount": 7,
-        "rewardCash": 500,
+        "rewardPoint": 500,
+        "startedAt": "2026-07-24T10:00:00",
+        "completedAt": "2026-07-24T11:30:00",
+        "totalMissionCount": 9,
+        "myCompletedMissionCount": 7,
+        "myRewardPoint": 500,
+        "myResult": true,
         "participants": [
           {
             "memberId": 1,
             "nickname": "host",
+            "gender": "MALE",
+            "defaultImageUrl": "https://example.com/images/default.png",
+            "equippedItems": [
+              { "memberItemId": 10, "itemId": 5, "name": "기본 모자", "category": "HAT", "imageUrl": "https://example.com/images/hat.png" }
+            ],
             "completedMissionCount": 7,
-            "rewardCash": 500,
+            "rewardPoint": 500,
             "result": true
           },
           {
             "memberId": 2,
             "nickname": "participant",
+            "gender": "FEMALE",
+            "defaultImageUrl": "https://example.com/images/default2.png",
+            "equippedItems": [],
             "completedMissionCount": 4,
-            "rewardCash": 0,
+            "rewardPoint": 0,
             "result": false
           }
         ]
@@ -67,13 +84,16 @@ docs {
   - 최상위 `result`는 Game 회차의 정상 완료 여부다.
   - 대결 모드의 `participants[].result`는 승자 `true`, 패자 `false`이며 승자에게만 보상이 지급된다.
   - 각 결과의 `boardSize`는 N x N 빙고판에서 한 변의 길이 N이다.
+  - `targetBingoCount`는 `BATTLE` 모드에서만 값이 있고 그 외 모드에서는 `null`이다. `targetStepCount`는 `SINGLE`/`COOPERATE`에서만 값이 있고 `BATTLE`에서는 `null`이다.
   - 싱글 모드의 최상위 `completedMissionCount`는 공용 보드에서 승인된 전체 미션 수다.
   - 협동 모드의 최상위 `completedMissionCount`는 공동 보드에서 모든 참가자가 승인받은 미션 수의 합이다.
   - 대결 모드의 최상위 `completedMissionCount`는 승자 개인 보드의 승인 미션 수다.
   - 모든 모드에서 `participants[].completedMissionCount`는 해당 참가자가 직접 승인받은 미션 수다.
-  - 기존 결과 데이터의 `participants[].result`는 승패 필드 도입 이전 데이터인 경우 `null`일 수 있다.
+  - `myCompletedMissionCount`/`myRewardPoint`/`myResult`는 요청한 로그인 회원 본인의 결과이며, `myResult`는 승패 필드 도입 이전 데이터인 경우 `null`일 수 있다.
+  - 기존 결과 데이터의 `participants[].result`도 같은 이유로 `null`일 수 있다.
   - 싱글·협동 참가자의 `result`는 게임 완료 성공을 의미하는 `true`이며 모든 참가자에게 기존 완료 보상이 지급된다.
-  - Room 상태와 무관하게 저장된 Game 회차 결과를 기준으로 조회한다.
+  - `roomStatus`는 조회 시점의 게임방 실제 상태(`ACTIVE`/`CLOSED`)이다. Room 상태와 무관하게 저장된 Game 회차 결과를 기준으로 조회한다.
+  - 이 목록 조회 응답에는 `bingoBoards`(칸별 상세 정보)가 포함되지 않는다. 필요하면 게임 결과 단건 조회를 사용한다.
 
   ### 에러 케이스
 

@@ -1,11 +1,11 @@
 meta {
-  name: 기본 캐릭터 이미지 변경
+  name: 기본 아바타 이미지 변경
   type: http
-  seq: 3
+  seq: 6
 }
 
 put {
-  url: {{backendBaseUrl}}/admin/character-assets/MALE
+  url: {{backendBaseUrl}}/admin/avatar-assets/MALE
   body: multipartForm
   auth: inherit
 }
@@ -19,9 +19,9 @@ body:multipart-form {
 }
 
 docs {
-  ## 기본 캐릭터 이미지 변경 (관리자)
+  ## 기본 아바타 이미지 변경 (관리자)
 
-  `MALE` 또는 `FEMALE` 기본 캐릭터 이미지를 변경한다. `ADMIN` 권한이 필요하다. 이미지는 기존 업로드 정책에 따라 로컬 볼륨에 저장되고 DB에는 경로만 저장된다. 해당 성별 이미지가 없으면 최초 생성한다.
+  `MALE` 또는 `FEMALE` 기본 아바타 이미지를 변경한다. `ADMIN` 권한이 필요하다. 이미지는 기존 업로드 정책에 따라 로컬 볼륨에 저장되고 DB에는 경로만 저장된다. 해당 성별 이미지가 없으면 최초 생성한다.
 
   ### Request 필드
   | 필드 | 필수 | 제약조건 |
@@ -31,9 +31,9 @@ docs {
   ### 성공 응답 (200 OK)
   ```json
   {
-    "characterAssetId": 1,
+    "avatarAssetId": 1,
     "gender": "MALE",
-    "imageUrl": "/uploads/dev/characters/male/550e8400-e29b-41d4-a716-446655440000.png",
+    "imageUrl": "/uploads/dev/avatars/male/550e8400-e29b-41d4-a716-446655440000.png",
     "updatedAt": "2026-07-29T12:00:00"
   }
   ```
