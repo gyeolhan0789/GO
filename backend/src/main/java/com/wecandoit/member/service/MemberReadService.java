@@ -6,11 +6,13 @@ import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.friend.repository.FriendRepository;
 import com.wecandoit.friend.domain.FriendRequest;
 import com.wecandoit.friend.repository.FriendRequestRepository;
+import com.wecandoit.item.controller.response.CharacterResponse;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.dto.MemberRelationshipStatus;
 import com.wecandoit.member.dto.MemberSearchResponse;
 import com.wecandoit.member.dto.MyPageResponse;
 import com.wecandoit.member.repository.MemberRepository;
+import com.wecandoit.ranking.service.RankingCharacterReadService;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,6 +35,7 @@ public class MemberReadService {
     private final MemberRepository memberRepository;
     private final FriendRepository friendRepository;
     private final FriendRequestRepository friendRequestRepository;
+    private final RankingCharacterReadService rankingCharacterReadService;
 
     public SliceResponse<MemberSearchResponse> searchMembers(
             Long memberId,
@@ -51,25 +54,30 @@ public class MemberReadService {
                         fixedPageable
                 );
         if (members.isEmpty()) {
-            return SliceResponse.from(members.map(member -> MemberSearchResponse.of(
-                    member,
-                    MemberRelationshipStatus.NONE
-            )));
+            return new SliceResponse<>(List.of(), false);
         }
 
-        Set<Long> candidateIds = members.getContent().stream()
+        List<Long> candidateMemberIds = members.getContent().stream()
                 .map(Member::getId)
-                .collect(Collectors.toSet());
+                .toList();
+        Set<Long> candidateIds = new HashSet<>(candidateMemberIds);
         Set<Long> friendIds = new HashSet<>(
                 friendRepository.findFriendMemberIds(memberId, candidateIds)
         );
         Map<Long, MemberRelationshipStatus> requestStatuses = getRequestStatuses(memberId, candidateIds);
+        Map<Long, CharacterResponse> charactersByMemberId =
+                rankingCharacterReadService.getCharactersByMemberIds(candidateMemberIds);
 
         Slice<MemberSearchResponse> responses = members
-                .map(member -> MemberSearchResponse.of(
-                        member,
-                        getRelationshipStatus(member.getId(), friendIds, requestStatuses)
-                ));
+                .map(member -> {
+                    CharacterResponse character = charactersByMemberId.get(member.getId());
+                    return MemberSearchResponse.of(
+                            member,
+                            getRelationshipStatus(member.getId(), friendIds, requestStatuses),
+                            character.defaultImageUrl(),
+                            character.equippedItems()
+                    );
+                });
         return SliceResponse.from(responses);
     }
 
