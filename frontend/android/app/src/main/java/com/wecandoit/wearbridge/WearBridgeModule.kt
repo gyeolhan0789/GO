@@ -38,6 +38,31 @@ class WearBridgeModule(private val reactContext: ReactApplicationContext) :
   private val backgroundExecutor = Executors.newSingleThreadExecutor()
   private val characterComposer by lazy { CharacterComposer(reactContext) }
 
+  /**
+   * 앱이 살아 있는 동안의 연결 변화를 받는다.
+   *
+   * [PhoneWearListenerService]도 같은 이벤트를 보내지만 그건 꺼진 앱을 깨우려고
+   * 매니페스트에 걸어둔 것이라, 앱이 떠 있는 동안에는 안 오는 경우가 있었다.
+   * 그때 JS의 연결 여부가 false로 굳어 워치가 갱신을 통째로 못 받았다. 여기서
+   * 직접 구독해 그 구멍을 막는다(두 경로가 겹쳐도 같은 값이라 JS는 무시한다).
+   */
+  private val capabilityListener = CapabilityClient.OnCapabilityChangedListener { info ->
+    ReactEventEmitter.of(reactContext)?.emit(
+      WearCommandDispatcher.EVENT_CONNECTION_CHANGED,
+      info.nodes.isNotEmpty().toString(),
+    )
+  }
+
+  override fun initialize() {
+    super.initialize()
+    // 구독에 실패해도 모듈은 살아 있어야 한다. 여기서 던지면 WearBridge 자체가
+    // 안 올라와 JS의 isWearBridgeAvailable()이 false가 되고, 연결 변화 감지가
+    // 아니라 동기화 전체가 죽는다(고치려던 것보다 큰 고장이다).
+    runCatching {
+      capabilityClient.addListener(capabilityListener, WearProtocol.CAPABILITY_WATCH_APP)
+    }.onFailure { Log.w(TAG, "capability 구독 실패", it) }
+  }
+
   /** NativeEventEmitter가 요구하는 짝. 실제 구독은 RCTDeviceEventEmitter가 맡는다. */
   @ReactMethod
   fun addListener(eventName: String) = Unit
@@ -142,6 +167,9 @@ class WearBridgeModule(private val reactContext: ReactApplicationContext) :
   }
 
   override fun invalidate() {
+    runCatching {
+      capabilityClient.removeListener(capabilityListener, WearProtocol.CAPABILITY_WATCH_APP)
+    }
     backgroundExecutor.shutdown()
     super.invalidate()
   }
@@ -195,13 +223,32 @@ private fun ReadableArray?.toRoomDataMaps(): ArrayList<DataMap> {
   return rooms
 }
 
-private fun ReadableMap.toSessionDataMap(): DataMap = DataMap().apply {
-  putLong(WearProtocol.KEY_ROOM_ID, longOf("roomId"))
-  putString(WearProtocol.KEY_SESSION_ROOM_NAME, getString("roomName").orEmpty())
-  putBoolean(WearProtocol.KEY_SESSION_STARTED, hasKey("started") && getBoolean("started"))
-  putBoolean(WearProtocol.KEY_SESSION_PAUSED, hasKey("paused") && getBoolean("paused"))
-  putInt(WearProtocol.KEY_SESSION_ELAPSED_SECONDS, intOf("elapsedSeconds"))
-  putInt(WearProtocol.KEY_STEPS, intOf("steps"))
-  putInt(WearProtocol.KEY_DISTANCE_METERS, intOf("distanceMeters"))
-  putInt(WearProtocol.KEY_CALORIES, intOf("calories"))
+/**
+ * 리시버를 [session]으로 명시하는 게 중요하다. `DataMap().apply { ... }` 안에서 이름
+ * 없이 `getBoolean`/`getString`을 부르면 가장 가까운 리시버인 **만들고 있는 DataMap**이
+ * 잡힌다(DataMap에도 같은 이름의 getter가 있다). 그러면 JS가 준 값이 아니라 아직 비어
+ * 있는 자기 자신을 읽어서 started/paused는 늘 false, roomName은 늘 빈 문자열이 됐다 —
+ * 워치가 산책 내내 "준비 중"에 멈추고 방 이름이 안 뜨던 원인이다.
+ *
+ * `longOf`/`intOf`는 ReadableMap 확장 함수라 이 함정에 안 걸렸고, 그래서 roomId와
+ * 걸음/거리/칼로리만 멀쩡해 원인을 찾기 어려웠다.
+ */
+private fun ReadableMap.toSessionDataMap(): DataMap {
+  val session = this
+  return DataMap().apply {
+    putLong(WearProtocol.KEY_ROOM_ID, session.longOf("roomId"))
+    putString(WearProtocol.KEY_SESSION_ROOM_NAME, session.getString("roomName").orEmpty())
+    putBoolean(
+      WearProtocol.KEY_SESSION_STARTED,
+      session.hasKey("started") && session.getBoolean("started"),
+    )
+    putBoolean(
+      WearProtocol.KEY_SESSION_PAUSED,
+      session.hasKey("paused") && session.getBoolean("paused"),
+    )
+    putLong(WearProtocol.KEY_SESSION_ELAPSED_MILLIS, session.longOf("elapsedMillis"))
+    putInt(WearProtocol.KEY_STEPS, session.intOf("steps"))
+    putInt(WearProtocol.KEY_DISTANCE_METERS, session.intOf("distanceMeters"))
+    putInt(WearProtocol.KEY_CALORIES, session.intOf("calories"))
+  }
 }

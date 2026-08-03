@@ -41,8 +41,8 @@ data class WalkSession(
   /** 시작 카운트다운이 끝나 경과 시간이 실제로 세지고 있는지. */
   val started: Boolean,
   val paused: Boolean,
-  /** 폰이 이 상태를 보낸 시점의 경과 초. 이후는 워치가 자기 시계로 이어 센다. */
-  val elapsedSecondsAtSync: Int,
+  /** 폰이 이 상태를 보낸 시점의 경과 밀리초. 이후는 워치가 자기 시계로 이어 센다. */
+  val elapsedMillisAtSync: Long,
   val steps: Int,
   val distanceMeters: Int,
   val calories: Int,
@@ -66,14 +66,19 @@ data class PhoneState(
    */
   val receivedAtRealtime: Long,
 ) {
-  /** 일시정지가 아니면 마지막 동기화 이후 흐른 만큼을 더해 지금 경과 초를 낸다. */
+  /**
+   * 일시정지가 아니면 마지막 동기화 이후 흐른 만큼을 더해 지금 경과 초를 낸다.
+   *
+   * 밀리초로 더한 뒤 마지막에 한 번만 초로 내린다. 초 단위로 받아서 초 단위 경과분을
+   * 더하면 내림이 두 번 겹쳐 폰보다 1초 가까이 뒤처졌다.
+   */
   fun currentElapsedSeconds(nowRealtime: Long = SystemClock.elapsedRealtime()): Int {
     val walk = session ?: return 0
     if (!walk.started || walk.paused) {
-      return walk.elapsedSecondsAtSync
+      return (walk.elapsedMillisAtSync / 1000L).toInt()
     }
-    val sinceSync = ((nowRealtime - receivedAtRealtime) / 1000L).toInt().coerceAtLeast(0)
-    return walk.elapsedSecondsAtSync + sinceSync
+    val sinceSyncMs = (nowRealtime - receivedAtRealtime).coerceAtLeast(0L)
+    return ((walk.elapsedMillisAtSync + sinceSyncMs) / 1000L).toInt()
   }
 }
 
@@ -126,7 +131,7 @@ private fun DataMap.toWalkSession() = WalkSession(
   roomName = getString(WearProtocol.KEY_SESSION_ROOM_NAME).orEmpty(),
   started = getBoolean(WearProtocol.KEY_SESSION_STARTED),
   paused = getBoolean(WearProtocol.KEY_SESSION_PAUSED),
-  elapsedSecondsAtSync = getInt(WearProtocol.KEY_SESSION_ELAPSED_SECONDS),
+  elapsedMillisAtSync = getLong(WearProtocol.KEY_SESSION_ELAPSED_MILLIS),
   steps = getInt(WearProtocol.KEY_STEPS),
   distanceMeters = getInt(WearProtocol.KEY_DISTANCE_METERS),
   calories = getInt(WearProtocol.KEY_CALORIES),

@@ -151,16 +151,21 @@ export function isWalkSessionPaused() {
   return state.pausedAt !== null;
 }
 
-export function getWalkSessionElapsedSeconds() {
+/**
+ * 내림하지 않은 경과 밀리초. 워치로 보낼 때 쓴다 — 초로 넘기면 폰이 내림한 값에
+ * 워치가 자기 경과분을 또 내림해 더해서, 두 화면이 1초쯤 어긋난다.
+ */
+export function getWalkSessionElapsedMs() {
   if (state.startedAt === null) {
     return 0;
   }
   const pausedTotalMs =
     state.pausedMs + (state.pausedAt !== null ? Date.now() - state.pausedAt : 0);
-  return Math.max(
-    0,
-    Math.floor((Date.now() - state.startedAt - pausedTotalMs) / 1000),
-  );
+  return Math.max(0, Date.now() - state.startedAt - pausedTotalMs);
+}
+
+export function getWalkSessionElapsedSeconds() {
+  return Math.floor(getWalkSessionElapsedMs() / 1000);
 }
 
 export function subscribeWalkSession(listener: Listener) {

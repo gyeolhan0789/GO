@@ -92,11 +92,16 @@ object WearProtocol {
   const val KEY_SESSION_PAUSED = "paused"
 
   /**
-   * 폰이 보낸 시점의 경과 초. 워치는 이 값을 받은 순간부터 자기 시계로 이어서
+   * 폰이 보낸 시점의 경과 밀리초. 워치는 이 값을 받은 순간부터 자기 시계로 이어서
    * 센다(폰이 1초마다 DataItem을 밀면 너무 잦고, 폰/워치 벽시계를 맞춰 쓰면
    * 시계 오차만큼 어긋난다).
+   *
+   * 초가 아니라 밀리초인 이유: 초로 보내면 폰이 내림한 값에 워치가 자기 경과분을
+   * 또 내림해 더하면서 내림이 두 번 겹친다. 폰이 10.9초에 10을 보내면 워치는
+   * 0.9초 뒤에도 10을 그려서 폰의 11과 어긋난다(실기기에서 ~1초 지연으로 보였다).
+   * 밀리초로 넘기면 내림이 마지막 한 번뿐이라 전송 지연만 남는다.
    */
-  const val KEY_SESSION_ELAPSED_SECONDS = "elapsedSeconds"
+  const val KEY_SESSION_ELAPSED_MILLIS = "elapsedMillis"
 
   // --- PATH_CHARACTER DataMap ---
 

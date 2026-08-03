@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import {
+  getWalkSessionElapsedMs,
   getWalkSessionElapsedSeconds,
   getWalkSessionRoomId,
   getWalkSessionStartHealthSummary,
@@ -22,6 +23,9 @@ export function useWalkSession() {
     getWalkSessionStartHealthSummary,
   );
   const [elapsedSeconds, setElapsedSeconds] = useState(getWalkSessionElapsedSeconds);
+  // 화면은 초만 쓰지만 워치로는 내림하지 않은 값을 보내야 한다(내림이 두 번
+  // 겹치면 폰과 워치가 1초쯤 어긋난다 — getWalkSessionElapsedMs 주석 참고).
+  const [elapsedMs, setElapsedMs] = useState(getWalkSessionElapsedMs);
   const [isPaused, setPaused] = useState(isWalkSessionPaused);
   const [isActive, setActive] = useState(isWalkSessionActive);
   // 시작 카운트다운이 끝나기 전까지는 false다(WalkSessionScreen이 이 값으로
@@ -36,6 +40,7 @@ export function useWalkSession() {
       setRoomId(getWalkSessionRoomId());
       setStartHealthSummary(getWalkSessionStartHealthSummary());
       setElapsedSeconds(getWalkSessionElapsedSeconds());
+      setElapsedMs(getWalkSessionElapsedMs());
       setPaused(isWalkSessionPaused());
       setActive(isWalkSessionActive());
       setStarted(isWalkSessionStarted());
@@ -51,6 +56,7 @@ export function useWalkSession() {
     }
     const timer = setInterval(() => {
       setElapsedSeconds(getWalkSessionElapsedSeconds());
+      setElapsedMs(getWalkSessionElapsedMs());
     }, 1000);
     return () => clearInterval(timer);
   }, [isPaused, isStarted]);
@@ -59,6 +65,7 @@ export function useWalkSession() {
     roomId,
     startHealthSummary,
     elapsedSeconds,
+    elapsedMs,
     isPaused,
     isActive,
     isStarted,

@@ -28,7 +28,8 @@ export type WearSession = {
   /** 시작 카운트다운이 끝나 경과 시간이 실제로 세지고 있는지. */
   started: boolean;
   paused: boolean;
-  elapsedSeconds: number;
+  /** 내림하지 않은 경과 밀리초. 워치가 이 값에서 자기 시계로 이어 센다. */
+  elapsedMillis: number;
   steps: number;
   distanceMeters: number;
   calories: number;

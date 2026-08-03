@@ -68,7 +68,7 @@ export function useWearCompanion() {
             roomName: sessionRoomName,
             started: session.isStarted,
             paused: session.isPaused,
-            elapsedSeconds: session.elapsedSeconds,
+            elapsedMillis: session.elapsedMs,
             steps: sessionMetrics.steps,
             distanceMeters: Math.round(sessionMetrics.distanceKm * 1000),
             calories: sessionMetrics.calories,
@@ -88,15 +88,21 @@ export function useWearCompanion() {
   // 보낼 이유가 없다. 나머지가 바뀔 때만 밀고, 그 값에 경과 시간을 얹어 보낸다.
   const syncSignature = JSON.stringify({
     ...state,
-    session: state.session ? { ...state.session, elapsedSeconds: 0 } : null,
+    session: state.session ? { ...state.session, elapsedMillis: 0 } : null,
   });
 
+  // 연결 여부로 막지 않는다. 워치가 닿는지에 대한 판단이 한 번이라도 어긋나면
+  // (폰 앱을 켠 뒤에 워치를 차는 경우가 대표적이다) 복구할 계기가 없어 그 세션
+  // 내내 워치가 멈춘 화면을 들고 있게 된다 — 워치 앱을 열 때 오는 request-sync만
+  // 통과해서, "처음엔 맞다가 그 뒤로 안 바뀌는" 제일 헷갈리는 증상이 된다.
+  // 받을 노드가 없으면 putDataItem은 로컬 쓰기로 끝나고 syncWearState가 실패도
+  // 삼키므로, 헛수고보다 안 맞는 화면이 더 나쁘다는 판단이다.
   useEffect(() => {
-    if (!isWearBridgeAvailable() || !watchConnected) {
+    if (!isWearBridgeAvailable()) {
       return;
     }
     pushState();
-  }, [syncSignature, watchConnected, pushState]);
+  }, [syncSignature, pushState]);
 
   const characterSources = characterQuery.data
     ? toCharacterLayerSources(characterQuery.data)
@@ -111,6 +117,10 @@ export function useWearCompanion() {
     syncWearCharacter(characterSourcesRef.current);
   }, []);
 
+  // 캐릭터는 반대로 연결 여부로 막는다. 합성이 네트워크와 비트맵 작업이라 상태
+  // 전송과 비용이 다르고, 워치 앱을 열 때마다 request-sync가 다시 밀어주므로
+  // 판단이 틀려도 화면이 오래 어긋나지 않는다(상태와 달리 산책 중에 1초 단위로
+  // 바뀌는 값이 아니다).
   useEffect(() => {
     if (!isWearBridgeAvailable() || !watchConnected) {
       return;
