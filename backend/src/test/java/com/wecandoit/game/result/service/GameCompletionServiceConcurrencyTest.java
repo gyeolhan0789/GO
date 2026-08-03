@@ -22,6 +22,7 @@ import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomMember;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.MissionDifficulty;
@@ -93,12 +94,16 @@ class GameCompletionServiceConcurrencyTest {
         firstMemberId = memberRepository.save(Member.create(
                 "first@example.com",
                 "encoded-password",
-                "first"
+                "first",
+                null,
+                Gender.MALE
         )).getId();
         secondMemberId = memberRepository.save(Member.create(
                 "second@example.com",
                 "encoded-password",
-                "second"
+                "second",
+                null,
+                Gender.MALE
         )).getId();
 
         Room room = Room.create(firstMemberId, "테스트 방", GameMode.COOPERATE, null, 2);

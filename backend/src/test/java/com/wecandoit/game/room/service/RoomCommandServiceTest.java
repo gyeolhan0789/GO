@@ -26,6 +26,7 @@ import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.GameCycleCommandService;
 import com.wecandoit.game.service.RoomCommandService;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import java.time.LocalDateTime;
@@ -138,7 +139,9 @@ class RoomCommandServiceTest {
                 .willReturn(Optional.of(Member.create(
                         "host@example.com",
                         "encoded-password",
-                        "host"
+                        "host",
+                        null,
+                        Gender.MALE
                 )));
         given(roomRepository.findFirstByHostIdAndModeAndStatusOrderByIdDesc(
                 1L, GameMode.SINGLE, RoomStatus.ACTIVE
@@ -167,7 +170,9 @@ class RoomCommandServiceTest {
                 .willReturn(Optional.of(Member.create(
                         "host@example.com",
                         "encoded-password",
-                        "host"
+                        "host",
+                        null,
+                        Gender.MALE
                 )));
         given(roomRepository.findFirstByHostIdAndModeAndStatusOrderByIdDesc(
                 1L, GameMode.SINGLE, RoomStatus.ACTIVE
@@ -197,7 +202,9 @@ class RoomCommandServiceTest {
                 .willReturn(Optional.of(Member.create(
                         "host@example.com",
                         "encoded-password",
-                        "host"
+                        "host",
+                        null,
+                        Gender.MALE
                 )));
         given(roomRepository.findFirstByHostIdAndModeAndStatusOrderByIdDesc(
                 1L, GameMode.SINGLE, RoomStatus.ACTIVE

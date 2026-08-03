@@ -6,6 +6,7 @@ import com.wecandoit.friend.domain.FriendRequestStatus;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.wecandoit.friend.domain.Friend;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import jakarta.persistence.EntityManager;
@@ -221,6 +222,6 @@ class FriendRequestRepositoryTest {
     }
 
     private Member saveMember(String email, String nickname) {
-        return memberRepository.save(Member.create(email, "password", nickname));
+        return memberRepository.save(Member.create(email, "password", nickname, null, Gender.MALE));
     }
 }

@@ -281,7 +281,7 @@ class MemberReadServiceTest {
     }
 
     private Member member(Long id, String nickname) {
-        Member member = Member.create(nickname + "@example.com", "password", nickname);
+        Member member = Member.create(nickname + "@example.com", "password", nickname, null, Gender.MALE);
         ReflectionTestUtils.setField(member, "id", id);
         return member;
     }

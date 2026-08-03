@@ -2,6 +2,7 @@ package com.wecandoit.member.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,12 +25,12 @@ class MemberRepositoryTest {
     void searchByNicknameExcludesLoginMember() {
         // given
         Member loginMember = memberRepository.save(
-                Member.create("login@example.com", "password", "산책회원")
+                Member.create("login@example.com", "password", "산책회원", null, Gender.MALE)
         );
         Member matchingMember = memberRepository.save(
-                Member.create("match@example.com", "password", "저녁산책친구")
+                Member.create("match@example.com", "password", "저녁산책친구", null, Gender.MALE)
         );
-        memberRepository.save(Member.create("other@example.com", "password", "러닝친구"));
+        memberRepository.save(Member.create("other@example.com", "password", "러닝친구", null, Gender.MALE));
 
         // when
         Slice<Member> members = memberRepository
@@ -51,15 +52,15 @@ class MemberRepositoryTest {
     void searchByNicknameUsesOnlyNicknameCondition() {
         // given
         Member loginMember = memberRepository.save(
-                Member.create("login@example.com", "password", "로그인회원")
+                Member.create("login@example.com", "password", "로그인회원", null, Gender.MALE)
         );
         Member exactMatch = memberRepository.save(
-                Member.create("exact@example.com", "password", "walk")
+                Member.create("exact@example.com", "password", "walk", null, Gender.MALE)
         );
         Member partialMatch = memberRepository.save(
-                Member.create("partial@example.com", "password", "MyWALKer")
+                Member.create("partial@example.com", "password", "MyWALKer", null, Gender.MALE)
         );
-        memberRepository.save(Member.create("walk@email.com", "password", "러닝회원"));
+        memberRepository.save(Member.create("walk@email.com", "password", "러닝회원", null, Gender.MALE));
 
         // when
         Slice<Member> members = memberRepository
@@ -80,13 +81,13 @@ class MemberRepositoryTest {
     void searchByNicknameOrdersByNickname() {
         // given
         Member loginMember = memberRepository.save(
-                Member.create("login@example.com", "password", "로그인회원")
+                Member.create("login@example.com", "password", "로그인회원", null, Gender.MALE)
         );
         Member firstMember = memberRepository.save(
-                Member.create("first@example.com", "password", "walkerA")
+                Member.create("first@example.com", "password", "walkerA", null, Gender.MALE)
         );
         Member secondMember = memberRepository.save(
-                Member.create("second@example.com", "password", "walkerB")
+                Member.create("second@example.com", "password", "walkerB", null, Gender.MALE)
         );
 
         // when

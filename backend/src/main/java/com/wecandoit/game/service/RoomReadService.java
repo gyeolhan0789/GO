@@ -67,10 +67,6 @@ public class RoomReadService {
         );
     }
 
-    public List<MyRoomResponse> getMyRooms(Long memberId) {
-        return getMyRooms(memberId, null);
-    }
-
     public List<MyRoomResponse> getMyRooms(Long memberId, GameMode mode) {
         List<RoomMember> myRoomMembers = roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(memberId);
         if (myRoomMembers.isEmpty()) {

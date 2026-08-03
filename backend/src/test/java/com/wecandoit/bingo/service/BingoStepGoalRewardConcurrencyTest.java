@@ -16,6 +16,7 @@ import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.history.controller.request.HistorySaveRequest;
 import com.wecandoit.history.repository.MemberHistoryRepository;
 import com.wecandoit.history.service.HistoryCommandService;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.notification.service.NotificationCommandService;
@@ -75,12 +76,16 @@ class BingoStepGoalRewardConcurrencyTest {
         firstMemberId = memberRepository.save(Member.create(
                 "step-first@example.com",
                 "encoded-password",
-                "step-first"
+                "step-first",
+                null,
+                Gender.MALE
         )).getId();
         secondMemberId = memberRepository.save(Member.create(
                 "step-second@example.com",
                 "encoded-password",
-                "step-second"
+                "step-second",
+                null,
+                Gender.MALE
         )).getId();
 
         Room room = Room.create(firstMemberId, "테스트 방", GameMode.COOPERATE, null, 1_000, 3);

@@ -13,6 +13,7 @@ import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.RoomCommandService;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.Mission;
@@ -71,7 +72,9 @@ class RoomCommandServiceConcurrencyTest {
         memberId = memberRepository.save(Member.create(
                 "single@example.com",
                 "encoded-password",
-                "싱글 사용자"
+                "싱글 사용자",
+                null,
+                Gender.MALE
         )).getId();
         missionRepository.saveAll(IntStream.range(0, 9)
                 .mapToObj(index -> Mission.create(
