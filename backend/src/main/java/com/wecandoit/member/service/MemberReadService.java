@@ -119,11 +119,11 @@ public class MemberReadService {
     ) {
         Map<Long, MemberRelationshipStatus> statuses = new HashMap<>();
         for (FriendRequest request : friendRequestRepository.findPendingRelatedTo(memberId, candidateIds)) {
-            if (request.getInviter().getId().equals(memberId)) {
-                statuses.put(request.getInvitee().getId(), MemberRelationshipStatus.REQUEST_SENT);
+            if (request.getInviterId().equals(memberId)) {
+                statuses.put(request.getInviteeId(), MemberRelationshipStatus.REQUEST_SENT);
                 continue;
             }
-            statuses.put(request.getInviter().getId(), MemberRelationshipStatus.REQUEST_RECEIVED);
+            statuses.put(request.getInviterId(), MemberRelationshipStatus.REQUEST_RECEIVED);
         }
         return statuses;
     }

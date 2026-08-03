@@ -51,7 +51,7 @@ public class FriendRequestReadService {
         Map<Long, AvatarResponse> avatarsByMemberId =
                 avatarReadService.getAvatars(inviters);
         return SliceResponse.from(requests.map(request -> {
-            AvatarResponse avatar = avatarsByMemberId.get(request.getInviter().getId());
+            AvatarResponse avatar = avatarsByMemberId.get(request.getInviterId());
             return ReceivedFriendRequestResponse.of(
                     request,
                     avatar.defaultImageUrl(),
