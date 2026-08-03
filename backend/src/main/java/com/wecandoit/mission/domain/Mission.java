@@ -70,7 +70,9 @@ public class Mission extends BaseEntity {
             String detail,
             String decisionCondition
     ) {
-        this.missionImageUrl = missionImageUrl;
+        if (missionImageUrl != null) {
+            this.missionImageUrl = missionImageUrl;
+        }
         this.type = type;
         this.title = title;
         this.detail = detail;

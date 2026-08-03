@@ -11,7 +11,6 @@ import com.wecandoit.admin.mission.controller.response.AdminMissionResponse;
 import com.wecandoit.admin.mission.service.AdminMissionCommandService;
 import com.wecandoit.admin.mission.service.AdminMissionReadService;
 import com.wecandoit.common.exception.CustomExceptionHandler;
-import io.restassured.http.ContentType;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -53,45 +52,32 @@ class AdminMissionControllerTest {
     void createMissionReturnsCreated() {
         // when & then
         given()
-                .contentType(ContentType.JSON)
-                .body("""
-                        {
-                          "missionImageUrl": "https://example.com/flower.png",
-                          "type": "OBJECT",
-                          "title": "Red flower",
-                          "detail": "Find a red flower",
-                          "decisionCondition": {
-                            "target": "flower",
-                            "constraints": {
-                              "color": "red"
-                            }
-                          }
-                        }
-                        """)
+                .formParam("type", "OBJECT")
+                .formParam("title", "Red flower")
+                .formParam("detail", "Find a red flower")
+                .formParam("decisionCondition", "{\"target\":\"flower\",\"constraints\":{\"color\":\"red\"}}")
+                .multiPart("image", "flower.png", "png-bytes".getBytes(), "image/png")
                 .when()
                 .post("/admin/missions")
                 .then()
                 .statusCode(HttpStatus.CREATED.value())
                 .body(org.hamcrest.Matchers.isEmptyOrNullString());
-        then(adminMissionCommandService).should().createMission(Mockito.any(CreateMissionRequest.class));
+        then(adminMissionCommandService).should()
+                .createMission(Mockito.any(CreateMissionRequest.class), Mockito.any());
     }
 
     @Test
-    @DisplayName("미션 이미지 URL이 없으면 요청을 거절한다")
-    void createMissionRejectsMissingMissionImageUrl() {
+    @DisplayName("미션 이미지가 없으면 요청을 거절한다")
+    void createMissionRejectsMissingImage() {
         // when & then
         given()
-                .contentType(ContentType.JSON)
-                .body("""
-                        {
-                          "type": "OBJECT"
-                        }
-                        """)
+                .formParam("type", "OBJECT")
+                .multiPart("placeholder", "value")
                 .when()
                 .post("/admin/missions")
                 .then()
                 .statusCode(HttpStatus.BAD_REQUEST.value());
-        then(adminMissionCommandService).should(never()).createMission(Mockito.any());
+        then(adminMissionCommandService).should(never()).createMission(Mockito.any(), Mockito.any());
     }
 
     @Test
@@ -99,18 +85,14 @@ class AdminMissionControllerTest {
     void createMissionAcceptsOmittedOptionalFields() {
         // when & then
         given()
-                .contentType(ContentType.JSON)
-                .body("""
-                        {
-                          "missionImageUrl": "https://example.com/flower.png",
-                          "type": "RELATION"
-                        }
-                        """)
+                .formParam("type", "RELATION")
+                .multiPart("image", "flower.png", "png-bytes".getBytes(), "image/png")
                 .when()
                 .post("/admin/missions")
                 .then()
                 .statusCode(HttpStatus.CREATED.value());
-        then(adminMissionCommandService).should().createMission(Mockito.any(CreateMissionRequest.class));
+        then(adminMissionCommandService).should()
+                .createMission(Mockito.any(CreateMissionRequest.class), Mockito.any());
     }
 
     @Test
@@ -142,39 +124,29 @@ class AdminMissionControllerTest {
     void updateMissionReturnsNoContent() {
         // when & then
         given()
-                .contentType(ContentType.JSON)
-                .body("""
-                        {
-                          "missionImageUrl": "https://example.com/flower.png",
-                          "type": "OBJECT",
-                          "title": "Red flower",
-                          "detail": "Find a red flower"
-                        }
-                        """)
+                .formParam("type", "OBJECT")
+                .formParam("title", "Red flower")
+                .formParam("detail", "Find a red flower")
+                .multiPart("placeholder", "value")
                 .when()
                 .put("/admin/missions/1")
                 .then()
                 .statusCode(HttpStatus.NO_CONTENT.value());
         then(adminMissionCommandService).should()
-                .updateMission(Mockito.eq(1L), Mockito.any(UpdateMissionRequest.class));
+                .updateMission(Mockito.eq(1L), Mockito.any(UpdateMissionRequest.class), Mockito.any());
     }
 
     @Test
-    @DisplayName("수정 시 미션 이미지 URL이 없으면 요청을 거절한다")
-    void updateMissionRejectsMissingMissionImageUrl() {
+    @DisplayName("수정 시 미션 타입이 없으면 요청을 거절한다")
+    void updateMissionRejectsMissingType() {
         // when & then
         given()
-                .contentType(ContentType.JSON)
-                .body("""
-                        {
-                          "type": "OBJECT"
-                        }
-                        """)
+                .multiPart("placeholder", "value")
                 .when()
                 .put("/admin/missions/1")
                 .then()
                 .statusCode(HttpStatus.BAD_REQUEST.value());
-        then(adminMissionCommandService).should(never()).updateMission(Mockito.any(), Mockito.any());
+        then(adminMissionCommandService).should(never()).updateMission(Mockito.any(), Mockito.any(), Mockito.any());
     }
 
     @Test
