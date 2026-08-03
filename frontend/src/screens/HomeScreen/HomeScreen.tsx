@@ -103,7 +103,7 @@ export function HomeScreen() {
     activeSoloRoom?.roomId ?? null,
   );
   const soloRenewal =
-    activeSoloRoom && activeSoloBoardQuery.data?.renewalRequired
+    activeSoloRoom && activeSoloBoardQuery.data?.canRenew
       ? {
           roomId: activeSoloRoom.roomId,
           currentTargetStepCount: activeSoloBoardQuery.data.targetStepCount,
