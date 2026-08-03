@@ -229,6 +229,8 @@ class GameResultControllerTest {
                                 fieldWithPath("bingoBoards[].cells[].mission.detail").description("미션 설명"),
                                 fieldWithPath("bingoBoards[].cells[].mission.decisionCondition")
                                         .description("미션 판단 조건"),
+                                fieldWithPath("bingoBoards[].cells[].mission.point")
+                                        .description("미션 완료 시 지급되는 포인트"),
                                 fieldWithPath("bingoBoards[].cells[].mission.createdAt").description("미션 생성 시각"),
                                 fieldWithPath("bingoBoards[].cells[].verificationStatus")
                                         .optional()
@@ -513,6 +515,7 @@ class GameResultControllerTest {
                 "미션",
                 "설명",
                 null,
+                50L,
                 LocalDateTime.of(2026, 7, 29, 12, 0)
         );
     }

@@ -111,6 +111,7 @@ class BingoControllerTest {
                 "미션 제목",
                 "미션 설명",
                 null,
+                50L,
                 LocalDateTime.of(2026, 7, 22, 10, 0)
         );
         BingoBoardResponse response = new BingoBoardResponse(
@@ -189,6 +190,7 @@ class BingoControllerTest {
                                 fieldWithPath("cells[].mission.title").description("미션 제목"),
                                 fieldWithPath("cells[].mission.detail").description("미션 설명"),
                                 fieldWithPath("cells[].mission.decisionCondition").description("미션 판정 조건"),
+                                fieldWithPath("cells[].mission.point").description("미션 완료 시 지급되는 포인트"),
                                 fieldWithPath("cells[].mission.createdAt").description("미션 생성 시각"),
                                 fieldWithPath("cells[].verificationStatus").description("미션 인증 상태"),
                                 fieldWithPath("cells[].submittedByMemberId").description("미션 제출 참여자 ID"),
@@ -214,6 +216,7 @@ class BingoControllerTest {
                 "미션 제목",
                 "미션 설명",
                 null,
+                50L,
                 LocalDateTime.of(2026, 7, 22, 10, 0)
         );
         BingoBoardResponse response = new BingoBoardResponse(
@@ -299,6 +302,7 @@ class BingoControllerTest {
                 "미션 제목",
                 "미션 설명",
                 null,
+                50L,
                 LocalDateTime.of(2026, 7, 22, 10, 0)
         );
         BingoCellSubmitResponse response = new BingoCellSubmitResponse(
@@ -339,6 +343,7 @@ class BingoControllerTest {
                                 fieldWithPath("mission.title").description("미션 제목"),
                                 fieldWithPath("mission.detail").description("미션 설명"),
                                 fieldWithPath("mission.decisionCondition").description("미션 판정 조건"),
+                                fieldWithPath("mission.point").description("미션 완료 시 지급되는 포인트"),
                                 fieldWithPath("mission.createdAt").description("미션 생성 시각"),
                                 fieldWithPath("verificationStatus").description("AI 검증 후 인증 상태(APPROVED/REJECTED)"),
                                 fieldWithPath("submittedByMemberId").description("미션 제출 참여자 ID"),
@@ -422,6 +427,7 @@ class BingoControllerTest {
                 "새 미션 제목",
                 "새 미션 설명",
                 null,
+                50L,
                 LocalDateTime.of(2026, 7, 22, 11, 0)
         );
         BingoBoardResponse response = new BingoBoardResponse(
@@ -495,6 +501,7 @@ class BingoControllerTest {
                                 fieldWithPath("cells[].mission.title").description("미션 제목"),
                                 fieldWithPath("cells[].mission.detail").description("미션 설명"),
                                 fieldWithPath("cells[].mission.decisionCondition").description("미션 판정 조건"),
+                                fieldWithPath("cells[].mission.point").description("미션 완료 시 지급되는 포인트"),
                                 fieldWithPath("cells[].mission.createdAt").description("미션 생성 시각"),
                                 fieldWithPath("cells[].verificationStatus").description("미션 인증 상태"),
                                 fieldWithPath("cells[].submittedByMemberId").description("미션 제출 참여자 ID"),
