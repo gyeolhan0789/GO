@@ -8,6 +8,6 @@ import org.springframework.data.repository.query.Param;
 
 public interface MissionRepository extends JpaRepository<Mission, Long> {
 
-    @Query(value = "SELECT * FROM missions ORDER BY RAND() LIMIT :count", nativeQuery = true)
+    @Query(value = "SELECT * FROM missions WHERE is_active = true ORDER BY RAND() LIMIT :count", nativeQuery = true)
     List<Mission> findRandomMissions(@Param("count") int count);
 }

@@ -4,6 +4,7 @@ import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import {
   createItem,
   createMission,
+  deactivateMission,
   getCharacterAssets,
   getItems,
   getMissions,
@@ -15,6 +16,7 @@ import {
   stopItemSale,
   updateCharacterAsset,
   updateItem,
+  updateMission,
 } from './api'
 import type { AdminItem, CharacterAsset, Mission } from './api'
 import { environments } from './environment'
@@ -72,6 +74,8 @@ function MissionPage({ environment, onLogout }: { environment: Environment; onLo
   const [loading, setLoading] = useState(true)
   const [createError, setCreateError] = useState('')
   const [createSuccess, setCreateSuccess] = useState('')
+  const [rowError, setRowError] = useState('')
+  const [rowSuccess, setRowSuccess] = useState('')
   const [pending, setPending] = useState(false)
 
   async function load() {
@@ -83,13 +87,22 @@ function MissionPage({ environment, onLogout }: { environment: Environment; onLo
   }
   useEffect(() => { void load() }, [environment])
 
+  function missionInput(form: FormData) {
+    const decisionConditionText = String(form.get('decisionCondition') ?? '').trim()
+    return {
+      missionImageUrl: String(form.get('missionImageUrl')),
+      type: String(form.get('type')),
+      title: String(form.get('title') ?? '') || null,
+      detail: String(form.get('detail') ?? '') || null,
+      decisionCondition: decisionConditionText ? JSON.parse(decisionConditionText) : null,
+    }
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const formElement = event.currentTarget
-    const form = new FormData(formElement)
-    const decisionConditionText = String(form.get('decisionCondition') ?? '').trim()
-    let decisionCondition: unknown = null
-    try { decisionCondition = decisionConditionText ? JSON.parse(decisionConditionText) : null } catch {
+    let input
+    try { input = missionInput(new FormData(formElement)) } catch {
       setCreateError('결정 조건은 올바른 JSON이어야 합니다.')
       return
     }
@@ -97,12 +110,44 @@ function MissionPage({ environment, onLogout }: { environment: Environment; onLo
     setCreateError('')
     setCreateSuccess('')
     try {
-      await createMission({ missionImageUrl: String(form.get('missionImageUrl')), type: String(form.get('type')), title: String(form.get('title') ?? '') || null, detail: String(form.get('detail') ?? '') || null, decisionCondition: decisionCondition as string | null })
+      await createMission(input)
       formElement.reset()
       setCreateSuccess('미션을 추가했습니다.')
       await load()
     } catch (cause) {
       setCreateError(cause instanceof Error ? cause.message : '미션 추가에 실패했습니다.')
+    } finally { setPending(false) }
+  }
+
+  async function save(mission: Mission, event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    let input
+    try { input = missionInput(new FormData(event.currentTarget)) } catch {
+      setRowError('결정 조건은 올바른 JSON이어야 합니다.')
+      return
+    }
+    setPending(true)
+    setRowError('')
+    setRowSuccess('')
+    try {
+      await updateMission(mission.missionId, input)
+      setRowSuccess('미션을 수정했습니다.')
+      await load()
+    } catch (cause) {
+      setRowError(cause instanceof Error ? cause.message : '미션 수정에 실패했습니다.')
+    } finally { setPending(false) }
+  }
+
+  async function deactivate(missionId: number) {
+    setPending(true)
+    setRowError('')
+    setRowSuccess('')
+    try {
+      await deactivateMission(missionId)
+      setRowSuccess('미션을 비활성화했습니다.')
+      await load()
+    } catch (cause) {
+      setRowError(cause instanceof Error ? cause.message : '미션 비활성화에 실패했습니다.')
     } finally { setPending(false) }
   }
 
@@ -116,7 +161,16 @@ function MissionPage({ environment, onLogout }: { environment: Environment; onLo
       <button disabled={pending}>{pending ? '추가 중...' : '미션 추가'}</button>
     </form></section>
     <section className="list-panel"><div className="panel-title"><h2>등록된 미션</h2><span>{missions.length}개</span></div>
-      {loading ? <p>목록을 불러오는 중입니다.</p> : listError ? <p className="error">{listError}</p> : missions.length === 0 ? <p>등록된 미션이 없습니다.</p> : <div className="mission-list">{missions.map((mission) => <article key={mission.missionId} className="mission-row"><img src={resolveImageUrl(mission.missionImageUrl)} alt="" /><div><div className="meta"><b>{mission.type}</b><time>{new Date(mission.createdAt).toLocaleString('ko-KR')}</time></div><h3>{mission.title || '제목 없음'}</h3><p>{mission.detail || '상세 설명 없음'}</p>{mission.decisionCondition && <code>{mission.decisionCondition}</code>}</div></article>)}</div>}
+      {rowError && <p className="error">{rowError}</p>}{rowSuccess && <p className="success">{rowSuccess}</p>}
+      {loading ? <p>목록을 불러오는 중입니다.</p> : listError ? <p className="error">{listError}</p> : missions.length === 0 ? <p>등록된 미션이 없습니다.</p> : <div className="mission-list">{missions.map((mission) => <article key={mission.missionId} className="mission-row"><img src={resolveImageUrl(mission.missionImageUrl)} alt="" /><form onSubmit={(event) => void save(mission, event)}>
+        <label>이미지 URL<input required name="missionImageUrl" defaultValue={mission.missionImageUrl} maxLength={100} /></label>
+        <label>타입<select required name="type" defaultValue={mission.type}><option>OBJECT</option><option>ATTRIBUTE</option><option>RELATION</option></select></label>
+        <label>제목<input name="title" defaultValue={mission.title ?? ''} maxLength={255} /></label>
+        <label>상세<textarea name="detail" defaultValue={mission.detail ?? ''} maxLength={255} rows={3} /></label>
+        <label>결정 조건 (JSON)<textarea name="decisionCondition" defaultValue={mission.decisionCondition ?? ''} rows={4} /></label>
+        <div className="meta"><span>{mission.isActive ? '활성' : '비활성'}</span><time>{new Date(mission.createdAt).toLocaleString('ko-KR')}</time></div>
+        <div className="row-actions"><button disabled={pending}>수정</button>{mission.isActive && <button type="button" className="danger-button" disabled={pending} onClick={() => void deactivate(mission.missionId)}>비활성화</button>}</div>
+      </form></article>)}</div>}
     </section></div>
   </main>
 }

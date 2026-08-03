@@ -10,6 +10,7 @@ public record AdminMissionResponse(
         String title,
         String detail,
         String decisionCondition,
+        boolean isActive,
         LocalDateTime createdAt
 ) {
 
@@ -21,6 +22,7 @@ public record AdminMissionResponse(
                 mission.getTitle(),
                 mission.getDetail(),
                 mission.getDecisionCondition(),
+                mission.isActive(),
                 mission.getCreatedAt()
         );
     }

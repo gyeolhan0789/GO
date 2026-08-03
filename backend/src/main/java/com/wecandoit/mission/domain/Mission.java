@@ -36,6 +36,9 @@ public class Mission extends BaseEntity {
     @Column(name = "decision_condition", columnDefinition = "json")
     private String decisionCondition;
 
+    @Column(name = "is_active", nullable = false, columnDefinition = "boolean default true")
+    private boolean isActive = true;
+
     private Mission(
             String missionImageUrl,
             String type,
@@ -58,5 +61,23 @@ public class Mission extends BaseEntity {
             String decisionCondition
     ) {
         return new Mission(missionImageUrl, type, title, detail, decisionCondition);
+    }
+
+    public void update(
+            String missionImageUrl,
+            String type,
+            String title,
+            String detail,
+            String decisionCondition
+    ) {
+        this.missionImageUrl = missionImageUrl;
+        this.type = type;
+        this.title = title;
+        this.detail = detail;
+        this.decisionCondition = decisionCondition;
+    }
+
+    public void deactivate() {
+        isActive = false;
     }
 }
