@@ -172,6 +172,36 @@ async function renderScreen() {
   return renderer;
 }
 
+function itemGrid(root: ReactTestInstance) {
+  const [list] = root.findAll(
+    node => typeof node.props.onScroll === 'function' && !!node.props.data,
+  );
+
+  if (!list) {
+    throw new Error('아이템 목록을 찾지 못했다.');
+  }
+  return list;
+}
+
+/** 테스트 렌더러는 실제 스크롤을 못 하므로 onScroll을 직접 쏜다. */
+async function scrollTo(root: ReactTestInstance, offsetY: number) {
+  await act(async () => {
+    itemGrid(root).props.onScroll({
+      nativeEvent: { contentOffset: { y: offsetY } },
+    });
+  });
+}
+
+/**
+ * accessibilityLabel은 Fab -> Pressable -> View로 그대로 내려가 한 버튼이 여러
+ * 노드로 잡힌다. 개수를 세면 구조가 바뀔 때마다 깨지므로 유무만 본다.
+ */
+function hasScrollToTopButton(root: ReactTestInstance): boolean {
+  return (
+    root.findAll(node => node.props.accessibilityLabel === '맨 위로').length > 0
+  );
+}
+
 function savedMemberItemIds() {
   const [, options] =
     fetchMock.mock.calls.find(([url]) => url.includes('/character-items')) ?? [];
@@ -234,5 +264,28 @@ describe('CharacterCustomizeScreen', () => {
     const texts = collectTexts(tree.root);
     expect(texts).toContain(TOP.name);
     expect(texts).not.toContain(HAT.name);
+  });
+
+  test('한참 내려가면 맨 위로 버튼이 나왔다가, 올라오면 사라진다', async () => {
+    const tree = await renderScreen();
+    expect(hasScrollToTopButton(tree.root)).toBe(false);
+
+    await scrollTo(tree.root, 900);
+    expect(hasScrollToTopButton(tree.root)).toBe(true);
+
+    await scrollTo(tree.root, 0);
+    expect(hasScrollToTopButton(tree.root)).toBe(false);
+  });
+
+  test('맨 위로 버튼을 누르면 목록을 처음으로 되돌린다', async () => {
+    const tree = await renderScreen();
+    await scrollTo(tree.root, 900);
+
+    const scrollToOffset = jest.fn();
+    itemGrid(tree.root).instance.scrollToOffset = scrollToOffset;
+
+    await press(tree.root, '맨 위로');
+
+    expect(scrollToOffset).toHaveBeenCalledWith({ offset: 0, animated: true });
   });
 });

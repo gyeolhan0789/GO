@@ -3,11 +3,16 @@ package com.wecandoit.friend.service;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.SliceResponse;
+import com.wecandoit.friend.domain.FriendRequest;
 import com.wecandoit.friend.domain.FriendRequestStatus;
 import com.wecandoit.friend.dto.ReceivedFriendRequestResponse;
 import com.wecandoit.friend.dto.SentFriendRequestResponse;
 import com.wecandoit.friend.repository.FriendRequestRepository;
+import com.wecandoit.item.controller.response.CharacterResponse;
 import com.wecandoit.member.repository.MemberRepository;
+import com.wecandoit.ranking.service.RankingCharacterReadService;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -22,20 +27,36 @@ public class FriendRequestReadService {
 
     private final FriendRequestRepository friendRequestRepository;
     private final MemberRepository memberRepository;
+    private final RankingCharacterReadService rankingCharacterReadService;
 
     public SliceResponse<ReceivedFriendRequestResponse> getReceivedRequests(
             Long memberId,
             Pageable pageable
     ) {
         Pageable fixedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
-        Slice<ReceivedFriendRequestResponse> requests = friendRequestRepository
+        Slice<FriendRequest> requests = friendRequestRepository
                 .findAllByInviteeIdAndStatusOrderByCreatedAtDescIdDesc(
                         memberId,
                         FriendRequestStatus.PENDING,
                         fixedPageable
-                )
-                .map(ReceivedFriendRequestResponse::from);
-        return SliceResponse.from(requests);
+                );
+        if (requests.isEmpty()) {
+            return new SliceResponse<>(List.of(), false);
+        }
+
+        List<Long> inviterIds = requests.stream()
+                .map(request -> request.getInviter().getId())
+                .toList();
+        Map<Long, CharacterResponse> charactersByMemberId =
+                rankingCharacterReadService.getCharactersByMemberIds(inviterIds);
+        return SliceResponse.from(requests.map(request -> {
+            CharacterResponse character = charactersByMemberId.get(request.getInviter().getId());
+            return ReceivedFriendRequestResponse.of(
+                    request,
+                    character.defaultImageUrl(),
+                    character.equippedItems()
+            );
+        }));
     }
 
     public SliceResponse<SentFriendRequestResponse> getSentRequests(

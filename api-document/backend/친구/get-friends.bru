@@ -32,6 +32,8 @@ docs {
         "memberId": 2,
         "nickname": "friend_nick",
         "weeklySteps": 12500,
+        "gender": "FEMALE",
+        "defaultImageUrl": "https://example.com/characters/female-default.png",
         "equippedItems": [
           {
             "memberItemId": 10,
@@ -50,8 +52,9 @@ docs {
   친구 닉네임 오름차순, 닉네임이 같으면 회원 ID 오름차순으로 정렬한다.
   weeklySteps는 Asia/Seoul 기준 이번 주 월요일부터 오늘까지의 누적 걸음 수이며,
   기록이 없으면 0을 반환한다.
+  gender와 defaultImageUrl은 친구의 성별과 해당 성별의 기본 캐릭터 이미지 URL이다.
   equippedItems는 친구가 장착한 아이템 목록이며, 장착 아이템이 없으면 빈 배열을 반환한다.
-  단일 캐릭터 이미지 URL 대신 각 아이템의 imageUrl을 사용해 클라이언트에서 캐릭터를 구성한다.
+  클라이언트는 defaultImageUrl 위에 각 아이템의 imageUrl을 합성해 캐릭터를 구성한다.
 
   ### 에러 케이스
 

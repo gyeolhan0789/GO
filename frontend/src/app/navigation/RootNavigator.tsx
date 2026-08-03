@@ -19,6 +19,7 @@ import { OnboardingScreen } from '../../screens/OnboardingScreen/OnboardingScree
 import { PermissionsScreen } from '../../screens/PermissionsScreen/PermissionsScreen';
 import { CharacterCustomizeScreen } from '../../screens/CharacterCustomizeScreen/CharacterCustomizeScreen';
 import { MyPageScreen } from '../../screens/MyPageScreen/MyPageScreen';
+import { SentFriendRequestsScreen } from '../../screens/SentFriendRequestsScreen/SentFriendRequestsScreen';
 import { SignupScreen } from '../../screens/SignupScreen/SignupScreen';
 import { SocialSignupScreen } from '../../screens/SocialSignupScreen/SocialSignupScreen';
 import { WalkDetailScreen } from '../../screens/WalkDetailScreen/WalkDetailScreen';
@@ -67,6 +68,8 @@ export type RootStackParamList = {
   BingoBoard: { roomId: number };
   MyPage: undefined;
   CharacterCustomize: undefined;
+  // 내가 보낸 친구 요청 내역. 서버가 아직 응답받지 않은 요청만 내려준다.
+  SentFriendRequests: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -176,6 +179,11 @@ export function RootNavigator() {
             name="CharacterCustomize"
             component={CharacterCustomizeScreen}
             options={{ ...DETAIL_HEADER_OPTIONS, title: '캐릭터 꾸미기' }}
+          />
+          <Stack.Screen
+            name="SentFriendRequests"
+            component={SentFriendRequestsScreen}
+            options={{ ...DETAIL_HEADER_OPTIONS, title: '친구 추가 내역' }}
           />
         </>
       ) : (

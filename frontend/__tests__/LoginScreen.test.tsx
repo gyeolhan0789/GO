@@ -68,6 +68,20 @@ async function waitForText(root: ReactTestInstance, text: string) {
   }
 }
 
+/** 라벨은 TextInput과 그 호스트 노드에 모두 실린다. 바깥쪽 하나만 쓴다. */
+function findInput(root: ReactTestInstance, label: string) {
+  const [input] = root.findAll(
+    node =>
+      node.props.accessibilityLabel === label &&
+      typeof node.props.onChangeText === 'function',
+  );
+
+  if (!input) {
+    throw new Error(`${label} 입력창을 찾지 못했다.`);
+  }
+  return input;
+}
+
 async function renderScreen() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -133,5 +147,29 @@ describe('LoginScreen', () => {
     expect(texts).toContain('이메일은 필수입니다.');
     expect(texts).toContain('비밀번호는 필수입니다.');
     expect(navigation.reset).not.toHaveBeenCalled();
+  });
+
+  test('이메일에 붙은 앞뒤 공백은 입력 즉시 지운다', async () => {
+    const tree = await renderScreen();
+
+    await act(async () => {
+      findInput(tree.root, '이메일 주소').props.onChangeText(
+        '  go@example.com  ',
+      );
+    });
+
+    expect(findInput(tree.root, '이메일 주소').props.value).toBe(
+      'go@example.com',
+    );
+  });
+
+  test('비밀번호의 공백은 자격 증명이라 건드리지 않는다', async () => {
+    const tree = await renderScreen();
+
+    await act(async () => {
+      findInput(tree.root, '비밀번호').props.onChangeText(' abcd1234! ');
+    });
+
+    expect(findInput(tree.root, '비밀번호').props.value).toBe(' abcd1234! ');
   });
 });
