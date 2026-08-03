@@ -9,7 +9,6 @@ import {
   toEquippedByCategory,
 } from '../../../features/member/model/equippedItems';
 import { colors } from '../../../shared/constants/colors';
-import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
 
 type HomeHeaderProps = {
@@ -67,18 +66,13 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.7,
   },
+  // 원 테두리 디자인은 CharacterBust가 모든 화면 공통으로 그린다.
   avatar: {
     width: 32,
     height: 32,
-    borderRadius: radius.pill,
-    backgroundColor: colors.neutralBg,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  // 흉상이 원을 꽉 채우고, 원형 자르기는 CharacterBust(overflow)가 한다.
   avatarBust: {
     width: '100%',
     height: '100%',
-    borderRadius: radius.pill,
   },
 });

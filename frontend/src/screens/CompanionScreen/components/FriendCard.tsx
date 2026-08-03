@@ -5,7 +5,6 @@ import { MemberAvatar } from '../../../features/member/components/MemberAvatar';
 import { AppText } from '../../../shared/components/AppText/AppText';
 import { Card } from '../../../shared/components/Card/Card';
 import { colors } from '../../../shared/constants/colors';
-import { radius } from '../../../shared/constants/radius';
 import { shadow } from '../../../shared/constants/shadow';
 import { spacing } from '../../../shared/constants/spacing';
 import { lineHeights } from '../../../shared/constants/typography';
@@ -56,11 +55,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
+  // 원 테두리 디자인은 CharacterBust가 모든 화면 공통으로 그린다.
   avatar: {
     width: 48,
     height: 48,
-    borderRadius: radius.pill,
-    backgroundColor: colors.neutralBg,
   },
   textGroup: {
     flex: 1,

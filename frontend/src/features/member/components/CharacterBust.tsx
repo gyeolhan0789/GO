@@ -9,6 +9,7 @@ import type {
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { colors } from '../../../shared/constants/colors';
+import { radius } from '../../../shared/constants/radius';
 import type { CharacterLayer } from '../model/character';
 import { CharacterLayers } from './CharacterLayers';
 
@@ -18,7 +19,10 @@ type CharacterBustProps = {
   fallbackImage?: ImageSourcePropType | null;
   /** 아래에 깔릴 것부터 정렬된 착용 아이템(`selectLayerItems` 결과). */
   items: CharacterLayer[];
-  /** 흉상이 들어갈 상자. 크기·모서리·배경은 쓰는 쪽이 정한다. */
+  /**
+   * 흉상이 들어갈 상자. 크기는 쓰는 쪽이 정하고, 원형 테두리 디자인(랭킹과
+   * 같은 1px 회색 링)은 화면마다 어긋나지 않게 여기서 통일한다.
+   */
   style?: StyleProp<ViewStyle>;
 };
 
@@ -87,6 +91,12 @@ const styles = StyleSheet.create({
   frame: {
     // 창 밖으로 나가는 몸통을 잘라낸다. 이게 없으면 상자를 넘어 그려진다.
     overflow: 'hidden',
+    // 모든 흉상 자리가 같은 원으로 보이게 하는 공통 디자인(랭킹 목록과 동일).
+    // 배경을 불투명하게 둬야 아바타를 겹쳐 쌓을 때 뒤 캐릭터가 비치지 않는다.
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.muted,
+    backgroundColor: colors.surface,
   },
   iconFrame: {
     alignItems: 'center',

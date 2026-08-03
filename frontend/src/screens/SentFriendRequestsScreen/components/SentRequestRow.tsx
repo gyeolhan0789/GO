@@ -88,11 +88,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
+  // 원 테두리 디자인은 CharacterBust가 모든 화면 공통으로 그린다.
   avatar: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
-    borderRadius: radius.pill,
-    backgroundColor: colors.neutralBg,
   },
   textGroup: {
     flex: 1,

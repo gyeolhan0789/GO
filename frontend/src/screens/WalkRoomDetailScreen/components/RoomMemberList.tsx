@@ -136,16 +136,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
+  // 원 테두리 디자인은 CharacterBust가 모든 화면 공통으로 그린다.
   avatar: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
+  },
+  // 수락 대기 줄은 캐릭터가 아니라 모래시계 아이콘이라 원을 직접 그린다.
+  pendingAvatar: {
     borderRadius: radius.pill,
-    backgroundColor: colors.successBg,
+    backgroundColor: colors.neutralBg,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  pendingAvatar: {
-    backgroundColor: colors.neutralBg,
   },
   nameGroup: {
     flex: 1,

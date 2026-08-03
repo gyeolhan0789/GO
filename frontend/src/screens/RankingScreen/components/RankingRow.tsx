@@ -91,14 +91,10 @@ const styles = StyleSheet.create({
   rankMe: {
     color: colors.successText,
   },
+  // 원 테두리 디자인은 CharacterBust가 모든 화면 공통으로 그린다.
   avatar: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.muted,
   },
   nickname: {
     flex: 1,

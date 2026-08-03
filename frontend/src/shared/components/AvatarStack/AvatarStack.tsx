@@ -208,9 +208,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatar: {
-    backgroundColor: colors.successBg,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    // 원 테두리·배경은 안에 들어가는 흉상(CharacterBust)이 랭킹과 같은
+    // 디자인으로 그린다. 여기는 겹침 배치와 자르기만 맡는다.
     overflow: 'hidden',
   },
   image: {

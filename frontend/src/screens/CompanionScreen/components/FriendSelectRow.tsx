@@ -67,11 +67,10 @@ const styles = StyleSheet.create({
   rowSelected: {
     borderColor: colors.ink,
   },
+  // 원 테두리 디자인은 CharacterBust가 모든 화면 공통으로 그린다.
   avatar: {
     width: 40,
     height: 40,
-    borderRadius: radius.pill,
-    backgroundColor: colors.neutralBg,
   },
   textGroup: {
     flex: 1,
