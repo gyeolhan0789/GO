@@ -262,6 +262,85 @@ describe('RecordScreen', () => {
   });
 });
 
+describe('RecordScreen 차트 구간 기록', () => {
+  /** 주간 막대의 탭 영역. 라벨이 '7.27 (월) 기록 보기' 꼴이다. */
+  function findDaySlots(root: ReactTestInstance) {
+    return root.findAll(
+      node =>
+        typeof node.props.accessibilityLabel === 'string' &&
+        /^\d+\.\d+ \(.\) 기록 보기$/.test(node.props.accessibilityLabel),
+      // Pressable은 안쪽 View까지 같은 라벨을 달고 있어 겉만 센다.
+      { deep: false },
+    );
+  }
+
+  test('폭이 측정되면 막대마다 누를 수 있는 칸이 생긴다', async () => {
+    const tree = await renderScreen();
+
+    // 차트를 그리기 전에는 누를 자리도 없다.
+    expect(findDaySlots(tree.root)).toHaveLength(0);
+
+    await measureChartArea(tree.root, 320);
+
+    // 주간은 월~일 7칸.
+    expect(findDaySlots(tree.root)).toHaveLength(7);
+    // 눌 수 있다는 걸 알려주지 않으면 아무도 누르지 않는다.
+    expect(collectTexts(tree.root)).toContain(
+      '구간을 누르면 그때의 기록을 볼 수 있어요',
+    );
+  });
+
+  test('막대를 누르면 그 구간의 기록이 시트로 뜬다', async () => {
+    const tree = await renderScreen();
+    await measureChartArea(tree.root, 320);
+
+    const [firstSlot] = findDaySlots(tree.root);
+    // '7.27 (월) 기록 보기' -> '7.27 (월)'.
+    const dayLabel = (firstSlot.props.accessibilityLabel as string).replace(
+      ' 기록 보기',
+      '',
+    );
+
+    expect(collectTexts(tree.root)).not.toContain('이 구간의 산책');
+
+    await act(async () => {
+      firstSlot.props.onPress();
+    });
+    await flushQueries();
+
+    const texts = collectTexts(tree.root);
+    // 누른 구간이 시트 제목으로 그대로 나온다.
+    expect(texts).toContain(dayLabel);
+    expect(texts).toContain('이 구간의 산책');
+  });
+
+  test('일간에서는 3시간 묶음으로 누른다', async () => {
+    const tree = await renderScreen();
+
+    await act(async () => {
+      findByAccessibilityLabel(tree.root, '기간 주간').props.onPress();
+    });
+    await pressTextLabel(tree.root, '일간');
+    await measureChartArea(tree.root, 320);
+
+    // 24개 시간대를 그대로 나누면 탭 영역이 손가락보다 좁아진다.
+    await act(async () => {
+      findByAccessibilityLabel(
+        tree.root,
+        '18시 - 21시 기록 보기',
+      ).props.onPress();
+    });
+    await flushQueries();
+
+    const texts = collectTexts(tree.root);
+    expect(texts).toContain('18시 - 21시');
+    // 18시 걸음 1,500이 이 묶음에 든다.
+    expect(texts).toContain('1,500');
+    // 시간대별로는 거리·칼로리를 읽을 수 없다.
+    expect(texts).not.toContain('칼로리');
+  });
+});
+
 describe('RecordScreen 구간 선택', () => {
   /** 구간 선택 시트를 연다. */
   async function openPicker(root: ReactTestInstance) {

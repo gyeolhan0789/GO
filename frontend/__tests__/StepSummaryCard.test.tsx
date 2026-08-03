@@ -13,10 +13,7 @@ import type {
   HistoryResponse,
 } from '../src/features/history/api/historyApi';
 import type { HourlyStep } from '../src/features/history/types';
-import {
-  MONTH_BAR_CHART_CONFIG,
-  WEEK_BAR_CHART_CONFIG,
-} from '../src/screens/RecordScreen/chartConfig';
+import { BAR_CHART_CONFIG } from '../src/screens/RecordScreen/chartConfig';
 import { StepSummaryCard } from '../src/screens/RecordScreen/components/StepSummaryCard';
 
 // 실행 날짜에 따라 결과가 바뀌지 않게 고정 데이터로 그린다.
@@ -83,6 +80,7 @@ async function renderCard(
         hourlySteps={hourlySteps}
         isCurrentPeriod
         todayIsoDate={TODAY}
+        onSelectSegment={() => {}}
       />,
     );
   });
@@ -185,7 +183,7 @@ describe('StepSummaryCard - 일간', () => {
 });
 
 describe('y축 눈금 표기', () => {
-  const formatYLabel = WEEK_BAR_CHART_CONFIG.formatYLabel;
+  const formatYLabel = BAR_CHART_CONFIG.formatYLabel;
 
   test('1000 미만은 그대로 둔다', () => {
     expect(formatYLabel('0')).toBe('0');
@@ -204,20 +202,21 @@ describe('y축 눈금 표기', () => {
     expect(formatYLabel('2500')).toBe('2.5K');
   });
 
-  test('월간도 같은 표기를 쓴다', () => {
-    expect(MONTH_BAR_CHART_CONFIG.formatYLabel('40000')).toBe('40K');
+  test('월간 규모도 같은 표기를 쓴다', () => {
+    expect(formatYLabel('40000')).toBe('40K');
   });
 });
 
 describe('StepSummaryCard - 주간/월간', () => {
-  test('주간은 막대 위에 값을 적지 않는다', async () => {
+  test('주간은 하루씩 막대를 세운다', async () => {
     const tree = await renderCard(buildHistory('WEEK', WEEK_DAYS));
 
     const [barChart] = tree.root.findAllByType(BarChart);
     expect(barChart).toBeTruthy();
-    expect(barChart.props.showValuesOnTopOfBars).toBe(false);
     // 하루 최대 12,000이라 5.6k/8.0k 단계를 넘어 2,000 단위로 올라간 값.
     expect(barChart.props.fromNumber).toBe(14_000);
+    // 막대가 적어 눈금선 없이도 읽힌다.
+    expect(barChart.props.withInnerLines).toBe(false);
   });
 
   test('BarChart도 폭을 그대로 받고 y축 여백만 좁힌다', async () => {
@@ -232,7 +231,7 @@ describe('StepSummaryCard - 주간/월간', () => {
     expect(barChart.props.yLabelsOffset).toBe(8);
   });
 
-  test('월간은 주별로 묶어 막대 위에 값을 적는다', async () => {
+  test('월간은 주별로 묶어 막대를 세운다', async () => {
     const monthHistory = buildHistory('MONTH', [
       { historyDate: '2026-07-01', step: 32_100 },
       { historyDate: '2026-07-08', step: 48_600 },
@@ -244,7 +243,11 @@ describe('StepSummaryCard - 주간/월간', () => {
     const tree = await renderCard(monthHistory);
     const [barChart] = tree.root.findAllByType(BarChart);
 
-    expect(barChart.props.showValuesOnTopOfBars).toBe(true);
+    // 막대 위에 숫자를 얹으면 눈금과 겹쳐 읽기 어렵다.
+    expect(barChart.props.showValuesOnTopOfBars).toBeFalsy();
+    expect(barChart.props.chartConfig.formatTopBarValue).toBeUndefined();
+    // 대신 가로 눈금선으로 크기를 가늠한다.
+    expect(barChart.props.withInnerLines).toBe(true);
     expect(barChart.props.data.labels).toEqual([
       '1주',
       '2주',
@@ -257,9 +260,6 @@ describe('StepSummaryCard - 주간/월간', () => {
     ]);
     // 최댓값 48,600에 여유를 두고 80K 상한 -> 눈금이 0/20K/40K/60K/80K로 떨어진다.
     expect(barChart.props.fromNumber).toBe(80_000);
-    // 막대 위 값은 쉼표를 넣어 적는다.
-    expect(barChart.props.chartConfig.formatTopBarValue(48_600)).toBe('48,600');
-
   });
 
   test('기록이 없는 기간에는 차트 대신 안내를 보여준다', async () => {
@@ -272,6 +272,7 @@ describe('StepSummaryCard - 주간/월간', () => {
           hourlySteps={[]}
           isCurrentPeriod
           todayIsoDate={TODAY}
+          onSelectSegment={() => {}}
         />,
       );
     });

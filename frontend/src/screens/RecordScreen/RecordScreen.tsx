@@ -10,6 +10,7 @@ import { PERIOD_OPTIONS } from '../../features/history/constants/periods';
 import { useHistoriesQuery } from '../../features/history/hooks/useHistoriesQuery';
 import { useHourlyStepsQuery } from '../../features/history/hooks/useHourlyStepsQuery';
 import { useRecentWalksQuery } from '../../features/history/hooks/useRecentWalksQuery';
+import type { ChartSegment } from '../../features/history/model/chartSegments';
 import {
   formatPeriodLabel,
   isCurrentPeriod,
@@ -23,6 +24,7 @@ import { colors } from '../../shared/constants/colors';
 import { spacing } from '../../shared/constants/spacing';
 import { PeriodPicker } from './components/PeriodPicker/PeriodPicker';
 import { PeriodRangeNavigator } from './components/PeriodRangeNavigator';
+import { SegmentDetailSheet } from './components/SegmentDetailSheet';
 import { StepSummaryCard } from './components/StepSummaryCard';
 import { ViewAllRecordsButton } from './components/ViewAllRecordsButton';
 
@@ -34,6 +36,10 @@ export function RecordScreen() {
   const [period, setPeriod] = useState<HistoryPeriod>('WEEK');
   const [baseDate, setBaseDate] = useState(todayIso);
   const [isPickerOpen, setPickerOpen] = useState(false);
+  // 차트에서 고른 구간. null이면 시트가 닫혀 있다.
+  const [selectedSegment, setSelectedSegment] = useState<ChartSegment | null>(
+    null,
+  );
 
   // 자정을 넘겨도 화면이 살아 있을 수 있어 렌더마다 다시 읽는다.
   const today = todayIso();
@@ -99,6 +105,7 @@ export function RecordScreen() {
                   hourlySteps={hourlySteps}
                   isCurrentPeriod={isLatestPeriod}
                   todayIsoDate={today}
+                  onSelectSegment={setSelectedSegment}
                 />
               )}
 
@@ -133,6 +140,16 @@ export function RecordScreen() {
           showsVerticalScrollIndicator={false}
         />
       </View>
+
+      <SegmentDetailSheet
+        segment={selectedSegment}
+        onClose={() => setSelectedSegment(null)}
+        onSelectWalk={walkId => {
+          // 시트를 닫고 나가야 돌아왔을 때 시트가 남아 있지 않다.
+          setSelectedSegment(null);
+          navigation.navigate('WalkDetail', { walkId });
+        }}
+      />
 
       <PeriodPicker
         visible={isPickerOpen}

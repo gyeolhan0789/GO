@@ -1,3 +1,5 @@
+import type { ChartSegment } from './model/chartSegments';
+import { selectWalksInSegment } from './model/chartSegments';
 import { parseIsoDate, toIsoDate } from './model/period';
 import { selectWalks } from './model/walkList';
 import type {
@@ -101,6 +103,14 @@ export function buildMockWalkPage(
   const content = selected.slice(start, start + size);
 
   return { content, hasNext: start + content.length < selected.length };
+}
+
+/**
+ * 차트에서 누른 구간에 걸치는 산책.
+ * TODO: 산책 단위 기록 API가 아직 없다(./types.ts의 RecentWalk 참고).
+ */
+export function buildMockWalksInSegment(segment: ChartSegment): RecentWalk[] {
+  return selectWalksInSegment(buildAllMockWalks(), segment);
 }
 
 // 3x3 판. completedBy가 null이면 아무도 못 한 칸이다.
