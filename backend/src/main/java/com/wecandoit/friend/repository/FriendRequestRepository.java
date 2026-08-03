@@ -33,9 +33,15 @@ public interface FriendRequestRepository extends JpaRepository<FriendRequest, Lo
     Optional<FriendRequest> findByIdForUpdate(@Param("requestId") Long requestId);
 
     @EntityGraph(attributePaths = "inviter")
+    @Query("""
+            select fr from FriendRequest fr
+            where fr.invitee.id = :inviteeId
+              and fr.status = :status
+            order by fr.createdAt desc, fr.id desc
+            """)
     Slice<FriendRequest> findAllByInviteeIdAndStatusOrderByCreatedAtDescIdDesc(
-            Long inviteeId,
-            FriendRequestStatus status,
+            @Param("inviteeId") Long inviteeId,
+            @Param("status") FriendRequestStatus status,
             Pageable pageable
     );
 

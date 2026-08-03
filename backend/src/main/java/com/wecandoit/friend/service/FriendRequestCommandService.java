@@ -48,12 +48,12 @@ public class FriendRequestCommandService {
     public void acceptRequest(Long inviteeId, Long requestId) {
         FriendRequest friendRequest = findRequestForUpdate(requestId);
         validateInviteeAndPending(friendRequest, inviteeId);
-        lockMembers(friendRequest.getInviter().getId(), friendRequest.getInvitee().getId());
+        lockMembers(friendRequest.getInviterId(), friendRequest.getInviteeId());
 
         friendRequest.accept();
         if (!friendRepository.existsBetween(
-                friendRequest.getInviter().getId(),
-                friendRequest.getInvitee().getId()
+                friendRequest.getInviterId(),
+                friendRequest.getInviteeId()
         )) {
             friendRepository.save(Friend.create(
                     friendRequest.getInviter(),
@@ -111,7 +111,7 @@ public class FriendRequestCommandService {
     }
 
     private void throwExistingRequestException(FriendRequest friendRequest, Long inviterId) {
-        if (friendRequest.getInviter().getId().equals(inviterId)) {
+        if (friendRequest.getInviterId().equals(inviterId)) {
             throw new CustomException(ErrorCode.DUPLICATE_FRIEND_REQUEST);
         }
         throw new CustomException(ErrorCode.REVERSE_FRIEND_REQUEST_EXISTS);

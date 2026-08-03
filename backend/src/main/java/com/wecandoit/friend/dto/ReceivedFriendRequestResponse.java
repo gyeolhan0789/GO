@@ -23,7 +23,7 @@ public record ReceivedFriendRequestResponse(
     ) {
         return new ReceivedFriendRequestResponse(
                 friendRequest.getId(),
-                friendRequest.getInviter().getId(),
+                friendRequest.getInviterId(),
                 friendRequest.getInviter().getNickname(),
                 friendRequest.getCreatedAt(),
                 friendRequest.getInviter().getGender(),
