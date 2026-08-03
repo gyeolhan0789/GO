@@ -175,7 +175,9 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
               value={email}
               placeholder="이메일 주소"
               onChangeText={text => {
-                setEmail(text);
+                // 이메일에는 공백이 들어갈 수 없다. 자동완성이 뒤에 붙이는 공백을
+                // 바로 지워 화면에 보이는 값과 보내는 값을 같게 만든다.
+                setEmail(text.trim());
                 clearError('email');
               }}
               error={errors.email}
