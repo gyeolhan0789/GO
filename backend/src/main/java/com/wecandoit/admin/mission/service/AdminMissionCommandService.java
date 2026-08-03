@@ -1,6 +1,7 @@
 package com.wecandoit.admin.mission.service;
 
 import com.wecandoit.admin.mission.controller.request.CreateMissionRequest;
+import com.wecandoit.admin.mission.controller.request.UpdateMissionRequest;
 import com.wecandoit.admin.mission.repository.AdminMissionRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
@@ -26,6 +27,27 @@ public class AdminMissionCommandService {
                 request.detail(),
                 request.decisionCondition() == null ? null : request.decisionCondition().toString()
         ));
+    }
+
+    public void updateMission(Long missionId, UpdateMissionRequest request) {
+        validateMissionType(request.type());
+        Mission mission = findMission(missionId);
+        mission.update(
+                request.missionImageUrl(),
+                request.type(),
+                request.title(),
+                request.detail(),
+                request.decisionCondition() == null ? null : request.decisionCondition().toString()
+        );
+    }
+
+    public void deactivateMission(Long missionId) {
+        findMission(missionId).deactivate();
+    }
+
+    private Mission findMission(Long missionId) {
+        return adminMissionRepository.findById(missionId)
+                .orElseThrow(() -> new CustomException(ErrorCode.MISSION_NOT_FOUND));
     }
 
     private void validateMissionType(String type) {

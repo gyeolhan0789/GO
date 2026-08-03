@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
 import com.wecandoit.admin.mission.controller.request.CreateMissionRequest;
+import com.wecandoit.admin.mission.controller.request.UpdateMissionRequest;
 import com.wecandoit.admin.mission.controller.response.AdminMissionResponse;
 import com.wecandoit.admin.mission.service.AdminMissionCommandService;
 import com.wecandoit.admin.mission.service.AdminMissionReadService;
@@ -123,6 +124,7 @@ class AdminMissionControllerTest {
                 "Red flower",
                 "Find a red flower",
                 null,
+                true,
                 LocalDateTime.of(2026, 7, 23, 12, 0)
         )));
 
@@ -133,5 +135,57 @@ class AdminMissionControllerTest {
                 .then()
                 .statusCode(HttpStatus.OK.value())
                 .body("[0].missionId", org.hamcrest.Matchers.is(1));
+    }
+
+    @Test
+    @DisplayName("미션을 수정하면 204 상태를 반환한다")
+    void updateMissionReturnsNoContent() {
+        // when & then
+        given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                          "missionImageUrl": "https://example.com/flower.png",
+                          "type": "OBJECT",
+                          "title": "Red flower",
+                          "detail": "Find a red flower"
+                        }
+                        """)
+                .when()
+                .put("/admin/missions/1")
+                .then()
+                .statusCode(HttpStatus.NO_CONTENT.value());
+        then(adminMissionCommandService).should()
+                .updateMission(Mockito.eq(1L), Mockito.any(UpdateMissionRequest.class));
+    }
+
+    @Test
+    @DisplayName("수정 시 미션 이미지 URL이 없으면 요청을 거절한다")
+    void updateMissionRejectsMissingMissionImageUrl() {
+        // when & then
+        given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                          "type": "OBJECT"
+                        }
+                        """)
+                .when()
+                .put("/admin/missions/1")
+                .then()
+                .statusCode(HttpStatus.BAD_REQUEST.value());
+        then(adminMissionCommandService).should(never()).updateMission(Mockito.any(), Mockito.any());
+    }
+
+    @Test
+    @DisplayName("미션을 삭제하면 204 상태를 반환한다")
+    void deactivateMissionReturnsNoContent() {
+        // when & then
+        given()
+                .when()
+                .delete("/admin/missions/1")
+                .then()
+                .statusCode(HttpStatus.NO_CONTENT.value());
+        then(adminMissionCommandService).should().deactivateMission(1L);
     }
 }

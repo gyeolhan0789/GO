@@ -25,8 +25,11 @@ export type Mission = {
   title: string | null
   detail: string | null
   decisionCondition: string | null
+  isActive: boolean
   createdAt: string
 }
+
+export type MissionInput = Omit<Mission, 'missionId' | 'createdAt' | 'isActive'>
 
 export type CharacterAsset = {
   characterAssetId: number
@@ -232,8 +235,16 @@ export function getMissions() {
   return request<Mission[]>('/admin/missions')
 }
 
-export function createMission(input: Omit<Mission, 'missionId' | 'createdAt'>) {
+export function createMission(input: MissionInput) {
   return request<void>('/admin/missions', { method: 'POST', body: JSON.stringify(input) })
+}
+
+export function updateMission(missionId: number, input: MissionInput) {
+  return request<void>(`/admin/missions/${missionId}`, { method: 'PUT', body: JSON.stringify(input) })
+}
+
+export function deactivateMission(missionId: number) {
+  return request<void>(`/admin/missions/${missionId}`, { method: 'DELETE' })
 }
 
 export function getCharacterAssets() {
