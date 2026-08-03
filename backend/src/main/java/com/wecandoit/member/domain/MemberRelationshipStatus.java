@@ -1,4 +1,4 @@
-package com.wecandoit.member.dto;
+package com.wecandoit.member.domain;
 
 public enum MemberRelationshipStatus {
     NONE,

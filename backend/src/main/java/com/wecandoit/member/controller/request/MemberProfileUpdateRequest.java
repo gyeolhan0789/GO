@@ -1,4 +1,4 @@
-package com.wecandoit.member.dto;
+package com.wecandoit.member.controller.request;
 
 import com.wecandoit.member.domain.Region;
 import com.wecandoit.member.domain.Gender;

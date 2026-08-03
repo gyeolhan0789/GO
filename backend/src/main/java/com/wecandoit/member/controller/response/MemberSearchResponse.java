@@ -1,8 +1,9 @@
-package com.wecandoit.member.dto;
+package com.wecandoit.member.controller.response;
 
 import com.wecandoit.item.controller.response.EquippedItemResponse;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
+import com.wecandoit.member.domain.MemberRelationshipStatus;
 import java.util.List;
 
 public record MemberSearchResponse(
