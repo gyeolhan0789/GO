@@ -3,6 +3,7 @@ package com.wecandoit.member.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
@@ -10,6 +11,9 @@ import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.friend.repository.FriendRepository;
 import com.wecandoit.friend.domain.FriendRequest;
 import com.wecandoit.friend.repository.FriendRequestRepository;
+import com.wecandoit.item.controller.response.CharacterResponse;
+import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.domain.Region;
@@ -17,6 +21,7 @@ import com.wecandoit.member.dto.MemberRelationshipStatus;
 import com.wecandoit.member.dto.MemberSearchResponse;
 import com.wecandoit.member.dto.MyPageResponse;
 import com.wecandoit.member.repository.MemberRepository;
+import com.wecandoit.ranking.service.RankingCharacterReadService;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -41,15 +46,22 @@ class MemberReadServiceTest {
     private FriendRepository friendRepository;
     @Mock
     private FriendRequestRepository friendRequestRepository;
+    @Mock
+    private RankingCharacterReadService rankingCharacterReadService;
     private MemberReadService memberReadService;
 
     @BeforeEach
     void setUp() {
-        memberReadService = new MemberReadService(memberRepository, friendRepository, friendRequestRepository);
+        memberReadService = new MemberReadService(
+                memberRepository,
+                friendRepository,
+                friendRequestRepository,
+                rankingCharacterReadService
+        );
     }
 
     @Test
-    @DisplayName("닉네임 부분 검색 결과에 현재 관계 상태를 포함한다")
+    @DisplayName("닉네임 검색 결과에 관계 상태와 캐릭터 정보를 포함한다")
     void searchMembersIncludesRelationshipStatus() {
         // given
         Member loginMember = member(1L, "나");
@@ -74,6 +86,24 @@ class MemberReadServiceTest {
                         FriendRequest.create(loginMember, sent),
                         FriendRequest.create(received, loginMember)
                 ));
+        EquippedItemResponse equippedItem = new EquippedItemResponse(
+                10L,
+                100L,
+                "빨간 모자",
+                ItemCategory.HAT,
+                "https://example.com/hat.png"
+        );
+        given(rankingCharacterReadService.getCharactersByMemberIds(List.of(2L, 3L, 4L, 5L)))
+                .willReturn(Map.of(
+                        2L,
+                        character(friend, "https://example.com/male.png", List.of(equippedItem)),
+                        3L,
+                        character(sent, "https://example.com/male.png", List.of()),
+                        4L,
+                        character(received, "https://example.com/male.png", List.of()),
+                        5L,
+                        character(none, "https://example.com/male.png", List.of())
+                ));
 
         // when
         SliceResponse<MemberSearchResponse> responses =
@@ -81,14 +111,43 @@ class MemberReadServiceTest {
 
         // then
         assertThat(responses.content())
-                .extracting(MemberSearchResponse::memberId, MemberSearchResponse::relationshipStatus)
+                .extracting(
+                        MemberSearchResponse::memberId,
+                        MemberSearchResponse::relationshipStatus,
+                        MemberSearchResponse::gender,
+                        MemberSearchResponse::defaultImageUrl
+                )
                 .containsExactly(
-                        org.assertj.core.groups.Tuple.tuple(2L, MemberRelationshipStatus.FRIEND),
-                        org.assertj.core.groups.Tuple.tuple(3L, MemberRelationshipStatus.REQUEST_SENT),
-                        org.assertj.core.groups.Tuple.tuple(4L, MemberRelationshipStatus.REQUEST_RECEIVED),
-                        org.assertj.core.groups.Tuple.tuple(5L, MemberRelationshipStatus.NONE)
+                        org.assertj.core.groups.Tuple.tuple(
+                                2L,
+                                MemberRelationshipStatus.FRIEND,
+                                Gender.MALE,
+                                "https://example.com/male.png"
+                        ),
+                        org.assertj.core.groups.Tuple.tuple(
+                                3L,
+                                MemberRelationshipStatus.REQUEST_SENT,
+                                Gender.MALE,
+                                "https://example.com/male.png"
+                        ),
+                        org.assertj.core.groups.Tuple.tuple(
+                                4L,
+                                MemberRelationshipStatus.REQUEST_RECEIVED,
+                                Gender.MALE,
+                                "https://example.com/male.png"
+                        ),
+                        org.assertj.core.groups.Tuple.tuple(
+                                5L,
+                                MemberRelationshipStatus.NONE,
+                                Gender.MALE,
+                                "https://example.com/male.png"
+                        )
                 );
+        assertThat(responses.content().getFirst().equippedItems()).containsExactly(equippedItem);
+        assertThat(responses.content().get(1).equippedItems()).isEmpty();
         assertThat(responses.hasNext()).isFalse();
+        then(rankingCharacterReadService).should()
+                .getCharactersByMemberIds(List.of(2L, 3L, 4L, 5L));
     }
 
     @Test
@@ -175,5 +234,19 @@ class MemberReadServiceTest {
         Member member = Member.create(nickname + "@example.com", "password", nickname);
         ReflectionTestUtils.setField(member, "id", id);
         return member;
+    }
+
+    private CharacterResponse character(
+            Member member,
+            String defaultImageUrl,
+            List<EquippedItemResponse> equippedItems
+    ) {
+        return new CharacterResponse(
+                member.getId(),
+                member.getNickname(),
+                member.getGender(),
+                defaultImageUrl,
+                equippedItems
+        );
     }
 }

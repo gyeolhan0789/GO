@@ -32,7 +32,18 @@ docs {
         "requestId": 5,
         "inviterId": 2,
         "inviterNickname": "friend_nick",
-        "createdAt": "2026-07-24T10:00:00"
+        "createdAt": "2026-07-24T10:00:00",
+        "gender": "MALE",
+        "defaultImageUrl": "https://example.com/characters/male-default.png",
+        "equippedItems": [
+          {
+            "memberItemId": 10,
+            "itemId": 100,
+            "name": "빨간 모자",
+            "category": "HAT",
+            "imageUrl": "https://example.com/items/red-hat.png"
+          }
+        ]
       }
     ],
     "hasNext": false
@@ -43,6 +54,7 @@ docs {
 
   - 응답에는 상태(`FriendRequestStatus`: `PENDING`, `ACCEPTED`, `REJECTED`)가 `PENDING`인 요청만 포함된다. 이미 수락/거절 처리된 요청은 목록에 나타나지 않는다.
   - 목록은 `createdAt` 내림차순, 생성 시각이 같으면 요청 ID 내림차순으로 정렬한다.
+  - `gender`, `defaultImageUrl`, `equippedItems`는 요청자(inviter)의 캐릭터 정보다.
 
   ### 에러 케이스
 

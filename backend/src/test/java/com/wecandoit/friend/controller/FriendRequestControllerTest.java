@@ -20,6 +20,9 @@ import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.friend.dto.ReceivedFriendRequestResponse;
 import com.wecandoit.friend.dto.SendFriendRequest;
 import com.wecandoit.friend.dto.SentFriendRequestResponse;
+import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.item.domain.ItemCategory;
+import com.wecandoit.member.domain.Gender;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -86,7 +89,7 @@ class FriendRequestControllerTest {
     }
 
     @Test
-    @DisplayName("받은 친구 요청을 조회하면 요청자 정보와 생성 시각을 반환한다")
+    @DisplayName("받은 친구 요청을 조회하면 요청자의 캐릭터 정보와 생성 시각을 반환한다")
     void getReceivedRequestsReturnsPendingRequests() throws Exception {
         // given
         LocalDateTime createdAt = LocalDateTime.of(2026, 7, 19, 12, 0);
@@ -94,7 +97,21 @@ class FriendRequestControllerTest {
                 org.mockito.ArgumentMatchers.eq(1L),
                 org.mockito.ArgumentMatchers.any()
         )).willReturn(new SliceResponse<>(
-                List.of(new ReceivedFriendRequestResponse(10L, 2L, "요청자", createdAt)),
+                List.of(new ReceivedFriendRequestResponse(
+                        10L,
+                        2L,
+                        "요청자",
+                        createdAt,
+                        Gender.MALE,
+                        "https://example.com/male.png",
+                        List.of(new EquippedItemResponse(
+                                11L,
+                                101L,
+                                "파란 모자",
+                                ItemCategory.HAT,
+                                "https://example.com/blue-hat.png"
+                        ))
+                )),
                 false
         ));
 
@@ -105,6 +122,15 @@ class FriendRequestControllerTest {
                 .andExpect(jsonPath("$.content[0].inviterId").value(2L))
                 .andExpect(jsonPath("$.content[0].inviterNickname").value("요청자"))
                 .andExpect(jsonPath("$.content[0].createdAt").value("2026-07-19T12:00:00"))
+                .andExpect(jsonPath("$.content[0].gender").value("MALE"))
+                .andExpect(jsonPath("$.content[0].defaultImageUrl")
+                        .value("https://example.com/male.png"))
+                .andExpect(jsonPath("$.content[0].equippedItems[0].memberItemId").value(11L))
+                .andExpect(jsonPath("$.content[0].equippedItems[0].itemId").value(101L))
+                .andExpect(jsonPath("$.content[0].equippedItems[0].name").value("파란 모자"))
+                .andExpect(jsonPath("$.content[0].equippedItems[0].category").value("HAT"))
+                .andExpect(jsonPath("$.content[0].equippedItems[0].imageUrl")
+                        .value("https://example.com/blue-hat.png"))
                 .andExpect(jsonPath("$.hasNext").value(false))
                 .andExpect(jsonPath("$.totalElements").doesNotExist());
     }
