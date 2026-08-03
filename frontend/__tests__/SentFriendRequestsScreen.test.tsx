@@ -36,6 +36,21 @@ const SENT_REQUESTS = {
   hasNext: false,
 };
 
+// 보낸 요청 응답에 아바타가 없어 훅이 회원 검색으로 채워 넣는다(useSentRequestsQuery).
+const INVITEE_SEARCH = {
+  content: [
+    {
+      memberId: 42,
+      nickname: INVITEE_NICKNAME,
+      relationshipStatus: 'REQUEST_SENT',
+      gender: 'FEMALE',
+      defaultImageUrl: null,
+      equippedItems: [],
+    },
+  ],
+  hasNext: false,
+};
+
 const EMPTY_SLICE = { content: [], hasNext: false };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -52,6 +67,9 @@ beforeEach(() => {
     }
     if (url.includes('/friend-requests/')) {
       return jsonResponse(204);
+    }
+    if (url.includes('/members/search')) {
+      return jsonResponse(200, INVITEE_SEARCH as never);
     }
     throw new Error(`예상하지 못한 요청: ${url}`);
   });
@@ -198,6 +216,9 @@ describe('SentFriendRequestsScreen', () => {
       if (url.includes('/friend-requests/sent')) {
         return jsonResponse(200, SENT_REQUESTS);
       }
+      if (url.includes('/members/search')) {
+        return jsonResponse(200, INVITEE_SEARCH as never);
+      }
       throw new Error(`예상하지 못한 요청: ${url}`);
     });
     const tree = await renderScreen();
@@ -216,8 +237,8 @@ describe('SentFriendRequestsScreen', () => {
       '친구 요청 취소 실패',
       conflictMessage,
     );
-    // DELETE 한 번 + 목록 재조회 한 번.
-    expect(fetchMock.mock.calls.length).toBe(requestCountBeforeCancel + 2);
+    // DELETE 한 번 + 목록 재조회 한 번 + 아바타 채우기용 회원 검색 한 번.
+    expect(fetchMock.mock.calls.length).toBe(requestCountBeforeCancel + 3);
   });
 
   test('보낸 요청이 없으면 친구를 추가할 곳을 안내한다', async () => {

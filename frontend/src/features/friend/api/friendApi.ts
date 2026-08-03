@@ -122,8 +122,8 @@ export type SentFriendRequest = {
   inviteeNickname: string;
   createdAt: string;
   /**
-   * 받는 회원의 아바타 정보. 백엔드 SentFriendRequestResponse에는 아직 없는
-   * 필드(추가 요청 예정)라 그 전까지는 undefined고 아바타는 기본 아이콘이다.
+   * 받는 회원의 아바타 정보. 백엔드 SentFriendRequestResponse에는 아직 없어
+   * (추가 요청 예정) useSentRequestsQuery가 회원 검색으로 대신 채워 넣는다.
    */
   gender?: Gender;
   defaultImageUrl?: string | null;
