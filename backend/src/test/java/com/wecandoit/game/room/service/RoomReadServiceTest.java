@@ -26,7 +26,7 @@ import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.RoomReadService;
-import com.wecandoit.game.service.RoomReadService.StepGoalRewardTarget;
+import com.wecandoit.game.service.StepGoalRewardTarget;
 import com.wecandoit.item.controller.response.AvatarResponse;
 import com.wecandoit.item.controller.response.EquippedItemResponse;
 import com.wecandoit.item.domain.ItemCategory;

@@ -378,21 +378,6 @@ public class RoomReadService {
         return avatar;
     }
 
-    public record StepGoalRewardTarget(
-            Long roomId,
-            Long bingoBoardId,
-            LocalDate boardStartedDate,
-            int targetStepCount,
-            List<StepGoalRewardMember> members
-    ) {
-    }
-
-    public record StepGoalRewardMember(
-            Long memberId,
-            LocalDate joinedDate
-    ) {
-    }
-
     private record MissionProgress(int totalMissionCount, int completedMissionCount) {
     }
 
