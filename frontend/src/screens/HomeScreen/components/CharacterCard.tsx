@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
 import type { ImageSourcePropType, StyleProp, ViewStyle } from 'react-native';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
-import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { CharacterLayers } from '../../../features/member/components/CharacterLayers';
+import type { CharacterLayer } from '../../../features/member/model/character';
 import { AppText } from '../../../shared/components/AppText/AppText';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
@@ -15,8 +16,12 @@ const BOB_DURATION_MS = 400;
 type CharacterCardProps = {
   /** 캐릭터 이름. 이미지 아래에 표시. */
   name: string;
-  /** 상점에서 커스터마이징한 현재 캐릭터 이미지. 아직 없으면 기본 아이콘으로 대체. */
-  characterImageSource?: ImageSourcePropType;
+  /** 성별 기본 캐릭터. 아직 조회 전이면 기본 아이콘으로 대체된다. */
+  baseImage: ImageSourcePropType | null;
+  /** 서버 이미지가 로드에 실패할 때 대신 그릴 번들 에셋. */
+  fallbackImage?: ImageSourcePropType | null;
+  /** 아래에 깔릴 것부터 정렬된 착용 아이템(`selectLayerItems` 결과). */
+  items: CharacterLayer[];
   /** 패널 크기 제어용. 남는 세로 공간을 채울 때 flex: 1을 전달. */
   style?: StyleProp<ViewStyle>;
   /** 진행 중인 산책 세션이 있으면 뱃지를 띄우고 캐릭터를 살짝 흔든다. */
@@ -29,7 +34,9 @@ type CharacterCardProps = {
 
 export function CharacterCard({
   name,
-  characterImageSource,
+  baseImage,
+  fallbackImage,
+  items,
   style,
   isWalking = false,
   walkElapsedLabel,
@@ -79,26 +86,28 @@ export function CharacterCard({
           <AppText style={styles.walkBadgeText}>산책 중 · {walkElapsedLabel}</AppText>
         </Pressable>
       ) : null}
-      {characterImageSource ? (
-        <Animated.Image
-          source={characterImageSource}
-          style={[
-            styles.characterImage,
-            // transform을 isWalking에 따라 배열↔null로 바꾸면(네이티브 드라이버가
-            // 이미 이 뷰의 transform을 직접 갱신 중인 상태에서) Fabric이 새
-            // 커밋 값과 병합하다 SurfaceMountingManager의 어서션에 걸려 앱이
-            // 죽는 문제가 있었다. transform은 항상 배열로 유지하고, 정지시킬
-            // 때는 위 useEffect에서 bobAnim 자체를 0으로 되돌리는 것만으로
-            // 충분하다.
-            { transform: [{ translateY: bobTranslateY }] },
-          ]}
-          resizeMode="contain"
+      <Animated.View
+        style={[
+          styles.characterBox,
+          // transform을 isWalking에 따라 배열↔null로 바꾸면(네이티브 드라이버가
+          // 이미 이 뷰의 transform을 직접 갱신 중인 상태에서) Fabric이 새
+          // 커밋 값과 병합하다 SurfaceMountingManager의 어서션에 걸려 앱이
+          // 죽는 문제가 있었다. transform은 항상 배열로 유지하고, 정지시킬
+          // 때는 위 useEffect에서 bobAnim 자체를 0으로 되돌리는 것만으로
+          // 충분하다.
+          { transform: [{ translateY: bobTranslateY }] },
+        ]}
+        accessible
+        accessibilityRole="image"
+        accessibilityLabel="내 캐릭터"
+      >
+        <CharacterLayers
+          baseImage={baseImage}
+          fallbackImage={fallbackImage}
+          items={items}
+          style={styles.characterLayers}
         />
-      ) : (
-        <View style={styles.characterFallback}>
-          <Ionicons name="person" size={48} color={colors.muted} />
-        </View>
-      )}
+      </Animated.View>
       <AppText style={styles.name}>{name}</AppText>
     </View>
   );
@@ -127,15 +136,12 @@ const styles = StyleSheet.create({
     lineHeight: lineHeights[12],
     color: colors.successText,
   },
-  characterImage: {
+  characterBox: {
     width: '85%',
     height: '90%',
   },
-  characterFallback: {
-    width: '85%',
-    height: '90%',
-    justifyContent: 'center',
-    alignItems: 'center',
+  characterLayers: {
+    flex: 1,
   },
   name: {
     fontFamily: fontFamily.bold,

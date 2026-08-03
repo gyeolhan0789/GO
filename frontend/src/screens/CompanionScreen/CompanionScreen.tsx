@@ -52,6 +52,7 @@ function toMyWalkRoom(room: MyRoomResponse): MyWalkRoom {
     bingoCompleted: room.completedMissionCount,
     bingoTotal: room.totalMissionCount,
     memberCount: room.members.length,
+    members: room.members,
   };
 }
 

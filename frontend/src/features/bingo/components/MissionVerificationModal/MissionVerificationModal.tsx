@@ -63,7 +63,7 @@ export function MissionVerificationModal({
           <View style={styles.rewardBadge}>
             <View style={styles.rewardDot} />
             <AppText style={styles.rewardBadgeText}>
-              +{result.rewardCash} 포인트 획득
+              +{result.rewardPoint} 포인트 획득
             </AppText>
           </View>
           <Pressable

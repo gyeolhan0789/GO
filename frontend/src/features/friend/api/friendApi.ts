@@ -1,4 +1,5 @@
 import { apiClient } from '../../../shared/api/client';
+import type { Gender } from '../../auth/constants/genders';
 
 export type ItemCategory =
   | 'HAT'
@@ -21,6 +22,9 @@ export type FriendResponse = {
   nickname: string;
   /** Asia/Seoul 기준 이번 주 월요일부터 오늘까지의 누적 걸음 수. */
   weeklySteps: number;
+  /** 아바타 정보. 랭킹 응답과 같은 모양으로 내려온다. */
+  gender?: Gender;
+  defaultImageUrl?: string | null;
   equippedItems: EquippedItem[];
 };
 
@@ -56,6 +60,10 @@ export type MemberSearchResult = {
   memberId: number;
   nickname: string;
   relationshipStatus: MemberRelationshipStatus;
+  /** 아바타 정보. 랭킹 응답과 같은 모양으로 내려온다. */
+  gender?: Gender;
+  defaultImageUrl?: string | null;
+  equippedItems?: EquippedItem[];
 };
 
 export type SearchMembersParams = {
@@ -85,6 +93,10 @@ export type ReceivedFriendRequest = {
   inviterId: number;
   inviterNickname: string;
   createdAt: string;
+  /** 요청 보낸 회원의 아바타 정보. 랭킹 응답과 같은 모양으로 내려온다. */
+  gender?: Gender;
+  defaultImageUrl?: string | null;
+  equippedItems?: EquippedItem[];
 };
 
 export function getReceivedRequests({
@@ -109,6 +121,13 @@ export type SentFriendRequest = {
   inviteeId: number;
   inviteeNickname: string;
   createdAt: string;
+  /**
+   * 받는 회원의 아바타 정보. 백엔드 SentFriendRequestResponse에는 아직 없어
+   * (추가 요청 예정) useSentRequestsQuery가 회원 검색으로 대신 채워 넣는다.
+   */
+  gender?: Gender;
+  defaultImageUrl?: string | null;
+  equippedItems?: EquippedItem[];
 };
 
 /**

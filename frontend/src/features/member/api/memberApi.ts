@@ -21,16 +21,17 @@ export type MemberItem = {
 
 export type EquippedItem = MemberItem;
 
-export type MyCharacterResponse = {
+export type MyAvatarResponse = {
   memberId: number;
   nickname: string;
+  gender: Gender;
   /** 성별별 기본 캐릭터 이미지. 관리자가 등록하지 않았으면 null이다. */
   defaultImageUrl: string | null;
   equippedItems: EquippedItem[];
 };
 
-export type CashResponse = {
-  cash: number;
+export type PointResponse = {
+  point: number;
 };
 
 export type MyPageResponse = {
@@ -39,19 +40,19 @@ export type MyPageResponse = {
   nickname: string;
   gender: Gender;
   region: Region;
-  cash: number;
+  point: number;
 };
 
-export function getMyCharacter() {
-  return apiClient.get<MyCharacterResponse>('/members/character');
+export function getMyAvatar() {
+  return apiClient.get<MyAvatarResponse>('/members/avatar');
 }
 
 export function getMyPage() {
   return apiClient.get<MyPageResponse>('/members/me');
 }
 
-export function getMyCash() {
-  return apiClient.get<CashResponse>('/members/cash');
+export function getMyPoint() {
+  return apiClient.get<PointResponse>('/members/point');
 }
 
 /** category를 생략하면 보유한 전체 아이템을 내려준다. */
@@ -66,7 +67,7 @@ export function getMyItems(category?: ItemCategory) {
  * 항상 "저장 시점에 입고 있어야 하는 아이템 전부"를 보내야 한다.
  */
 export function saveEquippedItems(memberItemIds: number[]) {
-  return apiClient.put<void>('/character-items', { memberItemIds });
+  return apiClient.put<void>('/avatar-items', { memberItemIds });
 }
 
 export type ProfileUpdateRequest = {

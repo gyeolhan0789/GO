@@ -1,9 +1,14 @@
+import type { Gender } from '../auth/constants/genders';
+import type { EquippedItem } from '../member/api/memberApi';
 import type { GameMode } from '../room/api/roomApi';
 
-/** 산책에 함께한 사람. 백엔드가 캐릭터 이미지를 주지 않아 아바타는 빈 자리로 그린다. */
+/** 산책에 함께한 사람. 캐릭터 필드로 아바타를 그린다(랭킹 응답과 같은 모양). */
 export type WalkParticipant = {
   memberId: number;
   nickname: string;
+  gender?: Gender;
+  defaultImageUrl?: string | null;
+  equippedItems?: EquippedItem[];
 };
 
 /**
