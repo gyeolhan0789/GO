@@ -88,17 +88,29 @@ public class MemberReadService {
     }
 
     public Map<Long, String> getNicknamesByIds(Collection<Long> memberIds) {
-        Set<Long> targetMemberIds = new HashSet<>(memberIds);
-        if (targetMemberIds.isEmpty()) {
+        return getMembersByIds(memberIds).stream()
+                .collect(Collectors.toMap(Member::getId, Member::getNickname));
+    }
+
+    public Map<Long, CharacterResponse> getAvatarsByIds(Collection<Long> memberIds) {
+        List<Member> members = getMembersByIds(memberIds);
+        if (members.isEmpty()) {
             return Map.of();
         }
+        return avatarReadService.getAvatars(members);
+    }
 
-        Map<Long, String> nicknamesById = memberRepository.findAllById(targetMemberIds).stream()
-                .collect(Collectors.toMap(Member::getId, Member::getNickname));
-        if (nicknamesById.size() != targetMemberIds.size()) {
+    private List<Member> getMembersByIds(Collection<Long> memberIds) {
+        Set<Long> targetMemberIds = new HashSet<>(memberIds);
+        if (targetMemberIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<Member> members = memberRepository.findAllById(targetMemberIds);
+        if (members.size() != targetMemberIds.size()) {
             throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
         }
-        return nicknamesById;
+        return members;
     }
 
     private Map<Long, MemberRelationshipStatus> getRequestStatuses(

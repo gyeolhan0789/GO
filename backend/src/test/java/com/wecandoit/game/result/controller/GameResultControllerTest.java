@@ -33,6 +33,9 @@ import com.wecandoit.game.controller.response.GameResultResponse;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.RoomStatus;
 import com.wecandoit.game.service.GameResultReadService;
+import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.item.domain.ItemCategory;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.mission.controller.response.MissionResponse;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import java.time.LocalDateTime;
@@ -124,6 +127,9 @@ class GameResultControllerTest {
                 .body("myResult", equalTo(true))
                 .body("participants[0].memberId", equalTo(1))
                 .body("participants[0].nickname", equalTo("host"))
+                .body("participants[0].gender", equalTo("MALE"))
+                .body("participants[0].defaultImageUrl", equalTo("https://example.com/male.png"))
+                .body("participants[0].equippedItems[0].itemId", equalTo(100))
                 .body("participants[0].completedMissionCount", equalTo(3))
                 .body("participants[0].rewardCash", equalTo(200))
                 .body("participants[0].result", equalTo(true))
@@ -173,6 +179,20 @@ class GameResultControllerTest {
                                 fieldWithPath("myResult").description("내 승리 또는 완료 여부"),
                                 fieldWithPath("participants[].memberId").description("참여자 ID"),
                                 fieldWithPath("participants[].nickname").description("참여자 닉네임"),
+                                fieldWithPath("participants[].gender").description("참여자 캐릭터 성별"),
+                                fieldWithPath("participants[].defaultImageUrl")
+                                        .optional()
+                                        .description("성별 기본 캐릭터 이미지 URL"),
+                                fieldWithPath("participants[].equippedItems").description("현재 장착 아이템 목록"),
+                                fieldWithPath("participants[].equippedItems[].memberItemId")
+                                        .description("회원 보유 아이템 ID"),
+                                fieldWithPath("participants[].equippedItems[].itemId")
+                                        .description("원본 아이템 ID"),
+                                fieldWithPath("participants[].equippedItems[].name").description("아이템 이름"),
+                                fieldWithPath("participants[].equippedItems[].category")
+                                        .description("장착 카테고리"),
+                                fieldWithPath("participants[].equippedItems[].imageUrl")
+                                        .description("아이템 이미지 URL"),
                                 fieldWithPath("participants[].completedMissionCount")
                                         .description("참여자가 완료한 미션 수"),
                                 fieldWithPath("participants[].rewardCash")
@@ -294,6 +314,9 @@ class GameResultControllerTest {
                 .body("content[0].myCompletedMissionCount", equalTo(3))
                 .body("content[0].myRewardCash", equalTo(200))
                 .body("content[0].myResult", equalTo(true))
+                .body("content[0].participants[0].gender", equalTo("MALE"))
+                .body("content[0].participants[0].defaultImageUrl", equalTo("https://example.com/male.png"))
+                .body("content[0].participants[0].equippedItems[0].itemId", equalTo(100))
                 .body("hasNext", equalTo(false))
                 .apply(document("game-result-list",
                         responseFields(
@@ -321,6 +344,23 @@ class GameResultControllerTest {
                                 fieldWithPath("content[].myResult").description("내 승리 또는 완료 여부"),
                                 fieldWithPath("content[].participants[].memberId").description("참여자 ID"),
                                 fieldWithPath("content[].participants[].nickname").description("참여자 닉네임"),
+                                fieldWithPath("content[].participants[].gender")
+                                        .description("참여자 캐릭터 성별"),
+                                fieldWithPath("content[].participants[].defaultImageUrl")
+                                        .optional()
+                                        .description("성별 기본 캐릭터 이미지 URL"),
+                                fieldWithPath("content[].participants[].equippedItems")
+                                        .description("현재 장착 아이템 목록"),
+                                fieldWithPath("content[].participants[].equippedItems[].memberItemId")
+                                        .description("회원 보유 아이템 ID"),
+                                fieldWithPath("content[].participants[].equippedItems[].itemId")
+                                        .description("원본 아이템 ID"),
+                                fieldWithPath("content[].participants[].equippedItems[].name")
+                                        .description("아이템 이름"),
+                                fieldWithPath("content[].participants[].equippedItems[].category")
+                                        .description("장착 카테고리"),
+                                fieldWithPath("content[].participants[].equippedItems[].imageUrl")
+                                        .description("아이템 이미지 URL"),
                                 fieldWithPath("content[].participants[].completedMissionCount")
                                         .description("참여자가 완료한 미션 수"),
                                 fieldWithPath("content[].participants[].rewardCash")
@@ -433,9 +473,34 @@ class GameResultControllerTest {
     }
 
     private List<GameResultParticipantResponse> participantResponses() {
+        EquippedItemResponse equippedItem = new EquippedItemResponse(
+                10L,
+                100L,
+                "빨간 모자",
+                ItemCategory.HAT,
+                "https://example.com/hat.png"
+        );
         return List.of(
-                new GameResultParticipantResponse(1L, "host", 3, 200L, true),
-                new GameResultParticipantResponse(2L, "participant", 2, 200L, true)
+                new GameResultParticipantResponse(
+                        1L,
+                        "host",
+                        Gender.MALE,
+                        "https://example.com/male.png",
+                        List.of(equippedItem),
+                        3,
+                        200L,
+                        true
+                ),
+                new GameResultParticipantResponse(
+                        2L,
+                        "participant",
+                        Gender.FEMALE,
+                        "https://example.com/female.png",
+                        List.of(),
+                        2,
+                        200L,
+                        true
+                )
         );
     }
 

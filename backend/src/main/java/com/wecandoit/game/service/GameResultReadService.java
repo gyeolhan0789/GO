@@ -1,5 +1,6 @@
 package com.wecandoit.game.service;
 
+import com.wecandoit.avatar.service.AvatarReadService;
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.domain.BingoLineCounter;
@@ -25,6 +26,7 @@ import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.GameResultParticipantRepository;
 import com.wecandoit.game.repository.GameResultRepository;
 import com.wecandoit.game.repository.RoomRepository;
+import com.wecandoit.item.controller.response.CharacterResponse;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.Mission;
@@ -52,6 +54,7 @@ public class GameResultReadService {
     private final GameRepository gameRepository;
     private final RoomRepository roomRepository;
     private final MemberRepository memberRepository;
+    private final AvatarReadService avatarReadService;
     private final BingoBoardRepository bingoBoardRepository;
     private final BingoCellRepository bingoCellRepository;
     private final MissionRepository missionRepository;
@@ -75,8 +78,9 @@ public class GameResultReadService {
                 .stream()
                 .collect(Collectors.toMap(GameParticipant::getId, Function.identity()));
         Map<Long, Member> membersById = getMembersById(participants);
+        Map<Long, CharacterResponse> avatarsByMemberId = getAvatarsByMemberId(membersById);
         List<GameResultParticipantResponse> participantResponses =
-                toParticipantResponses(participants, membersById);
+                toParticipantResponses(participants, membersById, avatarsByMemberId);
         List<GameResultBingoBoardResponse> bingoBoardResponses =
                 toBingoBoardResponses(room, boards, participants, gameParticipantsById, membersById);
 
@@ -123,6 +127,7 @@ public class GameResultReadService {
                         .toList())
                 .stream()
                 .collect(Collectors.toMap(Member::getId, Function.identity()));
+        Map<Long, CharacterResponse> avatarsByMemberId = getAvatarsByMemberId(membersById);
         List<BingoBoard> boards = bingoBoardRepository.findAllByGameIdInOrderByIdAsc(gameIds);
         Map<Long, List<BingoBoard>> boardsByGameId = boards.stream()
                 .collect(Collectors.groupingBy(BingoBoard::getGameId));
@@ -144,7 +149,7 @@ public class GameResultReadService {
                     game.getCompletedAt(),
                     getTotalMissionCount(resultBoards, cellCountsByBoardId),
                     getMyParticipant(memberId, resultParticipants),
-                    toParticipantResponses(resultParticipants, membersById)
+                    toParticipantResponses(resultParticipants, membersById, avatarsByMemberId)
             );
         }));
     }
@@ -318,14 +323,38 @@ public class GameResultReadService {
 
     private List<GameResultParticipantResponse> toParticipantResponses(
             List<GameResultParticipant> participants,
-            Map<Long, Member> membersById
+            Map<Long, Member> membersById,
+            Map<Long, CharacterResponse> avatarsByMemberId
     ) {
         return participants.stream()
-                .map(participant -> GameResultParticipantResponse.of(
-                        participant,
-                        getMember(membersById, participant.getMemberId())
-                ))
+                .map(participant -> {
+                    Long memberId = participant.getMemberId();
+                    CharacterResponse avatar = getAvatar(avatarsByMemberId, memberId);
+                    return GameResultParticipantResponse.of(
+                            participant,
+                            getMember(membersById, memberId),
+                            avatar.defaultImageUrl(),
+                            avatar.equippedItems()
+                    );
+                })
                 .toList();
+    }
+
+    private CharacterResponse getAvatar(
+            Map<Long, CharacterResponse> avatarsByMemberId,
+            Long memberId
+    ) {
+        CharacterResponse avatar = avatarsByMemberId.get(memberId);
+        if (avatar == null) {
+            throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
+        }
+        return avatar;
+    }
+
+    private Map<Long, CharacterResponse> getAvatarsByMemberId(Map<Long, Member> membersById) {
+        return avatarReadService.getAvatars(membersById.values().stream()
+                .sorted(Comparator.comparing(Member::getId))
+                .toList());
     }
 
     private Member getMember(Map<Long, Member> membersById, Long memberId) {

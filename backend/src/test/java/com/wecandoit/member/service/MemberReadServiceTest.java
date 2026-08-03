@@ -1,12 +1,12 @@
 package com.wecandoit.member.service;
 
-import com.wecandoit.avatar.service.AvatarReadService;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
+import com.wecandoit.avatar.service.AvatarReadService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.SliceResponse;
@@ -196,6 +196,54 @@ class MemberReadServiceTest {
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("회원 ID 목록으로 현재 아바타를 일괄 조회한다")
+    void getAvatarsByIdsReturnsAvatars() {
+        // given
+        Member firstMember = member(1L, "첫 번째");
+        Member secondMember = member(2L, "두 번째");
+        List<Member> members = List.of(firstMember, secondMember);
+        Map<Long, CharacterResponse> avatars = Map.of(
+                1L, character(firstMember, "https://example.com/male.png", List.of()),
+                2L, character(secondMember, "https://example.com/male.png", List.of())
+        );
+        given(memberRepository.findAllById(ArgumentMatchers.anyIterable())).willReturn(members);
+        given(avatarReadService.getAvatars(members)).willReturn(avatars);
+
+        // when
+        Map<Long, CharacterResponse> responses =
+                memberReadService.getAvatarsByIds(List.of(1L, 2L));
+
+        // then
+        assertThat(responses).isEqualTo(avatars);
+        then(avatarReadService).should().getAvatars(members);
+    }
+
+    @Test
+    @DisplayName("회원 ID 목록이 비어 있으면 아바타를 조회하지 않는다")
+    void getAvatarsByIdsReturnsEmptyMap() {
+        // when & then
+        assertThat(memberReadService.getAvatarsByIds(List.of())).isEmpty();
+
+        then(memberRepository).shouldHaveNoInteractions();
+        then(avatarReadService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("아바타 조회 대상 회원이 누락되면 실패한다")
+    void getAvatarsByIdsRejectsMissingMember() {
+        // given
+        Member member = member(1L, "첫 번째");
+        given(memberRepository.findAllById(ArgumentMatchers.anyIterable())).willReturn(List.of(member));
+
+        // when & then
+        assertThatThrownBy(() -> memberReadService.getAvatarsByIds(List.of(1L, 2L)))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
+        then(avatarReadService).shouldHaveNoInteractions();
     }
 
     @Test

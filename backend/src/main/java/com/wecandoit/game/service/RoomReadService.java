@@ -22,6 +22,7 @@ import com.wecandoit.game.repository.GameParticipantRepository;
 import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
+import com.wecandoit.item.controller.response.CharacterResponse;
 import com.wecandoit.member.service.MemberReadService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -90,9 +91,9 @@ public class RoomReadService {
 
         List<Long> activeRoomIds = activeRoomMembers.stream().map(RoomMember::getRoomId).distinct().toList();
         List<RoomMember> allRoomMembers = roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(activeRoomIds);
-        Map<Long, String> nicknamesByMemberId = getNicknamesByMemberId(allRoomMembers);
+        Map<Long, CharacterResponse> avatarsByMemberId = getAvatarsByMemberId(allRoomMembers);
         Map<Long, List<MyRoomMemberResponse>> membersByRoomId =
-                getMembersByRoomId(roomsById, allRoomMembers, nicknamesByMemberId);
+                getMembersByRoomId(roomsById, allRoomMembers, avatarsByMemberId);
         Map<Long, RoomCycleSnapshot> snapshotsByRoomId = getRoomCycleSnapshots(activeRoomIds, roomsById);
 
         return activeRoomMembers.stream()
@@ -280,15 +281,21 @@ public class RoomReadService {
         if (roomMembers.isEmpty()) {
             return List.of();
         }
-        Map<Long, String> nicknamesByMemberId = getNicknamesByMemberId(roomMembers);
+        Map<Long, CharacterResponse> avatarsByMemberId = getAvatarsByMemberId(roomMembers);
         return roomMembers.stream()
-                .map(roomMember -> RoomMemberResponse.from(
-                        roomMember,
-                        getNickname(nicknamesByMemberId, roomMember.getMemberId()),
-                        room.isHost(roomMember.getMemberId()),
-                        snapshot.completedCountByMemberId().getOrDefault(roomMember.getMemberId(), 0),
-                        snapshot.battleBoardIdByMemberId().get(roomMember.getMemberId())
-                ))
+                .map(roomMember -> {
+                    CharacterResponse avatar = getAvatar(avatarsByMemberId, roomMember.getMemberId());
+                    return RoomMemberResponse.from(
+                            roomMember,
+                            avatar.nickname(),
+                            avatar.gender(),
+                            avatar.defaultImageUrl(),
+                            avatar.equippedItems(),
+                            room.isHost(roomMember.getMemberId()),
+                            snapshot.completedCountByMemberId().getOrDefault(roomMember.getMemberId(), 0),
+                            snapshot.battleBoardIdByMemberId().get(roomMember.getMemberId())
+                    );
+                })
                 .toList();
     }
 
@@ -327,35 +334,48 @@ public class RoomReadService {
     private Map<Long, List<MyRoomMemberResponse>> getMembersByRoomId(
             Map<Long, Room> roomsById,
             List<RoomMember> roomMembers,
-            Map<Long, String> nicknamesByMemberId
+            Map<Long, CharacterResponse> avatarsByMemberId
     ) {
         return roomMembers.stream()
                 .collect(Collectors.groupingBy(
                         RoomMember::getRoomId,
                         Collectors.mapping(
-                                roomMember -> MyRoomMemberResponse.from(
-                                        roomMember,
-                                        getNickname(nicknamesByMemberId, roomMember.getMemberId()),
-                                        roomsById.get(roomMember.getRoomId()).isHost(roomMember.getMemberId())
-                                ),
+                                roomMember -> {
+                                    CharacterResponse avatar = getAvatar(
+                                            avatarsByMemberId,
+                                            roomMember.getMemberId()
+                                    );
+                                    return MyRoomMemberResponse.from(
+                                            roomMember,
+                                            avatar.nickname(),
+                                            avatar.gender(),
+                                            avatar.defaultImageUrl(),
+                                            avatar.equippedItems(),
+                                            roomsById.get(roomMember.getRoomId())
+                                                    .isHost(roomMember.getMemberId())
+                                    );
+                                },
                                 Collectors.toList()
                         )
                 ));
     }
 
-    private Map<Long, String> getNicknamesByMemberId(List<RoomMember> roomMembers) {
-        return memberReadService.getNicknamesByIds(roomMembers.stream()
+    private Map<Long, CharacterResponse> getAvatarsByMemberId(List<RoomMember> roomMembers) {
+        return memberReadService.getAvatarsByIds(roomMembers.stream()
                 .map(RoomMember::getMemberId)
                 .distinct()
                 .toList());
     }
 
-    private String getNickname(Map<Long, String> nicknamesByMemberId, Long memberId) {
-        String nickname = nicknamesByMemberId.get(memberId);
-        if (nickname == null) {
+    private CharacterResponse getAvatar(
+            Map<Long, CharacterResponse> avatarsByMemberId,
+            Long memberId
+    ) {
+        CharacterResponse avatar = avatarsByMemberId.get(memberId);
+        if (avatar == null) {
             throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
         }
-        return nickname;
+        return avatar;
     }
 
     public record StepGoalRewardTarget(
