@@ -23,7 +23,6 @@ import { MissionVerificationModal } from '../../features/bingo/components/Missio
 import {
   MISSION_TYPE_ICONS,
   MISSION_TYPE_LABELS,
-  MISSION_TYPE_POINTS,
 } from '../../features/bingo/model/missionType';
 import { useMyMemberIdQuery } from '../../features/member/hooks/useMyMemberIdQuery';
 import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
@@ -284,7 +283,7 @@ export function BingoBoardScreen({
               <AppText style={styles.detailTitle}>{selectedCell.mission.title}</AppText>
               <View style={styles.pointBadge}>
                 <AppText style={styles.pointBadgeText}>
-                  +{MISSION_TYPE_POINTS[selectedCell.mission.type]}P
+                  +{selectedCell.mission.point}P
                 </AppText>
               </View>
             </View>

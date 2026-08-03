@@ -10,6 +10,7 @@ export type BingoMissionResponse = {
   title: string;
   detail: string;
   decisionCondition: string;
+  point: number;
 };
 
 export type BingoCellResponse = {

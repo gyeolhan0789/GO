@@ -5,7 +5,6 @@ import type { BingoMissionResponse } from '../../../features/bingo/api/bingoApi'
 import {
   MISSION_TYPE_ICONS,
   MISSION_TYPE_LABELS,
-  MISSION_TYPE_POINTS,
 } from '../../../features/bingo/model/missionType';
 import { AppText } from '../../../shared/components/AppText/AppText';
 import { colors } from '../../../shared/constants/colors';
@@ -62,7 +61,7 @@ export function MissionInfoModal({ mission, onClose }: MissionInfoModalProps) {
                 </AppText>
                 <View style={styles.pointBadge}>
                   <AppText style={styles.pointBadgeText}>
-                    +{MISSION_TYPE_POINTS[mission.type]}P
+                    +{mission.point}P
                   </AppText>
                 </View>
               </View>
