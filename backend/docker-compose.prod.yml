@@ -75,6 +75,34 @@ services:
       timeout: 5s
       retries: 10
 
+  nginx:
+    image: ${NGINX_IMAGE:-wecandoit-nginx-prod:latest}
+    container_name: wecandoit-nginx-prod
+    restart: unless-stopped
+    depends_on:
+      backend-stable:
+        condition: service_started
+    ports:
+      - "${NGINX_BIND_ADDRESS:-127.0.0.1}:${NGINX_HTTP_PORT:-18080}:80"
+      - "${NGINX_BIND_ADDRESS:-127.0.0.1}:${NGINX_HTTPS_PORT:-18443}:443"
+    volumes:
+      - nginx-routing:/etc/nginx/runtime
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/wecandoit-admin:/var/www/wecandoit-admin:ro
+      - /var/www/certbot:/var/www/certbot:ro
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8088/nginx-health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
   backend-stable:
     <<: *backend-common
     image: ${STABLE_IMAGE:-wecandoit-backend-prod:stable}
@@ -85,6 +113,9 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
     ports:
       - "127.0.0.1:8080:8080"
+    networks:
+      - default
+      - edge
 
   backend-canary:
     <<: *backend-common
@@ -96,7 +127,16 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: validate
     ports:
       - "127.0.0.1:8082:8080"
+    networks:
+      - default
+      - edge
 
 volumes:
   mysql-data:
   redis-data:
+  nginx-routing:
+
+networks:
+  edge:
+    name: wecandoit-edge
+    external: true

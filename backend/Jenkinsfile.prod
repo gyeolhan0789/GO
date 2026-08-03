@@ -7,10 +7,10 @@ pipeline {
     }
 
     parameters {
-        string(
-            name: 'NGINX_SITE_FILE',
-            defaultValue: '/etc/nginx/sites-available/wecandoit.conf',
-            description: '실제로 sites-enabled에서 include되는 운영 Nginx 설정 파일'
+        choice(
+            name: 'DEPLOYMENT_MODE',
+            choices: ['validation', 'production'],
+            description: 'validation은 18080/18443 임시 검증까지만, production은 80/443 실제 카나리 배포까지 수행'
         )
         string(
             name: 'CURRENT_STABLE_REVISION',
@@ -22,10 +22,19 @@ pipeline {
     environment {
         COMPOSE_FILE = 'docker-compose.prod.yml'
         IMAGE_REPOSITORY = 'wecandoit-backend-prod'
-        STABLE_HEALTH_URL = 'http://127.0.0.1:8080/actuator/health'
-        CANARY_HEALTH_URL = 'http://127.0.0.1:8082/actuator/health'
-        SERVICE_HEALTH_URL = 'https://i15a506.p.ssafy.io/actuator/health'
-        NGINX_BACKEND_ACCESS_LOG = '/var/log/nginx/wecandoit-backend-access.log'
+        NGINX_IMAGE_REPOSITORY = 'wecandoit-nginx-prod'
+        NGINX_CONTAINER = 'wecandoit-nginx-prod'
+        STABLE_CONTAINER = 'wecandoit-backend-stable'
+        CANARY_CONTAINER = 'wecandoit-backend-canary'
+        LEGACY_STABLE_CONTAINER = 'wecandoit-backend-prod'
+        EDGE_NETWORK = 'wecandoit-edge'
+        STABLE_BIND_ADDRESS = '127.0.0.1'
+        STABLE_HOST_PORT = '8080'
+        CANARY_HOST_PORT = '8082'
+        BACKEND_SERVICE_PORT = '8080'
+        NGINX_SMOKE_PORT = '8088'
+        MANAGEMENT_PORT = '9091'
+        PRODUCTION_DOMAIN = 'i15a506.p.ssafy.io'
         CANARY_OBSERVATION_SECONDS = '60'
         CANARY_MIN_REQUESTS = '1'
         CANARY_MAX_5XX_RATE = '1.0'
@@ -72,88 +81,100 @@ pipeline {
                             returnStdout: true
                         ).trim()
 
+                        env.NGINX_CANDIDATE_IMAGE = "${env.NGINX_IMAGE_REPOSITORY}:${env.GIT_SHA}"
+                        env.STABLE_HEALTH_URL = "http://127.0.0.1:${env.MANAGEMENT_PORT}/actuator/health"
+                        env.CANARY_HEALTH_URL = "http://127.0.0.1:${env.MANAGEMENT_PORT}/actuator/health"
+                        env.NGINX_ROUTED_SMOKE_URL = "http://127.0.0.1:${env.NGINX_SMOKE_PORT}/v3/api-docs"
+                        env.SERVICE_SMOKE_URL = "https://${env.PRODUCTION_DOMAIN}/v3/api-docs"
+                        if (params.DEPLOYMENT_MODE == 'production') {
+                            env.NGINX_BIND_ADDRESS = '0.0.0.0'
+                            env.NGINX_HTTP_PORT = '80'
+                            env.NGINX_HTTPS_PORT = '443'
+                        } else {
+                            env.NGINX_BIND_ADDRESS = '127.0.0.1'
+                            env.NGINX_HTTP_PORT = '18080'
+                            env.NGINX_HTTPS_PORT = '18443'
+                        }
+
                         env.ROLLBACK_IMAGE = sh(
                             script: '''
                             set -eu
 
                             command -v docker >/dev/null
                             command -v curl >/dev/null
-                            command -v sudo >/dev/null
-                            sudo /usr/sbin/nginx -t
+                            command -v awk >/dev/null
+                            docker compose version >/dev/null
 
-                            active_site_files=$(sudo /usr/sbin/nginx -T 2>&1 \
-                              | awk '
-                                /^# configuration file / {
-                                  file=$0
-                                  sub(/^# configuration file /, "", file)
-                                  sub(/:$/, "", file)
-                                }
-                                /server_name i15a506\\.p\\.ssafy\\.io/ {
-                                  print file
-                                }
-                              ' \
-                              | sort -u)
-
-                            echo "Active Nginx files for the production domain:" >&2
-                            printf '%s\n' "$active_site_files" >&2
-
-                            if ! sudo /usr/bin/test -f "$NGINX_SITE_FILE" \
-                              || ! sudo /usr/bin/grep -Fq \
-                                "include /etc/nginx/snippets/wecandoit-backend-upstream.conf;" \
-                                "$NGINX_SITE_FILE" \
-                              || ! sudo /usr/bin/grep -Fq \
-                                "proxy_pass http://backend_prod;" "$NGINX_SITE_FILE" \
-                              || ! sudo /usr/bin/grep -Fq \
-                                "access_log /var/log/nginx/wecandoit-backend-access.log backend_upstream;" \
-                                "$NGINX_SITE_FILE" \
-                              || ! sudo /usr/bin/grep -Fq \
-                                '$upstream_addr' "$NGINX_SITE_FILE"; then
-                              echo "$NGINX_SITE_FILE is not prepared for Canary routing." >&2
+                            network_state=$(docker network inspect --format \
+                              '{{.Driver}} {{.Scope}} {{.Internal}}' "$EDGE_NETWORK" 2>/dev/null) || {
+                              echo "$EDGE_NETWORK Docker network is required before deployment." >&2
+                              exit 1
+                            }
+                            if [ "$network_state" != 'bridge local false' ]; then
+                              echo "$EDGE_NETWORK must be a non-internal local bridge network: $network_state" >&2
                               exit 1
                             fi
 
-                            target_site=$(readlink -f "$NGINX_SITE_FILE")
-                            target_is_active=false
-                            for active_site in $active_site_files; do
-                              if [ "$(readlink -f "$active_site")" = "$target_site" ]; then
-                                target_is_active=true
-                                break
+                            if [ "$DEPLOYMENT_MODE" = 'validation' ] \
+                              && [ "$(docker inspect --format '{{.State.Running}}' \
+                                "$NGINX_CONTAINER" 2>/dev/null)" = 'true' ] \
+                              && { ! docker port "$NGINX_CONTAINER" 80/tcp \
+                                  | grep -qx "$NGINX_BIND_ADDRESS:$NGINX_HTTP_PORT" \
+                                || ! docker port "$NGINX_CONTAINER" 443/tcp \
+                                  | grep -qx "$NGINX_BIND_ADDRESS:$NGINX_HTTPS_PORT"; }; then
+                              echo "Validation mode cannot replace a running production-port Docker Nginx." >&2
+                              echo "Use production mode for deployments after the 80/443 cutover." >&2
+                              exit 1
+                            fi
+
+                            for published_port in "$NGINX_HTTP_PORT" "$NGINX_HTTPS_PORT"; do
+                              port_owner=$(docker ps \
+                                --filter "publish=$published_port" \
+                                --format '{{.Names}}' \
+                                | grep -vx "$NGINX_CONTAINER" \
+                                | head -n 1 || true)
+                              if [ -n "$port_owner" ]; then
+                                echo "Nginx port $published_port is already published by $port_owner." >&2
+                                exit 1
                               fi
                             done
 
-                            if [ "$target_is_active" != true ]; then
-                              echo "$NGINX_SITE_FILE is not active in Nginx." >&2
+                            canary_port_owner=$(docker ps \
+                              --filter "publish=$CANARY_HOST_PORT" \
+                              --format '{{.Names}}' \
+                              | head -n 1)
+                            if [ -n "$canary_port_owner" ] \
+                              && [ "$canary_port_owner" != "$CANARY_CONTAINER" ]; then
+                              echo "Port $CANARY_HOST_PORT is already published by $canary_port_owner." >&2
                               exit 1
                             fi
 
-                            if command -v ss >/dev/null \
-                              && ss -ltn 'sport = :8082' | grep -q LISTEN \
-                              && ! docker ps --format '{{.Names}}' | grep -qx 'wecandoit-backend-canary'; then
-                              echo "Port 8082 is already used by a process other than the Canary container." >&2
-                              exit 1
-                            fi
-
-                            is_running_on_8080() {
+                            is_running_stable() {
                               container_name="$1"
                               [ "$(docker inspect --format '{{.State.Running}}' \
                                 "$container_name" 2>/dev/null)" = "true" ] \
-                                && docker port "$container_name" 8080/tcp \
-                                  | grep -qx '127.0.0.1:8080'
+                                && docker port "$container_name" "$BACKEND_SERVICE_PORT/tcp" \
+                                  | grep -qx "$STABLE_BIND_ADDRESS:$STABLE_HOST_PORT"
                             }
 
+                            current_container=""
                             current_image_id=""
-                            if is_running_on_8080 wecandoit-backend-stable; then
+                            if is_running_stable "$STABLE_CONTAINER"; then
+                              current_container="$STABLE_CONTAINER"
                               current_image_id=$(docker inspect \
-                                --format '{{.Image}}' wecandoit-backend-stable)
-                            elif is_running_on_8080 wecandoit-backend-prod; then
+                                --format '{{.Image}}' "$STABLE_CONTAINER")
+                            elif is_running_stable "$LEGACY_STABLE_CONTAINER"; then
+                              current_container="$LEGACY_STABLE_CONTAINER"
                               current_image_id=$(docker inspect \
-                                --format '{{.Image}}' wecandoit-backend-prod)
+                                --format '{{.Image}}' "$LEGACY_STABLE_CONTAINER")
                             else
-                              echo "A running production container mapped to 127.0.0.1:8080 is required." >&2
+                              echo "A running production container mapped to $STABLE_BIND_ADDRESS:$STABLE_HOST_PORT is required." >&2
                               exit 1
                             fi
 
-                            bash infra/deploy/check-backend-health.sh "$STABLE_HEALTH_URL" 5 2 >&2
+                            HEALTH_CHECK_CONTAINER="$current_container" \
+                              bash infra/deploy/check-backend-health.sh \
+                                "$STABLE_HEALTH_URL" 5 2 >&2
 
                             revision=$(docker image inspect \
                               --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
@@ -179,9 +200,30 @@ pipeline {
                             ''',
                             returnStdout: true
                         ).trim()
+
+                        env.NGINX_ROLLBACK_IMAGE = sh(
+                            script: '''
+                            set -eu
+
+                            if [ "$(docker inspect --format '{{.State.Running}}' \
+                              "$NGINX_CONTAINER" 2>/dev/null)" = 'true' ]; then
+                              current_nginx_image_id=$(docker inspect \
+                                --format '{{.Image}}' "$NGINX_CONTAINER")
+                              rollback_nginx_image="$NGINX_IMAGE_REPOSITORY:rollback"
+                              docker image tag "$current_nginx_image_id" "$rollback_nginx_image"
+                              printf '%s' "$rollback_nginx_image"
+                            fi
+                            ''',
+                            returnStdout: true
+                        ).trim()
                     }
 
                     echo "Current production image preserved as ${env.ROLLBACK_IMAGE} and ${env.IMAGE_REPOSITORY}:stable"
+                    if (env.NGINX_ROLLBACK_IMAGE) {
+                        echo "Current Nginx image preserved as ${env.NGINX_ROLLBACK_IMAGE}"
+                    } else {
+                        echo 'No running Docker Nginx image exists to preserve.'
+                    }
                 }
             }
         }
@@ -193,14 +235,38 @@ pipeline {
                     set -eu
                     chmod +x gradlew
                     ./gradlew clean test bootJar
-                    bash infra/deploy/test/check-backend-health-test.sh
-                    bash infra/deploy/test/check-canary-monitoring-test.sh
-                    bash infra/nginx/test/deploy-backend-routing-test.sh
                     docker build \
                       --build-arg GIT_COMMIT="$GIT_SHA" \
                       --tag "$IMAGE_REPOSITORY:$GIT_SHA" \
                       --tag "$IMAGE_REPOSITORY:canary" \
                       .
+                    docker build \
+                      --tag "$NGINX_CANDIDATE_IMAGE" \
+                      infra/nginx
+                    bash infra/deploy/validate-nginx-image.sh "$NGINX_CANDIDATE_IMAGE"
+
+                    expected_http_mapping="$NGINX_BIND_ADDRESS:$NGINX_HTTP_PORT"
+                    expected_https_mapping="$NGINX_BIND_ADDRESS:$NGINX_HTTPS_PORT"
+                    if [ "$(docker inspect --format '{{.State.Running}}' \
+                      "$NGINX_CONTAINER" 2>/dev/null)" != 'true' ] \
+                      || ! docker port "$NGINX_CONTAINER" 80/tcp 2>/dev/null \
+                        | grep -qx "$expected_http_mapping" \
+                      || ! docker port "$NGINX_CONTAINER" 443/tcp 2>/dev/null \
+                        | grep -qx "$expected_https_mapping"; then
+                      port_probe="wecandoit-nginx-port-check-$GIT_SHA"
+                      docker rm -f "$port_probe" >/dev/null 2>&1 || true
+                      trap 'docker rm -f "$port_probe" >/dev/null 2>&1 || true' EXIT
+                      docker run --detach \
+                        --name "$port_probe" \
+                        --publish "$NGINX_BIND_ADDRESS:$NGINX_HTTP_PORT:80" \
+                        --publish "$NGINX_BIND_ADDRESS:$NGINX_HTTPS_PORT:443" \
+                        --entrypoint /bin/sh \
+                        "$NGINX_CANDIDATE_IMAGE" -c 'sleep 30' >/dev/null
+                      [ "$(docker inspect --format '{{.State.Running}}' \
+                        "$port_probe")" = 'true' ]
+                      docker rm -f "$port_probe" >/dev/null
+                      trap - EXIT
+                    fi
                     '''
                 }
             }
@@ -218,23 +284,67 @@ pipeline {
                         set -eu
                         STABLE_IMAGE="$ROLLBACK_IMAGE" \
                         CANARY_IMAGE="$IMAGE_REPOSITORY:$GIT_SHA" \
+                        NGINX_IMAGE="$NGINX_CANDIDATE_IMAGE" \
+                        NGINX_BIND_ADDRESS="$NGINX_BIND_ADDRESS" \
+                        NGINX_HTTP_PORT="$NGINX_HTTP_PORT" \
+                        NGINX_HTTPS_PORT="$NGINX_HTTPS_PORT" \
                           docker compose -f "$COMPOSE_FILE" config --quiet
 
                         docker compose -f "$COMPOSE_FILE" up -d mysql redis
 
-                        if docker inspect wecandoit-backend-prod >/dev/null 2>&1; then
-                          docker stop wecandoit-backend-prod
-                          docker rm wecandoit-backend-prod
+                        if docker inspect "$LEGACY_STABLE_CONTAINER" >/dev/null 2>&1; then
+                          docker stop "$LEGACY_STABLE_CONTAINER"
+                          docker rm "$LEGACY_STABLE_CONTAINER"
                         fi
 
                         STABLE_IMAGE="$ROLLBACK_IMAGE" \
                           docker compose -f "$COMPOSE_FILE" up -d --no-deps backend-stable
-                        bash infra/deploy/check-backend-health.sh "$STABLE_HEALTH_URL"
+                        HEALTH_CHECK_CONTAINER="$STABLE_CONTAINER" \
+                          bash infra/deploy/check-backend-health.sh "$STABLE_HEALTH_URL"
                         '''
                     }
                 }
                 script {
                     env.DEPLOYMENT_PHASE = 'stable-ready'
+                }
+            }
+        }
+
+        stage('Start Nginx') {
+            steps {
+                dir('backend') {
+                    withCredentials([
+                        string(credentialsId: 'prod-db-password', variable: 'DB_PASSWORD'),
+                        string(credentialsId: 'prod-db-root-password', variable: 'DB_ROOT_PASSWORD'),
+                        string(credentialsId: 'prod-jwt-secret', variable: 'JWT_SECRET')
+                    ]) {
+                        sh '''
+                        set -eu
+                        NGINX_IMAGE="$NGINX_CANDIDATE_IMAGE" \
+                        NGINX_BIND_ADDRESS="$NGINX_BIND_ADDRESS" \
+                        NGINX_HTTP_PORT="$NGINX_HTTP_PORT" \
+                        NGINX_HTTPS_PORT="$NGINX_HTTPS_PORT" \
+                          docker compose -f "$COMPOSE_FILE" up -d --no-deps nginx
+
+                        running_nginx_image_id=$(docker inspect \
+                          --format '{{.Image}}' "$NGINX_CONTAINER")
+                        candidate_nginx_image_id=$(docker image inspect \
+                          --format '{{.Id}}' "$NGINX_CANDIDATE_IMAGE")
+                        if [ "$running_nginx_image_id" != "$candidate_nginx_image_id" ]; then
+                          echo "Running Nginx does not use the validated candidate image." >&2
+                          exit 1
+                        fi
+
+                        docker port "$NGINX_CONTAINER" 80/tcp \
+                          | grep -qx "$NGINX_BIND_ADDRESS:$NGINX_HTTP_PORT"
+                        docker port "$NGINX_CONTAINER" 443/tcp \
+                          | grep -qx "$NGINX_BIND_ADDRESS:$NGINX_HTTPS_PORT"
+                        docker exec "$NGINX_CONTAINER" nginx -t
+                        bash infra/deploy/apply-backend-route.sh stable-only
+                        docker image tag "$NGINX_CANDIDATE_IMAGE" \
+                          "$NGINX_IMAGE_REPOSITORY:latest"
+                        '''
+                    }
                 }
             }
         }
@@ -252,7 +362,8 @@ pipeline {
                         CANARY_IMAGE="$IMAGE_REPOSITORY:$GIT_SHA" \
                           docker compose -f "$COMPOSE_FILE" up -d --no-deps --force-recreate backend-canary
 
-                        if ! bash infra/deploy/check-backend-health.sh "$CANARY_HEALTH_URL"; then
+                        if ! HEALTH_CHECK_CONTAINER="$CANARY_CONTAINER" \
+                          bash infra/deploy/check-backend-health.sh "$CANARY_HEALTH_URL"; then
                           docker compose -f "$COMPOSE_FILE" stop backend-canary
                           docker compose -f "$COMPOSE_FILE" rm -f backend-canary
                           exit 1
@@ -266,43 +377,62 @@ pipeline {
             }
         }
 
+        stage('Complete Temporary Validation') {
+            when {
+                expression { params.DEPLOYMENT_MODE == 'validation' }
+            }
+            steps {
+                dir('backend') {
+                    withCredentials([
+                        string(credentialsId: 'prod-db-password', variable: 'DB_PASSWORD'),
+                        string(credentialsId: 'prod-db-root-password', variable: 'DB_ROOT_PASSWORD'),
+                        string(credentialsId: 'prod-jwt-secret', variable: 'JWT_SECRET')
+                    ]) {
+                        sh '''
+                        set -eu
+                        bash infra/deploy/apply-backend-route.sh stable-only
+                        docker compose -f "$COMPOSE_FILE" stop backend-canary
+                        docker compose -f "$COMPOSE_FILE" rm -f backend-canary
+                        '''
+                    }
+                }
+                script {
+                    env.DEPLOYMENT_PHASE = 'completed'
+                }
+            }
+        }
+
         stage('Prepare Stable Routing and Rollback') {
+            when {
+                expression { params.DEPLOYMENT_MODE == 'production' }
+            }
             steps {
                 dir('backend') {
                     sh '''
                     set -eu
-                    NGINX_SITE_FILE="$NGINX_SITE_FILE" \
-                      bash infra/nginx/deploy-backend-routing.sh stable-only
-                    bash infra/deploy/check-backend-health.sh "$SERVICE_HEALTH_URL" 10 2
+                    bash infra/deploy/apply-backend-route.sh \
+                      stable-only "$SERVICE_SMOKE_URL"
                     '''
                 }
             }
         }
 
         stage('Route Canary 10%') {
+            when {
+                expression { params.DEPLOYMENT_MODE == 'production' }
+            }
             steps {
                 script {
                     env.CANARY_MONITOR_STARTED_AT = sh(
                         script: 'date -u +%Y-%m-%dT%H:%M:%SZ',
                         returnStdout: true
                     ).trim()
-                    env.CANARY_LOG_START_LINE = sh(
-                        script: '''
-                        if sudo /usr/bin/test -f "$NGINX_BACKEND_ACCESS_LOG"; then
-                          sudo /usr/bin/wc -l "$NGINX_BACKEND_ACCESS_LOG" | awk '{print $1}'
-                        else
-                          echo 0
-                        fi
-                        ''',
-                        returnStdout: true
-                    ).trim()
                 }
                 dir('backend') {
                     sh '''
                     set -eu
-                    NGINX_SITE_FILE="$NGINX_SITE_FILE" \
-                      bash infra/nginx/deploy-backend-routing.sh canary-10
-                    bash infra/deploy/check-backend-health.sh "$SERVICE_HEALTH_URL" 10 2
+                    bash infra/deploy/apply-backend-route.sh \
+                      canary-10 "$SERVICE_SMOKE_URL"
                     '''
                 }
                 script {
@@ -312,6 +442,9 @@ pipeline {
         }
 
         stage('Check Canary Monitoring') {
+            when {
+                expression { params.DEPLOYMENT_MODE == 'production' }
+            }
             steps {
                 dir('backend') {
                     sh '''
@@ -320,16 +453,29 @@ pipeline {
                     trap 'rm -f "$monitoring_log"' EXIT
                     sleep "$CANARY_OBSERVATION_SECONDS"
 
-                    if ! sudo /usr/bin/test -f "$NGINX_BACKEND_ACCESS_LOG"; then
-                      echo "Nginx backend access log does not exist: $NGINX_BACKEND_ACCESS_LOG" >&2
+                    if [ "$(docker inspect --format '{{.State.Running}}' \
+                      "$CANARY_CONTAINER" 2>/dev/null)" != "true" ]; then
+                      echo "Canary container is not running." >&2
                       exit 1
                     fi
 
-                    first_line=$((CANARY_LOG_START_LINE + 1))
-                    sudo /usr/bin/tail -n +"$first_line" \
-                      "$NGINX_BACKEND_ACCESS_LOG" > "$monitoring_log"
+                    HEALTH_CHECK_CONTAINER="$CANARY_CONTAINER" \
+                      bash infra/deploy/check-backend-health.sh \
+                        "$CANARY_HEALTH_URL" 5 2
+
+                    docker logs --since "$CANARY_MONITOR_STARTED_AT" \
+                      "$NGINX_CONTAINER" > "$monitoring_log" 2>&1
+
+                    canary_ip=$(docker inspect --format \
+                      "{{with index .NetworkSettings.Networks \"$EDGE_NETWORK\"}}{{.IPAddress}}{{end}}" \
+                      "$CANARY_CONTAINER")
+                    if [ -z "$canary_ip" ]; then
+                      echo "Canary is not connected to the $EDGE_NETWORK network." >&2
+                      exit 1
+                    fi
+
                     bash infra/deploy/check-canary-monitoring.sh \
-                      127.0.0.1:8082 \
+                      "$canary_ip:$BACKEND_SERVICE_PORT" \
                       "$CANARY_MIN_REQUESTS" \
                       "$CANARY_MAX_5XX_RATE" \
                       "$CANARY_MAX_AVG_RESPONSE_TIME" \
@@ -337,7 +483,7 @@ pipeline {
 
                     container_logs=$(docker logs \
                       --since "$CANARY_MONITOR_STARTED_AT" \
-                      wecandoit-backend-canary 2>&1)
+                      "$CANARY_CONTAINER" 2>&1)
 
                     if printf '%s\n' "$container_logs" | grep -E 'ERROR|Exception'; then
                       echo "Canary container error logs were detected." >&2
@@ -351,6 +497,9 @@ pipeline {
         }
 
         stage('Approve Canary 100%') {
+            when {
+                expression { params.DEPLOYMENT_MODE == 'production' }
+            }
             options {
                 timeout(time: 30, unit: 'MINUTES')
             }
@@ -363,13 +512,15 @@ pipeline {
         }
 
         stage('Route Canary 100%') {
+            when {
+                expression { params.DEPLOYMENT_MODE == 'production' }
+            }
             steps {
                 dir('backend') {
                     sh '''
                     set -eu
-                    NGINX_SITE_FILE="$NGINX_SITE_FILE" \
-                      bash infra/nginx/deploy-backend-routing.sh canary-only
-                    bash infra/deploy/check-backend-health.sh "$SERVICE_HEALTH_URL" 10 2
+                    bash infra/deploy/apply-backend-route.sh \
+                      canary-only "$SERVICE_SMOKE_URL"
                     '''
                 }
                 script {
@@ -379,6 +530,9 @@ pipeline {
         }
 
         stage('Approve Stable Promotion') {
+            when {
+                expression { params.DEPLOYMENT_MODE == 'production' }
+            }
             options {
                 timeout(time: 30, unit: 'MINUTES')
             }
@@ -391,6 +545,9 @@ pipeline {
         }
 
         stage('Promote Stable') {
+            when {
+                expression { params.DEPLOYMENT_MODE == 'production' }
+            }
             steps {
                 script {
                     env.DEPLOYMENT_PHASE = 'stable-promoting'
@@ -407,11 +564,11 @@ pipeline {
                         STABLE_IMAGE="$IMAGE_REPOSITORY:stable" \
                           docker compose -f "$COMPOSE_FILE" up \
                             -d --no-deps --force-recreate backend-stable
-                        bash infra/deploy/check-backend-health.sh "$STABLE_HEALTH_URL"
+                        HEALTH_CHECK_CONTAINER="$STABLE_CONTAINER" \
+                          bash infra/deploy/check-backend-health.sh "$STABLE_HEALTH_URL"
 
-                        NGINX_SITE_FILE="$NGINX_SITE_FILE" \
-                          bash infra/nginx/deploy-backend-routing.sh stable-only
-                        bash infra/deploy/check-backend-health.sh "$SERVICE_HEALTH_URL" 10 2
+                        bash infra/deploy/apply-backend-route.sh \
+                          stable-only "$SERVICE_SMOKE_URL"
                         '''
                     }
                 }
@@ -440,7 +597,13 @@ pipeline {
 
     post {
         success {
-            echo "Production Canary CD completed successfully. Stable image: ${env.IMAGE_REPOSITORY}:${env.GIT_SHA}"
+            script {
+                if (params.DEPLOYMENT_MODE == 'production') {
+                    echo "Production Canary CD completed successfully. Stable image: ${env.IMAGE_REPOSITORY}:${env.GIT_SHA}"
+                } else {
+                    echo "Temporary Docker Nginx and Canary validation completed successfully. Candidate image: ${env.IMAGE_REPOSITORY}:${env.GIT_SHA}"
+                }
+            }
         }
         unsuccessful {
             dir('backend') {
@@ -453,24 +616,66 @@ pipeline {
                     set +e
 
                     if [ -n "${ROLLBACK_IMAGE:-}" ]; then
-                      is_running_on_8080() {
+                      is_running_stable() {
                         container_name="$1"
                         [ "$(docker inspect --format '{{.State.Running}}' \
                           "$container_name" 2>/dev/null)" = "true" ] \
-                          && docker port "$container_name" 8080/tcp \
-                            | grep -qx '127.0.0.1:8080'
+                          && docker port "$container_name" "$BACKEND_SERVICE_PORT/tcp" \
+                            | grep -qx "$STABLE_BIND_ADDRESS:$STABLE_HOST_PORT"
+                      }
+
+                      is_nginx_running() {
+                        [ "$(docker inspect --format '{{.State.Running}}' \
+                          "$NGINX_CONTAINER" 2>/dev/null)" = 'true' ]
+                      }
+
+                      restore_nginx_image() {
+                        if [ -z "${NGINX_ROLLBACK_IMAGE:-}" ]; then
+                          echo "No previous Docker Nginx image is available." >&2
+                          return 1
+                        fi
+
+                        echo "Restoring Nginx from $NGINX_ROLLBACK_IMAGE."
+                        NGINX_IMAGE="$NGINX_ROLLBACK_IMAGE" \
+                        NGINX_BIND_ADDRESS="$NGINX_BIND_ADDRESS" \
+                        NGINX_HTTP_PORT="$NGINX_HTTP_PORT" \
+                        NGINX_HTTPS_PORT="$NGINX_HTTPS_PORT" \
+                          docker compose -f "$COMPOSE_FILE" up \
+                            -d --no-deps --force-recreate nginx || return 1
+
+                        rollback_nginx_image_id=$(docker image inspect \
+                          --format '{{.Id}}' "$NGINX_ROLLBACK_IMAGE" 2>/dev/null)
+                        running_nginx_image_id=$(docker inspect \
+                          --format '{{.Image}}' "$NGINX_CONTAINER" 2>/dev/null)
+
+                        is_nginx_running \
+                          && [ "$running_nginx_image_id" = "$rollback_nginx_image_id" ] \
+                          && docker exec "$NGINX_CONTAINER" nginx -t
+                      }
+
+                      route_stable_with_nginx() {
+                        if is_nginx_running \
+                          && bash infra/deploy/apply-backend-route.sh stable-only; then
+                          return 0
+                        fi
+
+                        echo "Current Nginx could not restore Stable routing. Trying the preserved image." >&2
+                        restore_nginx_image \
+                          && bash infra/deploy/apply-backend-route.sh stable-only
                       }
 
                       rollback_image_id=$(docker image inspect \
                         --format '{{.Id}}' "$ROLLBACK_IMAGE" 2>/dev/null)
                       stable_ready=false
 
-                      for container_name in wecandoit-backend-stable wecandoit-backend-prod; do
-                        if is_running_on_8080 "$container_name"; then
+                      for container_name in "$STABLE_CONTAINER" "$LEGACY_STABLE_CONTAINER"; do
+                        if is_running_stable "$container_name"; then
                           running_image_id=$(docker inspect \
                             --format '{{.Image}}' "$container_name")
                           if [ "$running_image_id" = "$rollback_image_id" ] \
-                            && bash infra/deploy/check-backend-health.sh "$STABLE_HEALTH_URL" 5 2; then
+                            && HEALTH_CHECK_CONTAINER="$container_name" \
+                              bash infra/deploy/check-backend-health.sh \
+                                "$STABLE_HEALTH_URL" 5 2; then
                             stable_ready=true
                             echo "Stable already uses the healthy rollback image. Skipping container recreation."
                             break
@@ -481,8 +686,10 @@ pipeline {
                       if [ "$stable_ready" != true ]; then
                         case "${DEPLOYMENT_PHASE:-preflight}" in
                           stable-promoted|completed)
-                            if is_running_on_8080 wecandoit-backend-stable \
-                              && bash infra/deploy/check-backend-health.sh "$STABLE_HEALTH_URL" 5 2; then
+                            if is_running_stable "$STABLE_CONTAINER" \
+                              && HEALTH_CHECK_CONTAINER="$STABLE_CONTAINER" \
+                                bash infra/deploy/check-backend-health.sh \
+                                  "$STABLE_HEALTH_URL" 5 2; then
                               echo "Promoted Stable is healthy. Skipping rollback image restore."
                               stable_ready=true
                             fi
@@ -497,17 +704,18 @@ pipeline {
                             -d --no-deps --force-recreate backend-stable
 
                         restored_image_id=$(docker inspect \
-                          --format '{{.Image}}' wecandoit-backend-stable 2>/dev/null)
-                        if is_running_on_8080 wecandoit-backend-stable \
+                          --format '{{.Image}}' "$STABLE_CONTAINER" 2>/dev/null)
+                        if is_running_stable "$STABLE_CONTAINER" \
                           && [ "$restored_image_id" = "$rollback_image_id" ] \
-                          && bash infra/deploy/check-backend-health.sh "$STABLE_HEALTH_URL" 15 2; then
+                          && HEALTH_CHECK_CONTAINER="$STABLE_CONTAINER" \
+                            bash infra/deploy/check-backend-health.sh \
+                              "$STABLE_HEALTH_URL" 15 2; then
                           stable_ready=true
                         fi
                       fi
 
                       if [ "$stable_ready" = true ]; then
-                        if NGINX_SITE_FILE="$NGINX_SITE_FILE" \
-                          bash infra/nginx/deploy-backend-routing.sh stable-only; then
+                        if route_stable_with_nginx; then
                           docker compose -f "$COMPOSE_FILE" stop backend-canary
                           docker compose -f "$COMPOSE_FILE" rm -f backend-canary
                         else
