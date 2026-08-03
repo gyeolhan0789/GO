@@ -10,9 +10,14 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
+import { GenderSelector } from '../../features/auth/components/GenderSelector';
+import { RegionDropdown } from '../../features/auth/components/RegionDropdown';
+import type { Gender } from '../../features/auth/constants/genders';
+import type { Region } from '../../features/auth/constants/regions';
 import { useLogoutMutation } from '../../features/auth/hooks/useLogoutMutation';
 import { CharacterPreview } from '../../features/member/components/CharacterPreview';
 import { useMyCharacterQuery } from '../../features/member/hooks/useMyCharacterQuery';
+import { useMyPageQuery } from '../../features/member/hooks/useMyPageQuery';
 import { useUpdateProfileMutation } from '../../features/member/hooks/useUpdateProfileMutation';
 import {
   selectLayerItems,
@@ -27,7 +32,11 @@ import { Screen } from '../../shared/components/Screen/Screen';
 import { Toast } from '../../shared/components/Toast/Toast';
 import { colors } from '../../shared/constants/colors';
 import { spacing } from '../../shared/constants/spacing';
-import { textStyles } from '../../shared/constants/typography';
+import {
+  fontFamily,
+  lineHeights,
+  textStyles,
+} from '../../shared/constants/typography';
 import { ChangeCharacterButton } from './components/ChangeCharacterButton';
 import { FriendRequestsMenuRow } from './components/FriendRequestsMenuRow';
 import { NicknameField } from './components/NicknameField';
@@ -39,7 +48,7 @@ type MyPageScreenProps = NativeStackScreenProps<RootStackParamList, 'MyPage'>;
 const NICKNAME_MIN_LENGTH = 2;
 const NICKNAME_MAX_LENGTH = 10;
 const NICKNAME_LENGTH_MESSAGE = `닉네임은 ${NICKNAME_MIN_LENGTH}자 이상 ${NICKNAME_MAX_LENGTH}자 이하로 입력해 주세요.`;
-const NICKNAME_SAVED_MESSAGE = '닉네임을 변경했어요';
+const PROFILE_SAVED_MESSAGE = '프로필을 저장했어요';
 
 // 어느 쪽이든 로그아웃은 끝났으므로 그 사실을 먼저 알린다.
 const LOGOUT_ALERT_TITLE = '로그아웃했어요';
@@ -51,12 +60,15 @@ const SCREEN_EDGES = ['bottom'] as const;
 
 export function MyPageScreen({ navigation }: MyPageScreenProps) {
   const character = useMyCharacterQuery();
+  const myPage = useMyPageQuery();
   const updateProfile = useUpdateProfileMutation();
   const logout = useLogoutMutation();
   const isLoggingOut = useRef(false);
   // null이면 아직 손대지 않았다는 뜻이라 서버 값을 그대로 보여준다. 이렇게 두면
   // 조회가 늦게 끝나도 입력값을 effect로 덮어쓰지 않는다.
   const [draftNickname, setDraftNickname] = useState<string | null>(null);
+  const [draftGender, setDraftGender] = useState<Gender | null>(null);
+  const [draftRegion, setDraftRegion] = useState<Region | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const savedNickname = character.data?.nickname ?? '';
@@ -67,19 +79,39 @@ export function MyPageScreen({ navigation }: MyPageScreenProps) {
     trimmedNickname.length >= NICKNAME_MIN_LENGTH &&
     trimmedNickname.length <= NICKNAME_MAX_LENGTH;
 
+  const savedGender = myPage.data?.gender ?? null;
+  const gender = draftGender ?? savedGender;
+  const isGenderChanged = gender !== null && gender !== savedGender;
+
+  const savedRegion = myPage.data?.region ?? null;
+  const region = draftRegion ?? savedRegion;
+  const isRegionChanged = region !== null && region !== savedRegion;
+
+  const isProfileChanged =
+    isNicknameChanged || isGenderChanged || isRegionChanged;
+
   const equippedItems = selectLayerItems(
     toEquippedByCategory(character.data?.equippedItems ?? []),
   );
 
   const hideToast = useCallback(() => setToastMessage(null), []);
 
-  function saveNickname() {
-    updateProfile.mutate(trimmedNickname, {
-      onSuccess: () => {
-        setDraftNickname(null);
-        setToastMessage(NICKNAME_SAVED_MESSAGE);
+  function saveProfile() {
+    updateProfile.mutate(
+      {
+        nickname: isNicknameChanged ? trimmedNickname : undefined,
+        gender: isGenderChanged ? gender ?? undefined : undefined,
+        region: isRegionChanged ? region ?? undefined : undefined,
       },
-    });
+      {
+        onSuccess: () => {
+          setDraftNickname(null);
+          setDraftGender(null);
+          setDraftRegion(null);
+          setToastMessage(PROFILE_SAVED_MESSAGE);
+        },
+      },
+    );
   }
 
   // 세션을 정리하면 이 화면이 로그인 화면으로 교체되므로 화면 안 문구로는 알릴 수
@@ -150,13 +182,40 @@ export function MyPageScreen({ navigation }: MyPageScreenProps) {
               error={nicknameError}
             />
             <AppText style={styles.hint}>{NICKNAME_LENGTH_MESSAGE}</AppText>
+
+            <AppText style={styles.fieldLabel}>성별</AppText>
+            <GenderSelector
+              selected={gender}
+              onSelect={value => {
+                setDraftGender(value);
+                updateProfile.reset();
+              }}
+            />
+
+            <AppText style={styles.fieldLabel}>지역</AppText>
+            <RegionDropdown
+              selected={region}
+              onSelect={value => {
+                setDraftRegion(value);
+                updateProfile.reset();
+              }}
+            />
+
+            {myPage.isError ? (
+              <AppText
+                style={styles.errorText}
+                accessibilityLiveRegion="polite"
+              >
+                {resolveApiErrorMessage(myPage.error)}
+              </AppText>
+            ) : null}
           </View>
 
           <Button
             label={updateProfile.isPending ? '저장 중...' : '저장하기'}
-            onPress={saveNickname}
+            onPress={saveProfile}
             disabled={
-              !isNicknameChanged || !isNicknameValid || updateProfile.isPending
+              !isProfileChanged || !isNicknameValid || updateProfile.isPending
             }
           />
 
@@ -205,6 +264,12 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...textStyles.heading2,
+    color: colors.ink,
+  },
+  fieldLabel: {
+    fontFamily: fontFamily.bold,
+    fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
   },
   hint: {

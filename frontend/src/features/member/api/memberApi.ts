@@ -73,6 +73,7 @@ export function saveEquippedItems(memberItemIds: number[]) {
 export type ProfileUpdateRequest = {
   nickname?: string;
   region?: Region;
+  gender?: Gender;
 };
 
 /**
