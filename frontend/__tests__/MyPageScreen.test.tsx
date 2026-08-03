@@ -44,11 +44,16 @@ const CHARACTER = {
 };
 
 const CUSTOMIZE_MARKER = '꾸미기 화면';
+const SENT_REQUESTS_MARKER = '친구 추가 내역 화면';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function CharacterCustomizeStub() {
   return <Text>{CUSTOMIZE_MARKER}</Text>;
+}
+
+function SentFriendRequestsStub() {
+  return <Text>{SENT_REQUESTS_MARKER}</Text>;
 }
 
 let renderer: ReactTestRenderer.ReactTestRenderer | null = null;
@@ -148,6 +153,10 @@ async function renderScreen() {
                   name="CharacterCustomize"
                   component={CharacterCustomizeStub}
                 />
+                <Stack.Screen
+                  name="SentFriendRequests"
+                  component={SentFriendRequestsStub}
+                />
               </Stack.Navigator>
             </NavigationContainer>
           </SafeAreaProvider>
@@ -210,5 +219,15 @@ describe('MyPageScreen', () => {
     });
 
     expect(collectTexts(tree.root)).toContain(CUSTOMIZE_MARKER);
+  });
+
+  test('친구 추가 내역을 누르면 보낸 요청 화면으로 이동한다', async () => {
+    const tree = await renderScreen();
+
+    await act(async () => {
+      findByAccessibilityLabel(tree.root, '친구 추가 내역').props.onPress();
+    });
+
+    expect(collectTexts(tree.root)).toContain(SENT_REQUESTS_MARKER);
   });
 });

@@ -103,3 +103,31 @@ export function acceptFriendRequest(requestId: number) {
 export function rejectFriendRequest(requestId: number) {
   return apiClient.patch<void>(`/friend-requests/${requestId}/reject`);
 }
+
+export type SentFriendRequest = {
+  requestId: number;
+  inviteeId: number;
+  inviteeNickname: string;
+  createdAt: string;
+};
+
+/**
+ * 내가 보낸 친구 요청. 상대가 아직 수락·거절하지 않은 것만 내려오므로,
+ * 여기 남아 있는 항목은 모두 취소할 수 있는 상태다.
+ */
+export function getSentRequests({
+  page = 0,
+  size = 20,
+}: GetFriendsParams = {}) {
+  return apiClient.get<SliceResponse<SentFriendRequest>>(
+    `/friend-requests/sent?page=${page}&size=${size}`,
+  );
+}
+
+/**
+ * 내가 보낸 요청을 거둬들인다. 그사이 상대가 응답했으면 409(이미 처리된
+ * 친구 요청입니다)가 오므로, 실패하면 목록을 다시 읽어야 한다.
+ */
+export function cancelFriendRequest(requestId: number) {
+  return apiClient.delete<void>(`/friend-requests/${requestId}`);
+}
