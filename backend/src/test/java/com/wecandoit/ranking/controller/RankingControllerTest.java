@@ -27,7 +27,6 @@ import com.wecandoit.member.domain.Region;
 import com.wecandoit.ranking.controller.response.FriendRankingResponse;
 import com.wecandoit.ranking.controller.response.RankingItemResponse;
 import com.wecandoit.ranking.controller.response.RankingResponse;
-import com.wecandoit.ranking.service.FriendRankingReadService;
 import com.wecandoit.ranking.service.RankingReadService;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -52,14 +51,12 @@ class RankingControllerTest {
 
     @Mock
     private RankingReadService rankingReadService;
-    @Mock
-    private FriendRankingReadService friendRankingReadService;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
         mockMvc = MockMvcBuilders.standaloneSetup(
-                        new RankingController(rankingReadService, friendRankingReadService)
+                        new RankingController(rankingReadService)
                 )
                 .setControllerAdvice(new CustomExceptionHandler())
                 .setCustomArgumentResolvers(
@@ -186,7 +183,7 @@ class RankingControllerTest {
     void getFriendRankingsReturnsPagedFriendRankings() throws Exception {
         // given
         PageRequest pageable = PageRequest.of(0, 20);
-        given(friendRankingReadService.getFriendRankings(1L, pageable))
+        given(rankingReadService.getFriendRankings(1L, pageable))
                 .willReturn(new FriendRankingResponse(
                         2,
                         12_500,
@@ -255,7 +252,7 @@ class RankingControllerTest {
                                 fieldWithPath("rankings.hasNext").description("다음 페이지 존재 여부")
                         )
                 ));
-        then(friendRankingReadService).should().getFriendRankings(1L, pageable);
+        then(rankingReadService).should().getFriendRankings(1L, pageable);
     }
 
     @Test
