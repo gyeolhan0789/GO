@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import type { IoniconsIconName } from '@react-native-vector-icons/ionicons';
 
@@ -10,15 +10,17 @@ import {
   formatDistance,
   formatThousands,
 } from '../../../features/history/model/format';
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { BottomSheet } from '../../../shared/components/BottomSheet/BottomSheet';
 import { colors } from '../../../shared/constants/colors';
 import { spacing } from '../../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
 
 type SegmentDetailSheetProps = {
   /** null이면 시트를 닫는다. */
   segment: ChartSegment | null;
   onClose: () => void;
-  onSelectWalk: (walkId: number) => void;
+  onSelectWalk: (gameId: number) => void;
 };
 
 type SegmentStat = {
@@ -100,34 +102,34 @@ export function SegmentDetailSheet({
                   color={colors.primarySoft}
                 />
                 <View style={styles.valueRow}>
-                  <Text style={styles.value} numberOfLines={1}>
+                  <AppText style={styles.value} numberOfLines={1}>
                     {stat.value}
-                  </Text>
+                  </AppText>
                   {stat.unit ? (
-                    <Text style={styles.unit}>{stat.unit}</Text>
+                    <AppText style={styles.unit}>{stat.unit}</AppText>
                   ) : null}
                 </View>
-                <Text style={styles.statLabel}>{stat.label}</Text>
+                <AppText style={styles.statLabel}>{stat.label}</AppText>
               </View>
             ))}
           </View>
 
-          <Text style={styles.sectionTitle}>이 구간의 산책</Text>
+          <AppText style={styles.sectionTitle}>이 구간의 산책</AppText>
 
           {walksQuery.isLoading ? (
-            <Text style={styles.statusText}>{LOADING_TEXT}</Text>
+            <AppText style={styles.statusText}>{LOADING_TEXT}</AppText>
           ) : walks.length === 0 ? (
-            <Text style={styles.statusText}>
+            <AppText style={styles.statusText}>
               이 구간에는 산책 기록이 없어요.
-            </Text>
+            </AppText>
           ) : (
             <FlatList
               data={walks}
-              keyExtractor={walk => String(walk.walkId)}
+              keyExtractor={walk => String(walk.gameId)}
               renderItem={({ item }) => (
                 <WalkCard
                   walk={item}
-                  onPress={() => onSelectWalk(item.walkId)}
+                  onPress={() => onSelectWalk(item.gameId)}
                 />
               )}
               style={styles.walkList}
@@ -156,32 +158,37 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   value: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 18,
+    lineHeight: lineHeights[18],
     color: colors.ink,
   },
   unit: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.regular,
     fontSize: 11,
+    lineHeight: lineHeights[11],
     color: colors.ink,
     opacity: 0.6,
   },
   statLabel: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.regular,
     fontSize: 11,
+    lineHeight: lineHeights[11],
     color: colors.ink,
     opacity: 0.5,
   },
   sectionTitle: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
   statusText: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.regular,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.ink,
     opacity: 0.6,
     textAlign: 'center',

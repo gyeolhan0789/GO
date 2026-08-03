@@ -4,8 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
-import com.wecandoit.cash.domain.CashHistoryType;
-import com.wecandoit.cash.repository.CashHistoryRepository;
+import com.wecandoit.point.domain.PointHistoryType;
+import com.wecandoit.point.repository.PointHistoryRepository;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.Room;
@@ -16,6 +16,7 @@ import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.history.controller.request.HistorySaveRequest;
 import com.wecandoit.history.repository.MemberHistoryRepository;
 import com.wecandoit.history.service.HistoryCommandService;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.notification.service.NotificationCommandService;
@@ -45,7 +46,7 @@ class BingoStepGoalRewardConcurrencyTest {
     @Autowired
     private MemberHistoryRepository memberHistoryRepository;
     @Autowired
-    private CashHistoryRepository cashHistoryRepository;
+    private PointHistoryRepository pointHistoryRepository;
     @Autowired
     private BingoBoardRepository bingoBoardRepository;
     @Autowired
@@ -64,7 +65,7 @@ class BingoStepGoalRewardConcurrencyTest {
 
     @BeforeEach
     void setUp() {
-        cashHistoryRepository.deleteAll();
+        pointHistoryRepository.deleteAll();
         memberHistoryRepository.deleteAll();
         bingoBoardRepository.deleteAll();
         gameRepository.deleteAll();
@@ -75,16 +76,19 @@ class BingoStepGoalRewardConcurrencyTest {
         firstMemberId = memberRepository.save(Member.create(
                 "step-first@example.com",
                 "encoded-password",
-                "step-first"
+                "step-first",
+                null,
+                Gender.MALE
         )).getId();
         secondMemberId = memberRepository.save(Member.create(
                 "step-second@example.com",
                 "encoded-password",
-                "step-second"
+                "step-second",
+                null,
+                Gender.MALE
         )).getId();
 
         Room room = Room.create(firstMemberId, "테스트 방", GameMode.COOPERATE, null, 1_000, 3);
-        room.start();
         Long roomId = roomRepository.saveAndFlush(room).getId();
         roomMemberRepository.saveAndFlush(RoomMember.create(roomId, firstMemberId));
         roomMemberRepository.saveAndFlush(RoomMember.create(roomId, secondMemberId));
@@ -115,13 +119,13 @@ class BingoStepGoalRewardConcurrencyTest {
 
             // then
             assertThat(memberHistoryRepository.count()).isEqualTo(2);
-            assertThat(cashHistoryRepository.findAll())
-                    .filteredOn(history -> history.getType() == CashHistoryType.DAILY_STEP_GOAL_REWARD)
+            assertThat(pointHistoryRepository.findAll())
+                    .filteredOn(history -> history.getType() == PointHistoryType.DAILY_STEP_GOAL_REWARD)
                     .hasSize(2)
                     .extracting(history -> history.getMemberId())
                     .containsExactlyInAnyOrder(firstMemberId, secondMemberId);
-            assertThat(memberRepository.findById(firstMemberId).orElseThrow().getCash()).isEqualTo(100L);
-            assertThat(memberRepository.findById(secondMemberId).orElseThrow().getCash()).isEqualTo(100L);
+            assertThat(memberRepository.findById(firstMemberId).orElseThrow().getPoint()).isEqualTo(100L);
+            assertThat(memberRepository.findById(secondMemberId).orElseThrow().getPoint()).isEqualTo(100L);
         } finally {
             executor.shutdownNow();
         }

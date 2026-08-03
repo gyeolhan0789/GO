@@ -11,13 +11,18 @@
     <!-- 위치 (산책 경로 지도 표시) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <!-- 잠금화면 실시간 통계 상주 알림용 포그라운드 서비스 (서비스 구현은 이후) -->
+    <!-- 잠금화면 실시간 산책 기록 상주 알림용 포그라운드 서비스 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
 
     <!-- 카메라 없는 기기도 설치 허용 -->
     <uses-feature
       android:name="android.hardware.camera"
+      android:required="false" />
+    <!-- 걸음 센서 없는 기기도 설치 허용 -->
+    <uses-feature
+      android:name="android.hardware.sensor.stepcounter"
       android:required="false" />
 
     <application
@@ -29,6 +34,12 @@
       android:theme="@style/AppTheme"
       android:usesCleartextTraffic="${usesCleartextTraffic}"
       android:supportsRtl="true">
+      <!-- TODO: android/local.properties에 MAPS_API_KEY=발급받은키 를 추가해야
+           실제 지도가 뜬다(안 넣으면 회색 화면). 키 발급: Google Cloud Console
+           > APIs & Services > Maps SDK for Android 사용 설정 후 API 키 생성. -->
+      <meta-data
+        android:name="com.google.android.geo.API_KEY"
+        android:value="${MAPS_API_KEY}" />
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"
@@ -41,5 +52,50 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
+      <!-- 카카오 로그인이 카카오톡/브라우저에서 돌아올 때 받는 리다이렉트 창구.
+           스킴의 키는 app/build.gradle이 local.properties의
+           KAKAO_NATIVE_APP_KEY에서 채운다(없으면 빈 값이라 로그인만 실패한다). -->
+      <activity
+        android:name="com.kakao.sdk.auth.AuthCodeHandlerActivity"
+        android:exported="true">
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data
+              android:host="oauth"
+              android:scheme="kakao${KAKAO_NATIVE_APP_KEY}" />
+        </intent-filter>
+      </activity>
+
+      <service
+        android:name=".walktracking.WalkForegroundService"
+        android:exported="false"
+        android:foregroundServiceType="location" />
+      <receiver
+        android:name=".walktracking.WalkActionReceiver"
+        android:exported="false" />
+
+      <!-- 갤럭시 워치가 보낸 산책 시작/종료 명령과 워치 앱 연결 변화를 받는
+           창구. Play 서비스가 앱이 꺼져 있어도 깨워주므로 exported여야 한다
+           (수신은 같은 패키지명·같은 서명의 워치 앱으로 제한된다).
+
+           pathPrefix로 좁히지 않는다. XML에는 상수를 못 써서 WearProtocol의
+           경로를 문자열로 베껴야 하는데, 한쪽만 바뀌면 명령이 통째로 조용히
+           안 오는 실패가 된다. 어차피 PhoneWearListenerService가 경로로
+           분기하고 있고, 같은 패키지명으로 메시지를 보내는 앱은 우리 워치
+           앱뿐이라 걸러낼 것도 없다. -->
+      <service
+        android:name="com.wecandoit.wearbridge.PhoneWearListenerService"
+        android:exported="true">
+        <intent-filter>
+            <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
+            <data android:scheme="wear" android:host="*" />
+        </intent-filter>
+        <intent-filter>
+            <action android:name="com.google.android.gms.wearable.CAPABILITY_CHANGED" />
+            <data android:scheme="wear" android:host="*" />
+        </intent-filter>
+      </service>
     </application>
 </manifest>

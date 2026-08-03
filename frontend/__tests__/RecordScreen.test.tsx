@@ -13,6 +13,9 @@ import { BarChart, ProgressChart } from 'react-native-chart-kit';
 import { WalkCard } from '../src/features/history/components/WalkCard/WalkCard';
 import { RECENT_WALK_LIMIT } from '../src/features/history/hooks/useRecentWalksQuery';
 import { RecordScreen } from '../src/screens/RecordScreen/RecordScreen';
+import { installFetchMock, jsonResponse } from '../jest/fetchMock';
+import type { FetchMock } from '../jest/fetchMock';
+import { buildGameResultSlice } from '../jest/gameResultFixtures';
 
 // jest에는 네이티브 모듈이 없어서 권한 통과 + 기록 있는 기기를 흉내낸다.
 jest.mock('../src/shared/lib/samsungHealth', () => ({
@@ -38,8 +41,54 @@ const { navigateMock } = jest.requireMock('@react-navigation/native') as {
   navigateMock: jest.Mock;
 };
 
+/** 목록에 세울 산책 수. 최근 산책은 첫 페이지만 쓴다. */
+const TOTAL_WALKS = 27;
+
+/** 구간 라벨 기대값이 이 날을 기준으로 적혀 있다. 2026-07-28 (화). */
+const TODAY = new Date(2026, 6, 28);
+
+beforeAll(() => {
+  // 화면은 오늘을 기준으로 구간을 잡아서, 시계를 두면 날이 바뀔 때마다
+  // 기대값이 어긋난다.
+  jest.useFakeTimers({
+    now: TODAY,
+    // Date만 고정한다. setTimeout까지 가짜로 바꾸면 react-query 알림을
+    // 흘려보내는 flushQueries가 영원히 안 끝난다.
+    doNotFake: [
+      'cancelAnimationFrame',
+      'cancelIdleCallback',
+      'clearImmediate',
+      'clearInterval',
+      'clearTimeout',
+      'hrtime',
+      'nextTick',
+      'performance',
+      'queueMicrotask',
+      'requestAnimationFrame',
+      'requestIdleCallback',
+      'setImmediate',
+      'setInterval',
+      'setTimeout',
+    ],
+  });
+});
+
+afterAll(() => {
+  jest.useRealTimers();
+});
+
+let fetchMock: FetchMock;
+
 beforeEach(() => {
   navigateMock.mockClear();
+  fetchMock = installFetchMock();
+  fetchMock.mockImplementation(async url => {
+    if (url.includes('/game-results')) {
+      const size = Number(/size=(\d+)/.exec(url)?.[1]);
+      return jsonResponse(200, buildGameResultSlice(0, size, TOTAL_WALKS));
+    }
+    throw new Error(`예상하지 못한 요청: ${url}`);
+  });
 });
 
 const INITIAL_METRICS = {
@@ -109,6 +158,11 @@ function findByAccessibilityLabel(root: ReactTestInstance, label: string) {
   return root.find(node => node.props.accessibilityLabel === label);
 }
 
+function gameResultRequestCount() {
+  return fetchMock.mock.calls.filter(([url]) => url.includes('/game-results'))
+    .length;
+}
+
 /** 테스트 렌더러는 실제 레이아웃을 내지 않으므로 onLayout을 직접 쏜다. */
 async function measureChartArea(root: ReactTestInstance, width: number) {
   const chartArea = root.find(
@@ -159,8 +213,11 @@ describe('RecordScreen', () => {
     expect(texts).toContain('이번 주 걸음');
     expect(texts).toContain('최근 산책');
     expect(texts).toContain('민서와의 산책');
-    expect(texts).toContain('4,231 걸음 · 12분 31초');
-    expect(texts).toContain('2026.07.20 (월) 20:00');
+    // 걸음·거리·칼로리는 산책방 단위로 남는 데가 없어 게임 지표를 보여준다.
+    expect(texts).toContain('혼자 · 미션 4/9');
+    // 카드는 한 줄만 써서 요일·시각 없이 날짜만 남긴다.
+    expect(texts).toContain('2026.07.20');
+    expect(texts).toContain('성공');
     expect(texts).toContain('전체 기록 보기');
   });
 
@@ -239,7 +296,8 @@ describe('RecordScreen', () => {
       ).props.onPress();
     });
 
-    expect(navigateMock).toHaveBeenCalledWith('WalkDetail', { walkId: 1 });
+    // 방 번호(4000번대)가 아니라 판 번호로 넘겨야 상세가 열린다.
+    expect(navigateMock).toHaveBeenCalledWith('WalkDetail', { gameId: 1 });
   });
 
   test('최근 산책은 3건만 보여준다', async () => {
@@ -259,6 +317,22 @@ describe('RecordScreen', () => {
     });
 
     expect(navigateMock).toHaveBeenCalledWith('WalkList');
+  });
+
+  // 기록 탭은 한 번 열리면 계속 살아 있어 다시 마운트되지 않는다. 당겨서
+  // 새로고침이 없으면 앱을 다시 열기 전까지 최근 산책이 그대로 멈춰 있었다.
+  test('당겨서 새로고침하면 최근 산책을 다시 부른다', async () => {
+    const tree = await renderScreen();
+    const before = gameResultRequestCount();
+
+    await act(async () => {
+      tree.root
+        .findAll(node => node.props.refreshControl != null)[0]
+        .props.refreshControl.props.onRefresh();
+    });
+    await flushQueries();
+
+    expect(gameResultRequestCount()).toBeGreaterThan(before);
   });
 });
 

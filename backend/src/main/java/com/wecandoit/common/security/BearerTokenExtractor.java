@@ -11,7 +11,10 @@ public final class BearerTokenExtractor {
     }
 
     public static String extract(HttpServletRequest request) {
-        String bearerToken = request.getHeader(HttpHeaders.AUTHORIZATION);
+        return extract(request.getHeader(HttpHeaders.AUTHORIZATION));
+    }
+
+    public static String extract(String bearerToken) {
         if (bearerToken == null || !bearerToken.startsWith(BEARER_PREFIX)) {
             return null;
         }

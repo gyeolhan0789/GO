@@ -1,5 +1,6 @@
 import { colors } from '../../shared/constants/colors';
 import { radius } from '../../shared/constants/radius';
+import { bodyFont } from '../../shared/constants/typography';
 
 const HEX_RADIX = 16;
 const THOUSAND = 1000;
@@ -61,8 +62,9 @@ const TRANSPARENT_BACKGROUND = {
   backgroundGradientToOpacity: 0,
 };
 
+// 축 눈금은 보조 정보라 regular.
 const LABEL_FONT = {
-  fontFamily: 'BMDOHYEON',
+  fontFamily: bodyFont.regular,
   fontSize: 11,
 };
 

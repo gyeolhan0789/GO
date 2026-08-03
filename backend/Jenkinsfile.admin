@@ -3,21 +3,11 @@ pipeline {
 
     environment {
         ADMIN_ROOT = '/var/www/wecandoit-admin'
-        ADMIN_HOST = 'https://i15a506.p.ssafy.io/admin-ui/'
+        ADMIN_PROD_HOST = 'https://i15a506.p.ssafy.io/admin-ui/'
+        ADMIN_DEV_HOST = 'https://i15a506.p.ssafy.io/dev/admin-ui/'
     }
 
     stages {
-        stage('Check Admin Changes') {
-            steps {
-                script {
-                    def changedFiles = sh(script: 'git diff --name-only HEAD~1 HEAD || echo frontend/admin/', returnStdout: true).trim()
-                    if (!changedFiles.split('\\n').any { it.startsWith('frontend/admin/') || it == 'backend/Jenkinsfile.admin' }) {
-                        currentBuild.result = 'NOT_BUILT'
-                        error('No admin deployment changes.')
-                    }
-                }
-            }
-        }
 
         stage('Build Admin') {
             steps {
@@ -26,7 +16,11 @@ pipeline {
                     node --version
                     npm ci
                     npm run lint
+                    rm -rf dist-prod dist-dev
                     VITE_API_ENV=prod VITE_API_BASE_URL=https://i15a506.p.ssafy.io npm run build
+                    mv dist dist-prod
+                    VITE_API_ENV=dev VITE_API_BASE_URL=https://i15a506.p.ssafy.io/dev npm run build
+                    mv dist dist-dev
                     '''
                 }
             }
@@ -35,20 +29,25 @@ pipeline {
         stage('Release Admin') {
             steps {
                 sh '''
-                release="$ADMIN_ROOT/releases/$BUILD_NUMBER"
-                previous=$(readlink -f "$ADMIN_ROOT/current" || true)
-                next="$ADMIN_ROOT/.current-next-$BUILD_NUMBER"
-                mkdir -p "$release"
-                cp -R frontend/admin/dist/. "$release/"
-                ln -sfn "$release" "$next"
-                mv -Tf "$next" "$ADMIN_ROOT/current"
-                if ! sudo /usr/sbin/nginx -t || ! sudo /usr/bin/systemctl reload nginx || ! curl -fsS "$ADMIN_HOST/" > /dev/null; then
-                  if [ -n "$previous" ]; then
-                    rollback="$ADMIN_ROOT/.current-rollback-$BUILD_NUMBER"
-                    ln -sfn "$previous" "$rollback"
-                    mv -Tf "$rollback" "$ADMIN_ROOT/current"
-                    sudo /usr/sbin/nginx -t && sudo /usr/bin/systemctl reload nginx
-                  fi
+                prod_release="$ADMIN_ROOT/prod/releases/$BUILD_NUMBER"
+                dev_release="$ADMIN_ROOT/dev/releases/$BUILD_NUMBER"
+                legacy_previous=$(readlink -f "$ADMIN_ROOT/current" || true)
+                prod_previous=$(readlink -f "$ADMIN_ROOT/prod/current" || printf '%s' "$legacy_previous")
+                dev_previous=$(readlink -f "$ADMIN_ROOT/dev/current" || true)
+                mkdir -p "$prod_release" "$dev_release"
+                cp -R frontend/admin/dist-prod/. "$prod_release/"
+                cp -R frontend/admin/dist-dev/. "$dev_release/"
+                ln -sfn "$prod_release" "$ADMIN_ROOT/prod/.current-next-$BUILD_NUMBER"
+                ln -sfn "$dev_release" "$ADMIN_ROOT/dev/.current-next-$BUILD_NUMBER"
+                mv -Tf "$ADMIN_ROOT/prod/.current-next-$BUILD_NUMBER" "$ADMIN_ROOT/prod/current"
+                mv -Tf "$ADMIN_ROOT/dev/.current-next-$BUILD_NUMBER" "$ADMIN_ROOT/dev/current"
+                ln -sfn "$prod_release" "$ADMIN_ROOT/.current-next-$BUILD_NUMBER"
+                mv -Tf "$ADMIN_ROOT/.current-next-$BUILD_NUMBER" "$ADMIN_ROOT/current"
+                if ! sudo /usr/sbin/nginx -t || ! sudo /usr/bin/systemctl reload nginx || ! curl -fsS "$ADMIN_PROD_HOST/" > /dev/null || ! curl -fsS "$ADMIN_DEV_HOST/" > /dev/null; then
+                  if [ -n "$prod_previous" ]; then ln -sfn "$prod_previous" "$ADMIN_ROOT/prod/.current-rollback-$BUILD_NUMBER"; mv -Tf "$ADMIN_ROOT/prod/.current-rollback-$BUILD_NUMBER" "$ADMIN_ROOT/prod/current"; fi
+                  if [ -n "$dev_previous" ]; then ln -sfn "$dev_previous" "$ADMIN_ROOT/dev/.current-rollback-$BUILD_NUMBER"; mv -Tf "$ADMIN_ROOT/dev/.current-rollback-$BUILD_NUMBER" "$ADMIN_ROOT/dev/current"; fi
+                  if [ -n "$legacy_previous" ]; then ln -sfn "$legacy_previous" "$ADMIN_ROOT/.current-rollback-$BUILD_NUMBER"; mv -Tf "$ADMIN_ROOT/.current-rollback-$BUILD_NUMBER" "$ADMIN_ROOT/current"; fi
+                  sudo /usr/sbin/nginx -t && sudo /usr/bin/systemctl reload nginx
                   exit 1
                 fi
                 '''

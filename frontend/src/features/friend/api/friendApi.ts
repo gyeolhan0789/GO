@@ -1,4 +1,5 @@
 import { apiClient } from '../../../shared/api/client';
+import type { Gender } from '../../auth/constants/genders';
 
 export type ItemCategory =
   | 'HAT'
@@ -21,6 +22,9 @@ export type FriendResponse = {
   nickname: string;
   /** Asia/Seoul 기준 이번 주 월요일부터 오늘까지의 누적 걸음 수. */
   weeklySteps: number;
+  /** 아바타 정보. 랭킹 응답과 같은 모양으로 내려온다. */
+  gender?: Gender;
+  defaultImageUrl?: string | null;
   equippedItems: EquippedItem[];
 };
 
@@ -56,6 +60,10 @@ export type MemberSearchResult = {
   memberId: number;
   nickname: string;
   relationshipStatus: MemberRelationshipStatus;
+  /** 아바타 정보. 랭킹 응답과 같은 모양으로 내려온다. */
+  gender?: Gender;
+  defaultImageUrl?: string | null;
+  equippedItems?: EquippedItem[];
 };
 
 export type SearchMembersParams = {
@@ -85,6 +93,10 @@ export type ReceivedFriendRequest = {
   inviterId: number;
   inviterNickname: string;
   createdAt: string;
+  /** 요청 보낸 회원의 아바타 정보. 랭킹 응답과 같은 모양으로 내려온다. */
+  gender?: Gender;
+  defaultImageUrl?: string | null;
+  equippedItems?: EquippedItem[];
 };
 
 export function getReceivedRequests({
@@ -102,4 +114,39 @@ export function acceptFriendRequest(requestId: number) {
 
 export function rejectFriendRequest(requestId: number) {
   return apiClient.patch<void>(`/friend-requests/${requestId}/reject`);
+}
+
+export type SentFriendRequest = {
+  requestId: number;
+  inviteeId: number;
+  inviteeNickname: string;
+  createdAt: string;
+  /**
+   * 받는 회원의 아바타 정보. 백엔드 SentFriendRequestResponse에는 아직 없어
+   * (추가 요청 예정) useSentRequestsQuery가 회원 검색으로 대신 채워 넣는다.
+   */
+  gender?: Gender;
+  defaultImageUrl?: string | null;
+  equippedItems?: EquippedItem[];
+};
+
+/**
+ * 내가 보낸 친구 요청. 상대가 아직 수락·거절하지 않은 것만 내려오므로,
+ * 여기 남아 있는 항목은 모두 취소할 수 있는 상태다.
+ */
+export function getSentRequests({
+  page = 0,
+  size = 20,
+}: GetFriendsParams = {}) {
+  return apiClient.get<SliceResponse<SentFriendRequest>>(
+    `/friend-requests/sent?page=${page}&size=${size}`,
+  );
+}
+
+/**
+ * 내가 보낸 요청을 거둬들인다. 그사이 상대가 응답했으면 409(이미 처리된
+ * 친구 요청입니다)가 오므로, 실패하면 목록을 다시 읽어야 한다.
+ */
+export function cancelFriendRequest(requestId: number) {
+  return apiClient.delete<void>(`/friend-requests/${requestId}`);
 }

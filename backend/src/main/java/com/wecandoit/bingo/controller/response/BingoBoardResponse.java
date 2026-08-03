@@ -2,8 +2,8 @@ package com.wecandoit.bingo.controller.response;
 
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.domain.BingoBoardStatus;
-import com.wecandoit.game.domain.GameRoomStatus;
 import com.wecandoit.game.domain.GameStatus;
+import com.wecandoit.game.domain.RoomStatus;
 import java.util.List;
 
 public record BingoBoardResponse(
@@ -19,6 +19,7 @@ public record BingoBoardResponse(
         BingoBoardStatus status,
         List<BingoCellResponse> cells,
         boolean completed,
+        boolean isHost,
         boolean canRenew,
         boolean renewalRequired,
         String renewalMessage,
@@ -31,10 +32,10 @@ public record BingoBoardResponse(
             BingoBoard board,
             Long roomId,
             List<BingoCellResponse> cells,
-            Integer targetBingoCount,
             int completedBingoCount,
             int approvedCellCount,
             boolean completed,
+            boolean isHost,
             boolean canRenew,
             boolean renewalRequired
     ) {
@@ -43,7 +44,7 @@ public record BingoBoardResponse(
                 board.getGameId(),
                 roomId,
                 board.getBoardSize(),
-                targetBingoCount,
+                board.getTargetBingoCount(),
                 board.getTargetStepCount(),
                 completedBingoCount,
                 cells.size(),
@@ -51,6 +52,7 @@ public record BingoBoardResponse(
                 board.getStatus(),
                 cells,
                 completed,
+                isHost,
                 canRenew,
                 renewalRequired,
                 renewalRequired ? RENEWAL_REQUIRED_MESSAGE : null,
@@ -62,10 +64,10 @@ public record BingoBoardResponse(
             BingoBoard board,
             Long roomId,
             List<BingoCellResponse> cells,
-            Integer targetBingoCount,
             int completedBingoCount,
             int approvedCellCount,
             boolean completed,
+            boolean isHost,
             BattleProgressResponse battleProgress
     ) {
         return new BingoBoardResponse(
@@ -73,7 +75,7 @@ public record BingoBoardResponse(
                 board.getGameId(),
                 roomId,
                 board.getBoardSize(),
-                targetBingoCount,
+                board.getTargetBingoCount(),
                 board.getTargetStepCount(),
                 completedBingoCount,
                 cells.size(),
@@ -81,6 +83,7 @@ public record BingoBoardResponse(
                 board.getStatus(),
                 cells,
                 completed,
+                isHost,
                 false,
                 false,
                 null,
@@ -89,7 +92,7 @@ public record BingoBoardResponse(
     }
 
     public record BattleProgressResponse(
-            GameRoomStatus roomStatus,
+            RoomStatus roomStatus,
             GameStatus gameStatus,
             BattleParticipantProgressResponse me,
             BattleParticipantProgressResponse opponent,

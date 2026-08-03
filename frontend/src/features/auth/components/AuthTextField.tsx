@@ -1,14 +1,16 @@
 import { forwardRef, useState } from 'react';
 import type { ComponentProps, ForwardedRef } from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import type { TextInputProps } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { AppText } from '../../../shared/components/AppText/AppText';
+import { controlHeight } from '../../../shared/constants/sizing';
+import { colors } from '../../../shared/constants/colors';
+import {
+  bodyFont,
+  lineHeights,
+  MAX_FONT_SCALE,
+} from '../../../shared/constants/typography';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
 type FocusHandler = NonNullable<TextInputProps['onFocus']>;
@@ -27,17 +29,18 @@ type AuthTextFieldProps = TextInputProps & {
   hideLabel?: boolean;
 };
 
-const LABEL_COLOR = '#374151';
-const BORDER_COLOR = '#D1D5DB';
-const FOCUS_BORDER_COLOR = '#2C6A47';
-const ERROR_COLOR = '#DC2626';
-const TEXT_COLOR = '#111827';
-const PLACEHOLDER_COLOR = '#9CA3AF';
+const LABEL_COLOR = colors.inkSoft;
+const BORDER_COLOR = colors.border;
+const FOCUS_BORDER_COLOR = colors.primaryDark;
+const ERROR_COLOR = colors.danger;
+const TEXT_COLOR = colors.ink;
+const PLACEHOLDER_COLOR = colors.muted;
 const LEFT_ICON_COLOR = '#8DC9A2';
-const TRAILING_COLOR = '#6B7280';
-const EYE_COLOR = '#2C6A47';
+const TRAILING_COLOR = colors.mutedStrong;
+const EYE_COLOR = colors.primaryDark;
 
-const INPUT_HEIGHT = 52;
+// 다른 입력창(친구 검색, 산책방 이름 등)과 같은 높이를 쓴다.
+const INPUT_HEIGHT = controlHeight.md;
 const ICON_SIZE = 20;
 
 function AuthTextFieldBase(
@@ -77,7 +80,7 @@ function AuthTextFieldBase(
 
   return (
     <View style={styles.container}>
-      {hideLabel ? null : <Text style={styles.label}>{label}</Text>}
+      {hideLabel ? null : <AppText style={styles.label}>{label}</AppText>}
       <View
         style={[
           styles.field,
@@ -94,6 +97,7 @@ function AuthTextFieldBase(
           />
         ) : null}
         <TextInput
+          maxFontSizeMultiplier={MAX_FONT_SCALE}
           ref={ref}
           style={[styles.input, style]}
           placeholderTextColor={PLACEHOLDER_COLOR}
@@ -121,15 +125,15 @@ function AuthTextFieldBase(
             />
           </Pressable>
         ) : showCounter ? (
-          <Text style={styles.counter}>
+          <AppText style={styles.counter}>
             {currentLength}/{maxLength}
-          </Text>
+          </AppText>
         ) : null}
       </View>
       {error ? (
-        <Text style={styles.error} accessibilityLiveRegion="polite">
+        <AppText style={styles.error} accessibilityLiveRegion="polite">
           {error}
-        </Text>
+        </AppText>
       ) : null}
     </View>
   );
@@ -143,8 +147,9 @@ const styles = StyleSheet.create({
   },
   label: {
     marginBottom: 6,
+    fontFamily: bodyFont.medium,
     fontSize: 14,
-    fontWeight: '600',
+    lineHeight: lineHeights[14],
     color: LABEL_COLOR,
   },
   field: {
@@ -169,7 +174,13 @@ const styles = StyleSheet.create({
     flex: 1,
     height: '100%',
     padding: 0,
+    fontFamily: bodyFont.regular,
     fontSize: 16,
+    // TextInput에는 lineHeight를 주지 않는다(안드로이드에서 글자가 밀리거나
+    // 잘린다). font padding을 끄고 세로 가운데로 맞춰야 입력값과 placeholder가
+    // 같은 높이에 앉는다.
+    includeFontPadding: false,
+    textAlignVertical: 'center',
     color: TEXT_COLOR,
   },
   trailing: {
@@ -177,12 +188,17 @@ const styles = StyleSheet.create({
   },
   counter: {
     marginLeft: 8,
+    fontFamily: bodyFont.regular,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: TRAILING_COLOR,
   },
   error: {
     marginTop: 4,
+    marginLeft: 8,
+    fontFamily: bodyFont.regular,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: ERROR_COLOR,
   },
 });

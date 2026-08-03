@@ -4,18 +4,21 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   View,
 } from 'react-native';
 
 import type { MemberRelationshipStatus } from '../../../features/friend/api/friendApi';
+import { MemberAvatar } from '../../../features/member/components/MemberAvatar';
 import { useMemberSearchQuery } from '../../../features/friend/hooks/useMemberSearchQuery';
 import { useSendFriendRequestMutation } from '../../../features/friend/hooks/useSendFriendRequestMutation';
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { BottomSheet } from '../../../shared/components/BottomSheet/BottomSheet';
+import { controlHeight } from '../../../shared/constants/sizing';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
+import { lineHeights, MAX_FONT_SCALE } from '../../../shared/constants/typography';
 
 const STATUS_LABEL: Record<MemberRelationshipStatus, string> = {
   NONE: '추가',
@@ -63,11 +66,12 @@ export function AddFriendSheet({ visible, onClose }: AddFriendSheetProps) {
 
   return (
     <BottomSheet visible={visible} onClose={onClose} title="친구 추가">
-      <Text style={styles.helperText}>
+      <AppText style={styles.helperText}>
         닉네임으로 검색해서 친구를 추가해요.
-      </Text>
+      </AppText>
 
       <TextInput
+        maxFontSizeMultiplier={MAX_FONT_SCALE}
         style={styles.input}
         placeholder="닉네임 입력"
         placeholderTextColor={colors.muted}
@@ -80,11 +84,11 @@ export function AddFriendSheet({ visible, onClose }: AddFriendSheetProps) {
       {debouncedQuery.trim() ? (
         <ScrollView style={styles.results} showsVerticalScrollIndicator={false}>
           {searchQuery.isLoading ? (
-            <Text style={styles.emptyText}>검색 중...</Text>
+            <AppText style={styles.emptyText}>검색 중...</AppText>
           ) : searchQuery.isError ? (
-            <Text style={styles.emptyText}>검색에 실패했어요.</Text>
+            <AppText style={styles.emptyText}>검색에 실패했어요.</AppText>
           ) : results.length === 0 ? (
-            <Text style={styles.emptyText}>검색 결과가 없어요.</Text>
+            <AppText style={styles.emptyText}>검색 결과가 없어요.</AppText>
           ) : (
             results.map(member => {
               const isPending =
@@ -94,10 +98,15 @@ export function AddFriendSheet({ visible, onClose }: AddFriendSheetProps) {
 
               return (
                 <View key={member.memberId} style={styles.resultRow}>
-                  <View style={styles.avatar} />
-                  <Text style={styles.resultNickname} numberOfLines={1}>
+                  <MemberAvatar
+                    gender={member.gender}
+                    defaultImageUrl={member.defaultImageUrl}
+                    equippedItems={member.equippedItems}
+                    style={styles.avatar}
+                  />
+                  <AppText style={styles.resultNickname} numberOfLines={1}>
                     @{member.nickname}
-                  </Text>
+                  </AppText>
                   <Pressable
                     onPress={() => handleInvite(member.memberId)}
                     disabled={!isActionable || isPending}
@@ -106,7 +115,7 @@ export function AddFriendSheet({ visible, onClose }: AddFriendSheetProps) {
                       (!isActionable || isPending) && styles.inviteButtonDone,
                     ]}
                   >
-                    <Text
+                    <AppText
                       style={[
                         styles.inviteButtonText,
                         (!isActionable || isPending) &&
@@ -116,7 +125,7 @@ export function AddFriendSheet({ visible, onClose }: AddFriendSheetProps) {
                       {isPending
                         ? '요청 중...'
                         : STATUS_LABEL[member.relationshipStatus]}
-                    </Text>
+                    </AppText>
                   </Pressable>
                 </View>
               );
@@ -132,18 +141,23 @@ const styles = StyleSheet.create({
   helperText: {
     fontFamily: 'BMDOHYEON',
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.ink,
     opacity: 0.6,
     marginBottom: spacing.md,
   },
   input: {
-    height: 48,
+    height: controlHeight.md,
     borderWidth: 1.5,
     borderColor: colors.ink,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     fontFamily: 'BMDOHYEON',
     fontSize: 15,
+    // TextInput에는 lineHeight를 주지 않는다(안드로이드에서 글자가 밀린다).
+    // font padding을 끄고 한 줄 입력이라 세로 가운데로 맞춘다.
+    includeFontPadding: false,
+    textAlignVertical: 'center',
     color: colors.ink,
   },
   results: {
@@ -153,6 +167,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontFamily: 'BMDOHYEON',
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.ink,
     opacity: 0.6,
     textAlign: 'center',
@@ -164,17 +179,17 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.sm,
   },
+  // 원 테두리 디자인은 CharacterBust가 모든 화면 공통으로 그린다.
   avatar: {
     width: 40,
     height: 40,
-    borderRadius: radius.pill,
-    backgroundColor: colors.neutralBg,
   },
   resultNickname: {
     flex: 1,
     minWidth: 0,
     fontFamily: 'BMDOHYEON',
     fontSize: 15,
+    lineHeight: lineHeights[15],
     color: colors.ink,
   },
   inviteButton: {
@@ -191,6 +206,7 @@ const styles = StyleSheet.create({
   inviteButtonText: {
     fontFamily: 'BMDOHYEON',
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.ink,
   },
   inviteButtonTextDone: {

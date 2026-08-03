@@ -1,10 +1,11 @@
 import type { StyleProp, TextStyle } from 'react-native';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
+import { AppText } from '../AppText/AppText';
 import { colors } from '../../constants/colors';
 import { radius } from '../../constants/radius';
 import { spacing } from '../../constants/spacing';
-import { fontFamily } from '../../constants/typography';
+import { bodyFont, lineHeights } from '../../constants/typography';
 
 type BadgeVariant = 'success' | 'highlight' | 'info' | 'danger';
 
@@ -35,7 +36,9 @@ export function Badge({
       {showDot ? (
         <View style={[styles.dot, { backgroundColor: text }]} />
       ) : null}
-      <Text style={[styles.label, { color: text }, labelStyle]}>{label}</Text>
+      <AppText style={[styles.label, { color: text }, labelStyle]}>
+        {label}
+      </AppText>
     </View>
   );
 }
@@ -56,7 +59,8 @@ const styles = StyleSheet.create({
     marginRight: spacing.xs,
   },
   label: {
-    fontFamily: fontFamily.bold,
+    fontFamily: bodyFont.bold,
     fontSize: 12,
+    lineHeight: lineHeights[12],
   },
 });

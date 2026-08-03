@@ -14,6 +14,7 @@ import com.wecandoit.common.jwt.JwtProperties;
 import com.wecandoit.common.jwt.TokenRepository;
 import com.wecandoit.auth.dto.AuthTokens;
 import com.wecandoit.auth.dto.LoginRequest;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import java.util.Optional;
@@ -63,7 +64,7 @@ class AuthServiceTest {
     @DisplayName("로그인 성공 시 발급한 Refresh Token을 회원 기준으로 저장한다")
     void loginStoresIssuedRefreshTokenForAuthenticatedMember() {
         // given
-        Member member = Member.create("user@example.com", "encoded-password", "nickname");
+        Member member = Member.create("user@example.com", "encoded-password", "nickname", null, Gender.MALE);
         ReflectionTestUtils.setField(member, "id", 1L);
 
         given(memberRepository.findByEmail("user@example.com")).willReturn(Optional.of(member));
@@ -96,7 +97,7 @@ class AuthServiceTest {
     @DisplayName("비밀번호가 일치하지 않으면 로그인을 거부한다")
     void loginRejectsWrongPassword() {
         // given
-        Member member = Member.create("user@example.com", "encoded-password", "nickname");
+        Member member = Member.create("user@example.com", "encoded-password", "nickname", null, Gender.MALE);
         ReflectionTestUtils.setField(member, "id", 1L);
 
         given(memberRepository.findByEmail("user@example.com")).willReturn(Optional.of(member));
@@ -128,7 +129,7 @@ class AuthServiceTest {
     @DisplayName("요청 Refresh Token이 저장된 값과 다르면 저장된 토큰을 삭제하고 재발급을 거부한다")
     void reissueDeletesStoredTokenAndRejectsOnMismatch() {
         // given
-        Member member = Member.create("user@example.com", "encoded-password", "nickname");
+        Member member = Member.create("user@example.com", "encoded-password", "nickname", null, Gender.MALE);
         ReflectionTestUtils.setField(member, "id", 1L);
         String refreshToken = jwtProvider.createRefreshToken(1L, member.getRole().name());
 
@@ -148,7 +149,7 @@ class AuthServiceTest {
     @DisplayName("저장된 Refresh Token과 일치하면 새 토큰으로 회전 저장한다")
     void reissueRotatesStoredRefreshTokenWhenTokenMatches() {
         // given
-        Member member = Member.create("user@example.com", "encoded-password", "nickname");
+        Member member = Member.create("user@example.com", "encoded-password", "nickname", null, Gender.MALE);
         ReflectionTestUtils.setField(member, "id", 1L);
         String refreshToken = jwtProvider.createRefreshToken(1L, member.getRole().name());
 

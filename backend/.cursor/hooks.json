@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeReadFile": [
+      {
+        "command": ".cursor/hooks/block-secret-files.js"
+      }
+    ],
+    "beforeTabFileRead": [
+      {
+        "command": ".cursor/hooks/block-secret-files.js"
+      }
+    ],
+    "preToolUse": [
+      {
+        "command": ".cursor/hooks/block-secret-files.js",
+        "matcher": "Write|StrReplace"
+      },
+      {
+        "command": ".cursor/hooks/guard-worktree.js",
+        "matcher": "Write|StrReplace"
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": ".cursor/hooks/guard-bash.js"
+      }
+    ],
+    "stop": [
+      {
+        "command": ".cursor/hooks/build-test-on-stop.js",
+        "timeout": 300
+      }
+    ]
+  }
+}

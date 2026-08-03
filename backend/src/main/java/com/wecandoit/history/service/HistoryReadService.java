@@ -79,19 +79,4 @@ public class HistoryReadService {
         }
         return HistoryDateResponse.from(memberHistory);
     }
-
-    public record StepRecord(
-            Long memberId,
-            LocalDate historyDate,
-            int step
-    ) {
-
-        private static StepRecord from(MemberHistory memberHistory) {
-            return new StepRecord(
-                    memberHistory.getMemberId(),
-                    memberHistory.getHistoryDate(),
-                    memberHistory.getStep()
-            );
-        }
-    }
 }

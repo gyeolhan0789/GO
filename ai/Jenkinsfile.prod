@@ -1,0 +1,59 @@
+pipeline {
+    agent any
+
+    options {
+        disableConcurrentBuilds()
+    }
+
+    environment {
+        IMAGE_REPOSITORY = 'wecandoit-ai-prod'
+        CONTAINER_NAME = 'wecandoit-ai-prod'
+        HOST_PORT = '8001'
+        HEALTH_URL = 'http://127.0.0.1:8001/health'
+    }
+
+    stages {
+        stage('Check AI Changes') {
+            steps {
+                script {
+                    def changedFiles = sh(
+                        script: 'git diff --name-only HEAD~1 HEAD || echo ai/',
+                        returnStdout: true
+                    ).trim()
+
+                    if (!changedFiles.split('\\n').any { it.startsWith('ai/') }) {
+                        currentBuild.result = 'NOT_BUILT'
+                        error('No AI changes. Skip AI production CD.')
+                    }
+                }
+            }
+        }
+
+        stage('Build and Deploy') {
+            steps {
+                dir('ai/ai-server') {
+                    withCredentials([
+                        string(credentialsId: 'prod-gemini-api-key', variable: 'GEMINI_API_KEY'),
+                        string(credentialsId: 'prod-gemini-model', variable: 'GEMINI_MODEL'),
+                        string(credentialsId: 'prod-gemini-base-url', variable: 'GEMINI_BASE_URL')
+                    ]) {
+                        sh '''
+                        set -eu
+                        image="$IMAGE_REPOSITORY:$(git -C .. rev-parse --short=12 HEAD)"
+                        docker build --tag "$image" --tag "$IMAGE_REPOSITORY:latest" .
+                        docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
+                        docker run -d --restart always \
+                          --name "$CONTAINER_NAME" \
+                          -p "127.0.0.1:$HOST_PORT:8000" \
+                          -e GEMINI_API_KEY \
+                          -e GEMINI_MODEL \
+                          -e GEMINI_BASE_URL \
+                          "$image"
+                        curl --fail --retry 10 --retry-connrefused --retry-delay 2 "$HEALTH_URL"
+                        '''
+                    }
+                }
+            }
+        }
+    }
+}

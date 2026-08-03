@@ -4,8 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.wecandoit.bingo.domain.BingoBoard;
-import com.wecandoit.game.domain.RoomMember;
-import com.wecandoit.game.repository.RoomMemberRepository;
+import com.wecandoit.bingo.domain.BingoBoardType;
+import com.wecandoit.game.domain.GameParticipant;
+import com.wecandoit.game.repository.GameParticipantRepository;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,59 +22,55 @@ class BingoBoardRepositoryTest {
 
     @Autowired
     private BingoBoardRepository bingoBoardRepository;
+
     @Autowired
-    private RoomMemberRepository roomMemberRepository;
+    private GameParticipantRepository gameParticipantRepository;
 
     @Test
-    @DisplayName("대결 방의 참가자별 빙고판을 조회한다")
-    void findAllByRoomIdReturnsBattleBoardsWithOwners() {
-        // given
-        RoomMember hostMember = roomMemberRepository.save(RoomMember.create(10L, 1L));
-        RoomMember guestMember = roomMemberRepository.save(RoomMember.create(10L, 2L));
-        bingoBoardRepository.save(BingoBoard.createForBattle(10L, hostMember, 3));
-        bingoBoardRepository.save(BingoBoard.createForBattle(10L, guestMember, 3));
-        bingoBoardRepository.save(BingoBoard.create(20L, 3));
+    @DisplayName("대결 게임의 참가자별 빙고판을 조회한다")
+    void findAllByGameIdReturnsBattleBoardsWithOwners() {
+        GameParticipant host = gameParticipantRepository.save(GameParticipant.create(10L, 1L));
+        GameParticipant guest = gameParticipantRepository.save(GameParticipant.create(10L, 2L));
+        bingoBoardRepository.save(BingoBoard.createForBattle(10L, host.getId(), 3, 3));
+        bingoBoardRepository.save(BingoBoard.createForBattle(10L, guest.getId(), 3, 3));
         bingoBoardRepository.flush();
 
-        // when
-        var boards = bingoBoardRepository.findAllByGameIdOrderByIdAsc(10L).stream()
-                .filter(board -> board.getRoomMember() != null)
-                .toList();
+        List<BingoBoard> boards = bingoBoardRepository.findAllByGameIdOrderByIdAsc(10L);
 
-        // then
-        assertThat(boards).extracting(board -> board.getRoomMember().getId())
-                .containsExactlyInAnyOrder(hostMember.getId(), guestMember.getId());
+        assertThat(boards)
+                .extracting(BingoBoard::getGameParticipantId)
+                .containsExactly(host.getId(), guest.getId());
+        assertThat(boards).extracting(BingoBoard::getType)
+                .containsOnly(BingoBoardType.PERSONAL);
     }
 
     @Test
-    @DisplayName("동일한 게임방 참가자에게 개인 빙고판을 중복 저장할 수 없다")
+    @DisplayName("같은 게임 참가자의 개인 빙고판은 중복 저장할 수 없다")
     void saveRejectsDuplicateBattleBoardOwner() {
-        // given
-        RoomMember roomMember = roomMemberRepository.save(RoomMember.create(10L, 1L));
-        bingoBoardRepository.saveAndFlush(BingoBoard.createForBattle(10L, roomMember, 3));
+        GameParticipant participant =
+                gameParticipantRepository.save(GameParticipant.create(10L, 1L));
+        bingoBoardRepository.saveAndFlush(
+                BingoBoard.createForBattle(10L, participant.getId(), 3, 3));
 
-        // when & then
-        assertThatThrownBy(() ->
-                bingoBoardRepository.saveAndFlush(BingoBoard.createForBattle(10L, roomMember, 3)))
+        assertThatThrownBy(() -> bingoBoardRepository.saveAndFlush(
+                BingoBoard.createForBattle(10L, participant.getId(), 3, 3)))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
-    @DisplayName("기존 공용 빙고판은 소유자 없이 여러 판을 저장할 수 있다")
-    void saveAllowsMultipleSharedBoardsWithoutOwner() {
-        // given
-        bingoBoardRepository.save(BingoBoard.create(10L, 3));
-        bingoBoardRepository.save(BingoBoard.create(10L, 3));
+    @DisplayName("공유 빙고판은 소유자 없이 저장한다")
+    void saveSharedBoardWithoutOwner() {
+        BingoBoard board = bingoBoardRepository.saveAndFlush(
+                BingoBoard.create(10L, 3, 12_000));
 
-        // when
-        bingoBoardRepository.flush();
-
-        // then
-        assertThat(bingoBoardRepository.findAllByGameIdOrderByIdAsc(10L))
-                .allMatch(board -> board.getRoomMember() == null);
+        assertThat(board.getGameParticipantId()).isNull();
+        assertThat(board.getType()).isEqualTo(BingoBoardType.SHARED);
+        assertThat(board.getTargetBingoCount()).isNull();
+        assertThat(board.getTargetStepCount()).isEqualTo(12_000);
     }
 
     @Test
+    @DisplayName("동일한 게임을 참조하는 여러 빙고판을 저장할 수 있다")
     void allowsMultipleBoardsToReferenceTheSameGame() {
         BingoBoard firstBoard = bingoBoardRepository.save(BingoBoard.create(200L, 3));
         BingoBoard secondBoard = bingoBoardRepository.save(BingoBoard.create(200L, 3));

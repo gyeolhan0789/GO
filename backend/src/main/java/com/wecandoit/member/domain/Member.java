@@ -44,7 +44,7 @@ public class Member extends BaseEntity {
     private Gender gender;
 
     @Column(nullable = false)
-    private long cash;
+    private long point;
 
     @Column(name = "onboarding_completed", nullable = false)
     private boolean onboardingCompleted;
@@ -61,25 +61,17 @@ public class Member extends BaseEntity {
     private String fcmToken;
 
     @Builder
-    private Member(String email, String password, String nickname, Region region, Gender gender, long cash,
+    private Member(String email, String password, String nickname, Region region, Gender gender, long point,
             boolean onboardingCompleted, Role role, AuthProvider provider) {
         this.email = email;
         this.password = password;
         this.nickname = nickname;
         this.region = region;
         this.gender = gender;
-        this.cash = cash;
+        this.point = point;
         this.onboardingCompleted = onboardingCompleted;
         this.role = role;
         this.provider = provider;
-    }
-
-    public static Member create(String email, String encodedPassword, String nickname) {
-        return create(email, encodedPassword, nickname, null, Gender.MALE);
-    }
-
-    public static Member create(String email, String encodedPassword, String nickname, Region region) {
-        return create(email, encodedPassword, nickname, region, Gender.MALE);
     }
 
     public static Member create(String email, String encodedPassword, String nickname, Region region, Gender gender) {
@@ -92,10 +84,6 @@ public class Member extends BaseEntity {
                 .role(Role.USER)
                 .provider(AuthProvider.LOCAL)
                 .build();
-    }
-
-    public static Member createSocial(String email, String nickname, AuthProvider provider) {
-        return createSocial(email, nickname, provider, Gender.MALE);
     }
 
     public static Member createSocial(String email, String nickname, AuthProvider provider, Gender gender) {
@@ -124,15 +112,15 @@ public class Member extends BaseEntity {
         this.password = encodedPassword;
     }
 
-    public void deductCash(long amount) {
-        if (cash < amount) {
-            throw new CustomException(ErrorCode.INSUFFICIENT_CASH);
+    public void deductPoint(long amount) {
+        if (point < amount) {
+            throw new CustomException(ErrorCode.INSUFFICIENT_POINT);
         }
-        cash -= amount;
+        point -= amount;
     }
 
-    public void addCash(long amount) {
-        cash += amount;
+    public void addPoint(long amount) {
+        point += amount;
     }
 
     public void updateFcmToken(String fcmToken) {

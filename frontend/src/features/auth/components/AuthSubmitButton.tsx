@@ -1,4 +1,7 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
+import { AppText } from '../../../shared/components/AppText/AppText';
+import { colors } from '../../../shared/constants/colors';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
 
 type AuthSubmitButtonProps = {
   label: string;
@@ -7,9 +10,9 @@ type AuthSubmitButtonProps = {
   pending?: boolean;
 };
 
-const BACKGROUND_COLOR = '#2C6A47';
-const DISABLED_BACKGROUND_COLOR = '#9CA3AF';
-const LABEL_COLOR = '#FFFFFF';
+const BACKGROUND_COLOR = colors.primaryDark;
+const DISABLED_BACKGROUND_COLOR = colors.muted;
+const LABEL_COLOR = colors.surface;
 
 const BUTTON_HEIGHT = 48;
 const PRESSED_OPACITY = 0.8;
@@ -37,7 +40,7 @@ export function AuthSubmitButton({
       {pending ? (
         <ActivityIndicator color={LABEL_COLOR} />
       ) : (
-        <Text style={styles.label}>{label}</Text>
+        <AppText style={styles.label}>{label}</AppText>
       )}
     </Pressable>
   );
@@ -58,8 +61,9 @@ const styles = StyleSheet.create({
     opacity: PRESSED_OPACITY,
   },
   label: {
+    fontFamily: bodyFont.bold,
     fontSize: 16,
-    fontWeight: '700',
+    lineHeight: lineHeights[16],
     color: LABEL_COLOR,
   },
 });

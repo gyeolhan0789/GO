@@ -4,8 +4,9 @@ import { resolveImageUrl } from '../../../shared/api/resolveImageUrl';
 import type {
   ItemCategory,
   MemberItem,
-  MyCharacterResponse,
+  MyAvatarResponse,
 } from '../api/memberApi';
+import { DEFAULT_CHARACTER_IMAGE_BY_GENDER } from '../constants/characterImages';
 
 /**
  * 캐릭터 위에 겹쳐 그릴 수 있는 최소 정보. 보유 아이템인지 몰라도 되므로
@@ -27,13 +28,22 @@ export type CharacterItem = CharacterLayer & {
 };
 
 export type Character = {
+  /** 응답에 '나'라는 표시가 없는 화면(산책 상세 등)에서 본인을 가려내는 데 쓴다. */
+  memberId: number;
   nickname: string;
-  /** 성별 기본 캐릭터. 착용 아이템은 이 이미지 위에 겹친다. */
-  baseImage: ImageSourcePropType | null;
+  /**
+   * 성별 기본 캐릭터. 착용 아이템은 이 이미지 위에 겹친다. 서버에 등록된
+   * 이미지가 없으면 성별 번들 에셋으로 채워져 항상 값이 있다.
+   */
+  baseImage: ImageSourcePropType;
+  /** 서버 이미지 URL이 로드에 실패할 때 대신 그릴 성별 번들 에셋. */
+  baseImageFallback: ImageSourcePropType;
   equippedItems: CharacterItem[];
 };
 
-function toImageSource(url: string | null): ImageSourcePropType | null {
+export function toImageSource(
+  url: string | null,
+): ImageSourcePropType | null {
   const uri = resolveImageUrl(url);
 
   return uri ? { uri } : null;
@@ -49,10 +59,14 @@ export function toCharacterItem(item: MemberItem): CharacterItem {
   };
 }
 
-export function toCharacter(response: MyCharacterResponse): Character {
+export function toCharacter(response: MyAvatarResponse): Character {
+  const fallback = DEFAULT_CHARACTER_IMAGE_BY_GENDER[response.gender];
+
   return {
+    memberId: response.memberId,
     nickname: response.nickname,
-    baseImage: toImageSource(response.defaultImageUrl),
+    baseImage: toImageSource(response.defaultImageUrl) ?? fallback,
+    baseImageFallback: fallback,
     equippedItems: response.equippedItems.map(toCharacterItem),
   };
 }

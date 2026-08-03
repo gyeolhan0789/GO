@@ -6,7 +6,7 @@ meta {
 
 post {
   url: {{backendBaseUrl}}/rooms/1/bingo-boards/cells/1/submit
-  body: json
+  body: multipartForm
   auth: inherit
 }
 
@@ -14,22 +14,20 @@ headers {
   Authorization: Bearer {{accessToken}}
 }
 
-body:json {
-  {
-    "submitUrl": "https://cdn.example.com/submissions/proof-1.jpg"
-  }
+body:multipart-form {
+  image: @file()
 }
 
 docs {
   ## 빙고 칸 미션 인증 제출
 
-  게임방 참여자가 특정 빙고 칸의 미션 수행 인증(이미지/URL)을 제출한다.
+  게임방 참여자가 특정 빙고 칸의 미션 수행 인증 사진을 `multipart/form-data`로 직접 업로드한다. 사전 업로드된 URL을 보내는 방식이 아니라, 제출 시점에 파일 자체를 전송한다.
 
   ### Request 필드
 
   | 필드 | 타입 | 필수 | 설명 |
   | --- | --- | --- | --- |
-  | submitUrl | string | Y | 미션 수행 인증 이미지/자료의 URL |
+  | image | file | Y | 미션 수행 인증 사진 (JPEG 또는 PNG, 최대 5MB) |
 
   ### 성공 응답 (200 OK)
   ```json
@@ -44,6 +42,7 @@ docs {
       "title": "빨간 우산 찾기",
       "detail": "빨간색 우산을 찾아 사진을 찍으세요.",
       "decisionCondition": "사진 속 우산 색상이 빨간색인지 확인",
+      "point": 50,
       "createdAt": "2026-07-24T10:00:00"
     },
     "verificationStatus": "APPROVED",
@@ -54,7 +53,10 @@ docs {
 
   ### 비즈니스 규칙
 
-  - 제출 트랜잭션에서 셀을 잠그고 `PENDING`으로 선점한 뒤 트랜잭션을 종료한다. 외부 AI 검증은 DB 트랜잭션 밖에서 수행한다.
+  - 제출 트랜잭션에서 셀을 잠그고, 모든 제출 검증을 통과한 뒤에만 이미지를 저장한 다음 `PENDING`으로 선점하고 트랜잭션을 종료한다. 외부 AI 검증은 DB 트랜잭션 밖에서 수행한다.
+  - 저장된 이미지는 `/uploads/{profile}/bingo-cells/{cellId}/{uuid}.{jpg|png}` 경로로 서빙되며, 이 경로가 셀의 `submitUrl`로 기록된다.
+  - `REJECTED` 상태를 재제출하면 새 이미지를 저장한 뒤 이전 인증 이미지 파일을 삭제한다.
+  - AI 검증 서버에는 다운로드 없이 업로드된 이미지 바이트를 그대로 전달한다.
   - 대결 모드는 현재 `Game` 회차에서 요청자의 `RoomMember`가 소유한 개인 빙고판만 조회하고 갱신한다. 상대 참가자의 빙고판과 셀은 변경하지 않는다.
   - `PENDING` 또는 `APPROVED` 상태의 셀은 다시 제출할 수 없고, `REJECTED` 상태만 재제출할 수 있다.
   - AI 서버 호출 자체가 실패하면 진행 중인 게임의 셀은 `REJECTED`로 복구되어 다시 제출할 수 있다.
@@ -71,11 +73,27 @@ docs {
   }
   ```
 
-  **submitUrl 누락**
+  **image 파트 누락**
   ```json
   {
     "status": 400,
-    "message": "제출 URL은 필수입니다."
+    "message": "입력값이 올바르지 않습니다."
+  }
+  ```
+
+  **지원하지 않는 이미지 형식**
+  ```json
+  {
+    "status": 400,
+    "message": "이미지 파일 형식은 JPEG 또는 PNG만 지원합니다."
+  }
+  ```
+
+  **이미지 용량 초과**
+  ```json
+  {
+    "status": 400,
+    "message": "이미지 파일 크기는 5MB를 초과할 수 없습니다."
   }
   ```
 
@@ -124,6 +142,38 @@ docs {
   {
     "status": 409,
     "message": "게임이 시작된 방에서만 빙고판을 생성할 수 있습니다."
+  }
+  ```
+
+  **싱글·협동 빙고판의 갱신 기한(생성 후 7일)이 지남**
+  ```json
+  {
+    "status": 409,
+    "message": "빙고판 갱신이 필요합니다."
+  }
+  ```
+
+  **AI 검증 요청이 올바르지 않음**
+  ```json
+  {
+    "status": 502,
+    "message": "AI 검증 요청이 올바르지 않습니다."
+  }
+  ```
+
+  **AI 검증 서버 오류**
+  ```json
+  {
+    "status": 502,
+    "message": "AI 검증 서버에서 오류가 발생했습니다."
+  }
+  ```
+
+  **AI 검증 서버 호출 실패**
+  ```json
+  {
+    "status": 503,
+    "message": "AI 검증 서버 호출에 실패했습니다."
   }
   ```
 

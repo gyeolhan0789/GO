@@ -1,4 +1,7 @@
-import { validateSignup } from '../src/features/auth/model/validation';
+import {
+  validateLogin,
+  validateSignup,
+} from '../src/features/auth/model/validation';
 import type { Gender } from '../src/features/auth/constants/genders';
 import type { Region } from '../src/features/auth/constants/regions';
 
@@ -45,5 +48,41 @@ describe('validateSignup', () => {
     const errors = validateSignup({ ...VALID, region: null, gender: null });
     expect(errors.region).toBeDefined();
     expect(errors.gender).toBeDefined();
+  });
+
+  it('앞뒤 공백이 붙은 이메일도 형식 오류로 막지 않는다', () => {
+    // 화면은 다듬은 값을 보내므로 검증도 같은 값을 봐야 한다.
+    const errors = validateSignup({ ...VALID, email: '  go@example.com  ' });
+    expect(errors.email).toBeUndefined();
+  });
+
+  it('공백만 있는 이메일은 필수 오류를 낸다', () => {
+    const errors = validateSignup({ ...VALID, email: '   ' });
+    expect(errors.email).toBe('이메일은 필수입니다.');
+  });
+
+  it('앞뒤 공백이 붙은 닉네임도 다듬은 길이로 본다', () => {
+    expect(validateSignup({ ...VALID, nickname: '  홍길동  ' }).nickname).toBe(
+      undefined,
+    );
+    expect(validateSignup({ ...VALID, nickname: ' 홍 ' }).nickname).toBeDefined();
+  });
+});
+
+describe('validateLogin', () => {
+  it('앞뒤 공백이 붙은 이메일도 형식 오류로 막지 않는다', () => {
+    const errors = validateLogin({
+      email: '  go@example.com  ',
+      password: 'abcd1234!',
+    });
+    expect(errors).toEqual({});
+  });
+
+  it('가운데 공백이 섞인 이메일은 형식 오류를 낸다', () => {
+    const errors = validateLogin({
+      email: 'go @example.com',
+      password: 'abcd1234!',
+    });
+    expect(errors.email).toBe('이메일 형식이 올바르지 않습니다.');
   });
 });

@@ -34,13 +34,26 @@ docs {
       {
         "memberId": 2,
         "nickname": "nickname_user",
-        "relationshipStatus": "NONE"
+        "relationshipStatus": "NONE",
+        "gender": "FEMALE",
+        "defaultImageUrl": "https://example.com/characters/female-default.png",
+        "equippedItems": [
+          {
+            "memberItemId": 10,
+            "itemId": 100,
+            "name": "빨간 모자",
+            "category": "HAT",
+            "imageUrl": "https://example.com/items/red-hat.png"
+          }
+        ]
       }
     ],
     "hasNext": false
   }
   ```
   `relationshipStatus`: `NONE` | `FRIEND` | `REQUEST_SENT` | `REQUEST_RECEIVED`
+
+  `gender`, `defaultImageUrl`, `equippedItems`는 검색된 회원의 캐릭터 정보다.
 
   ### 비즈니스 규칙
 

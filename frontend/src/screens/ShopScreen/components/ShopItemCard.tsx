@@ -1,16 +1,19 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { ItemThumbnail } from '../../../features/member/components/ItemThumbnail';
+import type { ShopItem } from '../../../features/shop/model/shopItem';
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { Badge } from '../../../shared/components/Badge/Badge';
 import { Card } from '../../../shared/components/Card/Card';
+import { controlHeight } from '../../../shared/constants/sizing';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
-import { shadow } from '../../../shared/constants/shadow';
 import { spacing } from '../../../shared/constants/spacing';
-import { sprites } from '../assets/sprites';
-import { formatPoints } from '../format';
-import type { ShopItem } from '../types';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
+import { formatPoints } from '../../../shared/lib/formatPoints';
 import { GradientFill } from './GradientFill';
-import { PixelSprite } from './PixelSprite';
 
 type ShopItemCardProps = {
   item: ShopItem;
@@ -21,7 +24,7 @@ type ShopItemCardProps = {
   onPurchase: () => void;
 };
 
-const SPRITE_SIZE = 64;
+const FALLBACK_ICON_SIZE = 28;
 
 export function ShopItemCard({
   item,
@@ -29,6 +32,8 @@ export function ShopItemCard({
   onTryOn,
   onPurchase,
 }: ShopItemCardProps) {
+  const [isImageBroken, setImageBroken] = useState(false);
+
   // 보유 여부가 버튼을 결정한다. 착용(미리보기)은 버튼이 아니라 배지로 표시하므로,
   // 미보유 아이템을 입어봐도 가격 버튼은 그대로 남는다.
   const actionState = !item.owned ? 'buy' : isEquipped ? 'equipped' : 'owned';
@@ -44,23 +49,40 @@ export function ShopItemCard({
       onPress={onTryOn}
       style={({ pressed }) => [styles.pressable, pressed && styles.pressed]}
       accessibilityRole="button"
-      accessibilityLabel={`${item.name} ${isEquipped ? '착용중' : '착용해보기'}`}
+      accessibilityLabel={`${item.name} ${
+        isEquipped ? '착용중' : '착용해보기'
+      }`}
       accessibilityState={{ selected: isEquipped }}
     >
-      <Card style={styles.card}>
+      <Card style={styles.card} shadow={false}>
         {isEquipped ? (
           <View style={styles.badgeSlot}>
-            <Badge label="착용중" labelStyle={styles.dohyeonText} />
+            <Badge label="착용중" />
           </View>
         ) : null}
 
-        <View style={styles.spriteBox}>
-          <PixelSprite sprite={sprites[item.sprite]} size={SPRITE_SIZE} />
+        <View style={styles.imageBox}>
+          {item.image && !isImageBroken ? (
+            <ItemThumbnail
+              source={item.image}
+              category={item.category}
+              style={styles.image}
+              // 실패해도 빈 상자만 남으면 "이미지가 없는 아이템"과 구분되지
+              // 않는다. 자리표시 아이콘으로 넘겨서 최소한 카드 모양은 유지한다.
+              onError={() => setImageBroken(true)}
+            />
+          ) : (
+            <Ionicons
+              name="image-outline"
+              size={FALLBACK_ICON_SIZE}
+              color={colors.muted}
+            />
+          )}
         </View>
 
-        <Text style={styles.name} numberOfLines={1}>
+        <AppText style={styles.name} numberOfLines={1}>
           {item.name}
-        </Text>
+        </AppText>
 
         {actionState === 'buy' ? (
           <Pressable
@@ -78,17 +100,17 @@ export function ShopItemCard({
               to={colors.primarySoftDark}
               borderRadius={radius.sm}
             />
-            <Text style={[styles.actionLabel, styles.buyLabel]}>
+            <AppText style={[styles.actionLabel, styles.buyLabel]}>
               {actionLabel}
-            </Text>
+            </AppText>
           </Pressable>
         ) : (
           <View style={[styles.action, ACTION_STYLES[actionState].box]}>
-            <Text
+            <AppText
               style={[styles.actionLabel, ACTION_STYLES[actionState].label]}
             >
               {actionLabel}
-            </Text>
+            </AppText>
           </View>
         )}
       </Card>
@@ -99,7 +121,6 @@ export function ShopItemCard({
 const styles = StyleSheet.create({
   pressable: {
     flex: 1,
-    marginRight: shadow.offset,
   },
   pressed: {
     opacity: 0.85,
@@ -107,6 +128,8 @@ const styles = StyleSheet.create({
   card: {
     alignItems: 'center',
     gap: spacing.sm,
+    // 3열 그리드라 Card 기본 padding(md)이면 이미지 자리가 안 남는다.
+    padding: spacing.sm,
   },
   badgeSlot: {
     position: 'absolute',
@@ -114,22 +137,31 @@ const styles = StyleSheet.create({
     right: spacing.sm,
     zIndex: 1,
   },
-  dohyeonText: {
-    fontFamily: 'BMDOHYEON',
-  },
-  spriteBox: {
-    height: SPRITE_SIZE,
+  imageBox: {
+    // 고정 크기 대신 칸 폭을 따라간다. 열 수나 기기 폭이 바뀌어도 카드 안에서
+    // 넘치지 않고 항상 정사각형을 유지한다.
+    width: '100%',
+    aspectRatio: 1,
+    alignItems: 'center',
     justifyContent: 'center',
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  image: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
   },
   name: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: colors.ink,
   },
   action: {
     alignSelf: 'stretch',
-    height: 36,
+    height: controlHeight.compact,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.sm,
@@ -140,8 +172,9 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   actionLabel: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 14,
+    lineHeight: lineHeights[14],
   },
   buyBox: {
     backgroundColor: colors.primarySoft,

@@ -68,4 +68,12 @@ public class FriendRequest extends BaseEntity {
     public boolean isInviter(Long memberId) {
         return inviter.getId().equals(memberId);
     }
+
+    public Long getInviterId() {
+        return inviter.getId();
+    }
+
+    public Long getInviteeId() {
+        return invitee.getId();
+    }
 }

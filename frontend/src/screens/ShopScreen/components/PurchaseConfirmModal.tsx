@@ -1,28 +1,33 @@
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Modal, Pressable, StyleSheet, View } from 'react-native';
 
+import type { ShopItem } from '../../../features/shop/model/shopItem';
+import { AppText } from '../../../shared/components/AppText/AppText';
+import { controlHeight } from '../../../shared/constants/sizing';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { shadow } from '../../../shared/constants/shadow';
 import { spacing } from '../../../shared/constants/spacing';
-import { sprites } from '../assets/sprites';
-import { formatPoints, withObjectParticle } from '../format';
-import type { ShopItem } from '../types';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
+import { formatPoints } from '../../../shared/lib/formatPoints';
+import { withObjectParticle } from '../format';
 import { GradientFill } from './GradientFill';
-import { PixelSprite } from './PixelSprite';
 
 type PurchaseConfirmModalProps = {
   /** null이면 닫힌 상태. 확인 중인 아이템을 그대로 받는다. */
   item: ShopItem | null;
   points: number;
+  /** 요청 중에는 같은 아이템을 두 번 사지 않도록 확인 버튼을 잠근다. */
+  isPurchasing: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
 
-const SPRITE_SIZE = 56;
+const IMAGE_SIZE = 56;
 
 export function PurchaseConfirmModal({
   item,
   points,
+  isPurchasing,
   onConfirm,
   onCancel,
 }: PurchaseConfirmModalProps) {
@@ -44,24 +49,31 @@ export function PurchaseConfirmModal({
           <View style={styles.dialogWrapper}>
             <View style={styles.shadowBox} />
             <View style={styles.dialog}>
-              <PixelSprite sprite={sprites[item.sprite]} size={SPRITE_SIZE} />
+              {item.image ? (
+                <Image
+                  source={item.image}
+                  style={styles.image}
+                  resizeMode="contain"
+                  accessibilityIgnoresInvertColors
+                />
+              ) : null}
 
-              <Text style={styles.title}>
+              <AppText style={styles.title}>
                 {`${withObjectParticle(item.name)} 구매하시겠습니까?`}
-              </Text>
+              </AppText>
 
               <View style={styles.summary}>
                 <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>가격</Text>
-                  <Text style={styles.summaryValue}>
+                  <AppText style={styles.summaryLabel}>가격</AppText>
+                  <AppText style={styles.summaryValue}>
                     {formatPoints(item.price)}
-                  </Text>
+                  </AppText>
                 </View>
                 <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>구매 후 보유 포인트</Text>
-                  <Text style={styles.summaryValue}>
+                  <AppText style={styles.summaryLabel}>구매 후 보유 포인트</AppText>
+                  <AppText style={styles.summaryValue}>
                     {formatPoints(points - item.price)}
-                  </Text>
+                  </AppText>
                 </View>
               </View>
 
@@ -76,29 +88,32 @@ export function PurchaseConfirmModal({
                   accessibilityRole="button"
                   accessibilityLabel="구매 취소"
                 >
-                  <Text style={[styles.actionLabel, styles.cancelLabel]}>
+                  <AppText style={[styles.actionLabel, styles.cancelLabel]}>
                     취소
-                  </Text>
+                  </AppText>
                 </Pressable>
 
                 <Pressable
                   onPress={onConfirm}
+                  disabled={isPurchasing}
                   style={({ pressed }) => [
                     styles.action,
                     styles.confirmAction,
-                    pressed && styles.pressed,
+                    isPurchasing && styles.disabled,
+                    pressed && !isPurchasing && styles.pressed,
                   ]}
                   accessibilityRole="button"
                   accessibilityLabel={`${item.name} 구매 확인`}
+                  accessibilityState={{ disabled: isPurchasing }}
                 >
                   <GradientFill
                     from={colors.primarySoftLight}
                     to={colors.primarySoftDark}
                     borderRadius={radius.sm}
                   />
-                  <Text style={[styles.actionLabel, styles.confirmLabel]}>
-                    구매하기
-                  </Text>
+                  <AppText style={[styles.actionLabel, styles.confirmLabel]}>
+                    {isPurchasing ? '구매 중...' : '구매하기'}
+                  </AppText>
                 </Pressable>
               </View>
             </View>
@@ -118,7 +133,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(17, 24, 39, 0.5)',
   },
   dialogWrapper: {
-    alignSelf: 'stretch',
+    // alignSelf: 'stretch'를 쓰면 backdrop의 alignItems: 'center'를 덮어써서,
+    // 화면이 넓어 maxWidth에 걸리는 순간 다이얼로그가 가운데가 아니라 왼쪽에
+    // 붙는다. width로 채우고 정렬은 부모에게 맡긴다.
+    width: '100%',
     maxWidth: 320,
     paddingRight: shadow.offset,
     paddingBottom: shadow.offset,
@@ -141,9 +159,14 @@ const styles = StyleSheet.create({
     borderColor: colors.ink,
     backgroundColor: colors.surface,
   },
+  image: {
+    width: IMAGE_SIZE,
+    height: IMAGE_SIZE,
+  },
   title: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 16,
+    lineHeight: lineHeights[16],
     color: colors.ink,
     textAlign: 'center',
   },
@@ -161,14 +184,16 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   summaryLabel: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.regular,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.successText,
     opacity: 0.8,
   },
   summaryValue: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: colors.successText,
   },
   actions: {
@@ -178,7 +203,7 @@ const styles = StyleSheet.create({
   },
   action: {
     flex: 1,
-    height: 44,
+    height: controlHeight.md,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.sm,
@@ -186,6 +211,9 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.85,
+  },
+  disabled: {
+    opacity: 0.5,
   },
   cancelAction: {
     borderWidth: 1.5,
@@ -197,8 +225,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
   },
   actionLabel: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.bold,
     fontSize: 15,
+    lineHeight: lineHeights[15],
   },
   cancelLabel: {
     color: colors.ink,

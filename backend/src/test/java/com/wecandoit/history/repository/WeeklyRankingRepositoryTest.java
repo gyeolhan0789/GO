@@ -3,6 +3,7 @@ package com.wecandoit.history.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.wecandoit.history.domain.MemberHistory;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.domain.Region;
 import com.wecandoit.member.repository.MemberRepository;
@@ -259,7 +260,7 @@ class WeeklyRankingRepositoryTest {
 
     private Member saveMember(String nickname, Region region) {
         return memberRepository.saveAndFlush(
-                Member.create(nickname + "@example.com", "password", nickname, region)
+                Member.create(nickname + "@example.com", "password", nickname, region, Gender.MALE)
         );
     }
 

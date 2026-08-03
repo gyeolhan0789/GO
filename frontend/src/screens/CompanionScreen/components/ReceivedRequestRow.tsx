@@ -1,11 +1,14 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { ReceivedFriendRequest } from '../../../features/friend/api/friendApi';
+import { MemberAvatar } from '../../../features/member/components/MemberAvatar';
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { Card } from '../../../shared/components/Card/Card';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { shadow } from '../../../shared/constants/shadow';
 import { spacing } from '../../../shared/constants/spacing';
+import { lineHeights } from '../../../shared/constants/typography';
 
 type ReceivedRequestRowProps = {
   request: ReceivedFriendRequest;
@@ -22,10 +25,15 @@ export function ReceivedRequestRow({
 }: ReceivedRequestRowProps) {
   return (
     <Card style={styles.card} wrapperStyle={styles.wrapper}>
-      <View style={styles.avatar} />
-      <Text style={styles.nickname} numberOfLines={1}>
+      <MemberAvatar
+        gender={request.gender}
+        defaultImageUrl={request.defaultImageUrl}
+        equippedItems={request.equippedItems}
+        style={styles.avatar}
+      />
+      <AppText style={styles.nickname} numberOfLines={1}>
         {request.inviterNickname}
-      </Text>
+      </AppText>
       <View style={styles.actions}>
         <Pressable
           onPress={onReject}
@@ -36,7 +44,7 @@ export function ReceivedRequestRow({
             disabled && styles.actionButtonDisabled,
           ]}
         >
-          <Text style={styles.rejectButtonText}>거절</Text>
+          <AppText style={styles.rejectButtonText}>거절</AppText>
         </Pressable>
         <Pressable
           onPress={onAccept}
@@ -47,7 +55,7 @@ export function ReceivedRequestRow({
             disabled && styles.actionButtonDisabled,
           ]}
         >
-          <Text style={styles.acceptButtonText}>수락</Text>
+          <AppText style={styles.acceptButtonText}>수락</AppText>
         </Pressable>
       </View>
     </Card>
@@ -66,17 +74,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
+  // 원 테두리 디자인은 CharacterBust가 모든 화면 공통으로 그린다.
   avatar: {
     width: 40,
     height: 40,
-    borderRadius: radius.pill,
-    backgroundColor: colors.neutralBg,
   },
   nickname: {
     flex: 1,
     minWidth: 0,
     fontFamily: 'BMDOHYEON',
     fontSize: 15,
+    lineHeight: lineHeights[15],
     color: colors.ink,
   },
   actions: {
@@ -97,6 +105,7 @@ const styles = StyleSheet.create({
   rejectButtonText: {
     fontFamily: 'BMDOHYEON',
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.ink,
   },
   acceptButton: {
@@ -105,6 +114,7 @@ const styles = StyleSheet.create({
   acceptButtonText: {
     fontFamily: 'BMDOHYEON',
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.successText,
   },
 });

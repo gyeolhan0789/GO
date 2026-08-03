@@ -1,7 +1,6 @@
 package com.wecandoit.bingo.controller;
 
 import com.wecandoit.bingo.controller.request.RenewBingoBoardRequest;
-import com.wecandoit.bingo.controller.request.SubmitBingoCellRequest;
 import com.wecandoit.bingo.controller.response.BingoBoardResponse;
 import com.wecandoit.bingo.controller.response.BingoCellSubmitResponse;
 import com.wecandoit.bingo.service.BingoCommandService;
@@ -11,13 +10,16 @@ import com.wecandoit.common.security.LoginMemberId;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/rooms")
@@ -37,15 +39,17 @@ public class BingoController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/{roomId}/bingo-boards/cells/{cellId}/submit")
+    @PostMapping(
+            value = "/{roomId}/bingo-boards/cells/{cellId}/submit",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
     public ResponseEntity<BingoCellSubmitResponse> submitCell(
             @LoginMemberId Long memberId,
             @PathVariable Long roomId,
             @PathVariable Long cellId,
-            @Valid @RequestBody SubmitBingoCellRequest request
+            @RequestPart("image") MultipartFile image
     ) {
-        BingoCellSubmitResponse response = missionVerificationFacade.submitAndVerify(
-                memberId, roomId, cellId, request.submitUrl());
+        BingoCellSubmitResponse response = missionVerificationFacade.submitAndVerify(memberId, roomId, cellId, image);
         return ResponseEntity.ok(response);
     }
 
@@ -55,7 +59,22 @@ public class BingoController {
             @PathVariable Long roomId,
             @Valid @RequestBody RenewBingoBoardRequest request
     ) {
-        BingoBoardResponse response = bingoCommandService.renewBoard(memberId, roomId, request.targetStepCount());
+        BingoBoardResponse response = bingoCommandService.renewBoard(
+                memberId,
+                roomId,
+                request.boardSize(),
+                request.targetStepCount()
+        );
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/{roomId}/battles/rematch")
+    public ResponseEntity<BingoBoardResponse> rematchBattle(
+            @LoginMemberId Long memberId,
+            @PathVariable Long roomId
+    ) {
+        bingoCommandService.rematchBattle(memberId, roomId);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(bingoReadService.getActiveBoard(memberId, roomId));
     }
 }

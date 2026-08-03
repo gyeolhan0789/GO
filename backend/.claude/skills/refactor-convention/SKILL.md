@@ -10,9 +10,9 @@ argument-hint: "[diff]"
 
 작업 전 아래 두 파일을 반드시 읽는다.
 
-- `convention/java-convention.md`
-- `convention/spring-boot-convention.md`
-- `convention/back-test-convention.md`
+- `docs/java-convention.md`
+- `docs/spring-boot-convention.md`
+- `docs/back-test-convention.md`
 
 이 문서가 리팩터링의 유일한 기준이다. 문서에 없는 규칙은 적용하지 않는다.
 

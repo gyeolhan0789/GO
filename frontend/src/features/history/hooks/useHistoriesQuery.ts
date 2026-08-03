@@ -61,11 +61,23 @@ async function fetchHistories(
   return buildHistoryResponse(period, date, dailySummaries);
 }
 
+type UseHistoriesQueryOptions = {
+  /** 산책 세션 화면처럼 오늘 몫이 실시간으로 반영돼야 하는 곳에서만 넘긴다(ms). */
+  refetchInterval?: number;
+  enabled?: boolean;
+};
+
 /** 구간별 활동 기록. 삼성헬스 SDK에서 읽어 서버 응답과 같은 형태로 만든다. */
-export function useHistoriesQuery(period: HistoryPeriod, date: string) {
+export function useHistoriesQuery(
+  period: HistoryPeriod,
+  date: string,
+  options: UseHistoriesQueryOptions = {},
+) {
   return useQuery({
     queryKey: ['histories', period, date],
     queryFn: () => fetchHistories(period, date),
     retry: false,
+    refetchInterval: options.refetchInterval,
+    enabled: options.enabled ?? true,
   });
 }

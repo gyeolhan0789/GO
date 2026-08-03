@@ -3,19 +3,29 @@ package com.wecandoit.member.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
+import com.wecandoit.avatar.service.AvatarReadService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.friend.repository.FriendRepository;
 import com.wecandoit.friend.domain.FriendRequest;
 import com.wecandoit.friend.repository.FriendRequestRepository;
+import com.wecandoit.item.controller.response.AvatarResponse;
+import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.item.domain.ItemCategory;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
-import com.wecandoit.member.dto.MemberRelationshipStatus;
-import com.wecandoit.member.dto.MemberSearchResponse;
+import com.wecandoit.member.domain.Region;
+import com.wecandoit.member.controller.response.MemberSearchResponse;
+import com.wecandoit.member.controller.response.MyPageResponse;
+import com.wecandoit.member.domain.MemberRelationshipStatus;
 import com.wecandoit.member.repository.MemberRepository;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,15 +47,22 @@ class MemberReadServiceTest {
     private FriendRepository friendRepository;
     @Mock
     private FriendRequestRepository friendRequestRepository;
+    @Mock
+    private AvatarReadService avatarReadService;
     private MemberReadService memberReadService;
 
     @BeforeEach
     void setUp() {
-        memberReadService = new MemberReadService(memberRepository, friendRepository, friendRequestRepository);
+        memberReadService = new MemberReadService(
+                memberRepository,
+                friendRepository,
+                friendRequestRepository,
+                avatarReadService
+        );
     }
 
     @Test
-    @DisplayName("닉네임 부분 검색 결과에 현재 관계 상태를 포함한다")
+    @DisplayName("닉네임 검색 결과에 관계 상태와 아바타 정보를 포함한다")
     void searchMembersIncludesRelationshipStatus() {
         // given
         Member loginMember = member(1L, "나");
@@ -70,6 +87,24 @@ class MemberReadServiceTest {
                         FriendRequest.create(loginMember, sent),
                         FriendRequest.create(received, loginMember)
                 ));
+        EquippedItemResponse equippedItem = new EquippedItemResponse(
+                10L,
+                100L,
+                "빨간 모자",
+                ItemCategory.HAT,
+                "https://example.com/hat.png"
+        );
+        given(avatarReadService.getAvatars(List.of(friend, sent, received, none)))
+                .willReturn(Map.of(
+                        2L,
+                        avatar(friend, "https://example.com/male.png", List.of(equippedItem)),
+                        3L,
+                        avatar(sent, "https://example.com/male.png", List.of()),
+                        4L,
+                        avatar(received, "https://example.com/male.png", List.of()),
+                        5L,
+                        avatar(none, "https://example.com/male.png", List.of())
+                ));
 
         // when
         SliceResponse<MemberSearchResponse> responses =
@@ -77,14 +112,44 @@ class MemberReadServiceTest {
 
         // then
         assertThat(responses.content())
-                .extracting(MemberSearchResponse::memberId, MemberSearchResponse::relationshipStatus)
+                .extracting(
+                        MemberSearchResponse::memberId,
+                        MemberSearchResponse::relationshipStatus,
+                        MemberSearchResponse::gender,
+                        MemberSearchResponse::defaultImageUrl
+                )
                 .containsExactly(
-                        org.assertj.core.groups.Tuple.tuple(2L, MemberRelationshipStatus.FRIEND),
-                        org.assertj.core.groups.Tuple.tuple(3L, MemberRelationshipStatus.REQUEST_SENT),
-                        org.assertj.core.groups.Tuple.tuple(4L, MemberRelationshipStatus.REQUEST_RECEIVED),
-                        org.assertj.core.groups.Tuple.tuple(5L, MemberRelationshipStatus.NONE)
+                        org.assertj.core.groups.Tuple.tuple(
+                                2L,
+                                MemberRelationshipStatus.FRIEND,
+                                Gender.MALE,
+                                "https://example.com/male.png"
+                        ),
+                        org.assertj.core.groups.Tuple.tuple(
+                                3L,
+                                MemberRelationshipStatus.REQUEST_SENT,
+                                Gender.MALE,
+                                "https://example.com/male.png"
+                        ),
+                        org.assertj.core.groups.Tuple.tuple(
+                                4L,
+                                MemberRelationshipStatus.REQUEST_RECEIVED,
+                                Gender.MALE,
+                                "https://example.com/male.png"
+                        ),
+                        org.assertj.core.groups.Tuple.tuple(
+                                5L,
+                                MemberRelationshipStatus.NONE,
+                                Gender.MALE,
+                                "https://example.com/male.png"
+                        )
                 );
+        assertThat(responses.content().getFirst().equippedItems()).containsExactly(equippedItem);
+        assertThat(responses.content().get(1).equippedItems()).isEmpty();
         assertThat(responses.hasNext()).isFalse();
+        then(avatarReadService).should()
+                .getAvatars(List.of(friend, sent, received, none));
+        then(memberRepository).should(never()).findAllById(ArgumentMatchers.anyIterable());
     }
 
     @Test
@@ -133,9 +198,105 @@ class MemberReadServiceTest {
                 .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
     }
 
+    @Test
+    @DisplayName("회원 ID 목록으로 현재 아바타를 일괄 조회한다")
+    void getAvatarsByIdsReturnsAvatars() {
+        // given
+        Member firstMember = member(1L, "첫 번째");
+        Member secondMember = member(2L, "두 번째");
+        List<Member> members = List.of(firstMember, secondMember);
+        Map<Long, AvatarResponse> avatars = Map.of(
+                1L, avatar(firstMember, "https://example.com/male.png", List.of()),
+                2L, avatar(secondMember, "https://example.com/male.png", List.of())
+        );
+        given(memberRepository.findAllById(ArgumentMatchers.anyIterable())).willReturn(members);
+        given(avatarReadService.getAvatars(members)).willReturn(avatars);
+
+        // when
+        Map<Long, AvatarResponse> responses =
+                memberReadService.getAvatarsByIds(List.of(1L, 2L));
+
+        // then
+        assertThat(responses).isEqualTo(avatars);
+        then(avatarReadService).should().getAvatars(members);
+    }
+
+    @Test
+    @DisplayName("회원 ID 목록이 비어 있으면 아바타를 조회하지 않는다")
+    void getAvatarsByIdsReturnsEmptyMap() {
+        // when & then
+        assertThat(memberReadService.getAvatarsByIds(List.of())).isEmpty();
+
+        then(memberRepository).shouldHaveNoInteractions();
+        then(avatarReadService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("아바타 조회 대상 회원이 누락되면 실패한다")
+    void getAvatarsByIdsRejectsMissingMember() {
+        // given
+        Member member = member(1L, "첫 번째");
+        given(memberRepository.findAllById(ArgumentMatchers.anyIterable())).willReturn(List.of(member));
+
+        // when & then
+        assertThatThrownBy(() -> memberReadService.getAvatarsByIds(List.of(1L, 2L)))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
+        then(avatarReadService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("회원 ID로 마이페이지 정보를 조회한다")
+    void getMyPageReturnsMemberInfo() {
+        // given
+        Member member = member(1L, "산책러");
+        given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+
+        // when
+        MyPageResponse response = memberReadService.getMyPage(1L);
+
+        // then
+        assertThat(response).isEqualTo(new MyPageResponse(
+                1L,
+                "산책러@example.com",
+                "산책러",
+                Gender.MALE,
+                null,
+                0L
+        ));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 회원 ID로 마이페이지를 조회하면 실패한다")
+    void getMyPageRejectsMissingMember() {
+        // given
+        given(memberRepository.findById(1L)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> memberReadService.getMyPage(1L))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
+    }
+
     private Member member(Long id, String nickname) {
-        Member member = Member.create(nickname + "@example.com", "password", nickname);
+        Member member = Member.create(nickname + "@example.com", "password", nickname, null, Gender.MALE);
         ReflectionTestUtils.setField(member, "id", id);
         return member;
+    }
+
+    private AvatarResponse avatar(
+            Member member,
+            String defaultImageUrl,
+            List<EquippedItemResponse> equippedItems
+    ) {
+        return new AvatarResponse(
+                member.getId(),
+                member.getNickname(),
+                member.getGender(),
+                defaultImageUrl,
+                equippedItems
+        );
     }
 }

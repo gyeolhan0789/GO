@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -6,7 +6,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import type { TextInput } from 'react-native';
@@ -19,29 +18,35 @@ import { ConsentCheckboxes } from '../../features/auth/components/ConsentCheckbo
 import { GenderSelector } from '../../features/auth/components/GenderSelector';
 import { RegionDropdown } from '../../features/auth/components/RegionDropdown';
 import { SocialAuthButtons } from '../../features/auth/components/SocialAuthButtons';
+import { AppText } from '../../shared/components/AppText/AppText';
 import type { Gender } from '../../features/auth/constants/genders';
 import type { Region } from '../../features/auth/constants/regions';
 import { useRegionDetection } from '../../features/auth/hooks/useRegionDetection';
 import { useSignupMutation } from '../../features/auth/hooks/useSignupMutation';
+import { useSocialAuthFlow } from '../../features/auth/hooks/useSocialAuthFlow';
+import type { SocialSignupHandoff } from '../../features/auth/hooks/useSocialAuthFlow';
 import {
   NICKNAME_MAX_LENGTH,
   validateSignup,
 } from '../../features/auth/model/validation';
 import type { SignupErrors } from '../../features/auth/model/validation';
 import { Screen } from '../../shared/components/Screen/Screen';
-import { fontFamily } from '../../shared/constants/typography';
+import { useFocusedFieldScroll } from '../../shared/hooks/useFocusedFieldScroll';
+import { colors } from '../../shared/constants/colors';
+import { bodyFont, fontFamily, lineHeights } from '../../shared/constants/typography';
+import { SignupCompleteModal } from './components/SignupCompleteModal';
 import { SignupHero } from './components/SignupHero';
 
 type SignupScreenProps = NativeStackScreenProps<RootStackParamList, 'Signup'>;
 
-const LABEL_COLOR = '#374151';
-const ERROR_COLOR = '#DC2626';
-const ACCENT_COLOR = '#2C6A47';
-const HINT_COLOR = '#6B7280';
-const TITLE_COLOR = '#111827';
-const SUBTITLE_COLOR = '#4B5563';
-const PRIMARY_COLOR = '#27A34A';
-const DIVIDER_COLOR = '#E5E7EB';
+const LABEL_COLOR = colors.inkSoft;
+const ERROR_COLOR = colors.danger;
+const ACCENT_COLOR = colors.primaryDark;
+const HINT_COLOR = colors.mutedStrong;
+const TITLE_COLOR = colors.ink;
+const SUBTITLE_COLOR = colors.inkMuted;
+const PRIMARY_COLOR = colors.primary;
+const DIVIDER_COLOR = colors.borderSoft;
 
 // 본문 view가 사진을 덮는 오버랩 높이와 상단 라운드 반경.
 const BODY_OVERLAP = 24;
@@ -59,16 +64,29 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreeAge, setAgreeAge] = useState(false);
   const [errors, setErrors] = useState<SignupErrors>({});
+  const [isSignupComplete, setIsSignupComplete] = useState(false);
 
+  const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
   const passwordConfirmRef = useRef<TextInput>(null);
   const nicknameRef = useRef<TextInput>(null);
+  const { scrollRef, scrollEventThrottle, handleScroll, revealField } =
+    useFocusedFieldScroll();
   const mutation = useSignupMutation();
   const {
     status: detectionStatus,
     detectIfPermitted,
     detect,
   } = useRegionDetection();
+
+  const social = useSocialAuthFlow(
+    useCallback(
+      (handoff: SocialSignupHandoff) => {
+        navigation.navigate('SocialSignup', handoff);
+      },
+      [navigation],
+    ),
+  );
 
   // 위치 권한이 이미 허용된 경우에만 진입 시 조용히 지역을 채운다. 사용자가 아직
   // 아무 지역도 고르지 않았을 때만 반영해 수동 선택을 덮어쓰지 않는다.
@@ -131,10 +149,7 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
         gender,
       },
       {
-        onSuccess: () =>
-          Alert.alert('회원가입 완료', '로그인해 주세요.', [
-            { text: '확인', onPress: () => navigation.goBack() },
-          ]),
+        onSuccess: () => setIsSignupComplete(true),
       },
     );
   }
@@ -146,25 +161,31 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
+          onScroll={handleScroll}
+          scrollEventThrottle={scrollEventThrottle}
         >
           <SignupHero />
 
           <View style={styles.body}>
-            <Text style={styles.title}>회원가입</Text>
-            <Text style={styles.subtitle}>
-              <Text style={styles.subtitleAccent}>GO!</Text>와 함께 즐거운
+            <AppText style={styles.title}>회원가입</AppText>
+            <AppText style={styles.subtitle}>
+              <AppText style={styles.subtitleAccent}>GO!</AppText>와 함께 즐거운
               산책을 시작해봐요!
-            </Text>
+            </AppText>
 
             <AuthTextField
+              ref={emailRef}
               label="이메일 주소"
               leftIcon="person-outline"
               value={email}
               placeholder="이메일 주소"
               onChangeText={text => {
-                setEmail(text);
+                // 이메일에는 공백이 들어갈 수 없다. 자동완성이 뒤에 붙이는 공백을
+                // 바로 지워 화면에 보이는 값과 보내는 값을 같게 만든다.
+                setEmail(text.trim());
                 clearError('email');
               }}
               error={errors.email}
@@ -174,6 +195,7 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
               textContentType="emailAddress"
               returnKeyType="next"
               submitBehavior="submit"
+              onFocus={() => revealField(emailRef)}
               onSubmitEditing={() => passwordRef.current?.focus()}
             />
             <AuthTextField
@@ -193,6 +215,7 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
               textContentType="newPassword"
               returnKeyType="next"
               submitBehavior="submit"
+              onFocus={() => revealField(passwordRef)}
               onSubmitEditing={() => passwordConfirmRef.current?.focus()}
             />
             <AuthTextField
@@ -212,6 +235,7 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
               textContentType="newPassword"
               returnKeyType="next"
               submitBehavior="submit"
+              onFocus={() => revealField(passwordConfirmRef)}
               onSubmitEditing={() => nicknameRef.current?.focus()}
             />
             <AuthTextField
@@ -229,12 +253,13 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
               autoCapitalize="none"
               maxLength={NICKNAME_MAX_LENGTH}
               returnKeyType="done"
+              onFocus={() => revealField(nicknameRef)}
               onSubmitEditing={submit}
             />
 
             <View style={styles.section}>
               <View style={styles.regionHeader}>
-                <Text style={styles.sectionLabel}>지역</Text>
+                <AppText style={styles.sectionLabel}>지역</AppText>
                 <Pressable
                   onPress={detectRegion}
                   disabled={detectionStatus === 'detecting'}
@@ -244,11 +269,11 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
                     disabled: detectionStatus === 'detecting',
                   }}
                 >
-                  <Text style={styles.detectButton}>
+                  <AppText style={styles.detectButton}>
                     {detectionStatus === 'detecting'
                       ? '위치 확인 중…'
                       : '현재 위치로 찾기'}
-                  </Text>
+                  </AppText>
                 </Pressable>
               </View>
               <RegionDropdown
@@ -260,24 +285,24 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
                 }}
               />
               {detectionStatus === 'denied' ? (
-                <Text style={styles.hint} accessibilityLiveRegion="polite">
+                <AppText style={styles.hint} accessibilityLiveRegion="polite">
                   위치 권한이 없어 지역을 직접 선택해 주세요.
-                </Text>
+                </AppText>
               ) : null}
               {detectionStatus === 'error' ? (
-                <Text style={styles.hint} accessibilityLiveRegion="polite">
+                <AppText style={styles.hint} accessibilityLiveRegion="polite">
                   위치를 가져오지 못했어요. 지역을 직접 선택해 주세요.
-                </Text>
+                </AppText>
               ) : null}
               {errors.region ? (
-                <Text style={styles.error} accessibilityLiveRegion="polite">
+                <AppText style={styles.error} accessibilityLiveRegion="polite">
                   {errors.region}
-                </Text>
+                </AppText>
               ) : null}
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>성별</Text>
+              <AppText style={styles.sectionLabel}>성별</AppText>
               <GenderSelector
                 selected={gender}
                 onSelect={value => {
@@ -286,9 +311,9 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
                 }}
               />
               {errors.gender ? (
-                <Text style={styles.error} accessibilityLiveRegion="polite">
+                <AppText style={styles.error} accessibilityLiveRegion="polite">
                   {errors.gender}
-                </Text>
+                </AppText>
               ) : null}
             </View>
 
@@ -312,9 +337,9 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
             </View>
 
             {mutation.error ? (
-              <Text style={styles.error} accessibilityLiveRegion="polite">
+              <AppText style={styles.error} accessibilityLiveRegion="polite">
                 {mutation.error.message}
-              </Text>
+              </AppText>
             ) : null}
 
             <AuthSubmitButton
@@ -328,25 +353,40 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
               onPress={() => navigation.goBack()}
               accessibilityRole="button"
             >
-              <Text style={styles.loginText}>
+              <AppText style={styles.loginText}>
                 이미 계정이 있으신가요?{' '}
-                <Text style={styles.loginAccent}>로그인</Text>
-              </Text>
+                <AppText style={styles.loginAccent}>로그인</AppText>
+              </AppText>
             </Pressable>
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>또는</Text>
+              <AppText style={styles.dividerText}>또는</AppText>
               <View style={styles.dividerLine} />
             </View>
 
+            {social.errorMessage ? (
+              <AppText style={styles.error} accessibilityLiveRegion="polite">
+                {social.errorMessage}
+              </AppText>
+            ) : null}
+
             <SocialAuthButtons
-              onKakaoPress={notReady}
-              onGooglePress={notReady}
+              onKakaoPress={() => social.start('KAKAO')}
+              onGooglePress={() => social.start('GOOGLE')}
+              pendingProvider={social.pendingProvider}
             />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <SignupCompleteModal
+        visible={isSignupComplete}
+        onConfirm={() => {
+          setIsSignupComplete(false);
+          navigation.goBack();
+        }}
+      />
     </Screen>
   );
 }
@@ -358,33 +398,34 @@ const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
     paddingBottom: 32,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   body: {
     // 본문 view의 상단 모서리를 깎고 사진 위로 끌어올려(-OVERLAP) 사진을 덮는다.
     marginTop: -BODY_OVERLAP + 8,
     borderTopLeftRadius: BODY_CORNER_RADIUS,
     borderTopRightRadius: BODY_CORNER_RADIUS,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     paddingHorizontal: 24,
     paddingTop: BODY_OVERLAP + 20,
   },
   title: {
     fontFamily: fontFamily.bold,
     fontSize: 28,
-    lineHeight: 36,
+    lineHeight: lineHeights[28],
     color: TITLE_COLOR,
     textAlign: 'center',
   },
   subtitle: {
     marginTop: 8,
     marginBottom: 28,
+    fontFamily: bodyFont.regular,
     fontSize: 15,
     color: SUBTITLE_COLOR,
     textAlign: 'center',
   },
   subtitleAccent: {
-    fontWeight: '700',
+    fontFamily: bodyFont.bold,
     color: PRIMARY_COLOR,
   },
   section: {
@@ -392,8 +433,9 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     marginBottom: 8,
+    fontFamily: bodyFont.medium,
     fontSize: 14,
-    fontWeight: '600',
+    lineHeight: lineHeights[14],
     color: LABEL_COLOR,
   },
   regionHeader: {
@@ -402,19 +444,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   detectButton: {
+    fontFamily: bodyFont.medium,
     fontSize: 13,
-    fontWeight: '600',
+    lineHeight: lineHeights[13],
     color: ACCENT_COLOR,
   },
   hint: {
     marginTop: 8,
+    fontFamily: bodyFont.regular,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: HINT_COLOR,
   },
   error: {
     marginTop: 4,
     marginBottom: 12,
+    fontFamily: bodyFont.regular,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: ERROR_COLOR,
   },
   consent: {
@@ -425,11 +472,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loginText: {
+    fontFamily: bodyFont.regular,
     fontSize: 14,
+    lineHeight: lineHeights[14],
     color: SUBTITLE_COLOR,
   },
   loginAccent: {
-    fontWeight: '700',
+    fontFamily: bodyFont.bold,
     color: PRIMARY_COLOR,
   },
   divider: {
@@ -444,7 +493,9 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     marginHorizontal: 12,
+    fontFamily: bodyFont.regular,
     fontSize: 13,
+    lineHeight: lineHeights[13],
     color: HINT_COLOR,
   },
 });

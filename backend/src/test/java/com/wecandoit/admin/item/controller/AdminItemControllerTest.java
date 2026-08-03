@@ -18,6 +18,7 @@ import com.wecandoit.admin.item.controller.response.AdminItemResponse;
 import com.wecandoit.admin.item.service.AdminItemCommandService;
 import com.wecandoit.admin.item.service.AdminItemReadService;
 import com.wecandoit.common.exception.CustomExceptionHandler;
+import com.wecandoit.item.domain.ItemCategory;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -113,6 +114,18 @@ class AdminItemControllerTest {
     }
 
     @Test
+    @DisplayName("아이템 삭제 요청은 본문 없이 판매를 중지한다")
+    void stopItemSaleReturnsNoContent() {
+        // when & then
+        given()
+                .when()
+                .delete("/admin/items/{itemId}", 1)
+                .then()
+                .statusCode(HttpStatus.NO_CONTENT.value());
+        then(adminItemCommandService).should().stopItemSale(1L);
+    }
+
+    @Test
     @DisplayName("아이템과 이미지를 등록하면 201 상태를 반환한다")
     void createItemReturnsCreated() {
         // given
@@ -196,23 +209,11 @@ class AdminItemControllerTest {
         );
     }
 
-    @Test
-    @DisplayName("아이템 삭제 요청은 본문 없이 판매를 중지한다")
-    void stopItemSaleReturnsNoContent() {
-        // when & then
-        given()
-                .when()
-                .delete("/admin/items/{itemId}", 1)
-                .then()
-                .statusCode(HttpStatus.NO_CONTENT.value());
-        then(adminItemCommandService).should().stopItemSale(1L);
-    }
-
     private AdminItemResponse response(boolean availableForSale) {
         return new AdminItemResponse(
                 1L,
                 "검은 모자",
-                "HAT",
+                ItemCategory.HAT,
                 1_000L,
                 "/uploads/test/items/1/hat.png",
                 availableForSale,

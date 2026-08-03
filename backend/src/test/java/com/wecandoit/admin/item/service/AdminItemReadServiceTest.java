@@ -9,6 +9,7 @@ import com.wecandoit.admin.item.controller.response.AdminItemResponse;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.item.domain.Item;
+import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.item.repository.ItemRepository;
 import java.util.List;
 import java.util.Optional;
@@ -36,8 +37,8 @@ class AdminItemReadServiceTest {
     @DisplayName("판매 중지 여부와 관계없이 전체 아이템을 조회한다")
     void getItemsReturnsAllItems() {
         // given
-        Item availableItem = item(1L, "판매 모자", "HAT", "/available.png");
-        Item stoppedItem = item(2L, "판매 중지 모자", "HAT", "/stopped.png");
+        Item availableItem = item(1L, "판매 모자", ItemCategory.HAT, "/available.png");
+        Item stoppedItem = item(2L, "판매 중지 모자", ItemCategory.HAT, "/stopped.png");
         stoppedItem.stopSale();
         given(itemRepository.findAll()).willReturn(List.of(availableItem, stoppedItem));
 

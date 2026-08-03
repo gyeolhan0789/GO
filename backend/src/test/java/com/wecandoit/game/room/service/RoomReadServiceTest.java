@@ -2,7 +2,6 @@ package com.wecandoit.game.room.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.groups.Tuple.tuple;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
@@ -18,22 +17,26 @@ import com.wecandoit.game.controller.response.RoomDetailResponse;
 import com.wecandoit.game.controller.response.RoomMemberResponse;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
-import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.domain.GameParticipant;
 import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomMember;
+import com.wecandoit.game.repository.GameParticipantRepository;
 import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.RoomReadService;
-import com.wecandoit.game.service.RoomReadService.StepGoalRewardTarget;
+import com.wecandoit.game.service.StepGoalRewardTarget;
+import com.wecandoit.item.controller.response.AvatarResponse;
+import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.item.domain.ItemCategory;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.service.MemberReadService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -48,16 +51,25 @@ class RoomReadServiceTest {
 
     @Mock
     private RoomRepository roomRepository;
+
     @Mock
     private RoomMemberRepository roomMemberRepository;
+
     @Mock
     private GameRepository gameRepository;
+
+    @Mock
+    private GameParticipantRepository gameParticipantRepository;
+
     @Mock
     private MemberReadService memberReadService;
+
     @Mock
     private BingoBoardRepository bingoBoardRepository;
+
     @Mock
     private BingoCellRepository bingoCellRepository;
+
     private RoomReadService roomReadService;
 
     @BeforeEach
@@ -66,6 +78,7 @@ class RoomReadServiceTest {
                 roomRepository,
                 roomMemberRepository,
                 gameRepository,
+                gameParticipantRepository,
                 memberReadService,
                 bingoBoardRepository,
                 bingoCellRepository
@@ -73,683 +86,380 @@ class RoomReadServiceTest {
     }
 
     @Test
-    @DisplayName("대결 방 상세 조회 시 각 참가자의 개인 빙고판 ID를 반환한다")
-    void getBattleRoomDetailReturnsBingoBoardIdsByRoomMember() {
-        // given
-        Room room = Room.create(1L, "테스트 방", GameMode.BATTLE, 3, 3);
-        ReflectionTestUtils.setField(room, "id", 10L);
-        RoomMember hostMember = roomMember(10L, 1L, 0, LocalDateTime.of(2026, 7, 22, 10, 0));
-        RoomMember guestMember = roomMember(10L, 2L, 0, LocalDateTime.of(2026, 7, 22, 10, 5));
-        ReflectionTestUtils.setField(hostMember, "id", 101L);
-        ReflectionTestUtils.setField(guestMember, "id", 102L);
-        BingoBoard hostBoard = BingoBoard.createForBattle(200L, hostMember, 3);
-        BingoBoard guestBoard = BingoBoard.createForBattle(200L, guestMember, 3);
-        ReflectionTestUtils.setField(hostBoard, "id", 201L);
-        ReflectionTestUtils.setField(guestBoard, "id", 202L);
+    @DisplayName("보드가 한 번도 없으면 방의 최초 설정과 예상 미션 수를 반환한다")
+    void getRoomDetailUsesInitialSettingsWithoutGame() {
+        Room room = room(10L, GameMode.BATTLE, 3, 2, null);
+        RoomMember host = roomMember(10L, 1L);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
         given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L))
-                .willReturn(List.of(hostMember, guestMember));
-        given(memberReadService.getNicknamesByIds(List.of(1L, 2L)))
-                .willReturn(Map.of(1L, "방장", 2L, "상대방"));
-        Game game = Game.start(10L);
-        ReflectionTestUtils.setField(game, "id", 200L);
-        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.IN_PROGRESS))
-                .willReturn(Optional.of(game));
-        given(bingoBoardRepository.findAllByGameIdOrderByIdAsc(200L))
-                .willReturn(List.of(hostBoard, guestBoard));
+                .willReturn(List.of(host));
+        given(gameRepository.findFirstByRoomIdOrderByIdDesc(10L)).willReturn(Optional.empty());
+        given(memberReadService.getAvatarsByIds(List.of(1L))).willReturn(avatars(List.of(host)));
 
-        // when
         RoomDetailResponse response = roomReadService.getRoomDetail(1L, 10L);
 
-        // then
-        assertThat(response.members())
-                .extracting(RoomMemberResponse::bingoBoardId)
-                .containsExactly(201L, 202L);
-    }
-
-    @Test
-    @DisplayName("협동 방 참가자는 개인 빙고판 ID를 반환하지 않는다")
-    void getCooperateRoomDetailReturnsNullBingoBoardId() {
-        // given
-        Room room = Room.create(1L, "테스트 방", GameMode.COOPERATE, null, 3);
-        ReflectionTestUtils.setField(room, "id", 10L);
-        RoomMember hostMember = roomMember(10L, 1L, 0, LocalDateTime.of(2026, 7, 22, 10, 0));
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of(hostMember));
-        given(memberReadService.getNicknamesByIds(List.of(1L))).willReturn(Map.of(1L, "방장"));
-
-        // when
-        RoomDetailResponse response = roomReadService.getRoomDetail(1L, 10L);
-
-        // then
-        assertThat(response.members().getFirst().bingoBoardId()).isNull();
-        then(bingoBoardRepository).shouldHaveNoInteractions();
-    }
-
-    @Test
-    @DisplayName("게임방 상세를 조회하면 방 정보와 참여자 상세 목록을 반환한다")
-    void getRoomDetailReturnsRoomDetailWithMembers() {
-        // given
-        Room room = room(10L, 1L);
-        ReflectionTestUtils.setField(room, "startedAt", LocalDateTime.of(2026, 7, 22, 9, 50));
-        RoomMember hostMember = roomMember(10L, 1L, 2, LocalDateTime.of(2026, 7, 22, 10, 0));
-        RoomMember guestMember = roomMember(10L, 2L, 1, LocalDateTime.of(2026, 7, 22, 10, 5));
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L))
-                .willReturn(List.of(hostMember, guestMember));
-        given(memberReadService.getNicknamesByIds(List.of(1L, 2L)))
-                .willReturn(Map.of(1L, "방장", 2L, "참여자"));
-
-        // when
-        RoomDetailResponse response = roomReadService.getRoomDetail(1L, 10L);
-
-        // then
-        assertThat(response.roomId()).isEqualTo(10L);
-        assertThat(response.name()).isEqualTo("테스트 방");
-        assertThat(response.mode()).isEqualTo(GameMode.SINGLE);
-        assertThat(response.status()).isEqualTo(GameRoomStatus.CREATED);
-        assertThat(response.targetBingoCount()).isNull();
+        assertThat(response.boardSize()).isEqualTo(3);
+        assertThat(response.targetBingoCount()).isEqualTo(2);
         assertThat(response.totalMissionCount()).isEqualTo(9);
         assertThat(response.completedMissionCount()).isZero();
-        assertThat(response.hostId()).isEqualTo(1L);
-        assertThat(response.startedAt()).isEqualTo(LocalDateTime.of(2026, 7, 22, 9, 50));
-        assertThat(response.members()).hasSize(2);
-        assertThat(response.members().get(0).memberId()).isEqualTo(1L);
-        assertThat(response.members().get(0).nickname()).isEqualTo("방장");
-        assertThat(response.members().get(0).host()).isTrue();
-        assertThat(response.members().get(0).completedMissionCount()).isEqualTo(2);
-        assertThat(response.members().get(0).joinedAt()).isEqualTo(LocalDateTime.of(2026, 7, 22, 10, 0));
-        assertThat(response.members().get(1).memberId()).isEqualTo(2L);
-        assertThat(response.members().get(1).nickname()).isEqualTo("참여자");
-        assertThat(response.members().get(1).host()).isFalse();
-        then(roomMemberRepository).should().findAllByRoomIdOrderByJoinedAtAsc(10L);
+        assertThat(response.startedAt()).isNull();
+        assertThat(response.members()).singleElement().satisfies(member -> {
+            assertThat(member.gender()).isEqualTo(Gender.MALE);
+            assertThat(member.defaultImageUrl()).isEqualTo("https://example.com/male.png");
+            assertThat(member.equippedItems()).hasSize(1);
+        });
     }
 
     @Test
-    @DisplayName("게임 시작 전 방 상세는 빙고판 크기 기준 총 미션 수와 완료 수 0을 반환한다")
-    void getRoomDetailReturnsInitialMissionProgressBeforeGameStarts() {
-        // given
-        Room room = room(10L, 1L);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of());
-
-        // when
-        RoomDetailResponse response = roomReadService.getRoomDetail(1L, 10L);
-
-        // then
-        assertThat(response.totalMissionCount()).isEqualTo(9);
-        assertThat(response.completedMissionCount()).isZero();
-    }
-
-    @Test
-    @DisplayName("싱글 방 상세는 공유 빙고판의 전체 셀 수와 완료 셀 수를 반환한다")
-    void getRoomDetailReturnsSharedBoardMissionProgress() {
-        // given
-        Room room = room(10L, 1L);
-        Game game = game(20L, 10L);
-        BingoBoard board = bingoBoard(30L, game.getId());
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of());
-        given(gameRepository.findFirstByRoomIdOrderByIdDesc(10L)).willReturn(Optional.of(game));
-        given(bingoBoardRepository.findAllByGameIdOrderByIdAsc(20L)).willReturn(List.of(board));
-        given(bingoCellRepository.findAllByBoardIdIn(List.of(30L)))
-                .willReturn(bingoCells(30L, 9, 3));
-
-        // when
-        RoomDetailResponse response = roomReadService.getRoomDetail(1L, 10L);
-
-        // then
-        assertThat(response.totalMissionCount()).isEqualTo(9);
-        assertThat(response.completedMissionCount()).isEqualTo(3);
-    }
-
-    @Test
-    @DisplayName("대결 방 상세는 참가자 빙고판들의 전체 셀 수와 완료 셀 수 합계를 반환한다")
-    void getRoomDetailReturnsBattleBoardMissionProgressSum() {
-        // given
-        Room room = Room.create(1L, "테스트 방", GameMode.BATTLE, 3, 3);
-        ReflectionTestUtils.setField(room, "id", 10L);
-        RoomMember hostMember = roomMember(10L, 1L, 0, LocalDateTime.of(2026, 7, 22, 10, 0));
-        RoomMember guestMember = roomMember(10L, 2L, 0, LocalDateTime.of(2026, 7, 22, 10, 5));
-        ReflectionTestUtils.setField(hostMember, "id", 101L);
-        ReflectionTestUtils.setField(guestMember, "id", 102L);
-        Game game = game(20L, 10L);
-        BingoBoard hostBoard = BingoBoard.createForBattle(game.getId(), hostMember, 3);
-        BingoBoard guestBoard = BingoBoard.createForBattle(game.getId(), guestMember, 3);
-        ReflectionTestUtils.setField(hostBoard, "id", 31L);
-        ReflectionTestUtils.setField(guestBoard, "id", 32L);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of());
-        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.IN_PROGRESS))
-                .willReturn(Optional.of(game));
-        given(gameRepository.findFirstByRoomIdOrderByIdDesc(10L)).willReturn(Optional.of(game));
-        given(bingoBoardRepository.findAllByGameIdOrderByIdAsc(20L)).willReturn(List.of(hostBoard, guestBoard));
-        given(bingoCellRepository.findAllByBoardIdIn(List.of(31L, 32L)))
-                .willReturn(mergeBingoCells(
-                        bingoCells(31L, 9, 2),
-                        bingoCells(32L, 9, 4)
-                ));
-
-        // when
-        RoomDetailResponse response = roomReadService.getRoomDetail(1L, 10L);
-
-        // then
-        assertThat(response.totalMissionCount()).isEqualTo(18);
-        assertThat(response.completedMissionCount()).isEqualTo(6);
-    }
-
-    @Test
-    @DisplayName("이름이 없는 기존 게임방 상세도 조회할 수 있다")
-    void getRoomDetailReturnsNullNameForLegacyRoom() {
-        // given
-        Room room = room(10L, 1L);
-        ReflectionTestUtils.setField(room, "name", null);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of());
-
-        // when
-        RoomDetailResponse response = roomReadService.getRoomDetail(1L, 10L);
-
-        // then
-        assertThat(response.name()).isNull();
-        assertThat(response.members()).isEmpty();
-    }
-
-    @Test
-    @DisplayName("존재하지 않는 게임방의 상세를 조회하면 실패한다")
-    void getRoomDetailRejectsMissingRoom() {
-        // given
-        given(roomRepository.findById(10L)).willReturn(Optional.empty());
-
-        // when & then
-        assertErrorCode(
-                () -> roomReadService.getRoomDetail(1L, 10L),
-                ErrorCode.ROOM_NOT_FOUND
-        );
-    }
-
-    @Test
-    @DisplayName("게임방 참여자가 아니면 상세 조회에 실패한다")
-    void getRoomDetailRejectsNonMember() {
-        // given
-        Room room = room(10L, 1L);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
-
-        // when & then
-        assertErrorCode(
-                () -> roomReadService.getRoomDetail(2L, 10L),
-                ErrorCode.ROOM_MEMBER_FORBIDDEN
-        );
-    }
-
-    @Test
-    @DisplayName("종료된 게임방의 상세를 조회하면 실패한다")
+    @DisplayName("닫힌 방 상세는 멤버 여부와 관계없이 조회할 수 없다")
     void getRoomDetailRejectsClosedRoom() {
-        // given
-        Room room = room(10L, 1L);
+        Room room = room(10L, GameMode.COOPERATE, 3, 1, 10_000);
         room.close();
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
 
-        // when & then
-        assertErrorCode(
-                () -> roomReadService.getRoomDetail(1L, 10L),
-                ErrorCode.ROOM_CLOSED
-        );
+        assertThatThrownBy(() -> roomReadService.getRoomDetail(1L, 10L))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ROOM_CLOSED);
     }
 
     @Test
-    @DisplayName("참여자 회원을 찾을 수 없으면 상세 조회에 실패한다")
-    void getRoomDetailRejectsMissingMember() {
-        // given
-        Room room = room(10L, 1L);
-        RoomMember roomMember = roomMember(10L, 1L, 0, LocalDateTime.of(2026, 7, 22, 10, 0));
+    @DisplayName("닫힌 방의 멤버 목록은 조회할 수 없다")
+    void getRoomMembersRejectsClosedRoom() {
+        Room room = room(10L, GameMode.COOPERATE, 3, 1, 10_000);
+        room.close();
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of(roomMember));
-        given(memberReadService.getNicknamesByIds(List.of(1L)))
-                .willThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
-        // when & then
-        assertErrorCode(
-                () -> roomReadService.getRoomDetail(1L, 10L),
-                ErrorCode.MEMBER_NOT_FOUND
-        );
+        assertThatThrownBy(() -> roomReadService.getRoomMembers(1L, 10L))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ROOM_CLOSED);
     }
 
     @Test
-    @DisplayName("내 게임방 목록을 참여자 닉네임 요약과 함께 반환한다")
-    void getMyRoomsReturnsRoomsWithMemberSummaries() {
+    @DisplayName("게임방 멤버 목록에 현재 아바타 정보를 반환한다")
+    void getRoomMembersReturnsAvatars() {
         // given
-        Room activeRoom = room(10L, 1L);
-        Room closedRoom = room(20L, 2L);
-        closedRoom.close();
-        RoomMember myActiveRoomMember = roomMember(
-                10L,
-                1L,
-                0,
-                LocalDateTime.of(2026, 7, 22, 10, 0)
-        );
-        RoomMember myClosedRoomMember = roomMember(
-                20L,
-                1L,
-                0,
-                LocalDateTime.of(2026, 7, 22, 9, 0)
-        );
-        RoomMember guestMember = roomMember(
-                10L,
-                2L,
-                0,
-                LocalDateTime.of(2026, 7, 22, 10, 5)
-        );
-        given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
-                .willReturn(List.of(myActiveRoomMember, myClosedRoomMember));
-        given(roomRepository.findAllById(List.of(10L, 20L)))
-                .willReturn(List.of(activeRoom, closedRoom));
-        given(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(10L)))
-                .willReturn(List.of(myActiveRoomMember, guestMember));
-        given(memberReadService.getNicknamesByIds(List.of(1L, 2L)))
-                .willReturn(Map.of(1L, "방장", 2L, "참여자"));
-
-        // when
-        List<MyRoomResponse> responses = roomReadService.getMyRooms(1L);
-
-        // then
-        assertThat(responses).hasSize(1);
-        MyRoomResponse response = responses.getFirst();
-        assertThat(response.roomId()).isEqualTo(10L);
-        assertThat(response.name()).isEqualTo("테스트 방");
-        assertThat(response.mode()).isEqualTo(GameMode.SINGLE);
-        assertThat(response.status()).isEqualTo(GameRoomStatus.CREATED);
-        assertThat(response.targetBingoCount()).isNull();
-        assertThat(response.totalMissionCount()).isEqualTo(9);
-        assertThat(response.completedMissionCount()).isZero();
-        assertThat(response.hostId()).isEqualTo(1L);
-        assertThat(response.joinedAt()).isEqualTo(LocalDateTime.of(2026, 7, 22, 10, 0));
-        assertThat(response.members()).hasSize(2);
-        assertThat(response.members().get(0).memberId()).isEqualTo(1L);
-        assertThat(response.members().get(0).nickname()).isEqualTo("방장");
-        assertThat(response.members().get(0).host()).isTrue();
-        assertThat(response.members().get(1).memberId()).isEqualTo(2L);
-        assertThat(response.members().get(1).nickname()).isEqualTo("참여자");
-        assertThat(response.members().get(1).host()).isFalse();
-        then(roomMemberRepository).should().findAllByMemberIdOrderByJoinedAtDesc(1L);
-    }
-
-    @Test
-    @DisplayName("내 게임방 목록은 여러 방의 미션 진행도를 각 방에 맞게 반환한다")
-    void getMyRoomsReturnsMissionProgressByRoom() {
-        // given
-        Room firstRoom = room(10L, 1L);
-        Room secondRoom = room(20L, 1L);
-        RoomMember firstRoomMember = roomMember(
-                10L,
-                1L,
-                0,
-                LocalDateTime.of(2026, 7, 22, 10, 0)
-        );
-        RoomMember secondRoomMember = roomMember(
-                20L,
-                1L,
-                0,
-                LocalDateTime.of(2026, 7, 23, 10, 0)
-        );
-        Game firstGame = game(100L, 10L);
-        Game secondGame = game(200L, 20L);
-        BingoBoard firstBoard = bingoBoard(1000L, firstGame.getId());
-        BingoBoard secondBoard = bingoBoard(2000L, secondGame.getId());
-        given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
-                .willReturn(List.of(firstRoomMember, secondRoomMember));
-        given(roomRepository.findAllById(List.of(10L, 20L)))
-                .willReturn(List.of(firstRoom, secondRoom));
-        given(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(10L, 20L)))
-                .willReturn(List.of(firstRoomMember, secondRoomMember));
-        given(memberReadService.getNicknamesByIds(List.of(1L)))
-                .willReturn(Map.of(1L, "방장"));
-        given(gameRepository.findAllByRoomIdIn(List.of(10L, 20L)))
-                .willReturn(List.of(firstGame, secondGame));
-        given(bingoBoardRepository.findAllByGameIdInOrderByIdAsc(List.of(100L, 200L)))
-                .willReturn(List.of(firstBoard, secondBoard));
-        given(bingoCellRepository.findAllByBoardIdIn(List.of(1000L, 2000L)))
-                .willReturn(mergeBingoCells(
-                        bingoCells(1000L, 9, 1),
-                        bingoCells(2000L, 9, 4)
-                ));
-
-        // when
-        List<MyRoomResponse> responses = roomReadService.getMyRooms(1L);
-
-        // then
-        assertThat(responses)
-                .extracting(
-                        MyRoomResponse::roomId,
-                        MyRoomResponse::totalMissionCount,
-                        MyRoomResponse::completedMissionCount
-                )
-                .containsExactly(
-                        tuple(10L, 9, 1),
-                        tuple(20L, 9, 4)
-                );
-    }
-
-    @Test
-    @DisplayName("내가 참여한 게임방이 없으면 빈 목록을 반환한다")
-    void getMyRoomsReturnsEmptyList() {
-        // given
-        given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L)).willReturn(List.of());
-
-        // when
-        List<MyRoomResponse> responses = roomReadService.getMyRooms(1L);
-
-        // then
-        assertThat(responses).isEmpty();
-    }
-
-    @Test
-    @DisplayName("내가 참여한 게임방이 모두 종료 상태이면 빈 목록을 반환한다")
-    void getMyRoomsReturnsEmptyListWhenRoomsAreClosed() {
-        // given
-        Room closedRoom = room(10L, 1L);
-        closedRoom.close();
-        RoomMember myRoomMember = roomMember(
-                10L,
-                1L,
-                0,
-                LocalDateTime.of(2026, 7, 22, 10, 0)
-        );
-        given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
-                .willReturn(List.of(myRoomMember));
-        given(roomRepository.findAllById(List.of(10L))).willReturn(List.of(closedRoom));
-
-        // when
-        List<MyRoomResponse> responses = roomReadService.getMyRooms(1L);
-
-        // then
-        assertThat(responses).isEmpty();
-    }
-
-    @Test
-    @DisplayName("내가 참여한 게임방을 찾을 수 없으면 내 게임방 목록 조회에 실패한다")
-    void getMyRoomsRejectsMissingRoom() {
-        // given
-        RoomMember myRoomMember = roomMember(
-                10L,
-                1L,
-                0,
-                LocalDateTime.of(2026, 7, 22, 10, 0)
-        );
-        given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
-                .willReturn(List.of(myRoomMember));
-        given(roomRepository.findAllById(List.of(10L))).willReturn(List.of());
-
-        // when & then
-        assertErrorCode(
-                () -> roomReadService.getMyRooms(1L),
-                ErrorCode.ROOM_NOT_FOUND
-        );
-    }
-
-    @Test
-    @DisplayName("참여자 회원을 찾을 수 없으면 내 게임방 목록 조회에 실패한다")
-    void getMyRoomsRejectsMissingMember() {
-        // given
-        Room room = room(10L, 1L);
-        RoomMember myRoomMember = roomMember(
-                10L,
-                1L,
-                0,
-                LocalDateTime.of(2026, 7, 22, 10, 0)
-        );
-        given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
-                .willReturn(List.of(myRoomMember));
-        given(roomRepository.findAllById(List.of(10L))).willReturn(List.of(room));
-        given(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(10L)))
-                .willReturn(List.of(myRoomMember));
-        given(memberReadService.getNicknamesByIds(List.of(1L)))
-                .willThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND));
-
-        // when & then
-        assertErrorCode(
-                () -> roomReadService.getMyRooms(1L),
-                ErrorCode.MEMBER_NOT_FOUND
-        );
-    }
-
-    @Test
-    @DisplayName("게임방 참여자 목록을 닉네임과 방장 여부를 포함해 반환한다")
-    void getRoomMembersReturnsMembersWithNicknamesAndHostFlag() {
-        // given
-        Room room = room(10L, 1L);
-        RoomMember hostMember = roomMember(10L, 1L, 2, LocalDateTime.of(2026, 7, 22, 10, 0));
-        RoomMember guestMember = roomMember(10L, 2L, 1, LocalDateTime.of(2026, 7, 22, 10, 5));
+        Room room = room(10L, GameMode.COOPERATE, 3, 1, 10_000);
+        RoomMember host = roomMember(10L, 1L);
+        RoomMember guest = roomMember(10L, 2L);
         given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
         given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L))
-                .willReturn(List.of(hostMember, guestMember));
-        given(memberReadService.getNicknamesByIds(List.of(1L, 2L)))
-                .willReturn(Map.of(1L, "방장", 2L, "참여자"));
+                .willReturn(List.of(host, guest));
+        given(gameRepository.findFirstByRoomIdOrderByIdDesc(10L)).willReturn(Optional.empty());
+        given(memberReadService.getAvatarsByIds(List.of(1L, 2L)))
+                .willReturn(avatars(List.of(host, guest)));
 
         // when
         List<RoomMemberResponse> responses = roomReadService.getRoomMembers(1L, 10L);
 
         // then
         assertThat(responses).hasSize(2);
-        assertThat(responses.get(0).memberId()).isEqualTo(1L);
-        assertThat(responses.get(0).nickname()).isEqualTo("방장");
-        assertThat(responses.get(0).host()).isTrue();
-        assertThat(responses.get(0).completedMissionCount()).isEqualTo(2);
-        assertThat(responses.get(0).joinedAt()).isEqualTo(LocalDateTime.of(2026, 7, 22, 10, 0));
-        assertThat(responses.get(1).memberId()).isEqualTo(2L);
-        assertThat(responses.get(1).nickname()).isEqualTo("참여자");
-        assertThat(responses.get(1).host()).isFalse();
-        then(roomMemberRepository).should().findAllByRoomIdOrderByJoinedAtAsc(10L);
+        assertThat(responses).first().satisfies(member -> {
+            assertThat(member.gender()).isEqualTo(Gender.MALE);
+            assertThat(member.defaultImageUrl()).isEqualTo("https://example.com/male.png");
+            assertThat(member.equippedItems()).hasSize(1);
+        });
+        assertThat(responses).element(1)
+                .satisfies(member -> assertThat(member.equippedItems()).isEmpty());
     }
 
     @Test
-    @DisplayName("게임방 참여자가 없으면 빈 목록을 반환한다")
-    void getRoomMembersReturnsEmptyList() {
-        // given
-        Room room = room(10L, 1L);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of());
-
-        // when
-        List<RoomMemberResponse> responses = roomReadService.getRoomMembers(1L, 10L);
-
-        // then
-        assertThat(responses).isEmpty();
-    }
-
-    @Test
-    @DisplayName("존재하지 않는 게임방의 참여자 목록을 조회하면 실패한다")
-    void getRoomMembersRejectsMissingRoom() {
-        // given
-        given(roomRepository.findById(10L)).willReturn(Optional.empty());
-
-        // when & then
-        assertErrorCode(
-                () -> roomReadService.getRoomMembers(1L, 10L),
-                ErrorCode.ROOM_NOT_FOUND
+    @DisplayName("공유 회차 상세는 보드 설정과 셀 기준 진행도를 반환한다")
+    void getSharedRoomDetailUsesBoardSettingsAndCells() {
+        Room room = room(10L, GameMode.COOPERATE, 3, 1, 10_000);
+        RoomMember host = roomMember(10L, 1L);
+        RoomMember guest = roomMember(10L, 2L);
+        Game game = game(100L, 10L);
+        BingoBoard board = sharedBoard(200L, 100L, 4, 12_000);
+        List<BingoCell> cells = List.of(
+                approvedCell(200L, 1L, 1L),
+                approvedCell(200L, 2L, 2L),
+                BingoCell.create(200L, 3L, 0, 2)
         );
+        givenDetailContext(room, List.of(host, guest), game, List.of(), List.of(board), cells);
+
+        RoomDetailResponse response = roomReadService.getRoomDetail(1L, 10L);
+
+        assertThat(response.boardSize()).isEqualTo(4);
+        assertThat(response.targetBingoCount()).isNull();
+        assertThat(response.targetStepCount()).isEqualTo(12_000);
+        assertThat(response.totalMissionCount()).isEqualTo(3);
+        assertThat(response.completedMissionCount()).isEqualTo(2);
+        assertThat(response.members())
+                .extracting(member -> member.completedMissionCount())
+                .containsExactly(1, 1);
+        assertThat(response.members()).first().satisfies(member -> {
+            assertThat(member.gender()).isEqualTo(Gender.MALE);
+            assertThat(member.defaultImageUrl()).isEqualTo("https://example.com/male.png");
+            assertThat(member.equippedItems()).hasSize(1);
+        });
     }
 
     @Test
-    @DisplayName("게임방 참여자가 아니면 참여자 목록 조회에 실패한다")
-    void getRoomMembersRejectsNonMember() {
-        // given
-        Room room = room(10L, 1L);
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
-
-        // when & then
-        assertErrorCode(
-                () -> roomReadService.getRoomMembers(2L, 10L),
-                ErrorCode.ROOM_MEMBER_FORBIDDEN
+    @DisplayName("대결 회차 상세는 GameParticipant별 개인 보드와 진행도를 반환한다")
+    void getBattleRoomDetailUsesParticipantBoards() {
+        Room room = room(10L, GameMode.BATTLE, 3, 2, null);
+        RoomMember host = roomMember(10L, 1L);
+        RoomMember guest = roomMember(10L, 2L);
+        Game game = game(100L, 10L);
+        GameParticipant hostParticipant = participant(300L, 100L, 1L);
+        GameParticipant guestParticipant = participant(301L, 100L, 2L);
+        BingoBoard hostBoard = battleBoard(200L, 100L, hostParticipant.getId());
+        BingoBoard guestBoard = battleBoard(201L, 100L, guestParticipant.getId());
+        List<BingoCell> cells = List.of(
+                approvedCell(200L, 1L, 1L),
+                BingoCell.create(200L, 2L, 0, 1),
+                approvedCell(201L, 3L, 2L),
+                approvedCell(201L, 4L, 2L)
         );
-    }
-
-    @Test
-    @DisplayName("참여자 회원을 찾을 수 없으면 참여자 목록 조회에 실패한다")
-    void getRoomMembersRejectsMissingMember() {
-        // given
-        Room room = room(10L, 1L);
-        RoomMember roomMember = roomMember(10L, 1L, 0, LocalDateTime.of(2026, 7, 22, 10, 0));
-        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(List.of(roomMember));
-        given(memberReadService.getNicknamesByIds(List.of(1L)))
-                .willThrow(new CustomException(ErrorCode.MEMBER_NOT_FOUND));
-
-        // when & then
-        assertErrorCode(
-                () -> roomReadService.getRoomMembers(1L, 10L),
-                ErrorCode.MEMBER_NOT_FOUND
+        givenDetailContext(
+                room,
+                List.of(host, guest),
+                game,
+                List.of(hostParticipant, guestParticipant),
+                List.of(hostBoard, guestBoard),
+                cells
         );
+
+        RoomDetailResponse response = roomReadService.getRoomDetail(1L, 10L);
+
+        assertThat(response.totalMissionCount()).isEqualTo(4);
+        assertThat(response.completedMissionCount()).isEqualTo(3);
+        assertThat(response.members())
+                .extracting(member -> member.bingoBoardId())
+                .containsExactly(200L, 201L);
+        assertThat(response.members())
+                .extracting(member -> member.completedMissionCount())
+                .containsExactly(1, 2);
     }
 
     @Test
-    @DisplayName("공동 걸음 보상 대상 방의 현재 멤버와 활성 공유 빙고판을 반환한다")
-    void getStepGoalRewardTargetsReturnsActiveSharedBoardAndCurrentMembers() {
-        // given
-        LocalDateTime boardCreatedAt = LocalDateTime.of(2026, 7, 20, 10, 0);
-        Room room = Room.create(1L, "테스트 방", GameMode.COOPERATE, null, 10_000, 3);
-        ReflectionTestUtils.setField(room, "id", 10L);
-        ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
-        RoomMember hostMember = roomMember(10L, 1L, 0, LocalDateTime.of(2026, 7, 20, 9, 0));
-        RoomMember guestMember = roomMember(10L, 2L, 0, LocalDateTime.of(2026, 7, 22, 9, 0));
-        Game game = Game.start(10L);
-        ReflectionTestUtils.setField(game, "id", 20L);
-        BingoBoard bingoBoard = BingoBoard.create(20L, 3, 12_000);
-        ReflectionTestUtils.setField(bingoBoard, "id", 30L);
-        ReflectionTestUtils.setField(bingoBoard, "createdAt", boardCreatedAt);
+    @DisplayName("내 방 목록은 모드 필터를 적용하고 각 최신 회차를 일괄 매핑한다")
+    void getMyRoomsMapsMultipleLatestCycles() {
+        Room cooperate = room(10L, GameMode.COOPERATE, 3, 1, 10_000);
+        Room battle = room(11L, GameMode.BATTLE, 3, 2, null);
+        RoomMember myCooperate = roomMember(10L, 1L);
+        RoomMember myBattle = roomMember(11L, 1L);
+        RoomMember teammate = roomMember(10L, 2L);
+        Game cooperateGame = game(100L, 10L);
+        Game battleGame = game(101L, 11L);
+        BingoBoard cooperateBoard = sharedBoard(200L, 100L, 4, 12_000);
+        BingoBoard battleBoard = battleBoard(201L, 101L, 301L);
+
         given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
-                .willReturn(List.of(hostMember));
-        given(roomRepository.findAllById(List.of(10L))).willReturn(List.of(room));
-        given(gameRepository.findAllByRoomIdInAndStatus(List.of(10L), GameStatus.IN_PROGRESS))
-                .willReturn(List.of(game));
-        given(bingoBoardRepository.findAllByGameIdInAndStatusNotInOrderByIdAsc(
-                List.of(20L),
-                List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED)
-        )).willReturn(List.of(bingoBoard));
+                .willReturn(List.of(myCooperate, myBattle));
+        given(roomRepository.findAllById(List.of(10L, 11L)))
+                .willReturn(List.of(cooperate, battle));
         given(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(10L)))
-                .willReturn(List.of(hostMember, guestMember));
+                .willReturn(List.of(myCooperate, teammate));
+        given(memberReadService.getAvatarsByIds(List.of(1L, 2L)))
+                .willReturn(avatars(List.of(myCooperate, teammate)));
+        given(gameRepository.findAllByRoomIdIn(List.of(10L)))
+                .willReturn(List.of(cooperateGame));
+        given(bingoBoardRepository.findAllByGameIdInOrderByIdAsc(List.of(100L)))
+                .willReturn(List.of(cooperateBoard));
+        given(bingoCellRepository.findAllByBoardIdIn(List.of(200L)))
+                .willReturn(List.of(approvedCell(200L, 1L, 1L)));
 
-        // when
-        List<StepGoalRewardTarget> targets = roomReadService.getStepGoalRewardTargets(1L);
+        List<MyRoomResponse> responses =
+                roomReadService.getMyRooms(1L, GameMode.COOPERATE);
 
-        // then
-        assertThat(targets).hasSize(1);
-        StepGoalRewardTarget target = targets.getFirst();
-        assertThat(target.roomId()).isEqualTo(10L);
-        assertThat(target.bingoBoardId()).isEqualTo(30L);
-        assertThat(target.boardStartedDate()).isEqualTo(boardCreatedAt.toLocalDate());
-        assertThat(target.targetStepCount()).isEqualTo(12_000);
-        assertThat(target.members())
-                .extracting(
-                        RoomReadService.StepGoalRewardMember::memberId,
-                        RoomReadService.StepGoalRewardMember::joinedDate
-                )
-                .containsExactly(
-                        tuple(1L, LocalDateTime.of(2026, 7, 20, 9, 0).toLocalDate()),
-                        tuple(2L, LocalDateTime.of(2026, 7, 22, 9, 0).toLocalDate())
-                );
+        assertThat(responses).singleElement().satisfies(response -> {
+            assertThat(response.roomId()).isEqualTo(10L);
+            assertThat(response.boardSize()).isEqualTo(4);
+            assertThat(response.targetBingoCount()).isNull();
+            assertThat(response.completedMissionCount()).isEqualTo(1);
+            assertThat(response.members()).first().satisfies(member -> {
+                assertThat(member.gender()).isEqualTo(Gender.MALE);
+                assertThat(member.defaultImageUrl()).isEqualTo("https://example.com/male.png");
+                assertThat(member.equippedItems()).hasSize(1);
+            });
+        });
+        assertThat(battleGame).isNotNull();
+        assertThat(battleBoard).isNotNull();
     }
 
     @Test
-    @DisplayName("목표 걸음 수가 없는 활성 보드는 공동 걸음 보상 대상에서 제외한다")
-    void getStepGoalRewardTargetsSkipsBoardWithoutTargetStepCount() {
+    @DisplayName("여러 방에 중복된 회원의 아바타는 한 번만 조회한다")
+    void getMyRoomsFetchesDuplicateMemberAvatarOnce() {
         // given
-        Room room = Room.create(1L, "테스트 방", GameMode.COOPERATE, null, 10_000, 3);
-        ReflectionTestUtils.setField(room, "id", 10L);
-        ReflectionTestUtils.setField(room, "status", GameRoomStatus.IN_PROGRESS);
-        RoomMember roomMember = roomMember(10L, 1L, 0, LocalDateTime.of(2026, 7, 20, 9, 0));
-        Game game = Game.start(10L);
-        ReflectionTestUtils.setField(game, "id", 20L);
-        BingoBoard bingoBoard = BingoBoard.create(20L, 3);
-        ReflectionTestUtils.setField(bingoBoard, "id", 30L);
-        ReflectionTestUtils.setField(bingoBoard, "createdAt", LocalDateTime.of(2026, 7, 20, 10, 0));
+        Room firstRoom = room(10L, GameMode.COOPERATE, 3, 1, 10_000);
+        Room secondRoom = room(11L, GameMode.COOPERATE, 3, 1, 10_000);
+        RoomMember myFirstRoomMember = roomMember(10L, 1L);
+        RoomMember mySecondRoomMember = roomMember(11L, 1L);
+        RoomMember firstGuest = roomMember(10L, 2L);
+        RoomMember secondGuest = roomMember(11L, 3L);
+
+        given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
+                .willReturn(List.of(myFirstRoomMember, mySecondRoomMember));
+        given(roomRepository.findAllById(List.of(10L, 11L)))
+                .willReturn(List.of(firstRoom, secondRoom));
+        given(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(10L, 11L)))
+                .willReturn(List.of(myFirstRoomMember, firstGuest, mySecondRoomMember, secondGuest));
+        given(memberReadService.getAvatarsByIds(List.of(1L, 2L, 3L)))
+                .willReturn(avatars(List.of(myFirstRoomMember, firstGuest, secondGuest)));
+        given(gameRepository.findAllByRoomIdIn(List.of(10L, 11L))).willReturn(List.of());
+
+        // when
+        List<MyRoomResponse> responses = roomReadService.getMyRooms(1L, null);
+
+        // then
+        assertThat(responses).hasSize(2);
+        then(memberReadService).should().getAvatarsByIds(List.of(1L, 2L, 3L));
+    }
+
+    @Test
+    @DisplayName("닫힌 방은 일반 내 방 목록에서 제외한다")
+    void getMyRoomsExcludesClosedRoom() {
+        Room room = room(10L, GameMode.COOPERATE, 3, 2, 10_000);
+        room.close();
+        RoomMember roomMember = roomMember(10L, 1L);
         given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
                 .willReturn(List.of(roomMember));
         given(roomRepository.findAllById(List.of(10L))).willReturn(List.of(room));
-        given(gameRepository.findAllByRoomIdInAndStatus(List.of(10L), GameStatus.IN_PROGRESS))
-                .willReturn(List.of(game));
-        given(bingoBoardRepository.findAllByGameIdInAndStatusNotInOrderByIdAsc(
-                List.of(20L),
-                List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED)
-        )).willReturn(List.of(bingoBoard));
-        given(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(10L)))
-                .willReturn(List.of(roomMember));
 
-        // when
-        List<StepGoalRewardTarget> targets = roomReadService.getStepGoalRewardTargets(1L);
-
-        // then
-        assertThat(targets).isEmpty();
+        assertThat(roomReadService.getMyRooms(1L, null)).isEmpty();
     }
 
-    private Room room(Long roomId, Long hostId) {
-        Room room = Room.create(hostId, "테스트 방", GameMode.SINGLE, null, 3);
-        ReflectionTestUtils.setField(room, "id", roomId);
+    @Test
+    @DisplayName("걸음 보상 대상은 활성 공유 보드의 목표 걸음 수를 사용한다")
+    void getStepGoalRewardTargetsUsesActiveBoardSettings() {
+        Room room = room(10L, GameMode.COOPERATE, 3, 2, 10_000);
+        RoomMember host = roomMember(10L, 1L);
+        RoomMember guest = roomMember(10L, 2L);
+        Game game = game(100L, 10L);
+        BingoBoard board = sharedBoard(200L, 100L, 4, 12_000);
+        ReflectionTestUtils.setField(board, "createdAt", LocalDateTime.of(2026, 7, 31, 9, 0));
+        given(roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(1L))
+                .willReturn(List.of(host));
+        given(roomRepository.findAllById(List.of(10L))).willReturn(List.of(room));
+        given(gameRepository.findAllByRoomIdInAndStatus(List.of(10L), GameStatus.ACTIVE))
+                .willReturn(List.of(game));
+        given(bingoBoardRepository.findAllByGameIdInAndStatusNotInOrderByIdAsc(
+                List.of(100L),
+                BingoBoardStatus.inactiveStatuses()
+        )).willReturn(List.of(board));
+        given(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(10L)))
+                .willReturn(List.of(host, guest));
+
+        List<StepGoalRewardTarget> targets =
+                roomReadService.getStepGoalRewardTargets(1L);
+
+        assertThat(targets).singleElement().satisfies(target -> {
+            assertThat(target.targetStepCount()).isEqualTo(12_000);
+            assertThat(target.members()).hasSize(2);
+        });
+    }
+
+    private void givenDetailContext(
+            Room room,
+            List<RoomMember> roomMembers,
+            Game game,
+            List<GameParticipant> gameParticipants,
+            List<BingoBoard> boards,
+            List<BingoCell> cells
+    ) {
+        given(roomRepository.findById(room.getId())).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(room.getId(), 1L)).willReturn(true);
+        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(room.getId()))
+                .willReturn(roomMembers);
+        given(gameRepository.findFirstByRoomIdOrderByIdDesc(room.getId()))
+                .willReturn(Optional.of(game));
+        given(gameParticipantRepository.findAllByGameIdOrderByJoinedAtAsc(game.getId()))
+                .willReturn(gameParticipants);
+        given(bingoBoardRepository.findAllByGameIdOrderByIdAsc(game.getId()))
+                .willReturn(boards);
+        given(bingoCellRepository.findAllByBoardIdIn(
+                boards.stream().map(BingoBoard::getId).toList()
+        )).willReturn(cells);
+        given(memberReadService.getAvatarsByIds(
+                roomMembers.stream().map(RoomMember::getMemberId).toList()
+        )).willReturn(avatars(roomMembers));
+    }
+
+    private Room room(
+            Long id,
+            GameMode mode,
+            int boardSize,
+            int targetBingoCount,
+            Integer targetStepCount
+    ) {
+        Room room = Room.create(1L, "테스트 방", mode, targetBingoCount, targetStepCount, boardSize);
+        ReflectionTestUtils.setField(room, "id", id);
         return room;
     }
 
-    private Game game(Long gameId, Long roomId) {
+    private RoomMember roomMember(Long roomId, Long memberId) {
+        RoomMember member = RoomMember.create(roomId, memberId);
+        ReflectionTestUtils.setField(member, "joinedAt", LocalDateTime.of(2026, 7, 31, 9, 0));
+        return member;
+    }
+
+    private Game game(Long id, Long roomId) {
         Game game = Game.start(roomId);
-        ReflectionTestUtils.setField(game, "id", gameId);
+        ReflectionTestUtils.setField(game, "id", id);
+        ReflectionTestUtils.setField(game, "startedAt", LocalDateTime.of(2026, 7, 31, 9, 0));
         return game;
     }
 
-    private BingoBoard bingoBoard(Long boardId, Long gameId) {
-        BingoBoard bingoBoard = BingoBoard.create(gameId, 3);
-        ReflectionTestUtils.setField(bingoBoard, "id", boardId);
-        return bingoBoard;
-    }
-
-    private List<BingoCell> bingoCells(Long boardId, int totalCount, int completedCount) {
-        return IntStream.range(0, totalCount)
-                .mapToObj(index -> bingoCell(boardId, index, index < completedCount))
-                .toList();
-    }
-
-    private List<BingoCell> mergeBingoCells(List<BingoCell> firstCells, List<BingoCell> secondCells) {
-        return Stream.concat(firstCells.stream(), secondCells.stream())
-                .toList();
-    }
-
-    private BingoCell bingoCell(Long boardId, int index, boolean completed) {
-        BingoCell bingoCell = BingoCell.create(boardId, (long) index + 1, index / 3, index % 3);
-        ReflectionTestUtils.setField(bingoCell, "id", (boardId * 100) + index);
-        if (completed) {
-            ReflectionTestUtils.setField(bingoCell, "completedAt", LocalDateTime.of(2026, 7, 22, 12, 0));
-        }
-        return bingoCell;
-    }
-
-    private RoomMember roomMember(
-            Long roomId,
-            Long memberId,
-            int completedMissionCount,
-            LocalDateTime joinedAt
+    private BingoBoard sharedBoard(
+            Long id,
+            Long gameId,
+            int boardSize,
+            int targetStepCount
     ) {
-        RoomMember roomMember = RoomMember.create(roomId, memberId);
-        ReflectionTestUtils.setField(roomMember, "completedMissionCount", completedMissionCount);
-        ReflectionTestUtils.setField(roomMember, "joinedAt", joinedAt);
-        return roomMember;
+        BingoBoard board =
+                BingoBoard.create(gameId, boardSize, targetStepCount);
+        ReflectionTestUtils.setField(board, "id", id);
+        return board;
     }
 
-    private void assertErrorCode(Runnable action, ErrorCode errorCode) {
-        assertThatThrownBy(action::run)
-                .isInstanceOf(CustomException.class)
-                .extracting("errorCode")
-                .isEqualTo(errorCode);
+    private BingoBoard battleBoard(
+            Long id,
+            Long gameId,
+            Long participantId
+    ) {
+        BingoBoard board = BingoBoard.createForBattle(gameId, participantId, 3, 2);
+        ReflectionTestUtils.setField(board, "id", id);
+        return board;
+    }
+
+    private GameParticipant participant(Long id, Long gameId, Long memberId) {
+        GameParticipant participant = GameParticipant.create(gameId, memberId);
+        ReflectionTestUtils.setField(participant, "id", id);
+        return participant;
+    }
+
+    private BingoCell approvedCell(Long boardId, Long missionId, Long memberId) {
+        BingoCell cell = BingoCell.create(boardId, missionId, 0, 0);
+        cell.submit(memberId, "https://example.com/proof.png");
+        cell.approve();
+        return cell;
+    }
+
+    private Map<Long, AvatarResponse> avatars(List<RoomMember> roomMembers) {
+        EquippedItemResponse equippedItem = new EquippedItemResponse(
+                10L,
+                100L,
+                "빨간 모자",
+                ItemCategory.HAT,
+                "https://example.com/hat.png"
+        );
+        return roomMembers.stream()
+                .collect(Collectors.toMap(
+                        RoomMember::getMemberId,
+                        roomMember -> new AvatarResponse(
+                                roomMember.getMemberId(),
+                                "회원" + roomMember.getMemberId(),
+                                roomMember.getMemberId() == 1L ? Gender.MALE : Gender.FEMALE,
+                                roomMember.getMemberId() == 1L
+                                        ? "https://example.com/male.png"
+                                        : "https://example.com/female.png",
+                                roomMember.getMemberId() == 1L ? List.of(equippedItem) : List.of()
+                        )
+                ));
     }
 }

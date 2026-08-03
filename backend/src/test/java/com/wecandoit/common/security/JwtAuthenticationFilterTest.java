@@ -49,8 +49,7 @@ class JwtAuthenticationFilterTest {
     @BeforeEach
     void setUp() {
         jwtAuthenticationFilter = new JwtAuthenticationFilter(
-                jwtProvider,
-                tokenRepository,
+                new JwtAuthenticator(jwtProvider, tokenRepository),
                 handlerExceptionResolver
         );
         given(tokenRepository.isBlacklisted(Mockito.anyString())).willReturn(false);
@@ -146,8 +145,7 @@ class JwtAuthenticationFilterTest {
                 jwtProperties(-1L, 1_209_600_000L)
         );
         JwtAuthenticationFilter filter = new JwtAuthenticationFilter(
-                expiringProvider,
-                tokenRepository,
+                new JwtAuthenticator(expiringProvider, tokenRepository),
                 handlerExceptionResolver
         );
         String accessToken = expiringProvider.createAccessToken(1L, "USER");
@@ -198,8 +196,7 @@ class JwtAuthenticationFilterTest {
                 jwtProperties(-1L, 1_209_600_000L)
         );
         JwtAuthenticationFilter filter = new JwtAuthenticationFilter(
-                expiringProvider,
-                tokenRepository,
+                new JwtAuthenticator(expiringProvider, tokenRepository),
                 handlerExceptionResolver
         );
         String expiredToken = expiringProvider.createAccessToken(1L, "USER");
@@ -233,6 +230,47 @@ class JwtAuthenticationFilterTest {
         // then
         then(filterChain).should().doFilter(request, response);
         then(handlerExceptionResolver).should(never()).resolveException(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("업로드 이미지 경로는 JWT 인증 없이 통과한다")
+    void skipsFilteringForUploadedImagePath() throws Exception {
+        // given
+        MockHttpServletRequest request = new MockHttpServletRequest(
+                "GET",
+                "/uploads/local/items/resource-id/image.png"
+        );
+        request.setServletPath("/uploads/local/items/resource-id/image.png");
+        request.addHeader("Authorization", "Bearer invalid-token");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain filterChain = Mockito.mock(FilterChain.class);
+
+        // when
+        jwtAuthenticationFilter.doFilter(request, response, filterChain);
+
+        // then
+        then(filterChain).should().doFilter(request, response);
+        then(handlerExceptionResolver).should(never()).resolveException(any(), any(), any(), any());
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    }
+
+    @Test
+    @DisplayName("WebSocket 업그레이드 경로는 STOMP CONNECT 인증을 위해 HTTP JWT 필터를 건너뛴다")
+    void skipsFilteringForWebSocketEndpoint() throws Exception {
+        // given
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/ws");
+        request.setServletPath("/ws");
+        request.addHeader("Authorization", "Bearer invalid-token");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain filterChain = Mockito.mock(FilterChain.class);
+
+        // when
+        jwtAuthenticationFilter.doFilter(request, response, filterChain);
+
+        // then
+        then(filterChain).should().doFilter(request, response);
+        then(handlerExceptionResolver).should(never()).resolveException(any(), any(), any(), any());
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
 
     private JwtProperties jwtProperties(long accessTokenExpirationMillis, long refreshTokenExpirationMillis) {

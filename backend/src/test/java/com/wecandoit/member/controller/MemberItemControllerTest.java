@@ -16,7 +16,8 @@ import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.item.controller.response.MemberItemResponse;
-import com.wecandoit.item.service.CharacterItemReadService;
+import com.wecandoit.item.domain.ItemCategory;
+import com.wecandoit.item.service.AvatarItemReadService;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -40,7 +41,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 class MemberItemControllerTest {
 
     @Mock
-    private CharacterItemReadService characterItemReadService;
+    private AvatarItemReadService avatarItemReadService;
 
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
@@ -48,7 +49,7 @@ class MemberItemControllerTest {
                 UsernamePasswordAuthenticationToken.authenticated(1L, null, List.of())
         );
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(
-                        new MemberItemController(characterItemReadService)
+                        new MemberItemController(avatarItemReadService)
                 )
                 .setControllerAdvice(new CustomExceptionHandler())
                 .setCustomArgumentResolvers(new LoginMemberIdArgumentResolver())
@@ -67,12 +68,12 @@ class MemberItemControllerTest {
     @DisplayName("전체 보유 아이템 목록을 반환한다")
     void getMyItemsReturnsMemberItems() {
         // given
-        BDDMockito.given(characterItemReadService.getMyItems(1L, null)).willReturn(List.of(
+        BDDMockito.given(avatarItemReadService.getMyItems(1L, null)).willReturn(List.of(
                 new MemberItemResponse(
                         10L,
                         100L,
                         "빨간 모자",
-                        "HAT",
+                        ItemCategory.HAT,
                         "https://example.com/hat.png"
                 )
         ));
@@ -98,19 +99,19 @@ class MemberItemControllerTest {
                                 fieldWithPath("[].imageUrl").description("아이템 이미지 URL")
                         )
                 ));
-        BDDMockito.then(characterItemReadService).should().getMyItems(1L, null);
+        BDDMockito.then(avatarItemReadService).should().getMyItems(1L, null);
     }
 
     @Test
     @DisplayName("카테고리에 해당하는 보유 아이템 목록을 반환한다")
     void getMyItemsByCategoryReturnsMemberItems() {
         // given
-        BDDMockito.given(characterItemReadService.getMyItems(1L, "HAT")).willReturn(List.of(
+        BDDMockito.given(avatarItemReadService.getMyItems(1L, "HAT")).willReturn(List.of(
                 new MemberItemResponse(
                         10L,
                         100L,
                         "빨간 모자",
-                        "HAT",
+                        ItemCategory.HAT,
                         "https://example.com/hat.png"
                 )
         ));
@@ -136,14 +137,14 @@ class MemberItemControllerTest {
                                 fieldWithPath("[].imageUrl").description("아이템 이미지 URL")
                         )
                 ));
-        BDDMockito.then(characterItemReadService).should().getMyItems(1L, "HAT");
+        BDDMockito.then(avatarItemReadService).should().getMyItems(1L, "HAT");
     }
 
     @Test
     @DisplayName("카테고리에 해당하는 보유 아이템이 없으면 빈 목록을 반환한다")
     void getMyItemsByCategoryReturnsEmptyList() {
         // given
-        BDDMockito.given(characterItemReadService.getMyItems(1L, "TOP")).willReturn(List.of());
+        BDDMockito.given(avatarItemReadService.getMyItems(1L, "TOP")).willReturn(List.of());
 
         // when & then
         given()
@@ -153,7 +154,7 @@ class MemberItemControllerTest {
                 .then()
                 .statusCode(HttpStatus.OK.value())
                 .body("$", hasSize(0));
-        BDDMockito.then(characterItemReadService).should().getMyItems(1L, "TOP");
+        BDDMockito.then(avatarItemReadService).should().getMyItems(1L, "TOP");
     }
 
     @Test
@@ -161,7 +162,7 @@ class MemberItemControllerTest {
     void getMyItemsByCategoryRejectsInvalidCategory() {
         // given
         BDDMockito.willThrow(new CustomException(ErrorCode.INVALID_ITEM_CATEGORY))
-                .given(characterItemReadService)
+                .given(avatarItemReadService)
                 .getMyItems(1L, "UNKNOWN");
 
         // when & then
@@ -180,7 +181,7 @@ class MemberItemControllerTest {
                                 fieldWithPath("message").description("오류 메시지")
                         )
                 ));
-        BDDMockito.then(characterItemReadService).should().getMyItems(1L, "UNKNOWN");
+        BDDMockito.then(avatarItemReadService).should().getMyItems(1L, "UNKNOWN");
     }
 
     @Test
@@ -188,7 +189,7 @@ class MemberItemControllerTest {
     void getMyItemsByCategoryRejectsLowercaseCategory() {
         // given
         BDDMockito.willThrow(new CustomException(ErrorCode.INVALID_ITEM_CATEGORY))
-                .given(characterItemReadService)
+                .given(avatarItemReadService)
                 .getMyItems(1L, "hat");
 
         // when & then
@@ -198,7 +199,7 @@ class MemberItemControllerTest {
                 .get("/members/items")
                 .then()
                 .statusCode(HttpStatus.BAD_REQUEST.value());
-        BDDMockito.then(characterItemReadService).should().getMyItems(1L, "hat");
-        BDDMockito.then(characterItemReadService).should(never()).getMyItems(1L);
+        BDDMockito.then(avatarItemReadService).should().getMyItems(1L, "hat");
+        BDDMockito.then(avatarItemReadService).should(never()).getMyItems(1L);
     }
 }

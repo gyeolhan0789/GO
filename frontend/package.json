@@ -8,6 +8,8 @@
     "android:dev": "cross-env APP_ENV=dev react-native run-android",
     "android:prod": "cross-env APP_ENV=prod react-native run-android",
     "android:reverse": "adb reverse tcp:8080 tcp:8080",
+    "wear:install": "cd android && ./gradlew :wear:installDebug",
+    "wear:build": "cd android && ./gradlew :wear:assembleDebug",
     "agents:check": "node scripts/check-agent-skills.mjs",
     "agents:sync": "node scripts/sync-agent-skills.mjs",
     "ios": "react-native run-ios",
@@ -24,6 +26,8 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "^3.1.1",
     "@react-native-community/geolocation": "^3.4.0",
+    "@react-native-google-signin/google-signin": "^16.1.4",
+    "@react-native-seoul/kakao-login": "^5.4.2",
     "@react-native-vector-icons/ionicons": "^13.1.2",
     "@react-navigation/bottom-tabs": "^7.18.13",
     "@react-navigation/native": "^7.3.13",
@@ -32,7 +36,9 @@
     "react": "19.2.3",
     "react-native": "0.86.0",
     "react-native-chart-kit": "^7.0.2",
+    "react-native-image-picker": "^8.2.1",
     "react-native-keychain": "^10.0.0",
+    "react-native-maps": "^1.29.0",
     "react-native-safe-area-context": "^5.5.2",
     "react-native-screens": "^4.26.2",
     "react-native-svg": "^15.15.5"

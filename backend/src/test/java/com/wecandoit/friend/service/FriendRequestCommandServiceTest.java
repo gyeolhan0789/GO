@@ -15,6 +15,7 @@ import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.friend.domain.Friend;
 import com.wecandoit.friend.repository.FriendRepository;
 import com.wecandoit.friend.dto.SendFriendRequest;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.notification.domain.NotificationType;
@@ -294,7 +295,7 @@ class FriendRequestCommandServiceTest {
     }
 
     private Member member(Long id, String nickname) {
-        Member member = Member.create(nickname + "@example.com", "password", nickname);
+        Member member = Member.create(nickname + "@example.com", "password", nickname, null, Gender.MALE);
         ReflectionTestUtils.setField(member, "id", id);
         return member;
     }

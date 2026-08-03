@@ -1,6 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { MemberAvatar } from '../../../features/member/components/MemberAvatar';
+import { AppText } from '../../../shared/components/AppText/AppText';
 import { AvatarStack } from '../../../shared/components/AvatarStack/AvatarStack';
 import { Badge } from '../../../shared/components/Badge/Badge';
 import { Card } from '../../../shared/components/Card/Card';
@@ -10,6 +12,7 @@ import { radius } from '../../../shared/constants/radius';
 import { shadow } from '../../../shared/constants/shadow';
 import { spacing } from '../../../shared/constants/spacing';
 import type { MyWalkRoom } from '../types';
+import { lineHeights } from '../../../shared/constants/typography';
 
 type WalkRoomCardProps = {
   room: MyWalkRoom;
@@ -31,10 +34,17 @@ export function WalkRoomCard({ room, onPress }: WalkRoomCardProps) {
         <View style={styles.headerRow}>
           {room.mode === 'group' ? (
             <AvatarStack
-              members={Array.from(
-                { length: room.memberCount ?? 1 },
-                (_, index) => ({ id: `${room.id}-${index}` }),
-              )}
+              members={(room.members ?? []).map(member => ({
+                id: String(member.memberId),
+                avatar: (
+                  <MemberAvatar
+                    gender={member.gender}
+                    defaultImageUrl={member.defaultImageUrl}
+                    equippedItems={member.equippedItems}
+                    style={styles.memberAvatar}
+                  />
+                ),
+              }))}
               size={40}
             />
           ) : (
@@ -45,24 +55,24 @@ export function WalkRoomCard({ room, onPress }: WalkRoomCardProps) {
 
           <View style={styles.textGroup}>
             <View style={styles.titleRow}>
-              <Text style={styles.title} numberOfLines={1}>
+              <AppText style={styles.title} numberOfLines={1}>
                 {room.name}
-              </Text>
+              </AppText>
               <Badge
                 label={room.mode === 'group' ? '함께' : '혼자'}
                 variant={room.mode === 'group' ? 'success' : 'info'}
                 labelStyle={styles.dohyeonText}
               />
             </View>
-            <Text style={styles.subtitle} numberOfLines={1}>
+            <AppText style={styles.subtitle} numberOfLines={1}>
               {subtitle}
-            </Text>
+            </AppText>
             {room.scheduleLabel ? (
               <View style={styles.scheduleRow}>
                 <Ionicons name="time-outline" size={12} color={colors.ink} />
-                <Text style={styles.scheduleText} numberOfLines={1}>
+                <AppText style={styles.scheduleText} numberOfLines={1}>
                   {room.scheduleLabel}
-                </Text>
+                </AppText>
               </View>
             ) : null}
             <ProgressBar progress={room.bingoCompleted / room.bingoTotal} />
@@ -101,6 +111,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  // AvatarStack이 만든 원을 흉상이 꽉 채운다. 자르기는 원(overflow: hidden)이 한다.
+  memberAvatar: {
+    width: '100%',
+    height: '100%',
+  },
   textGroup: {
     flex: 1,
     minWidth: 0,
@@ -115,11 +130,13 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontFamily: 'BMDOHYEON',
     fontSize: 15,
+    lineHeight: lineHeights[15],
     color: colors.ink,
   },
   subtitle: {
     fontFamily: 'BMDOHYEON',
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.ink,
     opacity: 0.6,
   },
@@ -132,6 +149,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontFamily: 'BMDOHYEON',
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.ink,
     opacity: 0.6,
   },

@@ -35,7 +35,18 @@ docs {
           "rank": 1,
           "memberId": 2,
           "nickname": "friend",
-          "weeklySteps": 20000
+          "weeklySteps": 20000,
+          "gender": "FEMALE",
+          "defaultImageUrl": "https://example.com/characters/female-default.png",
+          "equippedItems": [
+            {
+              "memberItemId": 10,
+              "itemId": 100,
+              "name": "빨간 모자",
+              "category": "HAT",
+              "imageUrl": "https://example.com/items/red-hat.png"
+            }
+          ]
         }
       ],
       "totalElements": 5,
@@ -56,6 +67,7 @@ docs {
   - 전체 순위는 걸음 수 내림차순의 `RANK` 방식이며 동점자는 같은 순위를 가진다.
   - 동점자의 표시 순서는 회원 ID 오름차순이다.
   - `myRank`와 `myWeeklySteps`는 요청 페이지에 로그인 회원이 없어도 전체 대상을 기준으로 반환한다.
+  - `gender`, `defaultImageUrl`, `equippedItems`는 각 랭킹 항목 회원의 캐릭터 정보다. `equippedItems`는 장착 아이템이 없으면 빈 배열을 반환한다.
 
   ### 페이지 필드
   - `content`: 현재 페이지의 랭킹 항목

@@ -1,25 +1,25 @@
 package com.wecandoit.game.service;
 
-import com.wecandoit.bingo.service.BingoCommandService;
+import com.wecandoit.bingo.domain.BingoBoardStatus;
+import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
-import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.controller.request.CreateRoomRequest;
 import com.wecandoit.game.controller.request.UpdateRoomNameRequest;
 import com.wecandoit.game.controller.response.CreateRoomResponse;
+import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
-import com.wecandoit.game.domain.GameRoomStatus;
+import com.wecandoit.game.domain.GameStatus;
 import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomMember;
+import com.wecandoit.game.domain.RoomStatus;
 import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.member.repository.MemberRepository;
-import com.wecandoit.notification.event.NotificationMessageFactory;
-import java.time.LocalDateTime;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationEventPublisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,44 +28,91 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class RoomCommandService {
 
+    private static final String ACTIVE_GAME_RESOURCE = "active game";
+    private static final String ACTIVE_BINGO_BOARD_RESOURCE = "active bingo board";
+    private static final Logger log = LoggerFactory.getLogger(RoomCommandService.class);
+
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
     private final GameRepository gameRepository;
-    private final BingoCommandService bingoCommandService;
+    private final BingoBoardRepository bingoBoardRepository;
+    private final GameCycleCommandService gameCycleCommandService;
     private final MemberRepository memberRepository;
-    private final ApplicationEventPublisher eventPublisher;
-    private final NotificationMessageFactory notificationMessageFactory;
 
     public CreateRoomResponse createRoom(Long memberId, CreateRoomRequest request) {
-        validateTargetBingoCount(request.targetBingoCount());
-        validateTargetStepCount(request.mode(), request.targetStepCount());
+        validateBoardSettings(request);
         if (request.mode() == GameMode.SINGLE) {
-            return startSingleRoom(memberId, request);
+            return createSingleRoom(memberId, request);
         }
 
+        validateMemberExists(memberId);
         Room room = createNewRoom(memberId, request);
-        // TODO: Connect game requests after policy is confirmed.
+        if (request.mode() == GameMode.COOPERATE) {
+            gameCycleCommandService.startInitialSharedCycle(
+                    room,
+                    roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(room.getId())
+            );
+        }
         return CreateRoomResponse.from(room);
     }
 
-    private CreateRoomResponse startSingleRoom(Long memberId, CreateRoomRequest request) {
+    private CreateRoomResponse createSingleRoom(Long memberId, CreateRoomRequest request) {
         memberRepository.findByIdForUpdate(memberId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
-        return roomRepository.findFirstByMemberIdAndModeAndStatus(
+        return roomRepository.findFirstByHostIdAndModeAndStatusOrderByIdDesc(
                         memberId,
                         GameMode.SINGLE,
-                        GameRoomStatus.IN_PROGRESS
+                        RoomStatus.ACTIVE
                 )
-                .map(CreateRoomResponse::from)
-                .orElseGet(() -> createAndStartSingleRoom(memberId, request));
+                .map(room -> {
+                    validateSingleRoomCycle(room);
+                    return CreateRoomResponse.from(room);
+                })
+                .orElseGet(() -> createAndStartSharedRoom(memberId, request));
     }
 
-    private CreateRoomResponse createAndStartSingleRoom(Long memberId, CreateRoomRequest request) {
+    private void validateMemberExists(Long memberId) {
+        if (!memberRepository.existsById(memberId)) {
+            throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
+        }
+    }
+
+    private void validateSingleRoomCycle(Room room) {
+        Game game = gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(
+                        room.getId(),
+                        GameStatus.ACTIVE
+                )
+                .orElseThrow(() -> invalidRoomCycle(
+                        room.getHostId(),
+                        room.getId(),
+                        ACTIVE_GAME_RESOURCE
+                ));
+        if (!bingoBoardRepository.existsByGameIdAndStatus(game.getId(), BingoBoardStatus.ACTIVE)) {
+            throw invalidRoomCycle(
+                    room.getHostId(),
+                    room.getId(),
+                    ACTIVE_BINGO_BOARD_RESOURCE
+            );
+        }
+    }
+
+    private CustomException invalidRoomCycle(Long memberId, Long roomId, String missingResource) {
+        log.error(
+                "Invalid active SINGLE room cycle: memberId={}, roomId={}, missing={}",
+                memberId,
+                roomId,
+                missingResource
+        );
+        return new CustomException(ErrorCode.ROOM_CYCLE_INVALID);
+    }
+
+    private CreateRoomResponse createAndStartSharedRoom(Long memberId, CreateRoomRequest request) {
         Room room = createNewRoom(memberId, request);
-        room.start();
-        Game game = gameRepository.save(Game.start(room.getId()));
-        bingoCommandService.generateInitialBoard(room, game.getId());
+        gameCycleCommandService.startInitialSharedCycle(
+                room,
+                roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(room.getId())
+        );
         return CreateRoomResponse.from(room);
     }
 
@@ -74,28 +121,12 @@ public class RoomCommandService {
                 memberId,
                 request.name(),
                 request.mode(),
-                request.targetBingoCount(),
+                request.mode() == GameMode.BATTLE ? request.targetBingoCount() : null,
                 request.targetStepCount(),
                 request.boardSize()
         ));
         roomMemberRepository.save(RoomMember.create(room.getId(), memberId));
-        room.updateParticipantStatus(1);
         return room;
-    }
-
-    private void validateTargetBingoCount(Integer targetBingoCount) {
-        if (targetBingoCount == null) {
-            throw new CustomException(ErrorCode.ROOM_TARGET_BINGO_COUNT_REQUIRED);
-        }
-    }
-
-    private void validateTargetStepCount(GameMode mode, Integer targetStepCount) {
-        if (mode != GameMode.BATTLE && (targetStepCount == null || targetStepCount < 1)) {
-            throw new CustomException(ErrorCode.ROOM_TARGET_STEP_COUNT_REQUIRED);
-        }
-        if (mode == GameMode.BATTLE && targetStepCount != null) {
-            throw new CustomException(ErrorCode.ROOM_TARGET_STEP_COUNT_NOT_ALLOWED);
-        }
     }
 
     public void updateRoomName(Long memberId, Long roomId, UpdateRoomNameRequest request) {
@@ -104,73 +135,16 @@ public class RoomCommandService {
         if (!room.isHost(memberId)) {
             throw new CustomException(ErrorCode.ROOM_UPDATE_FORBIDDEN);
         }
-
         room.updateName(request.name());
     }
 
     public void deleteRoom(Long memberId, Long roomId) {
         Room room = findRoom(roomId);
+        validateRoomOpen(room);
         if (!room.isHost(memberId)) {
             throw new CustomException(ErrorCode.ROOM_DELETE_FORBIDDEN);
         }
-
-        if (room.getMode() == GameMode.SINGLE) {
-            room.close();
-            return;
-        }
-
-        closeRoom(roomId, room);
-        // TODO: Connect game requests, bingo boards, and mission policies after deletion is confirmed.
-    }
-
-    public void expireSingleRoom(Long roomId, LocalDateTime expirationTime) {
-        Room room = findRoom(roomId);
-        if (room.getMode() != GameMode.SINGLE
-                || room.getStatus() != GameRoomStatus.IN_PROGRESS
-                || room.getStartedAt() == null
-                || room.getStartedAt().isAfter(expirationTime)) {
-            return;
-        }
-
-        room.close();
-    }
-
-    public void startGame(Long memberId, Long roomId) {
-        Room room = findRoom(roomId);
-        validateRoomOpen(room);
-        validateRoomMember(memberId, roomId);
-        if (!room.isHost(memberId)) {
-            throw new CustomException(ErrorCode.ROOM_START_FORBIDDEN);
-        }
-        if (room.getMode() == GameMode.BATTLE && room.getTargetBingoCount() == null) {
-            throw new CustomException(ErrorCode.ROOM_TARGET_BINGO_COUNT_REQUIRED);
-        }
-
-        long participantCount = roomMemberRepository.countByRoomId(roomId);
-        if (participantCount < room.getMode().getMinimumParticipants()) {
-            throw new CustomException(ErrorCode.ROOM_MINIMUM_PARTICIPANTS_REQUIRED);
-        }
-        if (participantCount > room.getMode().getMaximumParticipants()) {
-            throw new CustomException(ErrorCode.ROOM_MAXIMUM_PARTICIPANTS_REACHED);
-        }
-        if (!room.isReady()) {
-            throw new CustomException(ErrorCode.ROOM_NOT_READY);
-        }
-
-        List<RoomMember> roomMembers = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId);
-        room.start();
-        Game game = gameRepository.save(Game.start(roomId));
-        if (room.getMode() == GameMode.BATTLE) {
-            bingoCommandService.generateBattleBoards(room, game.getId(), roomMembers);
-        } else {
-            bingoCommandService.generateInitialBoard(room, game.getId());
-        }
-
-        roomMembers.stream()
-                .map(RoomMember::getMemberId)
-                .filter(participantId -> !participantId.equals(memberId))
-                .forEach(participantId ->
-                        eventPublisher.publishEvent(notificationMessageFactory.walkStart(participantId)));
+        closeRoom(roomId, room, memberId);
     }
 
     public void leaveRoom(Long memberId, Long roomId) {
@@ -180,13 +154,25 @@ public class RoomCommandService {
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN));
 
         if (room.isHost(memberId)) {
-            closeRoom(roomId, room);
+            closeRoom(roomId, room, memberId);
             return;
         }
 
-        long participantCount = roomMemberRepository.countByRoomId(roomId);
+        if (room.getMode() == GameMode.BATTLE) {
+            gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(roomId, GameStatus.ACTIVE)
+                    .ifPresent(game -> gameCycleCommandService.completeBattleByForfeit(
+                            room,
+                            game.getId(),
+                            memberId
+                    ));
+        }
         roomMemberRepository.delete(roomMember);
-        room.updateParticipantStatus(participantCount - 1);
+    }
+
+    private void closeRoom(Long roomId, Room room, Long hostId) {
+        gameCycleCommandService.closeActiveCycle(room, hostId);
+        room.close();
+        roomMemberRepository.deleteAllByRoomId(roomId);
     }
 
     private Room findRoom(Long roomId) {
@@ -200,14 +186,19 @@ public class RoomCommandService {
         }
     }
 
-    private void validateRoomMember(Long memberId, Long roomId) {
-        if (!roomMemberRepository.existsByRoomIdAndMemberId(roomId, memberId)) {
-            throw new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN);
+    private void validateBoardSettings(CreateRoomRequest request) {
+        if (request.mode() == GameMode.BATTLE
+                && (request.targetBingoCount() == null
+                || request.targetBingoCount() < 1
+                || request.targetBingoCount() > 2 * request.boardSize() + 2)) {
+            throw new CustomException(ErrorCode.BINGO_TARGET_COUNT_INVALID);
         }
-    }
-
-    private void closeRoom(Long roomId, Room room) {
-        room.close();
-        roomMemberRepository.deleteAllByRoomId(roomId);
+        if (request.mode() != GameMode.BATTLE
+                && (request.targetStepCount() == null || request.targetStepCount() < 1)) {
+            throw new CustomException(ErrorCode.ROOM_TARGET_STEP_COUNT_REQUIRED);
+        }
+        if (request.mode() == GameMode.BATTLE && request.targetStepCount() != null) {
+            throw new CustomException(ErrorCode.ROOM_TARGET_STEP_COUNT_NOT_ALLOWED);
+        }
     }
 }

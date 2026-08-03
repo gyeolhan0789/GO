@@ -39,7 +39,7 @@ public class Game extends BaseEntity {
 
     private Game(Long roomId) {
         this.roomId = roomId;
-        this.status = GameStatus.IN_PROGRESS;
+        this.status = GameStatus.ACTIVE;
         this.startedAt = LocalDateTime.now();
     }
 
@@ -48,7 +48,11 @@ public class Game extends BaseEntity {
     }
 
     public void complete() {
-        this.status = GameStatus.COMPLETED;
-        this.completedAt = LocalDateTime.now();
+        completeAt(LocalDateTime.now());
+    }
+
+    public void completeAt(LocalDateTime completedAt) {
+        this.status = GameStatus.ENDED;
+        this.completedAt = completedAt;
     }
 }

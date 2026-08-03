@@ -1,0 +1,109 @@
+meta {
+  name: 미션 수정 (관리자)
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{backendBaseUrl}}/admin/missions/1
+  body: multipartForm
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+body:multipart-form {
+  type: RELATION
+  difficulty: HIGH
+  title: 빨간 우산 찾기
+  detail: 빨간색 우산을 찾아 사진을 찍으세요.
+  decisionCondition: {"color": "red", "object": "umbrella"}
+  image: @file(C:\path\to\mission.png)
+}
+
+docs {
+  ## 미션 수정 (관리자)
+
+  기존 미션의 타입/난이도/제목/상세/판정 조건을 전체 교체한다. 이미지는 선택 항목이며, 전달하지 않으면 기존 이미지를 유지한다. `ADMIN` 권한이 필요하다. `type`은 `MissionType` enum 값 중 하나여야 한다.
+
+  ### Request 필드
+  | 필드 | 필수 | 제약조건 |
+  |---|---|---|
+  | image | N | JPEG 또는 PNG, 최대 5MB. 전달 시 기존 이미지를 대체하고 이전 로컬 이미지는 삭제된다 |
+  | type | Y | `MissionType` enum 값 중 하나: `OBJECT`, `ATTRIBUTE`, `RELATION`, `ORDINARY`, `STEP_TOTAL`, `STEP_CONTINUOUS`, `STEP_UPHILL`, `STEP_DAILY`, `WALKING_TIME_TOTAL`, `WALKING_TIME_CONTINUOUS`, `STEADY_PACE`, `DISTANCE_TOTAL`, `CALORIES_TOTAL`, `AVERAGE_SPEED` |
+  | difficulty | Y | `MissionDifficulty` enum 값 중 하나: `LOW`, `MEDIUM`, `HIGH`. 빙고 칸 완료 보상 포인트(30/50/70)를 결정한다 |
+  | title | N | 255자 이하 |
+  | detail | N | 255자 이하 |
+  | decisionCondition | N | 임의의 JSON 문자열. 저장 시 문자열로 직렬화되어 저장된다 (생략 시 null로 저장됨) |
+
+  ### 성공 응답 (204 No Content)
+  본문 없음
+
+  ### 에러 케이스
+
+  **존재하지 않는 미션**
+  ```json
+  {
+    "status": 404,
+    "message": "미션을 찾을 수 없습니다."
+  }
+  ```
+
+  **type 누락**
+  ```json
+  {
+    "status": 400,
+    "message": "미션 타입은 필수입니다."
+  }
+  ```
+
+  **difficulty 누락**
+  ```json
+  {
+    "status": 400,
+    "message": "미션 난이도는 필수입니다."
+  }
+  ```
+
+  **title이 255자 초과**
+  ```json
+  {
+    "status": 400,
+    "message": "미션 제목은 255자 이하여야 합니다."
+  }
+  ```
+
+  **detail이 255자 초과**
+  ```json
+  {
+    "status": 400,
+    "message": "미션 상세는 255자 이하여야 합니다."
+  }
+  ```
+
+  **type이 MissionType enum 값이 아님**
+  ```json
+  {
+    "status": 400,
+    "message": "미션 타입은 OBJECT, ATTRIBUTE, RELATION, ORDINARY, STEP_TOTAL, STEP_CONTINUOUS, STEP_UPHILL, STEP_DAILY, WALKING_TIME_TOTAL, WALKING_TIME_CONTINUOUS, STEADY_PACE, DISTANCE_TOTAL, CALORIES_TOTAL, AVERAGE_SPEED 중 하나여야 합니다."
+  }
+  ```
+
+  **difficulty가 LOW/MEDIUM/HIGH 중 하나가 아님**
+  ```json
+  {
+    "status": 400,
+    "message": "미션 난이도는 LOW, MEDIUM, HIGH 중 하나여야 합니다."
+  }
+  ```
+
+  **decisionCondition이 올바른 JSON이 아님**
+  ```json
+  {
+    "status": 400,
+    "message": "결정 조건은 올바른 JSON이어야 합니다."
+  }
+  ```
+}

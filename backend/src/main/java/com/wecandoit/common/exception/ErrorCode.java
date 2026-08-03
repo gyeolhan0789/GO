@@ -15,6 +15,7 @@ public enum ErrorCode {
     UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "인증이 필요합니다."),
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
     REFRESH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "유효하지 않은 Refresh Token입니다."),
+    INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다."),
 
     // Member
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "회원을 찾을 수 없습니다."),
@@ -46,21 +47,30 @@ public enum ErrorCode {
     ROOM_TARGET_BINGO_COUNT_REQUIRED(HttpStatus.BAD_REQUEST, "목표 빙고 수는 필수입니다."),
     ROOM_TARGET_STEP_COUNT_REQUIRED(HttpStatus.BAD_REQUEST, "싱글 및 협동 모드에서는 1 이상의 목표 걸음 수가 필수입니다."),
     ROOM_TARGET_STEP_COUNT_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "대결 모드에서는 목표 걸음 수를 설정할 수 없습니다."),
+    ROOM_CYCLE_INVALID(HttpStatus.CONFLICT, "활성 게임방의 회차 상태가 올바르지 않습니다."),
     GAME_NOT_FOUND(HttpStatus.NOT_FOUND, "게임을 찾을 수 없습니다."),
     GAME_NOT_COMPLETED(HttpStatus.CONFLICT, "완료되지 않은 게임입니다."),
+    GAME_RESULT_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 생성된 게임 결과입니다."),
+
+    GAME_PARTICIPANT_NOT_FOUND(HttpStatus.NOT_FOUND, "게임 참가자를 찾을 수 없습니다."),
 
     // Mission
-    INVALID_MISSION_TYPE(HttpStatus.BAD_REQUEST, "미션 타입은 OBJECT, ATTRIBUTE, RELATION, ORDINARY 중 하나여야 합니다."),
+    INVALID_MISSION_TYPE(HttpStatus.BAD_REQUEST,
+            "미션 타입은 OBJECT, ATTRIBUTE, RELATION, ORDINARY, STEP_TOTAL, STEP_CONTINUOUS, STEP_UPHILL, STEP_DAILY, "
+                    + "WALKING_TIME_TOTAL, WALKING_TIME_CONTINUOUS, STEADY_PACE, DISTANCE_TOTAL, CALORIES_TOTAL, "
+                    + "AVERAGE_SPEED 중 하나여야 합니다."),
+    INVALID_MISSION_DIFFICULTY(HttpStatus.BAD_REQUEST, "미션 난이도는 LOW, MEDIUM, HIGH 중 하나여야 합니다."),
     MISSION_NOT_FOUND(HttpStatus.NOT_FOUND, "미션을 찾을 수 없습니다."),
+    INVALID_DECISION_CONDITION(HttpStatus.BAD_REQUEST, "결정 조건은 올바른 JSON이어야 합니다."),
 
     // Item
     ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "아이템을 찾을 수 없습니다."),
-    DEFAULT_CHARACTER_ASSET_NOT_FOUND(HttpStatus.NOT_FOUND, "기본 캐릭터 에셋을 찾을 수 없습니다."),
+    DEFAULT_AVATAR_ASSET_NOT_FOUND(HttpStatus.NOT_FOUND, "기본 아바타 에셋을 찾을 수 없습니다."),
     INVALID_ITEM_CATEGORY(HttpStatus.BAD_REQUEST, "유효하지 않은 아이템 카테고리입니다."),
     DUPLICATE_ITEM_CATEGORY(HttpStatus.BAD_REQUEST, "같은 카테고리의 아이템을 중복 장착할 수 없습니다."),
     ITEM_ALREADY_OWNED(HttpStatus.CONFLICT, "이미 보유한 아이템입니다."),
     ITEM_NOT_AVAILABLE_FOR_SALE(HttpStatus.CONFLICT, "판매 중지된 아이템은 구매할 수 없습니다."),
-    INSUFFICIENT_CASH(HttpStatus.BAD_REQUEST, "캐시가 부족합니다."),
+    INSUFFICIENT_POINT(HttpStatus.BAD_REQUEST, "포인트가 부족합니다."),
 
     // Bingo Board
     BINGO_BOARD_GENERATE_FORBIDDEN(HttpStatus.FORBIDDEN, "빙고판 생성 권한이 없습니다."),
@@ -70,9 +80,13 @@ public enum ErrorCode {
     BINGO_BOARD_NOT_FOUND(HttpStatus.NOT_FOUND, "활성화된 빙고판이 없습니다."),
     BINGO_BOARD_RENEWAL_FORBIDDEN(HttpStatus.FORBIDDEN, "빙고판 갱신 권한이 없습니다."),
     BINGO_BOARD_NOT_COMPLETED(HttpStatus.CONFLICT, "빙고판이 아직 100% 완료되지 않았습니다."),
+    BINGO_BOARD_RENEWAL_REQUIRED(HttpStatus.CONFLICT, "빙고판 갱신이 필요합니다."),
     BINGO_CELL_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 칸을 찾을 수 없습니다."),
     BINGO_CELL_VERIFICATION_IN_PROGRESS(HttpStatus.CONFLICT, "이미 검증 중인 빙고 칸입니다."),
     BINGO_CELL_ALREADY_APPROVED(HttpStatus.CONFLICT, "이미 승인된 빙고 칸입니다."),
+
+    BINGO_BOARD_SIZE_INVALID(HttpStatus.BAD_REQUEST, "빙고판 크기는 3 이상 5 이하여야 합니다."),
+    BINGO_TARGET_COUNT_INVALID(HttpStatus.BAD_REQUEST, "목표 빙고 수가 빙고판 크기에 맞지 않습니다."),
 
     // Game Request
     GAME_REQUEST_FORBIDDEN(HttpStatus.FORBIDDEN, "게임방 초대 권한이 없습니다."),
@@ -89,8 +103,12 @@ public enum ErrorCode {
     OAUTH_TOKEN_EXCHANGE_FAILED(HttpStatus.BAD_GATEWAY, "소셜 로그인 토큰 교환에 실패했습니다."),
     OAUTH_PROVIDER_MISMATCH(HttpStatus.CONFLICT, "동일한 이메일로 다른 방식으로 가입된 계정이 있습니다."),
     OAUTH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "유효하지 않은 소셜 로그인 토큰입니다."),
+    OAUTH_SIGNUP_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "유효하지 않거나 만료된 가입 토큰입니다."),
+    OAUTH_ALREADY_REGISTERED(HttpStatus.CONFLICT, "이미 가입된 이메일입니다."),
 
     // AI Verification
+    AI_VERIFICATION_REQUEST_INVALID(HttpStatus.BAD_GATEWAY, "AI 검증 요청이 올바르지 않습니다."),
+    AI_VERIFICATION_SERVER_ERROR(HttpStatus.BAD_GATEWAY, "AI 검증 서버에서 오류가 발생했습니다."),
     AI_VERIFICATION_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "AI 검증 서버 호출에 실패했습니다."),
 
     // Notification

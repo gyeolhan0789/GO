@@ -1,5 +1,6 @@
 package com.wecandoit.game.service;
 
+import com.wecandoit.avatar.service.AvatarReadService;
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.domain.BingoLineCounter;
@@ -14,15 +15,18 @@ import com.wecandoit.game.controller.response.GameResultBoardOwnerResponse;
 import com.wecandoit.game.controller.response.GameResultDetailResponse;
 import com.wecandoit.game.controller.response.GameResultParticipantResponse;
 import com.wecandoit.game.controller.response.GameResultResponse;
+import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
+import com.wecandoit.game.domain.GameParticipant;
 import com.wecandoit.game.domain.GameResult;
 import com.wecandoit.game.domain.GameResultParticipant;
 import com.wecandoit.game.domain.Room;
-import com.wecandoit.game.domain.RoomMember;
+import com.wecandoit.game.repository.GameParticipantRepository;
+import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.GameResultParticipantRepository;
 import com.wecandoit.game.repository.GameResultRepository;
-import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
+import com.wecandoit.item.controller.response.AvatarResponse;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.Mission;
@@ -32,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -47,54 +50,74 @@ public class GameResultReadService {
 
     private final GameResultRepository gameResultRepository;
     private final GameResultParticipantRepository gameResultParticipantRepository;
+    private final GameParticipantRepository gameParticipantRepository;
+    private final GameRepository gameRepository;
     private final RoomRepository roomRepository;
-    private final RoomMemberRepository roomMemberRepository;
     private final MemberRepository memberRepository;
+    private final AvatarReadService avatarReadService;
     private final BingoBoardRepository bingoBoardRepository;
     private final BingoCellRepository bingoCellRepository;
     private final MissionRepository missionRepository;
 
-    public GameResultDetailResponse getGameResult(Long memberId, Long roomId) {
-        Room room = roomRepository.findById(roomId)
+    public GameResultDetailResponse getGameResult(Long memberId, Long gameId) {
+        Game game = gameRepository.findById(gameId)
+                .orElseThrow(() -> new CustomException(ErrorCode.GAME_NOT_FOUND));
+        Room room = roomRepository.findById(game.getRoomId())
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
-        if (!roomMemberRepository.existsByRoomIdAndMemberId(roomId, memberId)) {
-            throw new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN);
-        }
-        GameResult gameResult = gameResultRepository.findFirstByRoomIdOrderByCreatedAtDescIdDesc(roomId)
+        GameResult gameResult = gameResultRepository.findByGameId(gameId)
                 .orElseThrow(() -> new CustomException(ErrorCode.GAME_NOT_COMPLETED));
         List<GameResultParticipant> participants =
                 gameResultParticipantRepository.findAllByGameIdOrderByIdAsc(gameResult.getGameId());
+        GameResultParticipant myParticipant = getMyParticipant(memberId, participants);
         List<BingoBoard> boards = bingoBoardRepository.findAllByGameIdOrderByIdAsc(gameResult.getGameId());
         if (boards.isEmpty()) {
             throw new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND);
         }
-        Map<Long, Member> membersById = getMembersById(participants, room, boards);
+        Map<Long, GameParticipant> gameParticipantsById = gameParticipantRepository
+                .findAllByGameIdOrderByJoinedAtAsc(gameId)
+                .stream()
+                .collect(Collectors.toMap(GameParticipant::getId, Function.identity()));
+        Map<Long, Member> membersById = getMembersById(participants);
+        Map<Long, AvatarResponse> avatarsByMemberId = getAvatarsByMemberId(membersById);
         List<GameResultParticipantResponse> participantResponses =
-                toParticipantResponses(participants, membersById);
+                toParticipantResponses(participants, membersById, avatarsByMemberId);
         List<GameResultBingoBoardResponse> bingoBoardResponses =
-                toBingoBoardResponses(room, boards, participants, membersById);
+                toBingoBoardResponses(room, boards, participants, gameParticipantsById, membersById);
 
-        return GameResultDetailResponse.of(gameResult, room, participantResponses, bingoBoardResponses);
+        return GameResultDetailResponse.of(
+                gameResult,
+                room,
+                getBoardSize(boards),
+                getTargetBingoCount(boards),
+                getTargetStepCount(room, boards),
+                game.getStartedAt(),
+                game.getCompletedAt(),
+                getTotalMissionCount(bingoBoardResponses),
+                myParticipant,
+                participantResponses,
+                bingoBoardResponses
+        );
     }
 
     public SliceResponse<GameResultResponse> getMyGameResults(Long memberId, Pageable pageable) {
-        List<Long> roomIds = roomMemberRepository.findAllByMemberIdOrderByJoinedAtDesc(memberId).stream()
-                .map(RoomMember::getRoomId)
-                .distinct()
-                .toList();
-        if (roomIds.isEmpty()) {
+        Slice<GameResult> gameResults =
+                gameResultRepository.findAllByParticipantMemberIdOrderByCreatedAtDescIdDesc(memberId, pageable);
+        if (gameResults.isEmpty()) {
             return SliceResponse.from(new SliceImpl<>(List.of(), pageable, false));
         }
-
-        Slice<GameResult> gameResults = gameResultRepository.findByRoomIdInOrderByCreatedAtDesc(roomIds, pageable);
+        List<Long> gameIds = gameResults.getContent().stream()
+                .map(GameResult::getGameId)
+                .toList();
         Map<Long, Room> roomsById = roomRepository.findAllById(gameResults.getContent().stream()
                         .map(GameResult::getRoomId)
                         .toList())
                 .stream()
                 .collect(Collectors.toMap(Room::getId, Function.identity()));
+        Map<Long, Game> gamesById = gameRepository.findAllById(gameIds).stream()
+                .collect(Collectors.toMap(Game::getId, Function.identity()));
 
         List<GameResultParticipant> participants = gameResultParticipantRepository.findAllByGameIdInOrderByIdAsc(
-                gameResults.getContent().stream().map(GameResult::getGameId).toList()
+                gameIds
         );
         Map<Long, List<GameResultParticipant>> participantsByGameId = participants.stream()
                 .collect(Collectors.groupingBy(GameResultParticipant::getGameId));
@@ -104,51 +127,122 @@ public class GameResultReadService {
                         .toList())
                 .stream()
                 .collect(Collectors.toMap(Member::getId, Function.identity()));
+        Map<Long, AvatarResponse> avatarsByMemberId = getAvatarsByMemberId(membersById);
+        List<BingoBoard> boards = bingoBoardRepository.findAllByGameIdInOrderByIdAsc(gameIds);
+        Map<Long, List<BingoBoard>> boardsByGameId = boards.stream()
+                .collect(Collectors.groupingBy(BingoBoard::getGameId));
+        Map<Long, Integer> cellCountsByBoardId = getCellCountsByBoardId(boards);
 
-        return SliceResponse.from(gameResults.map(gameResult -> GameResultResponse.of(
-                gameResult,
-                roomsById.get(gameResult.getRoomId()),
-                toParticipantResponses(
-                        participantsByGameId.getOrDefault(gameResult.getGameId(), List.of()),
-                        membersById
-                )
-        )));
+        return SliceResponse.from(gameResults.map(gameResult -> {
+            Room room = getRoom(roomsById, gameResult.getRoomId());
+            Game game = getGame(gamesById, gameResult.getGameId());
+            List<BingoBoard> resultBoards = boardsByGameId.getOrDefault(gameResult.getGameId(), List.of());
+            List<GameResultParticipant> resultParticipants =
+                    participantsByGameId.getOrDefault(gameResult.getGameId(), List.of());
+            return GameResultResponse.of(
+                    gameResult,
+                    room,
+                    getBoardSize(resultBoards),
+                    getTargetBingoCount(resultBoards),
+                    getTargetStepCount(room, resultBoards),
+                    game.getStartedAt(),
+                    game.getCompletedAt(),
+                    getTotalMissionCount(resultBoards, cellCountsByBoardId),
+                    getMyParticipant(memberId, resultParticipants),
+                    toParticipantResponses(resultParticipants, membersById, avatarsByMemberId)
+            );
+        }));
     }
 
-    private Map<Long, Member> getMembersById(
-            List<GameResultParticipant> participants,
-            Room room,
-            List<BingoBoard> boards
+    private Map<Long, Integer> getCellCountsByBoardId(List<BingoBoard> boards) {
+        List<Long> boardIds = boards.stream().map(BingoBoard::getId).toList();
+        if (boardIds.isEmpty()) {
+            return Map.of();
+        }
+        return bingoCellRepository.findAllByBoardIdIn(boardIds).stream()
+                .collect(Collectors.groupingBy(
+                        BingoCell::getBoardId,
+                        Collectors.collectingAndThen(Collectors.counting(), Long::intValue)
+                ));
+    }
+
+    private Integer getTargetStepCount(Room room, List<BingoBoard> boards) {
+        if (room.getMode() == GameMode.BATTLE) {
+            return null;
+        }
+        return boards.stream()
+                .filter(BingoBoard::isShared)
+                .max(Comparator.comparing(BingoBoard::getId))
+                .map(BingoBoard::getTargetStepCount)
+                .orElse(null);
+    }
+
+    private int getBoardSize(List<BingoBoard> boards) {
+        return getConfigurationBoard(boards).getBoardSize();
+    }
+
+    private Integer getTargetBingoCount(List<BingoBoard> boards) {
+        return getConfigurationBoard(boards).getTargetBingoCount();
+    }
+
+    private BingoBoard getConfigurationBoard(List<BingoBoard> boards) {
+        return boards.stream()
+                .findFirst()
+                .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
+    }
+
+    private int getTotalMissionCount(List<BingoBoard> boards, Map<Long, Integer> cellCountsByBoardId) {
+        return boards.stream()
+                .mapToInt(board -> cellCountsByBoardId.getOrDefault(board.getId(), 0))
+                .sum();
+    }
+
+    private int getTotalMissionCount(List<GameResultBingoBoardResponse> bingoBoardResponses) {
+        return bingoBoardResponses.stream()
+                .mapToInt(GameResultBingoBoardResponse::totalCellCount)
+                .sum();
+    }
+
+    private Room getRoom(Map<Long, Room> roomsById, Long roomId) {
+        Room room = roomsById.get(roomId);
+        if (room == null) {
+            throw new CustomException(ErrorCode.ROOM_NOT_FOUND);
+        }
+        return room;
+    }
+
+    private Game getGame(Map<Long, Game> gamesById, Long gameId) {
+        Game game = gamesById.get(gameId);
+        if (game == null) {
+            throw new CustomException(ErrorCode.GAME_NOT_FOUND);
+        }
+        return game;
+    }
+
+    private GameResultParticipant getMyParticipant(
+            Long memberId,
+            List<GameResultParticipant> participants
     ) {
-        List<Long> participantMemberIds = participants.stream()
+        return participants.stream()
+                .filter(participant -> participant.getMemberId().equals(memberId))
+                .findFirst()
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN));
+    }
+
+    private Map<Long, Member> getMembersById(List<GameResultParticipant> participants) {
+        List<Long> memberIds = participants.stream()
                 .map(GameResultParticipant::getMemberId)
-                .toList();
-        List<Long> boardOwnerMemberIds = getBoardOwnerMemberIds(room, boards);
-        List<Long> memberIds = Stream.concat(participantMemberIds.stream(), boardOwnerMemberIds.stream())
                 .distinct()
                 .toList();
         return memberRepository.findAllById(memberIds).stream()
                 .collect(Collectors.toMap(Member::getId, Function.identity()));
     }
 
-    private List<Long> getBoardOwnerMemberIds(Room room, List<BingoBoard> boards) {
-        if (room.getMode() != GameMode.BATTLE) {
-            return List.of();
-        }
-        return boards.stream()
-                .map(board -> {
-                    if (board.getRoomMember() == null) {
-                        throw new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND);
-                    }
-                    return board.getRoomMember().getMemberId();
-                })
-                .toList();
-    }
-
     private List<GameResultBingoBoardResponse> toBingoBoardResponses(
             Room room,
             List<BingoBoard> boards,
             List<GameResultParticipant> participants,
+            Map<Long, GameParticipant> gameParticipantsById,
             Map<Long, Member> membersById
     ) {
         List<Long> boardIds = boards.stream().map(BingoBoard::getId).toList();
@@ -169,7 +263,7 @@ public class GameResultReadService {
                             .toList();
                     return GameResultBingoBoardResponse.of(
                             board,
-                            getBoardOwners(room, board, participants, membersById),
+                            getBoardOwners(room, board, participants, gameParticipantsById, membersById),
                             BingoLineCounter.countCompletedLines(board.getBoardSize(), cells),
                             countApprovedCells(cells),
                             cellResponses
@@ -191,14 +285,19 @@ public class GameResultReadService {
             Room room,
             BingoBoard board,
             List<GameResultParticipant> participants,
+            Map<Long, GameParticipant> gameParticipantsById,
             Map<Long, Member> membersById
     ) {
         if (room.getMode() == GameMode.BATTLE) {
-            if (board.getRoomMember() == null) {
+            if (!board.isPersonal()) {
                 throw new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND);
             }
+            GameParticipant gameParticipant = gameParticipantsById.get(board.getGameParticipantId());
+            if (gameParticipant == null) {
+                throw new CustomException(ErrorCode.GAME_PARTICIPANT_NOT_FOUND);
+            }
             return List.of(GameResultBoardOwnerResponse.from(
-                    getMember(membersById, board.getRoomMember().getMemberId())
+                    getMember(membersById, gameParticipant.getMemberId())
             ));
         }
         return participants.stream()
@@ -224,14 +323,38 @@ public class GameResultReadService {
 
     private List<GameResultParticipantResponse> toParticipantResponses(
             List<GameResultParticipant> participants,
-            Map<Long, Member> membersById
+            Map<Long, Member> membersById,
+            Map<Long, AvatarResponse> avatarsByMemberId
     ) {
         return participants.stream()
-                .map(participant -> GameResultParticipantResponse.of(
-                        participant,
-                        getMember(membersById, participant.getMemberId())
-                ))
+                .map(participant -> {
+                    Long memberId = participant.getMemberId();
+                    AvatarResponse avatar = getAvatar(avatarsByMemberId, memberId);
+                    return GameResultParticipantResponse.of(
+                            participant,
+                            getMember(membersById, memberId),
+                            avatar.defaultImageUrl(),
+                            avatar.equippedItems()
+                    );
+                })
                 .toList();
+    }
+
+    private AvatarResponse getAvatar(
+            Map<Long, AvatarResponse> avatarsByMemberId,
+            Long memberId
+    ) {
+        AvatarResponse avatar = avatarsByMemberId.get(memberId);
+        if (avatar == null) {
+            throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
+        }
+        return avatar;
+    }
+
+    private Map<Long, AvatarResponse> getAvatarsByMemberId(Map<Long, Member> membersById) {
+        return avatarReadService.getAvatars(membersById.values().stream()
+                .sorted(Comparator.comparing(Member::getId))
+                .toList());
     }
 
     private Member getMember(Map<Long, Member> membersById, Long memberId) {

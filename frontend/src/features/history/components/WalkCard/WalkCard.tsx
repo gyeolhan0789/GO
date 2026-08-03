@@ -1,19 +1,20 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { MemberAvatar } from '../../../member/components/MemberAvatar';
+import { AppText } from '../../../../shared/components/AppText/AppText';
 import { AvatarStack } from '../../../../shared/components/AvatarStack/AvatarStack';
 import { Card } from '../../../../shared/components/Card/Card';
 import { colors } from '../../../../shared/constants/colors';
 import { shadow } from '../../../../shared/constants/shadow';
 import { spacing } from '../../../../shared/constants/spacing';
-import {
-  formatDuration,
-  formatThousands,
-  formatWalkDateTime,
-} from '../../model/format';
-import type { RecentWalk } from '../../types';
+import { bodyFont, lineHeights } from '../../../../shared/constants/typography';
+import { formatWalkDateRange } from '../../model/format';
+import { GAME_MODE_LABEL } from '../../model/gameResult';
+import type { WalkRecord } from '../../types';
+import { WalkResultBadge } from '../WalkResultBadge/WalkResultBadge';
 
 type WalkCardProps = {
-  walk: RecentWalk;
+  walk: WalkRecord;
   onPress: () => void;
 };
 
@@ -21,6 +22,11 @@ const AVATAR_SIZE = 40;
 
 /** 기록 화면의 '최근 산책'과 전체 목록 화면이 같이 쓴다. */
 export function WalkCard({ walk, onPress }: WalkCardProps) {
+  const summary = [
+    GAME_MODE_LABEL[walk.mode],
+    `미션 ${walk.myCompletedMissionCount}/${walk.boardCellCount}`,
+  ].join(' · ');
+
   return (
     <Pressable
       onPress={onPress}
@@ -31,23 +37,31 @@ export function WalkCard({ walk, onPress }: WalkCardProps) {
       <Card>
         <View style={styles.row}>
           <View style={styles.textGroup}>
-            <Text style={styles.title} numberOfLines={1}>
-              {walk.title}
-            </Text>
-            <Text style={styles.meta} numberOfLines={1}>
-              {formatWalkDateTime(walk.startedAt)}
-            </Text>
-            <Text style={styles.meta} numberOfLines={1}>
-              {`${formatThousands(walk.step)} 걸음 · ${formatDuration(
-                walk.durationSeconds,
-              )}`}
-            </Text>
+            <View style={styles.titleRow}>
+              <AppText style={styles.title} numberOfLines={1}>
+                {walk.title}
+              </AppText>
+              <WalkResultBadge mode={walk.mode} isWin={walk.isWin} />
+            </View>
+            <AppText style={styles.meta} numberOfLines={1}>
+              {formatWalkDateRange(walk.startedAt, walk.completedAt)}
+            </AppText>
+            <AppText style={styles.meta} numberOfLines={1}>
+              {summary}
+            </AppText>
           </View>
 
           <AvatarStack
             members={walk.participants.map(participant => ({
               id: String(participant.memberId),
-              imageUri: participant.imageUrl,
+              avatar: (
+                <MemberAvatar
+                  gender={participant.gender}
+                  defaultImageUrl={participant.defaultImageUrl}
+                  equippedItems={participant.equippedItems}
+                  style={styles.avatar}
+                />
+              ),
             }))}
             size={AVATAR_SIZE}
           />
@@ -76,15 +90,29 @@ const styles = StyleSheet.create({
     minWidth: 0,
     gap: spacing.xs,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   title: {
-    fontFamily: 'BMDOHYEON',
+    // 배지가 밀려나지 않게 긴 방 이름은 제목 쪽에서 줄인다.
+    flexShrink: 1,
+    fontFamily: bodyFont.bold,
     fontSize: 15,
+    lineHeight: lineHeights[15],
     color: colors.ink,
   },
   meta: {
-    fontFamily: 'BMDOHYEON',
+    fontFamily: bodyFont.regular,
     fontSize: 12,
+    lineHeight: lineHeights[12],
     color: colors.ink,
     opacity: 0.6,
+  },
+  // AvatarStack이 만든 원을 흉상이 꽉 채운다. 자르기는 원(overflow: hidden)이 한다.
+  avatar: {
+    width: '100%',
+    height: '100%',
   },
 });
