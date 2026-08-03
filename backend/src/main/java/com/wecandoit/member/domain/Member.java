@@ -74,14 +74,6 @@ public class Member extends BaseEntity {
         this.provider = provider;
     }
 
-    public static Member create(String email, String encodedPassword, String nickname) {
-        return create(email, encodedPassword, nickname, null, Gender.MALE);
-    }
-
-    public static Member create(String email, String encodedPassword, String nickname, Region region) {
-        return create(email, encodedPassword, nickname, region, Gender.MALE);
-    }
-
     public static Member create(String email, String encodedPassword, String nickname, Region region, Gender gender) {
         return Member.builder()
                 .email(email)
@@ -92,10 +84,6 @@ public class Member extends BaseEntity {
                 .role(Role.USER)
                 .provider(AuthProvider.LOCAL)
                 .build();
-    }
-
-    public static Member createSocial(String email, String nickname, AuthProvider provider) {
-        return createSocial(email, nickname, provider, Gender.MALE);
     }
 
     public static Member createSocial(String email, String nickname, AuthProvider provider, Gender gender) {

@@ -18,6 +18,7 @@ import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.RoomCreateFacade;
 import com.wecandoit.game.service.RoomReadService;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.Mission;
@@ -77,7 +78,9 @@ class RoomCreateFacadeTransactionTest {
         Member member = memberRepository.save(Member.create(
                 "host@example.com",
                 "encoded-password",
-                "방장"
+                "방장",
+                null,
+                Gender.MALE
         ));
         saveMissions(9);
         given(roomReadService.getRoomDetail(eq(member.getId()), anyLong()))
@@ -102,7 +105,9 @@ class RoomCreateFacadeTransactionTest {
         Member member = memberRepository.save(Member.create(
                 "host@example.com",
                 "encoded-password",
-                "방장"
+                "방장",
+                null,
+                Gender.MALE
         ));
 
         assertThatThrownBy(() -> roomCreateFacade.createRoom(

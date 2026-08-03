@@ -74,7 +74,7 @@ public class BingoCellVerificationResultService {
                 cell.getId(),
                 missionDifficulty
         );
-        gameCompletionService.evaluateAndCompleteIfNeeded(game.getId(), board.getId());
+        gameCompletionService.evaluateAndCompleteIfNeeded(game.getId());
         publishProgressEvent(room, board, cell);
         return rewardPoint;
     }

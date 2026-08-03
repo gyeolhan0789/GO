@@ -202,7 +202,7 @@ class MemberCommandServiceTest {
     @DisplayName("소셜 계정 회원이 비밀번호 변경을 시도하면 실패한다")
     void changePasswordRejectsSocialProvider() {
         // given
-        Member member = Member.createSocial("social@example.com", "닉네임", AuthProvider.GOOGLE);
+        Member member = Member.createSocial("social@example.com", "닉네임", AuthProvider.GOOGLE, Gender.MALE);
         ReflectionTestUtils.setField(member, "id", 1L);
         given(memberRepository.findById(1L)).willReturn(Optional.of(member));
 
@@ -242,7 +242,7 @@ class MemberCommandServiceTest {
     }
 
     private Member localMember(Long id, String nickname, Region region) {
-        Member member = Member.create(nickname + "@example.com", "encoded-old-password", nickname, region);
+        Member member = Member.create(nickname + "@example.com", "encoded-old-password", nickname, region, Gender.MALE);
         ReflectionTestUtils.setField(member, "id", id);
         return member;
     }

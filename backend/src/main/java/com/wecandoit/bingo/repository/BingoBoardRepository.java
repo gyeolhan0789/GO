@@ -16,8 +16,6 @@ public interface BingoBoardRepository extends JpaRepository<BingoBoard, Long> {
     @Query("SELECT b FROM BingoBoard b WHERE b.id = :boardId")
     Optional<BingoBoard> findByIdForUpdate(@Param("boardId") Long boardId);
 
-    boolean existsByGameParticipantId(Long gameParticipantId);
-
     boolean existsByGameIdAndStatus(Long gameId, BingoBoardStatus status);
 
     Optional<BingoBoard> findFirstByGameIdAndStatusNotInOrderByIdDesc(
