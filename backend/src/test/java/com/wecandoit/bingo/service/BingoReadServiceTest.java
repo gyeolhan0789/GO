@@ -79,6 +79,7 @@ class BingoReadServiceTest {
         BingoBoardResponse response = bingoReadService.getActiveBoard(1L, 10L);
 
         assertThat(response.renewalRequired()).isTrue();
+        assertThat(response.isHost()).isTrue();
         assertThat(response.canRenew()).isTrue();
     }
 
@@ -93,6 +94,7 @@ class BingoReadServiceTest {
         BingoBoardResponse response = bingoReadService.getActiveBoard(2L, 10L);
 
         assertThat(response.renewalRequired()).isTrue();
+        assertThat(response.isHost()).isFalse();
         assertThat(response.canRenew()).isFalse();
     }
 
