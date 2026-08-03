@@ -4,7 +4,7 @@ import { resolveImageUrl } from '../../../shared/api/resolveImageUrl';
 import type {
   ItemCategory,
   MemberItem,
-  MyCharacterResponse,
+  MyAvatarResponse,
 } from '../api/memberApi';
 import { DEFAULT_CHARACTER_IMAGE_BY_GENDER } from '../constants/characterImages';
 
@@ -59,7 +59,7 @@ export function toCharacterItem(item: MemberItem): CharacterItem {
   };
 }
 
-export function toCharacter(response: MyCharacterResponse): Character {
+export function toCharacter(response: MyAvatarResponse): Character {
   const fallback = DEFAULT_CHARACTER_IMAGE_BY_GENDER[response.gender];
 
   return {

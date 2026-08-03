@@ -109,7 +109,7 @@ let fetchMock: FetchMock;
 beforeEach(() => {
   fetchMock = installFetchMock();
   fetchMock.mockImplementation(async url => {
-    if (url.includes('/members/character')) {
+    if (url.includes('/members/avatar')) {
       return jsonResponse(200, MY_CHARACTER as never);
     }
     if (url.includes('/rankings/friends')) {
@@ -303,7 +303,7 @@ describe('RankingScreen', () => {
 
   test('지역 랭킹도 4위부터 목록으로 이어진다', async () => {
     fetchMock.mockImplementation(async url => {
-      if (url.includes('/members/character')) {
+      if (url.includes('/members/avatar')) {
         return jsonResponse(200, MY_CHARACTER as never);
       }
       if (url.includes('/rankings/friends')) {
@@ -330,7 +330,7 @@ describe('RankingScreen', () => {
     let resolveRanking: ((value: unknown) => void) | null = null;
     fetchMock.mockImplementation(async url => {
       // 회원 조회는 스켈레톤과 무관하다. 랭킹 응답만 붙잡아 둔다.
-      if (url.includes('/members/character')) {
+      if (url.includes('/members/avatar')) {
         return jsonResponse(200, MY_CHARACTER as never);
       }
       return new Promise(resolve => {
@@ -411,7 +411,7 @@ describe('RankingScreen', () => {
     };
 
     fetchMock.mockImplementation(async url => {
-      if (url.includes('/members/character')) {
+      if (url.includes('/members/avatar')) {
         return jsonResponse(200, MY_CHARACTER as never);
       }
       const page = rankingPage([
@@ -453,7 +453,7 @@ describe('RankingScreen', () => {
 
   test('순위가 안 잡히면 고정 줄에 숫자 대신 -를 둔다', async () => {
     fetchMock.mockImplementation(async url => {
-      if (url.includes('/members/character')) {
+      if (url.includes('/members/avatar')) {
         return jsonResponse(200, MY_CHARACTER as never);
       }
       return jsonResponse(
@@ -531,7 +531,7 @@ describe('RankingScreen', () => {
 
   test('20위권 경계 바로 밖이면 고정 줄을 띄운다', async () => {
     fetchMock.mockImplementation(async url => {
-      if (url.includes('/members/character')) {
+      if (url.includes('/members/avatar')) {
         return jsonResponse(200, MY_CHARACTER as never);
       }
       return jsonResponse(
@@ -564,7 +564,7 @@ describe('RankingScreen', () => {
 
   test('기록이 없으면 빈 상태 문구를 보여준다', async () => {
     fetchMock.mockImplementation(async url => {
-      if (url.includes('/members/character')) {
+      if (url.includes('/members/avatar')) {
         return jsonResponse(200, MY_CHARACTER as never);
       }
       return jsonResponse(200, rankingPage([]));
@@ -579,7 +579,7 @@ describe('RankingScreen', () => {
 
   test('걸음 수가 모두 같아도 시상대가 채워지고 내가 1등 칸에 선다', async () => {
     fetchMock.mockImplementation(async url => {
-      if (url.includes('/members/character')) {
+      if (url.includes('/members/avatar')) {
         return jsonResponse(200, MY_CHARACTER as never);
       }
       return jsonResponse(200, TIED_RANKING);

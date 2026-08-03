@@ -21,7 +21,7 @@ export type MemberItem = {
 
 export type EquippedItem = MemberItem;
 
-export type MyCharacterResponse = {
+export type MyAvatarResponse = {
   memberId: number;
   nickname: string;
   gender: Gender;
@@ -43,8 +43,8 @@ export type MyPageResponse = {
   point: number;
 };
 
-export function getMyCharacter() {
-  return apiClient.get<MyCharacterResponse>('/members/character');
+export function getMyAvatar() {
+  return apiClient.get<MyAvatarResponse>('/members/avatar');
 }
 
 export function getMyPage() {
@@ -67,7 +67,7 @@ export function getMyItems(category?: ItemCategory) {
  * 항상 "저장 시점에 입고 있어야 하는 아이템 전부"를 보내야 한다.
  */
 export function saveEquippedItems(memberItemIds: number[]) {
-  return apiClient.put<void>('/character-items', { memberItemIds });
+  return apiClient.put<void>('/avatar-items', { memberItemIds });
 }
 
 export type ProfileUpdateRequest = {

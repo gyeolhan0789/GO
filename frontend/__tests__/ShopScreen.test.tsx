@@ -77,7 +77,7 @@ let fetchMock: FetchMock;
 beforeEach(() => {
   fetchMock = installFetchMock();
   fetchMock.mockImplementation(async url => {
-    if (url.includes('/members/character')) {
+    if (url.includes('/members/avatar')) {
       return jsonResponse(200, CHARACTER);
     }
     if (url.includes('/members/point')) {
@@ -315,7 +315,7 @@ describe('ShopScreen', () => {
 
   test('구매가 실패하면 서버 메시지를 보여주고 포인트는 그대로다', async () => {
     fetchMock.mockImplementation(async url => {
-      if (url.includes('/members/character')) {
+      if (url.includes('/members/avatar')) {
         return jsonResponse(200, CHARACTER);
       }
       if (url.includes('/members/point')) {
@@ -404,7 +404,7 @@ describe('ShopScreen', () => {
       if (url.includes('/members/point')) {
         return jsonResponse(200, { point: CASH });
       }
-      if (url.includes('/members/character')) {
+      if (url.includes('/members/avatar')) {
         return jsonResponse(200, CHARACTER);
       }
       return jsonResponse(200, [MY_HAT] as never);

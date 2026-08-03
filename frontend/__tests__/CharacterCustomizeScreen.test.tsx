@@ -55,13 +55,13 @@ let fetchMock: FetchMock;
 beforeEach(() => {
   fetchMock = installFetchMock();
   fetchMock.mockImplementation(async url => {
-    if (url.includes('/members/character')) {
+    if (url.includes('/members/avatar')) {
       return jsonResponse(200, CHARACTER);
     }
     if (url.includes('/members/items')) {
       return jsonResponse(200, [HAT, OTHER_HAT, TOP] as never);
     }
-    if (url.includes('/character-items')) {
+    if (url.includes('/avatar-items')) {
       return jsonResponse(204);
     }
     throw new Error(`unexpected request: ${url}`);
@@ -197,7 +197,7 @@ function hasScrollToTopButton(root: ReactTestInstance): boolean {
 
 function savedMemberItemIds() {
   const [, options] =
-    fetchMock.mock.calls.find(([url]) => url.includes('/character-items')) ?? [];
+    fetchMock.mock.calls.find(([url]) => url.includes('/avatar-items')) ?? [];
 
   return JSON.parse(String(options?.body)).memberItemIds;
 }

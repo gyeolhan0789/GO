@@ -36,7 +36,7 @@ const {
 // 회원 조회까지 네트워크를 타면 auth 요청 기록에 섞인다. 이 테스트가 보는 건
 // 로그아웃 후 어느 화면으로 가는지뿐이다.
 jest.mock('../src/features/member/api/memberApi', () => ({
-  getMyCharacter: jest.fn(() =>
+  getMyAvatar: jest.fn(() =>
     Promise.resolve({
       memberId: 1,
       nickname: '멍멍이',

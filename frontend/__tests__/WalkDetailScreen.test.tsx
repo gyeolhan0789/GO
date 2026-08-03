@@ -38,7 +38,7 @@ let fetchMock: FetchMock;
 beforeEach(() => {
   fetchMock = installFetchMock();
   fetchMock.mockImplementation(async url => {
-    if (url.includes('/members/character')) {
+    if (url.includes('/members/avatar')) {
       return jsonResponse(200, MY_CHARACTER_RESPONSE);
     }
     if (url.includes(`/game-results/${GAME_ID}`)) {
@@ -211,7 +211,7 @@ describe('WalkDetailScreen', () => {
 
   test('불러오지 못하면 오류를 알린다', async () => {
     fetchMock.mockImplementation(async url =>
-      url.includes('/members/character')
+      url.includes('/members/avatar')
         ? jsonResponse(200, MY_CHARACTER_RESPONSE)
         : jsonResponse(500, null),
     );

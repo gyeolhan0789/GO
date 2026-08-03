@@ -2,11 +2,11 @@
  * @format
  */
 
-import type { MyCharacterResponse } from '../src/features/member/api/memberApi';
+import type { MyAvatarResponse } from '../src/features/member/api/memberApi';
 import { DEFAULT_CHARACTER_IMAGE_BY_GENDER } from '../src/features/member/constants/characterImages';
 import { toCharacter } from '../src/features/member/model/character';
 
-const RESPONSE: MyCharacterResponse = {
+const RESPONSE: MyAvatarResponse = {
   memberId: 1,
   nickname: '산책이 좋아',
   gender: 'MALE',
