@@ -100,4 +100,8 @@ public class Mission extends BaseEntity {
     public void deactivate() {
         isActive = false;
     }
+
+    public void activate() {
+        isActive = true;
+    }
 }

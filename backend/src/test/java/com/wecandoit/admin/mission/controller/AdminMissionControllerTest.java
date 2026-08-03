@@ -164,4 +164,16 @@ class AdminMissionControllerTest {
                 .statusCode(HttpStatus.NO_CONTENT.value());
         then(adminMissionCommandService).should().deactivateMission(1L);
     }
+
+    @Test
+    @DisplayName("미션을 활성화하면 204 상태를 반환한다")
+    void activateMissionReturnsNoContent() {
+        // when & then
+        given()
+                .when()
+                .patch("/admin/missions/1/activate")
+                .then()
+                .statusCode(HttpStatus.NO_CONTENT.value());
+        then(adminMissionCommandService).should().activateMission(1L);
+    }
 }

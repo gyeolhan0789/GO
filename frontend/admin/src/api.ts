@@ -265,6 +265,10 @@ export function deactivateMission(missionId: number) {
   return request<void>(`/admin/missions/${missionId}`, { method: 'DELETE' })
 }
 
+export function activateMission(missionId: number) {
+  return request<void>(`/admin/missions/${missionId}/activate`, { method: 'PATCH' })
+}
+
 export function getCharacterAssets() {
   return request<CharacterAsset[]>('/admin/character-assets')
 }
