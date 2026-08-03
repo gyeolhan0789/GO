@@ -60,7 +60,7 @@ class MissionVerificationFacadeTest {
         // given
         stubSubmitAndLookup();
         when(aiVerificationClient.verify(any(), any(), any(), any()))
-                .thenReturn(new AiVerificationResult(true, 0.85, "통과"));
+                .thenReturn(new AiVerificationResult("SUCCESS", 0.85, "PASS", "통과"));
         doReturn(30L).when(verificationResultService)
                 .applyResult(CELL_ID, true, null, MissionDifficulty.LOW);
 
@@ -78,7 +78,7 @@ class MissionVerificationFacadeTest {
         // given
         stubSubmitAndLookup();
         when(aiVerificationClient.verify(any(), any(), any(), any()))
-                .thenReturn(new AiVerificationResult(true, 0.85, "통과"));
+                .thenReturn(new AiVerificationResult("SUCCESS", 0.85, "PASS", "통과"));
 
         // when
         facade.submitAndVerify(MEMBER_ID, ROOM_ID, CELL_ID, image());
@@ -102,7 +102,7 @@ class MissionVerificationFacadeTest {
         // given
         stubSubmitAndLookup();
         when(aiVerificationClient.verify(any(), any(), any(), any()))
-                .thenReturn(new AiVerificationResult(true, 0.5, AI_REASON));
+                .thenReturn(new AiVerificationResult("SUCCESS", 0.5, "PASS", AI_REASON));
 
         // when
         facade.submitAndVerify(MEMBER_ID, ROOM_ID, CELL_ID, image());
@@ -126,7 +126,7 @@ class MissionVerificationFacadeTest {
         // given
         stubSubmitAndLookup();
         when(aiVerificationClient.verify(any(), any(), any(), any()))
-                .thenReturn(new AiVerificationResult(false, 0.9, AI_REASON));
+                .thenReturn(new AiVerificationResult("FAIL", 0.9, "OBJECT_UNCERTAIN", AI_REASON));
 
         // when
         facade.submitAndVerify(MEMBER_ID, ROOM_ID, CELL_ID, image());
