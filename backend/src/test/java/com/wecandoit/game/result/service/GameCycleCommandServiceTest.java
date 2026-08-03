@@ -33,6 +33,7 @@ import com.wecandoit.game.service.GameCycleCommandService;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.domain.MissionType;
 import com.wecandoit.mission.repository.MissionRepository;
 import com.wecandoit.notification.event.NotificationMessageFactory;
 import java.time.LocalDateTime;
@@ -329,7 +330,7 @@ class GameCycleCommandServiceTest {
                 .mapToObj(index -> {
                     Mission mission = Mission.create(
                             "https://example.com/mission.png",
-                            "OBJECT",
+                            MissionType.OBJECT,
                             "미션",
                             "설명",
                             null

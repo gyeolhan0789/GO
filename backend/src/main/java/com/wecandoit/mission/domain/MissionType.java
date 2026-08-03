@@ -20,11 +20,6 @@ public enum MissionType {
     CALORIES_TOTAL,
     AVERAGE_SPEED;
 
-    public static boolean contains(String type) {
-        return Arrays.stream(values())
-                .anyMatch(missionType -> missionType.name().equals(type));
-    }
-
     public static MissionType from(String type) {
         return Arrays.stream(values())
                 .filter(missionType -> missionType.name().equals(type))

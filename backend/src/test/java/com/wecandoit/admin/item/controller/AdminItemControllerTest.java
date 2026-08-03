@@ -18,6 +18,7 @@ import com.wecandoit.admin.item.controller.response.AdminItemResponse;
 import com.wecandoit.admin.item.service.AdminItemCommandService;
 import com.wecandoit.admin.item.service.AdminItemReadService;
 import com.wecandoit.common.exception.CustomExceptionHandler;
+import com.wecandoit.item.domain.ItemCategory;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -212,7 +213,7 @@ class AdminItemControllerTest {
         return new AdminItemResponse(
                 1L,
                 "검은 모자",
-                "HAT",
+                ItemCategory.HAT,
                 1_000L,
                 "/uploads/test/items/1/hat.png",
                 availableForSale,

@@ -111,19 +111,10 @@ public class AvatarItemCommandService {
             if (item == null) {
                 throw new CustomException(ErrorCode.ITEM_NOT_FOUND);
             }
-            ItemCategory category = parseCategory(item.getCategory());
-            if (memberItemsByCategory.putIfAbsent(category, memberItem) != null) {
+            if (memberItemsByCategory.putIfAbsent(item.getCategory(), memberItem) != null) {
                 throw new CustomException(ErrorCode.DUPLICATE_ITEM_CATEGORY);
             }
         }
         return memberItemsByCategory;
-    }
-
-    private ItemCategory parseCategory(String category) {
-        try {
-            return ItemCategory.valueOf(category);
-        } catch (IllegalArgumentException | NullPointerException e) {
-            throw new CustomException(ErrorCode.INVALID_ITEM_CATEGORY);
-        }
     }
 }

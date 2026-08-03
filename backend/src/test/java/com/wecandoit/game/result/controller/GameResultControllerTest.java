@@ -37,6 +37,7 @@ import com.wecandoit.item.controller.response.EquippedItemResponse;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.mission.controller.response.MissionResponse;
+import com.wecandoit.mission.domain.MissionType;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -508,7 +509,7 @@ class GameResultControllerTest {
         return new MissionResponse(
                 missionId,
                 "https://example.com/mission.png",
-                "OBJECT",
+                MissionType.OBJECT,
                 "미션",
                 "설명",
                 null,
