@@ -92,6 +92,18 @@ public class BingoBoard extends BaseEntity {
         return type == BingoBoardType.PERSONAL;
     }
 
+    public boolean isActive() {
+        return status == BingoBoardStatus.ACTIVE;
+    }
+
+    public boolean isCompleted() {
+        return status == BingoBoardStatus.COMPLETED;
+    }
+
+    public boolean isExpired() {
+        return status == BingoBoardStatus.EXPIRED;
+    }
+
     public void expire() {
         expireAt(LocalDateTime.now());
     }
