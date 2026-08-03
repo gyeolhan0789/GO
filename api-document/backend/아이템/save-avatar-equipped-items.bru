@@ -1,11 +1,11 @@
 meta {
-  name: 캐릭터 장착 아이템 저장
+  name: 아바타 장착 아이템 저장
   type: http
-  seq: 3
+  seq: 9
 }
 
 put {
-  url: {{backendBaseUrl}}/character-items
+  url: {{backendBaseUrl}}/avatar-items
   body: json
   auth: inherit
 }
@@ -21,7 +21,7 @@ body:json {
 }
 
 docs {
-  ## 캐릭터 장착 아이템 저장
+  ## 아바타 장착 아이템 저장
 
   전달한 `memberItemIds` 목록을 카테고리별로 새로 장착하고, 목록에 없는 카테고리는 장착 해제한다(전체 교체 방식). 한 카테고리에 아이템이 두 개 이상 포함되면 오류가 발생한다.
 

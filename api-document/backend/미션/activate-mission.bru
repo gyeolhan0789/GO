@@ -1,0 +1,34 @@
+meta {
+  name: 미션 활성화 (관리자)
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{backendBaseUrl}}/admin/missions/1/activate
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+docs {
+  ## 미션 활성화 (관리자)
+
+  비활성화된 미션의 `isActive` 플래그를 다시 올려 활성화한다. 활성화된 미션은 다시 새 게임에 출제될 수 있다. `ADMIN` 권한이 필요하다.
+
+  ### 성공 응답 (204 No Content)
+  본문 없음
+
+  ### 에러 케이스
+
+  **존재하지 않는 미션**
+  ```json
+  {
+    "status": 404,
+    "message": "미션을 찾을 수 없습니다."
+  }
+  ```
+}

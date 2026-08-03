@@ -8,3 +8,18 @@ spring:
 
 storage:
   root-path: ${STORAGE_ROOT_PATH:./uploads}
+
+management:
+  server:
+    port: 9091
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus
+
+observability:
+  http:
+    enabled: true
+    max-body-length: 2000
+  query:
+    enabled: true

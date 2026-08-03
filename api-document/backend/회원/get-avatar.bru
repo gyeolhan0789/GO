@@ -1,11 +1,11 @@
 meta {
-  name: 내 캐릭터 조회
+  name: 내 아바타 조회
   type: http
-  seq: 4
+  seq: 8
 }
 
 get {
-  url: {{backendBaseUrl}}/members/character
+  url: {{backendBaseUrl}}/members/avatar
   body: none
   auth: inherit
 }
@@ -15,15 +15,17 @@ headers {
 }
 
 docs {
-  ## 내 캐릭터(장착 아이템) 조회
+  ## 내 아바타 조회
 
-  로그인한 회원의 닉네임과 현재 장착 중인 아이템 목록을 카테고리별로 반환한다.
+  로그인한 회원의 닉네임, 성별, 기본 캐릭터 이미지, 현재 장착 중인 아이템 목록을 반환한다.
 
   ### 성공 응답 (200 OK)
   ```json
   {
     "memberId": 1,
     "nickname": "testuser",
+    "gender": "MALE",
+    "defaultImageUrl": "https://example.com/characters/male-default.png",
     "equippedItems": [
       {
         "memberItemId": 10,

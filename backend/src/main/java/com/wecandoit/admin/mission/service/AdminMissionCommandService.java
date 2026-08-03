@@ -64,6 +64,10 @@ public class AdminMissionCommandService {
         findMission(missionId).deactivate();
     }
 
+    public void activateMission(Long missionId) {
+        findMission(missionId).activate();
+    }
+
     private Mission findMission(Long missionId) {
         return adminMissionRepository.findById(missionId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MISSION_NOT_FOUND));

@@ -50,6 +50,11 @@ dependencies {
 	// Push notification (FCM)
 	implementation 'com.google.firebase:firebase-admin:9.5.0'
 
+	// Observability
+	implementation 'io.micrometer:micrometer-registry-prometheus'
+	implementation 'net.logstash.logback:logstash-logback-encoder:8.1'
+	implementation 'net.ttddyy:datasource-proxy:1.11.0'
+
 	// Test
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
