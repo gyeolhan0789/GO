@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { ReceivedFriendRequest } from '../../../features/friend/api/friendApi';
+import { MemberAvatar } from '../../../features/member/components/MemberAvatar';
 import { AppText } from '../../../shared/components/AppText/AppText';
 import { Card } from '../../../shared/components/Card/Card';
 import { colors } from '../../../shared/constants/colors';
@@ -24,7 +25,12 @@ export function ReceivedRequestRow({
 }: ReceivedRequestRowProps) {
   return (
     <Card style={styles.card} wrapperStyle={styles.wrapper}>
-      <View style={styles.avatar} />
+      <MemberAvatar
+        gender={request.gender}
+        defaultImageUrl={request.defaultImageUrl}
+        equippedItems={request.equippedItems}
+        style={styles.avatar}
+      />
       <AppText style={styles.nickname} numberOfLines={1}>
         {request.inviterNickname}
       </AppText>

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 
 import type { MemberRelationshipStatus } from '../../../features/friend/api/friendApi';
+import { MemberAvatar } from '../../../features/member/components/MemberAvatar';
 import { useMemberSearchQuery } from '../../../features/friend/hooks/useMemberSearchQuery';
 import { useSendFriendRequestMutation } from '../../../features/friend/hooks/useSendFriendRequestMutation';
 import { AppText } from '../../../shared/components/AppText/AppText';
@@ -97,7 +98,12 @@ export function AddFriendSheet({ visible, onClose }: AddFriendSheetProps) {
 
               return (
                 <View key={member.memberId} style={styles.resultRow}>
-                  <View style={styles.avatar} />
+                  <MemberAvatar
+                    gender={member.gender}
+                    defaultImageUrl={member.defaultImageUrl}
+                    equippedItems={member.equippedItems}
+                    style={styles.avatar}
+                  />
                   <AppText style={styles.resultNickname} numberOfLines={1}>
                     @{member.nickname}
                   </AppText>

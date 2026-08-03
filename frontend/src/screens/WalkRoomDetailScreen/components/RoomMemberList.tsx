@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { MemberAvatar } from '../../../features/member/components/MemberAvatar';
 import type {
   RoomMemberResponse,
   SentRoomInvite,
@@ -43,10 +44,12 @@ export function RoomMemberList({
       <View style={styles.list}>
         {members.map(member => (
           <View key={member.memberId} style={styles.row}>
-            <View style={styles.avatar}>
-              {/* TODO: 백엔드가 캐릭터 이미지를 내려주면 채워진다. */}
-              <Ionicons name="person" size={20} color={colors.primarySoft} />
-            </View>
+            <MemberAvatar
+              gender={member.gender}
+              defaultImageUrl={member.defaultImageUrl}
+              equippedItems={member.equippedItems}
+              style={styles.avatar}
+            />
             {/* 이름과 방장 배지는 붙여 두고, 미션 수만 오른쪽 끝에 고정한다.
                 배지가 오른쪽으로 밀리면 줄마다 배치가 어긋나 보인다. */}
             <View style={styles.nameGroup}>

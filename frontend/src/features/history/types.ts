@@ -2,10 +2,7 @@ import type { Gender } from '../auth/constants/genders';
 import type { EquippedItem } from '../member/api/memberApi';
 import type { GameMode } from '../room/api/roomApi';
 
-/**
- * 산책에 함께한 사람. 캐릭터 필드는 백엔드가 아직 안 내려줘 비어 있을 수 있고,
- * 그동안 아바타는 기본 아이콘으로 그린다.
- */
+/** 산책에 함께한 사람. 캐릭터 필드로 아바타를 그린다(랭킹 응답과 같은 모양). */
 export type WalkParticipant = {
   memberId: number;
   nickname: string;

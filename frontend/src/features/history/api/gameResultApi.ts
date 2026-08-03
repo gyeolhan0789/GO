@@ -19,11 +19,7 @@ export type GameResultParticipantResponse = {
   rewardPoint: number;
   /** 승패가 갈리는 대결에서만 채워진다. */
   result: boolean | null;
-  /**
-   * 아바타용 캐릭터 정보. 백엔드 GameResultParticipantResponse에 아직 없는
-   * 필드(추가 요청 예정)라 그 전까지는 undefined고, 아바타는 기본 아이콘으로
-   * 남는다. 내려오기 시작하면 랭킹처럼 채워진다.
-   */
+  /** 아바타 정보. 랭킹 응답과 같은 모양으로 내려온다. */
   gender?: Gender;
   defaultImageUrl?: string | null;
   equippedItems?: EquippedItem[];
