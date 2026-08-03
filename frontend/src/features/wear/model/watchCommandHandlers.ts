@@ -4,8 +4,10 @@ import { navigateToWalkSession } from '../../../app/navigation/navigationRef';
 import type { WearState } from '../../../shared/lib/wearBridge';
 import {
   isWalkSessionActive,
+  isWalkSessionStarted,
   requestWalkSessionEnd,
   startWalkSession,
+  togglePauseWalkSession,
 } from '../../walk-session/model/walkSessionStore';
 
 /**
@@ -43,6 +45,21 @@ export function startFromWatch(roomId: number | undefined, state: WearState) {
 
   startWalkSession(roomId);
   navigateToWalkSession();
+}
+
+/**
+ * 워치의 일시정지/재개. 어느 쪽인지는 여기서 정한다 — 워치가 아는 상태는 폰이
+ * 밀어준 값이라 한 박자 늦을 수 있어서, 워치가 "지금은 재개"라고 판단해 보내면
+ * 실제로는 반대가 될 수 있다.
+ *
+ * 카운트다운이 안 끝났으면(isStarted가 false) 아직 멈출 게 없다. 스토어도 같은
+ * 조건으로 막지만, 화면을 옮기지 않으려고 여기서 먼저 걸러낸다.
+ */
+export function togglePauseFromWatch() {
+  if (!isWalkSessionActive() || !isWalkSessionStarted()) {
+    return;
+  }
+  togglePauseWalkSession();
 }
 
 export function endFromWatch() {

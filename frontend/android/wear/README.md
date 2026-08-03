@@ -4,8 +4,12 @@
 React Native는 Wear OS에서 돌지 않아 별도 Gradle 모듈로 만들었습니다.
 
 ```
-홈(캐릭터·오늘 걸음수) -> 산책방 선택 -> 진행 중(시간·걸음) -> 종료 확인 -> 홈
+홈(캐릭터·오늘 걸음수) -> 산책방 선택(혼자/같이) -> 진행 중(시간·걸음) -> 종료 확인 -> 홈
 ```
+
+홈의 두 입구는 폰 홈의 혼자하기·같이하기와 같은 자리입니다. 다만 워치는 방을
+새로 만들지 못해서(서버 호출은 폰 몫) 두 버튼 모두 "그 모드의 참여 중인 방
+목록"으로 들어갑니다.
 
 ## 구조
 
@@ -17,7 +21,7 @@ React Native는 Wear OS에서 돌지 않아 별도 Gradle 모듈로 만들었습
 | --- | --- | --- |
 | 폰 -> 워치 | `DataClient` | 닉네임, 오늘 걸음/거리/칼로리, 산책방 목록, 진행 중인 세션 |
 | 폰 -> 워치 | `DataClient` (Asset) | 합성된 캐릭터 PNG |
-| 워치 -> 폰 | `MessageClient` | `start-walk`(방 ID), `end-walk`, `request-sync` |
+| 워치 -> 폰 | `MessageClient` | `start-walk`(방 ID), `end-walk`, `toggle-pause`, `request-sync` |
 
 경로와 키는 `android/wear-protocol/`의 `WearProtocol` 하나로 고정하고 `:app`과
 `:wear`가 같이 컴파일합니다. 한쪽만 바꿔서 조용히 안 맞는 걸 막기 위해서입니다.
@@ -64,7 +68,7 @@ cd android && ./gradlew :wear:installDebug -Pandroid.injected.device=<serial>
 
 ## 아직 안 된 것
 
-- 일시정지/재개는 폰에서만 됩니다(워치는 상태만 표시).
+- 워치에서 방을 새로 만들 수는 없습니다(폰에서 만든 방만 고를 수 있습니다).
 - 목표 걸음수가 서버에 없어 진행률 링이 안 그려집니다(`goalSteps: 0`).
   폰 홈 화면도 같은 이유로 목업 상수를 쓰고 있습니다.
 - 타일/컴플리케이션, 워치 단독 실행(오프라인 큐)은 범위 밖입니다.

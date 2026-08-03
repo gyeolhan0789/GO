@@ -43,7 +43,12 @@ export type WearState = {
   session: WearSession | null;
 };
 
-export type WearCommandType = 'start-walk' | 'end-walk' | 'request-sync';
+export type WearCommandType =
+  | 'start-walk'
+  | 'end-walk'
+  /** 일시정지와 재개가 같은 명령이다. 어느 쪽인지는 폰이 판단한다. */
+  | 'toggle-pause'
+  | 'request-sync';
 
 export type WearCommand = {
   type: WearCommandType;

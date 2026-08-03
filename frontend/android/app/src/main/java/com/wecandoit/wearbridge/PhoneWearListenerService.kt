@@ -36,16 +36,23 @@ class PhoneWearListenerService : WearableListenerService() {
       return
     }
 
-    // 상태 재전송 요청은 큐에 쌓을 이유가 없다. JS가 없으면 보낼 상태도 없고,
-    // 나중에 앱을 열면 어차피 처음부터 다시 보낸다.
-    if (command.type == WearCommandType.REQUEST_SYNC) {
-      WearCommandDispatcher.emitIfRunning(this, command)
+    // 종류를 가리지 않고 전부 큐를 거친다. JS가 받는 이벤트에는 내용이 없고
+    // ("큐를 확인하라"는 신호일 뿐) 실제 명령은 consumePendingCommands로
+    // 꺼내가므로, 큐에 넣지 않으면 앱이 떠 있어도 영영 처리되지 않는다.
+    // 늦게 실행되면 안 되는 명령은 큐에서 나이로 걸러낸다(PendingWearCommands).
+    PendingWearCommands.enqueue(this, command, System.currentTimeMillis())
+    if (WearCommandDispatcher.emitIfRunning(this, command)) {
       return
     }
 
-    PendingWearCommands.enqueue(this, command, System.currentTimeMillis())
-    if (!WearCommandDispatcher.emitIfRunning(this, command)) {
+    // 앱이 꺼져 있을 때 알림으로 안내하는 건 산책을 시작/종료하려던 경우만이다.
+    // 일시정지·상태 재전송은 지금 처리돼야 의미가 있어서 조용히 만료시킨다.
+    if (command.type == WearCommandType.START_WALK ||
+      command.type == WearCommandType.END_WALK
+    ) {
       notifyToOpenApp(command)
+    } else {
+      Log.i(TAG, "폰 앱이 없어 만료를 기다린다: ${command.type}")
     }
   }
 
@@ -112,6 +119,7 @@ class PhoneWearListenerService : WearableListenerService() {
 object WearCommandType {
   const val START_WALK = "start-walk"
   const val END_WALK = "end-walk"
+  const val TOGGLE_PAUSE = "toggle-pause"
   const val REQUEST_SYNC = "request-sync"
 }
 
@@ -127,6 +135,9 @@ private fun MessageEvent.toWearCommand(): WearCommand? = when (path) {
   }
 
   WearProtocol.PATH_COMMAND_END_WALK -> WearCommand(WearCommandType.END_WALK, null)
+
+  WearProtocol.PATH_COMMAND_TOGGLE_PAUSE ->
+    WearCommand(WearCommandType.TOGGLE_PAUSE, null)
 
   WearProtocol.PATH_COMMAND_REQUEST_SYNC -> WearCommand(WearCommandType.REQUEST_SYNC, null)
 

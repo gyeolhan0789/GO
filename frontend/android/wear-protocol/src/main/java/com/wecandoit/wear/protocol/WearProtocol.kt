@@ -38,6 +38,13 @@ object WearProtocol {
   /** 워치 -> 폰. 페이로드 없음. */
   const val PATH_COMMAND_END_WALK = "$PATH_COMMAND_PREFIX/end-walk"
 
+  /**
+   * 워치 -> 폰. 페이로드 없음. 일시정지와 재개를 한 경로로 받는다 — 워치가 아는
+   * 상태는 폰이 밀어준 값이라 한 박자 늦을 수 있어서, "지금 어느 쪽인지"는 폰이
+   * 판단하는 게 안전하다(양쪽이 각자 정하면 서로 어긋난다).
+   */
+  const val PATH_COMMAND_TOGGLE_PAUSE = "$PATH_COMMAND_PREFIX/toggle-pause"
+
   /** 워치 -> 폰. 페이로드 없음. 워치 앱을 열었을 때 최신 상태를 다시 밀어달라는 요청. */
   const val PATH_COMMAND_REQUEST_SYNC = "$PATH_COMMAND_PREFIX/request-sync"
 

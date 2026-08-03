@@ -11,7 +11,6 @@ import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.ScalingLazyListState
 import androidx.wear.compose.foundation.lazy.items
-import androidx.wear.compose.material.Chip
 import androidx.wear.compose.material.ChipDefaults
 import androidx.wear.compose.material.ListHeader
 import androidx.wear.compose.material.MaterialTheme
@@ -26,6 +25,8 @@ import com.wecandoit.wear.data.WalkRoom
  */
 @Composable
 fun RoomListScreen(
+  title: String,
+  emptyMessage: String,
   rooms: List<WalkRoom>,
   isSending: Boolean,
   listState: ScalingLazyListState,
@@ -36,13 +37,13 @@ fun RoomListScreen(
     state = listState,
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
-    item { ListHeader { Text("산책방 선택") } }
+    item { ListHeader { Text(title) } }
 
     if (rooms.isEmpty()) {
       item {
         Text(
           modifier = Modifier.padding(horizontal = 8.dp),
-          text = "참여 중인 산책방이 없어요.\n폰에서 먼저 만들어주세요.",
+          text = emptyMessage,
           style = MaterialTheme.typography.caption2,
           color = MaterialTheme.colors.onSurfaceVariant,
           textAlign = TextAlign.Center,
@@ -52,10 +53,10 @@ fun RoomListScreen(
     }
 
     items(rooms, key = { it.roomId }) { room ->
-      Chip(
+      ActionChip(
+        label = room.name.ifEmpty { "산책방" },
         modifier = Modifier.fillMaxWidth(),
-        label = { Text(room.name.ifEmpty { "산책방" }) },
-        secondaryLabel = { Text(room.summaryLabel()) },
+        secondaryLabel = room.summaryLabel(),
         colors = ChipDefaults.secondaryChipColors(),
         // 전송 중에는 전부 잠가서 두 방을 연달아 누르는 걸 막는다.
         enabled = room.startable && !isSending,

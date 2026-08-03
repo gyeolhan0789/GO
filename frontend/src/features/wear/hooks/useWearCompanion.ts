@@ -13,7 +13,11 @@ import { useStepDataToday } from '../../../shared/hooks/useStepDataToday';
 import { useMyCharacterQuery } from '../../member/hooks/useMyCharacterQuery';
 import { useWalkSession } from '../../walk-session/hooks/useWalkSession';
 import { toCharacterLayerSources } from '../model/characterLayerSources';
-import { endFromWatch, startFromWatch } from '../model/watchCommandHandlers';
+import {
+  endFromWatch,
+  startFromWatch,
+  togglePauseFromWatch,
+} from '../model/watchCommandHandlers';
 import { useWatchConnected } from './useWatchConnected';
 import { useWearRooms } from './useWearRooms';
 
@@ -134,6 +138,9 @@ export function useWearCompanion() {
           return;
         case 'end-walk':
           endFromWatch();
+          return;
+        case 'toggle-pause':
+          togglePauseFromWatch();
           return;
         case 'request-sync':
           // 워치 앱을 열었을 때 온다. 캐릭터까지 같이 보내는 게 중요하다 —

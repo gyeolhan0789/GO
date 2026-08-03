@@ -29,10 +29,16 @@ import kotlinx.coroutines.delay
 
 private object Routes {
   const val HOME = "home"
-  const val ROOMS = "rooms"
+
+  /** 폰 홈의 혼자하기/같이하기와 같은 두 입구. 목록은 하나고 모드로만 걸러진다. */
+  const val ROOMS_SOLO = "rooms-solo"
+  const val ROOMS_GROUP = "rooms-group"
   const val SESSION = "session"
   const val END_CONFIRM = "end-confirm"
 }
+
+/** RoomDetailResponse.mode와 같은 값. 혼자 산책만 이 모드다. */
+private const val MODE_SINGLE = "SINGLE"
 
 private const val ERROR_VISIBLE_MS = 3000L
 
@@ -70,7 +76,9 @@ fun WearApp(viewModel: WearViewModel) {
 
   WearTheme {
     val homeListState = rememberScalingLazyListState()
-    val roomsListState = rememberScalingLazyListState()
+    // 두 목록이 상태를 나눠 가져야 한쪽에서 스크롤한 위치가 반대쪽에 안 묻는다.
+    val soloRoomsListState = rememberScalingLazyListState()
+    val groupRoomsListState = rememberScalingLazyListState()
     val sessionListState = rememberScalingLazyListState()
 
     Scaffold(
@@ -79,7 +87,8 @@ fun WearApp(viewModel: WearViewModel) {
       vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
       positionIndicator = {
         when (currentRoute) {
-          Routes.ROOMS -> PositionIndicator(scalingLazyListState = roomsListState)
+          Routes.ROOMS_SOLO -> PositionIndicator(scalingLazyListState = soloRoomsListState)
+          Routes.ROOMS_GROUP -> PositionIndicator(scalingLazyListState = groupRoomsListState)
           Routes.SESSION -> PositionIndicator(scalingLazyListState = sessionListState)
           else -> PositionIndicator(scalingLazyListState = homeListState)
         }
@@ -96,16 +105,30 @@ fun WearApp(viewModel: WearViewModel) {
               character = uiState.character,
               phoneConnected = uiState.phoneConnected,
               listState = homeListState,
-              onSelectRoom = { navController.navigate(Routes.ROOMS) },
+              onSelectSoloRoom = { navController.navigate(Routes.ROOMS_SOLO) },
+              onSelectGroupRoom = { navController.navigate(Routes.ROOMS_GROUP) },
               onOpenSession = { navController.navigate(Routes.SESSION) },
             )
           }
 
-          composable(Routes.ROOMS) {
+          composable(Routes.ROOMS_SOLO) {
             RoomListScreen(
-              rooms = uiState.phone?.rooms.orEmpty(),
+              title = "혼자 산책",
+              emptyMessage = "혼자 하는 산책방이 없어요.\n폰에서 먼저 만들어주세요.",
+              rooms = uiState.phone?.rooms.orEmpty().filter { it.mode == MODE_SINGLE },
               isSending = uiState.isSendingCommand,
-              listState = roomsListState,
+              listState = soloRoomsListState,
+              onStart = { room -> viewModel.startWalk(room.roomId) },
+            )
+          }
+
+          composable(Routes.ROOMS_GROUP) {
+            RoomListScreen(
+              title = "같이 산책",
+              emptyMessage = "같이 하는 산책방이 없어요.\n폰에서 먼저 만들어주세요.",
+              rooms = uiState.phone?.rooms.orEmpty().filter { it.mode != MODE_SINGLE },
+              isSending = uiState.isSendingCommand,
+              listState = groupRoomsListState,
               onStart = { room -> viewModel.startWalk(room.roomId) },
             )
           }
@@ -119,6 +142,7 @@ fun WearApp(viewModel: WearViewModel) {
                 state = phone,
                 isSending = uiState.isSendingCommand,
                 listState = sessionListState,
+                onTogglePause = viewModel::togglePause,
                 onRequestEnd = { navController.navigate(Routes.END_CONFIRM) },
               )
             }

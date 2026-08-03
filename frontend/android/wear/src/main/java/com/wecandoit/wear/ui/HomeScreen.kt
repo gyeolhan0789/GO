@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
@@ -18,7 +17,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.ScalingLazyListState
-import androidx.wear.compose.material.Chip
 import androidx.wear.compose.material.ChipDefaults
 import androidx.wear.compose.material.CircularProgressIndicator
 import androidx.wear.compose.material.MaterialTheme
@@ -29,6 +27,10 @@ import com.wecandoit.wear.data.TodayStats
 /**
  * 첫 화면. 내 캐릭터와 오늘 걸음수를 보여주고, 산책방 선택으로 넘어가는 곳.
  * 이미 산책 중이면 방 선택 대신 "산책 중" 칩이 뜬다.
+ *
+ * 폰 홈처럼 혼자/같이로 입구를 나눈다. 다만 폰과 달리 방을 새로 만들지는
+ * 못하므로(서버 호출은 폰 몫) 두 버튼 모두 "그 모드의 참여 중인 방 목록"으로
+ * 들어간다. 만들 방이 없으면 목록이 폰에서 만들라고 안내한다.
  */
 @Composable
 fun HomeScreen(
@@ -36,7 +38,8 @@ fun HomeScreen(
   character: ImageBitmap?,
   phoneConnected: Boolean,
   listState: ScalingLazyListState,
-  onSelectRoom: () -> Unit,
+  onSelectSoloRoom: () -> Unit,
+  onSelectGroupRoom: () -> Unit,
   onOpenSession: () -> Unit,
 ) {
   ScalingLazyColumn(
@@ -59,23 +62,31 @@ fun HomeScreen(
     val session = state?.session
     if (session != null) {
       item {
-        Chip(
-          modifier = Modifier.fillMaxWidth(),
-          label = { Text("산책 중") },
-          secondaryLabel = { Text(session.roomName.ifEmpty { "산책방" }) },
-          colors = ChipDefaults.primaryChipColors(),
+        FullWidthActionChip(
+          label = "산책 중",
+          secondaryLabel = session.roomName.ifEmpty { "산책방" },
           onClick = onOpenSession,
         )
       }
     } else {
+      // 폰 홈과 같은 배치(왼쪽 혼자 -> 오른쪽 같이). 같이하기를 주 색으로 둔
+      // 것도 폰과 같다.
       item {
-        Chip(
-          modifier = Modifier.fillMaxWidth(),
-          label = { Text("산책 시작") },
-          colors = ChipDefaults.primaryChipColors(),
-          enabled = phoneConnected,
-          onClick = onSelectRoom,
-        )
+        ActionChipRow {
+          ActionChip(
+            label = "혼자하기",
+            modifier = Modifier.weight(1f),
+            colors = ChipDefaults.secondaryChipColors(),
+            enabled = phoneConnected,
+            onClick = onSelectSoloRoom,
+          )
+          ActionChip(
+            label = "같이하기",
+            modifier = Modifier.weight(1f),
+            enabled = phoneConnected,
+            onClick = onSelectGroupRoom,
+          )
+        }
       }
     }
 

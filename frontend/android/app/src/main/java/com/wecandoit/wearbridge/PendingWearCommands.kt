@@ -21,8 +21,18 @@ private const val START_MAX_AGE_MS = 5 * 60 * 1000L
  */
 private const val DEFAULT_MAX_AGE_MS = 60 * 60 * 1000L
 
-private fun maxAgeOf(type: String) =
-  if (type == WearCommandType.START_WALK) START_MAX_AGE_MS else DEFAULT_MAX_AGE_MS
+/**
+ * 일시정지·재개와 상태 재전송은 지금 처리돼야 의미가 있다. 늦게 실행되면 사용자가
+ * 누른 순간이 아닌 엉뚱한 지점에서 산책이 멈추거나, 이미 낡은 상태를 다시 밀게
+ * 된다. 폰 앱이 떠 있으면 전달이 사실상 즉시라 이 창이 좁아도 놓치지 않는다.
+ */
+private const val TRANSIENT_MAX_AGE_MS = 30 * 1000L
+
+private fun maxAgeOf(type: String) = when (type) {
+  WearCommandType.START_WALK -> START_MAX_AGE_MS
+  WearCommandType.TOGGLE_PAUSE, WearCommandType.REQUEST_SYNC -> TRANSIENT_MAX_AGE_MS
+  else -> DEFAULT_MAX_AGE_MS
+}
 
 /** 워치가 보낸 명령 하나. [roomId]는 start-walk에만 있다. */
 data class WearCommand(val type: String, val roomId: Long?)

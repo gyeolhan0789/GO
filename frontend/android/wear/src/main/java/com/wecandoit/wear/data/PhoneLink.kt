@@ -38,6 +38,12 @@ sealed interface PhoneCommand {
     override val payload = ByteArray(0)
   }
 
+  /** 일시정지와 재개가 같은 명령이다. 어느 쪽인지는 폰이 정한다. */
+  data object TogglePause : PhoneCommand {
+    override val path = WearProtocol.PATH_COMMAND_TOGGLE_PAUSE
+    override val payload = ByteArray(0)
+  }
+
   data object RequestSync : PhoneCommand {
     override val path = WearProtocol.PATH_COMMAND_REQUEST_SYNC
     override val payload = ByteArray(0)

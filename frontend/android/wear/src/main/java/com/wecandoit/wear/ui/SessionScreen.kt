@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -15,7 +14,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.ScalingLazyListState
-import androidx.wear.compose.material.Chip
 import androidx.wear.compose.material.ChipDefaults
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
@@ -31,6 +29,7 @@ fun SessionScreen(
   state: PhoneState,
   isSending: Boolean,
   listState: ScalingLazyListState,
+  onTogglePause: () -> Unit,
   onRequestEnd: () -> Unit,
 ) {
   val session = state.session ?: return
@@ -75,7 +74,7 @@ fun SessionScreen(
     if (session.paused) {
       item {
         Text(
-          text = "일시정지 · 폰에서 다시 시작",
+          text = "일시정지",
           style = MaterialTheme.typography.caption3,
           color = MaterialTheme.colors.onSurfaceVariant,
         )
@@ -111,16 +110,27 @@ fun SessionScreen(
     }
 
     item {
-      Chip(
-        modifier = Modifier.fillMaxWidth(),
-        label = { Text("산책 종료") },
-        colors = ChipDefaults.chipColors(
-          backgroundColor = MaterialTheme.colors.error,
-          contentColor = MaterialTheme.colors.onError,
-        ),
-        enabled = !isSending,
-        onClick = onRequestEnd,
-      )
+      ActionChipRow {
+        // 카운트다운이 끝나기 전에는 멈출 게 없어서 잠가둔다. 폰이 세션을 시작한
+        // 뒤에야 started가 서고, 그때부터 눌리기 시작한다.
+        ActionChip(
+          label = if (session.paused) "재개" else "일시정지",
+          modifier = Modifier.weight(1f),
+          colors = ChipDefaults.secondaryChipColors(),
+          enabled = session.started && !isSending,
+          onClick = onTogglePause,
+        )
+        ActionChip(
+          label = "종료",
+          modifier = Modifier.weight(1f),
+          colors = ChipDefaults.chipColors(
+            backgroundColor = MaterialTheme.colors.error,
+            contentColor = MaterialTheme.colors.onError,
+          ),
+          enabled = !isSending,
+          onClick = onRequestEnd,
+        )
+      }
     }
   }
 }

@@ -69,6 +69,9 @@ class WearViewModel(application: Application) : AndroidViewModel(application) {
 
   fun endWalk() = send(PhoneCommand.EndWalk, "산책을 종료하지 못했어요")
 
+  /** 폰이 일시정지/재개를 정하고 바뀐 상태를 다시 밀어준다. */
+  fun togglePause() = send(PhoneCommand.TogglePause, "폰에 전달하지 못했어요")
+
   fun consumeError() {
     _uiState.update { it.copy(error = null) }
   }
