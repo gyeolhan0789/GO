@@ -27,7 +27,7 @@ import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.RoomReadService;
 import com.wecandoit.game.service.RoomReadService.StepGoalRewardTarget;
-import com.wecandoit.item.controller.response.CharacterResponse;
+import com.wecandoit.item.controller.response.AvatarResponse;
 import com.wecandoit.item.controller.response.EquippedItemResponse;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
@@ -443,7 +443,7 @@ class RoomReadServiceTest {
         return cell;
     }
 
-    private Map<Long, CharacterResponse> avatars(List<RoomMember> roomMembers) {
+    private Map<Long, AvatarResponse> avatars(List<RoomMember> roomMembers) {
         EquippedItemResponse equippedItem = new EquippedItemResponse(
                 10L,
                 100L,
@@ -454,7 +454,7 @@ class RoomReadServiceTest {
         return roomMembers.stream()
                 .collect(Collectors.toMap(
                         RoomMember::getMemberId,
-                        roomMember -> new CharacterResponse(
+                        roomMember -> new AvatarResponse(
                                 roomMember.getMemberId(),
                                 "회원" + roomMember.getMemberId(),
                                 roomMember.getMemberId() == 1L ? Gender.MALE : Gender.FEMALE,

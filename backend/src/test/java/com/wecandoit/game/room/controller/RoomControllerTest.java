@@ -199,10 +199,10 @@ class RoomControllerTest {
                                 fieldWithPath("[].joinedAt").description("현재 방 참여 시각"),
                                 fieldWithPath("[].members[].memberId").description("현재 방 회원 ID"),
                                 fieldWithPath("[].members[].nickname").description("현재 방 회원 닉네임"),
-                                fieldWithPath("[].members[].gender").description("회원 캐릭터 성별"),
+                                fieldWithPath("[].members[].gender").description("회원 아바타 성별"),
                                 fieldWithPath("[].members[].defaultImageUrl")
                                         .optional()
-                                        .description("성별 기본 캐릭터 이미지 URL"),
+                                        .description("성별 기본 아바타 이미지 URL"),
                                 fieldWithPath("[].members[].equippedItems").description("현재 장착 아이템 목록"),
                                 fieldWithPath("[].members[].equippedItems[].memberItemId")
                                         .description("회원 보유 아이템 ID"),
@@ -264,10 +264,10 @@ class RoomControllerTest {
                         responseFields(
                                 fieldWithPath("[].memberId").description("현재 방 회원 ID"),
                                 fieldWithPath("[].nickname").description("현재 방 회원 닉네임"),
-                                fieldWithPath("[].gender").description("회원 캐릭터 성별"),
+                                fieldWithPath("[].gender").description("회원 아바타 성별"),
                                 fieldWithPath("[].defaultImageUrl")
                                         .optional()
-                                        .description("성별 기본 캐릭터 이미지 URL"),
+                                        .description("성별 기본 아바타 이미지 URL"),
                                 fieldWithPath("[].equippedItems").description("현재 장착 아이템 목록"),
                                 fieldWithPath("[].equippedItems[].memberItemId")
                                         .description("회원 보유 아이템 ID"),
@@ -406,10 +406,10 @@ class RoomControllerTest {
                 fieldWithPath("startedAt").description("선택된 게임 회차 시작 시각"),
                 fieldWithPath("members[].memberId").description("현재 방 회원 ID"),
                 fieldWithPath("members[].nickname").description("현재 방 회원 닉네임"),
-                fieldWithPath("members[].gender").description("회원 캐릭터 성별"),
+                fieldWithPath("members[].gender").description("회원 아바타 성별"),
                 fieldWithPath("members[].defaultImageUrl")
                         .optional()
-                        .description("성별 기본 캐릭터 이미지 URL"),
+                        .description("성별 기본 아바타 이미지 URL"),
                 fieldWithPath("members[].equippedItems").description("현재 장착 아이템 목록"),
                 fieldWithPath("members[].equippedItems[].memberItemId")
                         .description("회원 보유 아이템 ID"),

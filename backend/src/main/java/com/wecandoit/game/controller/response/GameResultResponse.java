@@ -20,12 +20,12 @@ public record GameResultResponse(
         Integer targetStepCount,
         int bingoCount,
         int completedMissionCount,
-        long rewardCash,
+        long rewardPoint,
         LocalDateTime startedAt,
         LocalDateTime completedAt,
         int totalMissionCount,
         int myCompletedMissionCount,
-        long myRewardCash,
+        long myRewardPoint,
         Boolean myResult,
         List<GameResultParticipantResponse> participants
 ) {
@@ -54,12 +54,12 @@ public record GameResultResponse(
                 targetStepCount,
                 gameResult.getBingoCount(),
                 gameResult.getCompletedMissionCount(),
-                gameResult.getRewardCash(),
+                gameResult.getRewardPoint(),
                 startedAt,
                 completedAt,
                 totalMissionCount,
                 myParticipant.getCompletedMissionCount(),
-                myParticipant.getRewardCash(),
+                myParticipant.getRewardPoint(),
                 myParticipant.getResult(),
                 participants
         );

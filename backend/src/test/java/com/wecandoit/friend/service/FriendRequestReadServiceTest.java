@@ -15,7 +15,7 @@ import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.friend.dto.ReceivedFriendRequestResponse;
 import com.wecandoit.friend.dto.SentFriendRequestResponse;
-import com.wecandoit.item.controller.response.CharacterResponse;
+import com.wecandoit.item.controller.response.AvatarResponse;
 import com.wecandoit.item.controller.response.EquippedItemResponse;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
@@ -56,7 +56,7 @@ class FriendRequestReadServiceTest {
     }
 
     @Test
-    @DisplayName("받은 대기 친구 요청을 요청자의 캐릭터 정보와 함께 반환한다")
+    @DisplayName("받은 대기 친구 요청을 요청자의 아바타 정보와 함께 반환한다")
     void getReceivedRequestsReturnsPendingRequests() {
         // given
         Member inviter = member(1L, "보낸사람");
@@ -79,7 +79,7 @@ class FriendRequestReadServiceTest {
                 "https://example.com/blue-hat.png"
         );
         given(avatarReadService.getAvatars(List.of(inviter)))
-                .willReturn(Map.of(1L, new CharacterResponse(
+                .willReturn(Map.of(1L, new AvatarResponse(
                         1L,
                         "보낸사람",
                         Gender.MALE,

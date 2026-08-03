@@ -6,7 +6,7 @@ import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.PageResponse;
 import com.wecandoit.history.repository.MemberHistoryRepository;
 import com.wecandoit.history.repository.RankedWeeklyRankingSummary;
-import com.wecandoit.item.controller.response.CharacterResponse;
+import com.wecandoit.item.controller.response.AvatarResponse;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.domain.Region;
 import com.wecandoit.member.repository.MemberRepository;
@@ -71,23 +71,23 @@ public class RankingReadService {
         if (rankingMemberIds.contains(memberId)) {
             rankingMembers.add(loginMember);
         }
-        Map<Long, CharacterResponse> charactersByMemberId = avatarReadService.getAvatars(rankingMembers);
+        Map<Long, AvatarResponse> avatarsByMemberId = avatarReadService.getAvatars(rankingMembers);
 
         return new RankingResponse(
                 region,
                 myRanking.getRanking(),
                 myRanking.getWeeklySteps(),
                 PageResponse.from(summaries.map(summary ->
-                        toRankingItemResponse(summary, charactersByMemberId)))
+                        toRankingItemResponse(summary, avatarsByMemberId)))
         );
     }
 
     private static RankingItemResponse toRankingItemResponse(
             RankedWeeklyRankingSummary summary,
-            Map<Long, CharacterResponse> charactersByMemberId
+            Map<Long, AvatarResponse> avatarsByMemberId
     ) {
-        CharacterResponse character = charactersByMemberId.get(summary.getMemberId());
-        if (character == null) {
+        AvatarResponse avatar = avatarsByMemberId.get(summary.getMemberId());
+        if (avatar == null) {
             throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
         }
         return new RankingItemResponse(
@@ -95,9 +95,9 @@ public class RankingReadService {
                 summary.getMemberId(),
                 summary.getNickname(),
                 summary.getWeeklySteps(),
-                character.gender(),
-                character.defaultImageUrl(),
-                character.equippedItems()
+                avatar.gender(),
+                avatar.defaultImageUrl(),
+                avatar.equippedItems()
         );
     }
 }

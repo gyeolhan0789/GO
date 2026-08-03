@@ -93,7 +93,7 @@ class MemberControllerTest {
                 .andExpect(jsonPath("$.nickname").value("산책러"))
                 .andExpect(jsonPath("$.gender").value("MALE"))
                 .andExpect(jsonPath("$.region").value("SEOUL"))
-                .andExpect(jsonPath("$.cash").value(100L));
+                .andExpect(jsonPath("$.point").value(100L));
         then(memberReadService).should().getMyPage(1L);
     }
 
@@ -110,7 +110,7 @@ class MemberControllerTest {
     }
 
     @Test
-    @DisplayName("닉네임 검색 결과에 관계 상태와 캐릭터 정보를 반환한다")
+    @DisplayName("닉네임 검색 결과에 관계 상태와 아바타 정보를 반환한다")
     void searchMembersReturnsRelationshipStatus() throws Exception {
         // given
         given(memberReadService.searchMembers(eq(1L), eq("산책"), any())).willReturn(

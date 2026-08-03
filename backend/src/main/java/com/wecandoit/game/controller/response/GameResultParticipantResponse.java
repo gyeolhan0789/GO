@@ -13,7 +13,7 @@ public record GameResultParticipantResponse(
         String defaultImageUrl,
         List<EquippedItemResponse> equippedItems,
         int completedMissionCount,
-        long rewardCash,
+        long rewardPoint,
         Boolean result
 ) {
 
@@ -30,7 +30,7 @@ public record GameResultParticipantResponse(
                 defaultImageUrl,
                 equippedItems,
                 participant.getCompletedMissionCount(),
-                participant.getRewardCash(),
+                participant.getRewardPoint(),
                 participant.getResult()
         );
     }

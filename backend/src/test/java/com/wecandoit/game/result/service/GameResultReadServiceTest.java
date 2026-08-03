@@ -27,7 +27,7 @@ import com.wecandoit.game.repository.GameResultParticipantRepository;
 import com.wecandoit.game.repository.GameResultRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.GameResultReadService;
-import com.wecandoit.item.controller.response.CharacterResponse;
+import com.wecandoit.item.controller.response.AvatarResponse;
 import com.wecandoit.item.controller.response.EquippedItemResponse;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
@@ -342,7 +342,7 @@ class GameResultReadServiceTest {
         return member;
     }
 
-    private Map<Long, CharacterResponse> avatars(List<Member> members) {
+    private Map<Long, AvatarResponse> avatars(List<Member> members) {
         EquippedItemResponse equippedItem = new EquippedItemResponse(
                 10L,
                 100L,
@@ -354,13 +354,13 @@ class GameResultReadServiceTest {
         Member secondMember = members.get(1);
         return Map.of(
                 firstMember.getId(),
-                CharacterResponse.of(
+                AvatarResponse.of(
                         firstMember,
                         "https://example.com/male.png",
                         List.of(equippedItem)
                 ),
                 secondMember.getId(),
-                CharacterResponse.of(
+                AvatarResponse.of(
                         secondMember,
                         "https://example.com/female.png",
                         List.of()

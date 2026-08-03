@@ -37,8 +37,8 @@ public class GameResultParticipant extends BaseEntity {
     @Column(name = "completed_mission_count", nullable = false)
     private int completedMissionCount;
 
-    @Column(name = "reward_cash", nullable = false)
-    private long rewardCash;
+    @Column(name = "reward_point", nullable = false)
+    private long rewardPoint;
 
     @Column(name = "result")
     private Boolean result;
@@ -47,13 +47,13 @@ public class GameResultParticipant extends BaseEntity {
             Long gameId,
             Long memberId,
             int completedMissionCount,
-            long rewardCash,
+            long rewardPoint,
             Boolean result
     ) {
         this.gameId = gameId;
         this.memberId = memberId;
         this.completedMissionCount = completedMissionCount;
-        this.rewardCash = rewardCash;
+        this.rewardPoint = rewardPoint;
         this.result = result;
     }
 
@@ -61,9 +61,9 @@ public class GameResultParticipant extends BaseEntity {
             Long gameId,
             Long memberId,
             int completedMissionCount,
-            long rewardCash,
+            long rewardPoint,
             boolean result
     ) {
-        return new GameResultParticipant(gameId, memberId, completedMissionCount, rewardCash, result);
+        return new GameResultParticipant(gameId, memberId, completedMissionCount, rewardPoint, result);
     }
 }

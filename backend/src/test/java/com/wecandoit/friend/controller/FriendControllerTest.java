@@ -61,7 +61,7 @@ class FriendControllerTest {
     }
 
     @Test
-    @DisplayName("친구 목록을 조회하면 친구의 걸음 수와 캐릭터 정보를 반환한다")
+    @DisplayName("친구 목록을 조회하면 친구의 걸음 수와 아바타 정보를 반환한다")
     void getFriendsReturnsFriendResponses() throws Exception {
         // given
         given(friendReadService.getFriends(

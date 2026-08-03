@@ -9,9 +9,9 @@ import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
 import com.wecandoit.bingo.domain.BingoLineCounter;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
-import com.wecandoit.cash.domain.CashHistory;
-import com.wecandoit.cash.domain.CashRewardPolicy;
-import com.wecandoit.cash.repository.CashHistoryRepository;
+import com.wecandoit.point.domain.PointHistory;
+import com.wecandoit.point.domain.PointRewardPolicy;
+import com.wecandoit.point.repository.PointHistoryRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
@@ -61,7 +61,7 @@ public class GameCycleCommandService {
     private final BingoCellRepository bingoCellRepository;
     private final MissionRepository missionRepository;
     private final MemberRepository memberRepository;
-    private final CashHistoryRepository cashHistoryRepository;
+    private final PointHistoryRepository pointHistoryRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final NotificationMessageFactory notificationMessageFactory;
 
@@ -283,7 +283,7 @@ public class GameCycleCommandService {
                 result,
                 bingoCount,
                 completedMissionCount,
-                result ? CashRewardPolicy.GAME_GOAL.getPoint() : 0L
+                result ? PointRewardPolicy.GAME_GOAL.getPoint() : 0L
         ));
         gameResultParticipantRepository.saveAll(createSharedResultParticipants(
                 room,
@@ -308,17 +308,17 @@ public class GameCycleCommandService {
                         BingoCell::getMemberId,
                         Collectors.collectingAndThen(Collectors.counting(), Long::intValue)
                 ));
-        long rewardCash = result ? CashRewardPolicy.GAME_GOAL.getPoint() : 0L;
+        long rewardPoint = result ? PointRewardPolicy.GAME_GOAL.getPoint() : 0L;
         return gameParticipantRepository.findAllByGameIdOrderByJoinedAtAsc(game.getId()).stream()
                 .map(participant -> {
-                    if (rewardCash > 0) {
-                        grantReward(participant.getMemberId(), game.getId(), room.getId(), rewardCash);
+                    if (rewardPoint > 0) {
+                        grantReward(participant.getMemberId(), game.getId(), room.getId(), rewardPoint);
                     }
                     return GameResultParticipant.create(
                             game.getId(),
                             participant.getMemberId(),
                             completedCountByMember.getOrDefault(participant.getMemberId(), 0),
-                            rewardCash,
+                            rewardPoint,
                             result
                     );
                 })
@@ -358,7 +358,7 @@ public class GameCycleCommandService {
                 true,
                 winnerBingoCount,
                 winnerCompletedCount,
-                CashRewardPolicy.BATTLE_WINNER_GAME_GOAL.getPoint()
+                PointRewardPolicy.BATTLE_WINNER_GAME_GOAL.getPoint()
         ));
 
         List<GameResultParticipant> results = participants.stream()
@@ -383,15 +383,15 @@ public class GameCycleCommandService {
             int completedMissionCount
     ) {
         boolean result = participant.getMemberId().equals(winnerMemberId);
-        long rewardCash = result
-                ? CashRewardPolicy.BATTLE_WINNER_GAME_GOAL.getPoint()
-                : CashRewardPolicy.BATTLE_LOSER_GAME_GOAL.getPoint();
-        grantReward(participant.getMemberId(), game.getId(), room.getId(), rewardCash);
+        long rewardPoint = result
+                ? PointRewardPolicy.BATTLE_WINNER_GAME_GOAL.getPoint()
+                : PointRewardPolicy.BATTLE_LOSER_GAME_GOAL.getPoint();
+        grantReward(participant.getMemberId(), game.getId(), room.getId(), rewardPoint);
         return GameResultParticipant.create(
                 game.getId(),
                 participant.getMemberId(),
                 completedMissionCount,
-                rewardCash,
+                rewardPoint,
                 result
         );
     }
@@ -537,11 +537,11 @@ public class GameCycleCommandService {
                 && countCompletedCells(cells, endedAt) == totalCellCount;
     }
 
-    private void grantReward(Long memberId, Long gameId, Long roomId, long rewardCash) {
+    private void grantReward(Long memberId, Long gameId, Long roomId, long rewardPoint) {
         Member member = memberRepository.findByIdForUpdate(memberId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
-        member.addCash(rewardCash);
-        cashHistoryRepository.save(CashHistory.gameGoalReward(memberId, gameId, roomId, rewardCash));
-        eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, rewardCash));
+        member.addPoint(rewardPoint);
+        pointHistoryRepository.save(PointHistory.gameGoalReward(memberId, gameId, roomId, rewardPoint));
+        eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, rewardPoint));
     }
 }

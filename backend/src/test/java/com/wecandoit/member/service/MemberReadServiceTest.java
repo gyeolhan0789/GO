@@ -13,7 +13,7 @@ import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.friend.repository.FriendRepository;
 import com.wecandoit.friend.domain.FriendRequest;
 import com.wecandoit.friend.repository.FriendRequestRepository;
-import com.wecandoit.item.controller.response.CharacterResponse;
+import com.wecandoit.item.controller.response.AvatarResponse;
 import com.wecandoit.item.controller.response.EquippedItemResponse;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
@@ -62,7 +62,7 @@ class MemberReadServiceTest {
     }
 
     @Test
-    @DisplayName("닉네임 검색 결과에 관계 상태와 캐릭터 정보를 포함한다")
+    @DisplayName("닉네임 검색 결과에 관계 상태와 아바타 정보를 포함한다")
     void searchMembersIncludesRelationshipStatus() {
         // given
         Member loginMember = member(1L, "나");
@@ -97,13 +97,13 @@ class MemberReadServiceTest {
         given(avatarReadService.getAvatars(List.of(friend, sent, received, none)))
                 .willReturn(Map.of(
                         2L,
-                        character(friend, "https://example.com/male.png", List.of(equippedItem)),
+                        avatar(friend, "https://example.com/male.png", List.of(equippedItem)),
                         3L,
-                        character(sent, "https://example.com/male.png", List.of()),
+                        avatar(sent, "https://example.com/male.png", List.of()),
                         4L,
-                        character(received, "https://example.com/male.png", List.of()),
+                        avatar(received, "https://example.com/male.png", List.of()),
                         5L,
-                        character(none, "https://example.com/male.png", List.of())
+                        avatar(none, "https://example.com/male.png", List.of())
                 ));
 
         // when
@@ -205,15 +205,15 @@ class MemberReadServiceTest {
         Member firstMember = member(1L, "첫 번째");
         Member secondMember = member(2L, "두 번째");
         List<Member> members = List.of(firstMember, secondMember);
-        Map<Long, CharacterResponse> avatars = Map.of(
-                1L, character(firstMember, "https://example.com/male.png", List.of()),
-                2L, character(secondMember, "https://example.com/male.png", List.of())
+        Map<Long, AvatarResponse> avatars = Map.of(
+                1L, avatar(firstMember, "https://example.com/male.png", List.of()),
+                2L, avatar(secondMember, "https://example.com/male.png", List.of())
         );
         given(memberRepository.findAllById(ArgumentMatchers.anyIterable())).willReturn(members);
         given(avatarReadService.getAvatars(members)).willReturn(avatars);
 
         // when
-        Map<Long, CharacterResponse> responses =
+        Map<Long, AvatarResponse> responses =
                 memberReadService.getAvatarsByIds(List.of(1L, 2L));
 
         // then
@@ -286,12 +286,12 @@ class MemberReadServiceTest {
         return member;
     }
 
-    private CharacterResponse character(
+    private AvatarResponse avatar(
             Member member,
             String defaultImageUrl,
             List<EquippedItemResponse> equippedItems
     ) {
-        return new CharacterResponse(
+        return new AvatarResponse(
                 member.getId(),
                 member.getNickname(),
                 member.getGender(),

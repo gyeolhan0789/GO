@@ -14,7 +14,7 @@ import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.friend.dto.FriendResponse;
 import com.wecandoit.history.repository.MemberHistoryRepository;
 import com.wecandoit.history.repository.WeeklyRankingSummary;
-import com.wecandoit.item.controller.response.CharacterResponse;
+import com.wecandoit.item.controller.response.AvatarResponse;
 import com.wecandoit.item.controller.response.EquippedItemResponse;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
@@ -53,7 +53,7 @@ class FriendReadServiceTest {
     }
 
     @Test
-    @DisplayName("관계 저장 방향과 관계없이 친구의 걸음 수와 캐릭터 정보를 반환한다")
+    @DisplayName("관계 저장 방향과 관계없이 친구의 걸음 수와 아바타 정보를 반환한다")
     void getFriendsReturnsOtherMemberFromBothDirections() {
         // given
         Member loginMember = member(2L, "로그인회원");
@@ -82,7 +82,7 @@ class FriendReadServiceTest {
         given(avatarReadService.getAvatars(List.of(smallerIdFriend, largerIdFriend)))
                 .willReturn(Map.of(
                         1L,
-                        new CharacterResponse(
+                        new AvatarResponse(
                                 1L,
                                 "첫번째친구",
                                 Gender.FEMALE,
@@ -90,7 +90,7 @@ class FriendReadServiceTest {
                                 List.of(equippedItem)
                         ),
                         3L,
-                        new CharacterResponse(
+                        new AvatarResponse(
                                 3L,
                                 "두번째친구",
                                 Gender.MALE,

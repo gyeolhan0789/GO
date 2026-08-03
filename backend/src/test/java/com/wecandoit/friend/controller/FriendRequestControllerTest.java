@@ -89,7 +89,7 @@ class FriendRequestControllerTest {
     }
 
     @Test
-    @DisplayName("받은 친구 요청을 조회하면 요청자의 캐릭터 정보와 생성 시각을 반환한다")
+    @DisplayName("받은 친구 요청을 조회하면 요청자의 아바타 정보와 생성 시각을 반환한다")
     void getReceivedRequestsReturnsPendingRequests() throws Exception {
         // given
         LocalDateTime createdAt = LocalDateTime.of(2026, 7, 19, 12, 0);
