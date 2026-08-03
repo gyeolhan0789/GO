@@ -17,6 +17,7 @@ import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.domain.MissionDifficulty;
 import com.wecandoit.mission.domain.MissionType;
 import com.wecandoit.mission.repository.MissionRepository;
 import java.util.Optional;
@@ -61,14 +62,14 @@ class MissionVerificationFacadeTest {
         when(aiVerificationClient.verify(any(), any(), any(), any()))
                 .thenReturn(new AiVerificationResult(true, 0.85, "통과"));
         doReturn(30L).when(verificationResultService)
-                .applyResult(CELL_ID, true, null, MissionType.OBJECT);
+                .applyResult(CELL_ID, true, null, MissionDifficulty.LOW);
 
         // when
         BingoCellSubmitResponse response = facade.submitAndVerify(MEMBER_ID, ROOM_ID, CELL_ID, image());
 
         // then
-        verify(verificationResultService).applyResult(eq(CELL_ID), eq(true), isNull(), eq(MissionType.OBJECT));
-        assertThat(response.rewardCash()).isEqualTo(30L);
+        verify(verificationResultService).applyResult(eq(CELL_ID), eq(true), isNull(), eq(MissionDifficulty.LOW));
+        assertThat(response.rewardPoint()).isEqualTo(30L);
     }
 
     @Test
@@ -112,7 +113,7 @@ class MissionVerificationFacadeTest {
                 eq(CELL_ID),
                 eq(false),
                 reasonCaptor.capture(),
-                eq(MissionType.OBJECT)
+                eq(MissionDifficulty.LOW)
         );
         assertThat(reasonCaptor.getValue())
                 .isNotEqualTo(AI_REASON)
@@ -131,7 +132,7 @@ class MissionVerificationFacadeTest {
         facade.submitAndVerify(MEMBER_ID, ROOM_ID, CELL_ID, image());
 
         // then
-        verify(verificationResultService).applyResult(CELL_ID, false, AI_REASON, MissionType.OBJECT);
+        verify(verificationResultService).applyResult(CELL_ID, false, AI_REASON, MissionDifficulty.LOW);
     }
 
     @Test
@@ -150,7 +151,7 @@ class MissionVerificationFacadeTest {
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.AI_VERIFICATION_FAILED);
         verify(verificationResultService)
-                .applyResult(CELL_ID, false, ErrorCode.AI_VERIFICATION_FAILED.getMessage(), MissionType.OBJECT);
+                .applyResult(CELL_ID, false, ErrorCode.AI_VERIFICATION_FAILED.getMessage(), MissionDifficulty.LOW);
     }
 
     @Test
@@ -179,7 +180,7 @@ class MissionVerificationFacadeTest {
                         CELL_ID,
                         false,
                         "decision_condition.target가 없습니다.",
-                        MissionType.OBJECT
+                        MissionDifficulty.LOW
                 );
     }
 
@@ -205,10 +206,11 @@ class MissionVerificationFacadeTest {
     private Mission mission() {
         Mission mission = Mission.create(
                 "https://example.com/mission.png",
-                "OBJECT",
+                MissionType.OBJECT,
                 "미션 제목",
                 "미션 설명",
-                "{\"target\":\"cup\"}"
+                "{\"target\":\"cup\"}",
+                MissionDifficulty.LOW
         );
         ReflectionTestUtils.setField(mission, "id", MISSION_ID);
         return mission;

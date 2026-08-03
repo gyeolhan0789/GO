@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 
 import type { MemberRelationshipStatus } from '../../../features/friend/api/friendApi';
+import { MemberAvatar } from '../../../features/member/components/MemberAvatar';
 import { useMemberSearchQuery } from '../../../features/friend/hooks/useMemberSearchQuery';
 import { useSendFriendRequestMutation } from '../../../features/friend/hooks/useSendFriendRequestMutation';
 import { AppText } from '../../../shared/components/AppText/AppText';
@@ -97,7 +98,12 @@ export function AddFriendSheet({ visible, onClose }: AddFriendSheetProps) {
 
               return (
                 <View key={member.memberId} style={styles.resultRow}>
-                  <View style={styles.avatar} />
+                  <MemberAvatar
+                    gender={member.gender}
+                    defaultImageUrl={member.defaultImageUrl}
+                    equippedItems={member.equippedItems}
+                    style={styles.avatar}
+                  />
                   <AppText style={styles.resultNickname} numberOfLines={1}>
                     @{member.nickname}
                   </AppText>
@@ -173,11 +179,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.sm,
   },
+  // 원 테두리 디자인은 CharacterBust가 모든 화면 공통으로 그린다.
   avatar: {
     width: 40,
     height: 40,
-    borderRadius: radius.pill,
-    backgroundColor: colors.neutralBg,
   },
   resultNickname: {
     flex: 1,

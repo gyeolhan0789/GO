@@ -10,10 +10,6 @@ public record RenewBingoBoardRequest(
         @Max(value = 5, message = "빙고판 크기는 5 이하여야 합니다.")
         Integer boardSize,
 
-        @NotNull(message = "목표 빙고 수는 필수입니다.")
-        @Min(value = 1, message = "목표 빙고 수는 1 이상이어야 합니다.")
-        Integer targetBingoCount,
-
         @NotNull(message = "목표 걸음 수는 필수입니다.")
         @Min(value = 1, message = "목표 걸음 수는 1 이상이어야 합니다.")
         Integer targetStepCount

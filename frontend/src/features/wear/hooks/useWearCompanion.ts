@@ -11,14 +11,13 @@ import {
 } from '../../../shared/lib/wearBridge';
 import { useStepDataToday } from '../../../shared/hooks/useStepDataToday';
 import { useMyCharacterQuery } from '../../member/hooks/useMyCharacterQuery';
-import { toWalkSessionMetrics } from '../../walk-session/model/sessionMetrics';
 import { useWalkSession } from '../../walk-session/hooks/useWalkSession';
 import { toCharacterLayerSources } from '../model/characterLayerSources';
 import { endFromWatch, startFromWatch } from '../model/watchCommandHandlers';
 import { useWatchConnected } from './useWatchConnected';
 import { useWearRooms } from './useWearRooms';
 
-/** 진행 중 화면(WalkSessionScreen)과 같은 주기로 읽어야 워치와 숫자가 안 어긋난다. */
+/** 워치 홈의 "오늘 걸음"용. 세션 수치는 네이티브 세션이 직접 집계한다. */
 const HEALTH_POLL_INTERVAL_MS = 20000;
 
 /**
@@ -34,18 +33,15 @@ export function useWearCompanion() {
   const characterQuery = useMyCharacterQuery();
   const session = useWalkSession();
 
-  // 산책 중에는 워치도 숫자가 살아 있어야 한다. 진행 중 화면이 안 떠 있어도
-  // (홈으로 나갔거나 폰을 주머니에 넣었어도) 여기서 계속 읽는다.
+  // 워치 홈의 "오늘 걸음"은 폰의 삼성헬스 누적치다. 산책 중에는 워치도 숫자가
+  // 살아 있어야 해서, 진행 중 화면이 안 떠 있어도(홈으로 나갔거나 폰을 주머니에
+  // 넣었어도) 여기서 계속 읽는다.
   const health = useStepDataToday({
     refetchInterval:
       session.isActive && !session.isPaused ? HEALTH_POLL_INTERVAL_MS : undefined,
   });
   const healthSummary = health.data?.status === 'ok' ? health.data.summary : null;
 
-  const sessionMetrics = toWalkSessionMetrics(
-    healthSummary,
-    session.startHealthSummary,
-  );
   const sessionRoomName =
     rooms.find(room => room.roomId === session.roomId)?.name ?? '';
 
@@ -69,9 +65,11 @@ export function useWearCompanion() {
             started: session.isStarted,
             paused: session.isPaused,
             elapsedMillis: session.elapsedMs,
-            steps: sessionMetrics.steps,
-            distanceMeters: Math.round(sessionMetrics.distanceKm * 1000),
-            calories: sessionMetrics.calories,
+            // 진행 중 화면과 같은 출처(네이티브 세션이 집계한 값)를 그대로
+            // 쓴다. 폰 화면과 워치가 다른 계산을 하면 숫자가 어긋난다.
+            steps: Math.round(session.steps),
+            distanceMeters: Math.round(session.distanceMeters),
+            calories: Math.round(session.calories),
           },
   };
 

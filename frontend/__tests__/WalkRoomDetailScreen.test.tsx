@@ -133,7 +133,7 @@ function mockHappyPath({
   roomStatus = 'ACTIVE',
 }: { hostId?: number; roomStatus?: string } = {}) {
   fetchMock.mockImplementation(async (url, init) => {
-    if (url.includes('/members/character')) {
+    if (url.includes('/members/avatar')) {
       return jsonResponse(200, MY_CHARACTER_RESPONSE);
     }
     if (url.includes('/bingo-boards/active')) {
@@ -309,7 +309,7 @@ describe('WalkRoomDetailScreen', () => {
 
   test('아직 빙고판이 없으면 안내만 보여준다', async () => {
     fetchMock.mockImplementation(async (url, init) => {
-      if (url.includes('/members/character')) {
+      if (url.includes('/members/avatar')) {
         return jsonResponse(200, MY_CHARACTER_RESPONSE);
       }
       if (url.includes('/bingo-boards/active')) {
@@ -374,7 +374,7 @@ describe('WalkRoomDetailScreen', () => {
 
   test('모임 정보를 불러오지 못하면 오류를 알린다', async () => {
     fetchMock.mockImplementation(async url =>
-      url.includes('/members/character')
+      url.includes('/members/avatar')
         ? jsonResponse(200, MY_CHARACTER_RESPONSE)
         : jsonResponse(500, null),
     );

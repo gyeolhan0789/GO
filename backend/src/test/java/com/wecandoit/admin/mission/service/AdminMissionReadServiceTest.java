@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.given;
 import com.wecandoit.admin.mission.controller.response.AdminMissionResponse;
 import com.wecandoit.admin.mission.repository.AdminMissionRepository;
 import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.domain.MissionType;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,7 +34,7 @@ class AdminMissionReadServiceTest {
     @DisplayName("최신순 미션 목록을 응답으로 변환한다")
     void getMissionsMapsRepositoryResults() {
         // given
-        Mission mission = Mission.create("https://example.com/new.png", "OBJECT", "새 미션", null, null);
+        Mission mission = Mission.create("https://example.com/new.png", MissionType.OBJECT, "새 미션", null, null);
         ReflectionTestUtils.setField(mission, "id", 2L);
         ReflectionTestUtils.setField(mission, "createdAt", LocalDateTime.of(2026, 7, 22, 12, 0));
         given(adminMissionRepository.findAllByOrderByCreatedAtDescIdDesc()).willReturn(List.of(mission));

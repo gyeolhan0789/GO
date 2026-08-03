@@ -48,6 +48,7 @@ function character(equippedItems: CharacterItem[]): Character {
     memberId: 1,
     nickname: '산책이 좋아',
     baseImage: BUNDLED_BASE_IMAGE,
+    baseImageFallback: BUNDLED_BASE_IMAGE,
     equippedItems,
   };
 }
@@ -86,14 +87,5 @@ describe('워치로 보낼 캐릭터 레이어', () => {
     const sources = toCharacterLayerSources(character([withoutImage]));
 
     expect(sources).toEqual([`asset://bundled/${BUNDLED_BASE_IMAGE}`]);
-  });
-
-  test('기본 캐릭터가 없어도 아이템만으로 보낼 수 있다', () => {
-    const sources = toCharacterLayerSources({
-      ...character([item(1, 'HAT', 'https://cdn.example.com/hat.png')]),
-      baseImage: null,
-    });
-
-    expect(sources).toEqual(['https://cdn.example.com/hat.png']);
   });
 });

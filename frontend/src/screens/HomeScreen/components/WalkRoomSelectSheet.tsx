@@ -64,12 +64,15 @@ export function WalkRoomSelectSheet({
     if (!selectedRoom) {
       return;
     }
-    if (selectedBoardQuery.data?.renewalRequired) {
+    const board = selectedBoardQuery.data;
+    // 판을 다 채웠거나 일주일이 지났으면 갱신 대상이다 — renewalRequired만 보면
+    // 기간 전에 다 채운 경우를 놓쳐 갱신 없이 그냥 시작돼버린다.
+    if (board && (board.completed || board.renewalRequired)) {
       if (isHost) {
         onNeedsRenewal({
           roomId: Number(selectedRoom.id),
-          targetStepCount: selectedBoardQuery.data.targetStepCount,
-          boardSize: selectedBoardQuery.data.boardSize,
+          targetStepCount: board.targetStepCount,
+          boardSize: board.boardSize,
         });
       } else {
         Alert.alert(

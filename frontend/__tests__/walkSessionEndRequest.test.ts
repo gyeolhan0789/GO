@@ -4,7 +4,6 @@
 
 import {
   clearWalkSessionEndRequest,
-  confirmWalkSessionStart,
   endWalkSession,
   isWalkSessionEndRequested,
   requestWalkSessionEnd,
@@ -22,9 +21,10 @@ describe('워치에서 온 산책 종료 요청', () => {
     expect(isWalkSessionEndRequested()).toBe(false);
   });
 
+  // 방이 배정된 것만으로 "진행 중"이다(카운트다운 중에도 워치는 종료를 누를 수
+  // 있다). 실제 시작은 네이티브 세션을 깨우므로 여기서는 호출하지 않는다.
   test('진행 중이면 요청이 서고, 구독자에게 알린다', () => {
     startWalkSession(7);
-    confirmWalkSessionStart();
     const listener = jest.fn();
     const unsubscribe = subscribeWalkSession(listener);
 

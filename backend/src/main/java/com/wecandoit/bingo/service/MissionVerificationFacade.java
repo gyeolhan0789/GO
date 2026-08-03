@@ -8,7 +8,7 @@ import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.mission.domain.Mission;
-import com.wecandoit.mission.domain.MissionType;
+import com.wecandoit.mission.domain.MissionDifficulty;
 import com.wecandoit.mission.repository.MissionRepository;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
@@ -39,27 +39,27 @@ public class MissionVerificationFacade {
         BingoCell submittedCell = bingoCommandService.submitCell(memberId, roomId, cellId, image);
         Mission mission = missionRepository.findById(submittedCell.getMissionId())
                 .orElseThrow(() -> new CustomException(ErrorCode.MISSION_NOT_FOUND));
-        MissionType missionType = MissionType.from(mission.getType());
+        MissionDifficulty missionDifficulty = mission.getDifficulty();
 
         AiVerificationResult result;
         try {
             result = requestVerification(imageBytes, resolveFileName(submittedCell.getSubmitUrl()), mission);
         } catch (CustomException e) {
-            verificationResultService.applyResult(cellId, false, resolveFailureReason(e), missionType);
+            verificationResultService.applyResult(cellId, false, resolveFailureReason(e), missionDifficulty);
             throw e;
         }
 
         boolean approved = result.success() && result.confidence() >= CONFIDENCE_THRESHOLD;
-        long rewardCash = verificationResultService.applyResult(
+        long rewardPoint = verificationResultService.applyResult(
                 cellId,
                 approved,
                 resolveRejectionReason(result, approved),
-                missionType
+                missionDifficulty
         );
 
         BingoCell verifiedCell = bingoCellRepository.findById(cellId)
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND));
-        return BingoCellSubmitResponse.of(verifiedCell, mission, rewardCash);
+        return BingoCellSubmitResponse.of(verifiedCell, mission, rewardPoint);
     }
 
     private byte[] readImageBytes(MultipartFile image) {
@@ -76,7 +76,12 @@ public class MissionVerificationFacade {
 
     private AiVerificationResult requestVerification(byte[] imageBytes, String fileName, Mission mission) {
         try {
-            return aiVerificationClient.verify(imageBytes, fileName, mission.getType(), mission.getDecisionCondition());
+            return aiVerificationClient.verify(
+                    imageBytes,
+                    fileName,
+                    mission.getType().name(),
+                    mission.getDecisionCondition()
+            );
         } catch (CustomException e) {
             throw e;
         } catch (RuntimeException e) {

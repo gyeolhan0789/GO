@@ -1,12 +1,13 @@
 package com.wecandoit.mission.controller.response;
 
 import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.domain.MissionType;
 import java.time.LocalDateTime;
 
 public record MissionResponse(
         Long missionId,
         String missionImageUrl,
-        String type,
+        MissionType type,
         String title,
         String detail,
         String decisionCondition,

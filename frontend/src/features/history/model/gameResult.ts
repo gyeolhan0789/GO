@@ -53,6 +53,9 @@ export function toWalkRecord(response: GameResultResponse): WalkRecord {
     participants: response.participants.map(participant => ({
       memberId: participant.memberId,
       nickname: participant.nickname,
+      gender: participant.gender,
+      defaultImageUrl: participant.defaultImageUrl,
+      equippedItems: participant.equippedItems,
     })),
   };
 }
@@ -97,6 +100,9 @@ function toDetailParticipants(
   const participants = response.participants.map(participant => ({
     memberId: participant.memberId,
     nickname: participant.nickname,
+    gender: participant.gender,
+    defaultImageUrl: participant.defaultImageUrl,
+    equippedItems: participant.equippedItems,
     isMe: participant.memberId === myMemberId,
     completedMissionCount: participant.completedMissionCount,
   }));

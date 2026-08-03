@@ -21,6 +21,7 @@ import com.wecandoit.game.service.RoomReadService;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.domain.MissionType;
 import com.wecandoit.mission.repository.MissionRepository;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
@@ -124,7 +125,7 @@ class RoomCreateFacadeTransactionTest {
         missionRepository.saveAll(IntStream.range(0, count)
                 .mapToObj(index -> Mission.create(
                         "https://example.com/mission-" + index + ".png",
-                        "OBJECT",
+                        MissionType.OBJECT,
                         "미션 " + index,
                         "설명",
                         null

@@ -1,15 +1,14 @@
 package com.wecandoit.bingo.service;
 
 import com.wecandoit.bingo.domain.BingoBoard;
-import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
-import com.wecandoit.cash.service.CashCommandService;
-import com.wecandoit.cash.service.CashReadService;
+import com.wecandoit.point.service.PointCommandService;
+import com.wecandoit.point.service.PointReadService;
 import com.wecandoit.game.service.RoomReadService;
-import com.wecandoit.game.service.RoomReadService.StepGoalRewardMember;
-import com.wecandoit.game.service.RoomReadService.StepGoalRewardTarget;
+import com.wecandoit.game.service.StepGoalRewardMember;
+import com.wecandoit.game.service.StepGoalRewardTarget;
 import com.wecandoit.history.service.HistoryReadService;
-import com.wecandoit.history.service.HistoryReadService.StepRecord;
+import com.wecandoit.history.service.StepRecord;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Comparator;
@@ -30,8 +29,8 @@ public class BingoStepGoalRewardCommandService {
 
     private final RoomReadService roomReadService;
     private final HistoryReadService historyReadService;
-    private final CashReadService cashReadService;
-    private final CashCommandService cashCommandService;
+    private final PointReadService pointReadService;
+    private final PointCommandService pointCommandService;
     private final BingoBoardRepository bingoBoardRepository;
 
     public void evaluate(Long memberId) {
@@ -71,8 +70,8 @@ public class BingoStepGoalRewardCommandService {
         BingoBoard bingoBoard = bingoBoardRepository.findByIdForUpdate(target.bingoBoardId())
                 .orElse(null);
         return bingoBoard != null
-                && bingoBoard.getStatus() == BingoBoardStatus.ACTIVE
-                && !cashReadService.hasDailyStepGoalReward(target.bingoBoardId());
+                && bingoBoard.isActive()
+                && !pointReadService.hasDailyStepGoalReward(target.bingoBoardId());
     }
 
     private void grantRewardIfGoalReached(
@@ -83,7 +82,7 @@ public class BingoStepGoalRewardCommandService {
         if (calculateTotalStep(target, stepRecords, today) < target.targetStepCount()) {
             return;
         }
-        cashCommandService.grantDailyStepGoalReward(
+        pointCommandService.grantDailyStepGoalReward(
                 target.roomId(),
                 target.bingoBoardId(),
                 target.members().stream().map(StepGoalRewardMember::memberId).toList()

@@ -12,7 +12,7 @@ import com.wecandoit.auth.dto.AuthTokens;
 import com.wecandoit.auth.service.AuthService;
 import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
-import com.wecandoit.member.service.MemberService;
+import com.wecandoit.member.service.MemberCommandService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,7 +31,7 @@ class AuthControllerTest {
     @Mock
     private AuthService authService;
     @Mock
-    private MemberService memberService;
+    private MemberCommandService memberService;
     private MockMvc mockMvc;
 
     @BeforeEach

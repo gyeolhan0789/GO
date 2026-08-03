@@ -44,6 +44,39 @@ const { navigateMock } = jest.requireMock('@react-navigation/native') as {
 /** 목록에 세울 산책 수. 최근 산책은 첫 페이지만 쓴다. */
 const TOTAL_WALKS = 27;
 
+/** 구간 라벨 기대값이 이 날을 기준으로 적혀 있다. 2026-07-28 (화). */
+const TODAY = new Date(2026, 6, 28);
+
+beforeAll(() => {
+  // 화면은 오늘을 기준으로 구간을 잡아서, 시계를 두면 날이 바뀔 때마다
+  // 기대값이 어긋난다.
+  jest.useFakeTimers({
+    now: TODAY,
+    // Date만 고정한다. setTimeout까지 가짜로 바꾸면 react-query 알림을
+    // 흘려보내는 flushQueries가 영원히 안 끝난다.
+    doNotFake: [
+      'cancelAnimationFrame',
+      'cancelIdleCallback',
+      'clearImmediate',
+      'clearInterval',
+      'clearTimeout',
+      'hrtime',
+      'nextTick',
+      'performance',
+      'queueMicrotask',
+      'requestAnimationFrame',
+      'requestIdleCallback',
+      'setImmediate',
+      'setInterval',
+      'setTimeout',
+    ],
+  });
+});
+
+afterAll(() => {
+  jest.useRealTimers();
+});
+
 let fetchMock: FetchMock;
 
 beforeEach(() => {

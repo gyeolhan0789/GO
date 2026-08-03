@@ -1,12 +1,21 @@
 import { apiClient } from '../../../shared/api/client';
+import type { Gender } from '../../auth/constants/genders';
+import type { EquippedItem } from '../../member/api/memberApi';
 
 export type GameMode = 'SINGLE' | 'COOPERATE' | 'BATTLE';
+
+/** 방 멤버의 아바타 정보. 랭킹 응답과 같은 모양으로 내려온다. */
+export type RoomMemberAvatar = {
+  gender?: Gender;
+  defaultImageUrl?: string | null;
+  equippedItems?: EquippedItem[];
+};
 
 // 백엔드 RoomStatus(backend/.../game/domain/RoomStatus.java)와 동일하다.
 // 회차 진행 상태는 방이 아니라 빙고판 status(BingoBoardStatus)가 갖는다.
 export type GameRoomStatus = 'ACTIVE' | 'CLOSED';
 
-export type RoomMemberResponse = {
+export type RoomMemberResponse = RoomMemberAvatar & {
   memberId: number;
   nickname: string;
   host: boolean;
@@ -62,7 +71,7 @@ export function inviteToRoom(roomId: number, inviteeId: number) {
   });
 }
 
-export type MyRoomMemberResponse = {
+export type MyRoomMemberResponse = RoomMemberAvatar & {
   memberId: number;
   nickname: string;
   host: boolean;

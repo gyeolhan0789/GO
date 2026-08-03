@@ -6,7 +6,7 @@ meta {
 
 post {
   url: {{backendBaseUrl}}/rooms/1/bingo-boards/renewal
-  body: none
+  body: json
   auth: inherit
 }
 
@@ -14,13 +14,66 @@ headers {
   Authorization: Bearer {{accessToken}}
 }
 
+body:json {
+  {
+    "boardSize": 4,
+    "targetStepCount": 8000
+  }
+}
+
 docs {
   ## 빙고판 갱신
 
   호스트가 100% 완료된 빙고판을 종료 처리하고 새 빙고판을 생성한다. 게임방이 IN_PROGRESS 상태여야 한다.
 
+  ### Request 필드
+
+  | 필드 | 필수 | 제약조건 |
+  |---|---|---|
+  | boardSize | Y | 3 이상 5 이하의 정수 (`@Min(3)`, `@Max(5)`) |
+  | targetStepCount | Y | 1 이상의 정수 (`@Min(1)`) |
+
   ### 성공 응답 (201 Created)
-  갱신된 새 빙고판을 반환한다 (Generate Bingo Board 응답과 동일한 형태). 응답의 `status`는 `BingoBoardStatus`(`IN_PROGRESS` · `COMPLETED` · `EXPIRED`) 값 중 하나이며, 새로 생성된 보드이므로 항상 `IN_PROGRESS`이다.
+  갱신된 새 빙고판을 반환한다 (활성 빙고판 조회 응답과 동일한 형태).
+  ```json
+  {
+    "bingoBoardId": 2,
+    "gameId": 12,
+    "roomId": 1,
+    "boardSize": 4,
+    "targetBingoCount": 3,
+    "targetStepCount": 8000,
+    "completedBingoCount": 0,
+    "totalCellCount": 16,
+    "approvedCellCount": 0,
+    "status": "IN_PROGRESS",
+    "cells": [
+      {
+        "cellId": 201,
+        "row": 0,
+        "col": 0,
+        "mission": {
+          "missionId": 11,
+          "missionImageUrl": "https://cdn.example.com/missions/11.png",
+          "type": "OBJECT",
+          "title": "파란 자전거 찾기",
+          "detail": "파란색 자전거를 찾아 사진을 찍으세요.",
+          "decisionCondition": "사진 속 자전거 색상이 파란색인지 확인",
+          "createdAt": "2026-07-24T10:00:00"
+        },
+        "verificationStatus": null,
+        "submittedByMemberId": null,
+        "rejectionReason": null
+      }
+    ],
+    "completed": false,
+    "canRenew": false,
+    "renewalRequired": false,
+    "renewalMessage": null,
+    "battleProgress": null
+  }
+  ```
+  응답의 `status`는 `BingoBoardStatus`(`IN_PROGRESS` · `COMPLETED` · `EXPIRED`) 값 중 하나이며, 새로 생성된 보드이므로 항상 `IN_PROGRESS`이다. 마찬가지로 새로 생성된 보드이므로 `completed`·`canRenew`·`renewalRequired`는 항상 false이고 `renewalMessage`는 항상 null이다.
 
   ### 비즈니스 규칙
 
@@ -74,6 +127,38 @@ docs {
   {
     "status": 409,
     "message": "빙고판을 채울 미션이 부족합니다."
+  }
+  ```
+
+  **boardSize가 3 미만 또는 5 초과**
+  ```json
+  {
+    "status": 400,
+    "message": "빙고판 크기는 3 이상 5 이하여야 합니다."
+  }
+  ```
+
+  **targetStepCount가 1 미만**
+  ```json
+  {
+    "status": 400,
+    "message": "싱글 및 협동 모드에서는 1 이상의 목표 걸음 수가 필수입니다."
+  }
+  ```
+
+  **이미 생성된 게임 결과가 존재함**
+  ```json
+  {
+    "status": 409,
+    "message": "이미 생성된 게임 결과입니다."
+  }
+  ```
+
+  **아직 검증 중인 칸이 있음**
+  ```json
+  {
+    "status": 409,
+    "message": "이미 검증 중인 빙고 칸입니다."
   }
   ```
 

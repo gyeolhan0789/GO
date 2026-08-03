@@ -42,7 +42,7 @@ jest.mock('@react-navigation/native', () => ({
 
 // 마이페이지가 띄우는 캐릭터 조회까지 네트워크를 타면 로그아웃 요청 기록에 섞인다.
 jest.mock('../src/features/member/api/memberApi', () => ({
-  getMyCharacter: jest.fn(() =>
+  getMyAvatar: jest.fn(() =>
     Promise.resolve({
       memberId: 1,
       nickname: '멍멍이',

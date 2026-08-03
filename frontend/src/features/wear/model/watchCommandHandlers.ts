@@ -1,6 +1,6 @@
 import { Alert } from 'react-native';
 
-import { navigationRef } from '../../../app/navigation/navigationRef';
+import { navigateToWalkSession } from '../../../app/navigation/navigationRef';
 import type { WearState } from '../../../shared/lib/wearBridge';
 import {
   isWalkSessionActive,
@@ -15,13 +15,9 @@ import {
  * 옮길 뿐이다). 워치 연동에서 제일 틀리기 쉬운 분기라 따로 테스트한다.
  */
 
-function goToWalkSession() {
-  // 세션 복구가 아직 안 끝났으면(알림을 탭해 앱이 막 뜬 경우) 화면을 옮길 수
-  // 없다. 그래도 세션 자체는 시작되므로 홈 화면의 '산책 중' 뱃지로 들어갈 수 있다.
-  if (navigationRef.isReady()) {
-    navigationRef.navigate('WalkSession');
-  }
-}
+// navigateToWalkSession은 네비게이터가 아직 준비 안 됐으면(알림을 탭해 앱이 막
+// 뜬 경우) 조용히 넘어간다. 그래도 세션 자체는 시작되므로 홈 화면의 '산책 중'
+// 뱃지로 들어갈 수 있다.
 
 export function startFromWatch(roomId: number | undefined, state: WearState) {
   if (roomId === undefined) {
@@ -30,7 +26,7 @@ export function startFromWatch(roomId: number | undefined, state: WearState) {
   // 이미 진행 중이면 새로 시작하지 않고 그 세션으로 데려간다(폰에서 먼저
   // 시작해둔 경우). 다른 방이어도 마찬가지다 — 동시에 두 개를 돌릴 수 없다.
   if (isWalkSessionActive()) {
-    goToWalkSession();
+    navigateToWalkSession();
     return;
   }
 
@@ -46,7 +42,7 @@ export function startFromWatch(roomId: number | undefined, state: WearState) {
   }
 
   startWalkSession(roomId);
-  goToWalkSession();
+  navigateToWalkSession();
 }
 
 export function endFromWatch() {
@@ -56,5 +52,5 @@ export function endFromWatch() {
   // 기록 저장과 결과 화면은 진행 중 화면이 맡는다. 여기서는 종료를 요청하고
   // 그 화면을 띄우기만 한다(WalkSessionScreen이 요청을 보고 이어받는다).
   requestWalkSessionEnd();
-  goToWalkSession();
+  navigateToWalkSession();
 }

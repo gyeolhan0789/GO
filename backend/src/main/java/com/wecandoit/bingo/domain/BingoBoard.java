@@ -40,8 +40,8 @@ public class BingoBoard extends BaseEntity {
     @Column(name = "target_step_count")
     private Integer targetStepCount;
 
-    @Column(name = "target_bingo_count", nullable = false)
-    private int targetBingoCount;
+    @Column(name = "target_bingo_count")
+    private Integer targetBingoCount;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -50,10 +50,9 @@ public class BingoBoard extends BaseEntity {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
-    private BingoBoard(Long gameId, int boardSize, int targetBingoCount, Integer targetStepCount) {
+    private BingoBoard(Long gameId, int boardSize, Integer targetStepCount) {
         this.gameId = gameId;
         this.boardSize = boardSize;
-        this.targetBingoCount = targetBingoCount;
         this.targetStepCount = targetStepCount;
         this.type = BingoBoardType.SHARED;
         this.status = BingoBoardStatus.ACTIVE;
@@ -68,21 +67,12 @@ public class BingoBoard extends BaseEntity {
         this.status = BingoBoardStatus.ACTIVE;
     }
 
-    public static BingoBoard create(
-            Long gameId,
-            int boardSize,
-            int targetBingoCount,
-            Integer targetStepCount
-    ) {
-        return new BingoBoard(gameId, boardSize, targetBingoCount, targetStepCount);
-    }
-
     public static BingoBoard create(Long gameId, int boardSize) {
-        return create(gameId, boardSize, 1, null);
+        return create(gameId, boardSize, null);
     }
 
     public static BingoBoard create(Long gameId, int boardSize, Integer targetStepCount) {
-        return create(gameId, boardSize, 1, targetStepCount);
+        return new BingoBoard(gameId, boardSize, targetStepCount);
     }
 
     public static BingoBoard createForBattle(
@@ -100,6 +90,18 @@ public class BingoBoard extends BaseEntity {
 
     public boolean isPersonal() {
         return type == BingoBoardType.PERSONAL;
+    }
+
+    public boolean isActive() {
+        return status == BingoBoardStatus.ACTIVE;
+    }
+
+    public boolean isCompleted() {
+        return status == BingoBoardStatus.COMPLETED;
+    }
+
+    public boolean isExpired() {
+        return status == BingoBoardStatus.EXPIRED;
     }
 
     public void expire() {

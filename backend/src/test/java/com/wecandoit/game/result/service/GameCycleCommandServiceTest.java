@@ -12,7 +12,7 @@ import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
-import com.wecandoit.cash.repository.CashHistoryRepository;
+import com.wecandoit.point.repository.PointHistoryRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
@@ -33,6 +33,7 @@ import com.wecandoit.game.service.GameCycleCommandService;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.domain.MissionType;
 import com.wecandoit.mission.repository.MissionRepository;
 import com.wecandoit.notification.event.NotificationMessageFactory;
 import java.time.LocalDateTime;
@@ -52,9 +53,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 @DisplayName("게임 회차 서비스")
 @ExtendWith(MockitoExtension.class)
 class GameCycleCommandServiceTest {
-
-    private static final List<BingoBoardStatus> INACTIVE_BOARD_STATUSES =
-            List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED);
 
     @Mock
     private RoomRepository roomRepository;
@@ -77,7 +75,7 @@ class GameCycleCommandServiceTest {
     @Mock
     private MemberRepository memberRepository;
     @Mock
-    private CashHistoryRepository cashHistoryRepository;
+    private PointHistoryRepository pointHistoryRepository;
     @Mock
     private ApplicationEventPublisher eventPublisher;
     @Mock
@@ -101,7 +99,7 @@ class GameCycleCommandServiceTest {
 
         // when
         BingoBoardResponse response =
-                gameCycleCommandService.renewSharedCycle(1L, 10L, 3, 2, 12_000);
+                gameCycleCommandService.renewSharedCycle(1L, 10L, 3, 12_000);
 
         // then
         LocalDateTime afterRenewal = LocalDateTime.now();
@@ -109,12 +107,14 @@ class GameCycleCommandServiceTest {
         then(gameResultRepository).should().saveAndFlush(resultCaptor.capture());
         assertThat(resultCaptor.getValue().isResult()).isTrue();
         assertThat(resultCaptor.getValue().getCompletedMissionCount()).isEqualTo(4);
-        assertThat(resultCaptor.getValue().getRewardCash()).isEqualTo(200L);
+        assertThat(resultCaptor.getValue().getRewardPoint()).isEqualTo(200L);
         assertThat(game.getCompletedAt()).isBetween(beforeRenewal, afterRenewal);
         assertThat(board.getStatus()).isEqualTo(BingoBoardStatus.COMPLETED);
         assertThat(board.getCompletedAt()).isEqualTo(game.getCompletedAt());
         assertThat(response.gameId()).isEqualTo(201L);
+        assertThat(response.targetBingoCount()).isNull();
         assertThat(response.targetStepCount()).isEqualTo(12_000);
+        assertThat(response.isHost()).isTrue();
     }
 
     @Test
@@ -130,14 +130,14 @@ class GameCycleCommandServiceTest {
         givenRenewalContext(room, game, board, cells);
 
         // when
-        gameCycleCommandService.renewSharedCycle(1L, 10L, 3, 2, 12_000);
+        gameCycleCommandService.renewSharedCycle(1L, 10L, 3, 12_000);
 
         // then
         ArgumentCaptor<GameResult> resultCaptor = ArgumentCaptor.forClass(GameResult.class);
         then(gameResultRepository).should().saveAndFlush(resultCaptor.capture());
         assertThat(resultCaptor.getValue().isResult()).isFalse();
         assertThat(resultCaptor.getValue().getCompletedMissionCount()).isEqualTo(2);
-        assertThat(resultCaptor.getValue().getRewardCash()).isZero();
+        assertThat(resultCaptor.getValue().getRewardPoint()).isZero();
         assertThat(game.getCompletedAt()).isEqualTo(expectedCompletedAt);
         assertThat(board.getStatus()).isEqualTo(BingoBoardStatus.EXPIRED);
         assertThat(board.getCompletedAt()).isEqualTo(expectedCompletedAt);
@@ -153,12 +153,17 @@ class GameCycleCommandServiceTest {
         Game game = activeGame(200L, 10L, startedAt);
         BingoBoard board = sharedBoard(100L, 200L);
         List<BingoCell> cells = approvedCells(100L, 4, expectedCompletedAt.minusHours(1));
+        cells.forEach(cell -> ReflectionTestUtils.setField(
+                cell,
+                "completedAt",
+                expectedCompletedAt.plusHours(1)
+        ));
         givenRenewalContext(room, game, board, cells);
         given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(member(1L)));
         given(memberRepository.findByIdForUpdate(2L)).willReturn(Optional.of(member(2L)));
 
         // when
-        gameCycleCommandService.renewSharedCycle(1L, 10L, 3, 2, 12_000);
+        gameCycleCommandService.renewSharedCycle(1L, 10L, 3, 12_000);
 
         // then
         ArgumentCaptor<GameResult> resultCaptor = ArgumentCaptor.forClass(GameResult.class);
@@ -179,13 +184,33 @@ class GameCycleCommandServiceTest {
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
         given(gameRepository.findActiveGameForUpdate(10L, GameStatus.ACTIVE)).willReturn(Optional.of(game));
         given(gameResultRepository.existsByGameId(200L)).willReturn(false);
-        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, BingoBoardStatus.inactiveStatuses()))
                 .willReturn(Optional.of(board));
         given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
 
         // when & then
         assertErrorCode(
-                () -> gameCycleCommandService.renewSharedCycle(1L, 10L, 3, 2, 12_000),
+                () -> gameCycleCommandService.renewSharedCycle(1L, 10L, 3, 12_000),
+                ErrorCode.BINGO_BOARD_NOT_COMPLETED
+        );
+    }
+
+    @Test
+    @DisplayName("전체 셀이 승인됐어도 셀이 누락된 공유 보드는 조기 갱신할 수 없다")
+    void renewSharedCycleRejectsBoardWithMissingCell() {
+        Room room = inProgressRoom(GameMode.COOPERATE);
+        Game game = activeGame(200L, 10L, LocalDateTime.now().minusDays(1));
+        BingoBoard board = sharedBoard(100L, 200L);
+        List<BingoCell> cells = approvedCells(100L, 3, LocalDateTime.now().minusHours(1));
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
+        given(gameRepository.findActiveGameForUpdate(10L, GameStatus.ACTIVE)).willReturn(Optional.of(game));
+        given(gameResultRepository.existsByGameId(200L)).willReturn(false);
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, BingoBoardStatus.inactiveStatuses()))
+                .willReturn(Optional.of(board));
+        given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
+
+        assertErrorCode(
+                () -> gameCycleCommandService.renewSharedCycle(1L, 10L, 3, 12_000),
                 ErrorCode.BINGO_BOARD_NOT_COMPLETED
         );
     }
@@ -199,7 +224,7 @@ class GameCycleCommandServiceTest {
 
         // when & then
         assertErrorCode(
-                () -> gameCycleCommandService.renewSharedCycle(1L, 10L, 3, 2, 12_000),
+                () -> gameCycleCommandService.renewSharedCycle(1L, 10L, 3, 12_000),
                 ErrorCode.BINGO_BOARD_RENEWAL_FORBIDDEN
         );
     }
@@ -208,7 +233,7 @@ class GameCycleCommandServiceTest {
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
         given(gameRepository.findActiveGameForUpdate(10L, GameStatus.ACTIVE)).willReturn(Optional.of(game));
         given(gameResultRepository.existsByGameId(200L)).willReturn(false);
-        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, BingoBoardStatus.inactiveStatuses()))
                 .willReturn(Optional.of(board));
         given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
         given(gameParticipantRepository.findAllByGameIdOrderByJoinedAtAsc(200L))
@@ -247,7 +272,7 @@ class GameCycleCommandServiceTest {
     }
 
     private BingoBoard sharedBoard(Long boardId, Long gameId) {
-        BingoBoard board = BingoBoard.create(gameId, 2, 2, 10_000);
+        BingoBoard board = BingoBoard.create(gameId, 2, 10_000);
         ReflectionTestUtils.setField(board, "id", boardId);
         return board;
     }
@@ -305,7 +330,7 @@ class GameCycleCommandServiceTest {
                 .mapToObj(index -> {
                     Mission mission = Mission.create(
                             "https://example.com/mission.png",
-                            "OBJECT",
+                            MissionType.OBJECT,
                             "미션",
                             "설명",
                             null

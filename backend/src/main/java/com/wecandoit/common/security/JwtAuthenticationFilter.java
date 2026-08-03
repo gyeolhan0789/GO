@@ -1,6 +1,7 @@
 package com.wecandoit.common.security;
 
 import com.wecandoit.common.exception.CustomException;
+import com.wecandoit.common.logging.MdcKeys;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -8,6 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.MDC;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -32,7 +34,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/actuator/health",
             "/actuator/health/**",
             "/uploads/**",
-            "/ws"
+            "/ws",
+            "/error"
     );
 
     private static final PathMatcher PATH_MATCHER = new AntPathMatcher();
@@ -69,6 +72,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
         SecurityContextHolder.getContext().setAuthentication(authentication);
+        MDC.put(MdcKeys.MEMBER_ID, String.valueOf(authentication.getPrincipal()));
         filterChain.doFilter(request, response);
     }
 }

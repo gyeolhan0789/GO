@@ -13,6 +13,7 @@ import type {
   BingoBoardCell,
   BingoBoardSize,
 } from '../../../features/bingo/components/BingoBoard/BingoBoard';
+import type { CharacterLayer } from '../../../features/member/model/character';
 import { spacing } from '../../../shared/constants/spacing';
 import { BingoPreviewPage } from './BingoPreviewPage';
 import { HomeSummaryPage } from './HomeSummaryPage';
@@ -22,12 +23,16 @@ type HomeCarouselProps = {
   steps: number;
   goalSteps: number;
   characterName: string;
-  characterImageSource?: ImageSourcePropType;
+  characterBaseImage: ImageSourcePropType | null;
+  characterFallbackImage?: ImageSourcePropType | null;
+  characterItems: CharacterLayer[];
   distanceKm: number;
   calories: number;
   rewardHint: string;
   bingoSize: BingoBoardSize;
   bingoCells: BingoBoardCell[];
+  bingoHint?: string;
+  onBingoCellPress?: (cell: BingoBoardCell) => void;
   style?: StyleProp<ViewStyle>;
   isWalking?: boolean;
   walkElapsedLabel?: string;
@@ -40,12 +45,16 @@ export function HomeCarousel({
   steps,
   goalSteps,
   characterName,
-  characterImageSource,
+  characterBaseImage,
+  characterFallbackImage,
+  characterItems,
   distanceKm,
   calories,
   rewardHint,
   bingoSize,
   bingoCells,
+  bingoHint,
+  onBingoCellPress,
   style,
   isWalking,
   walkElapsedLabel,
@@ -88,7 +97,9 @@ export function HomeCarousel({
                 steps={steps}
                 goalSteps={goalSteps}
                 characterName={characterName}
-                characterImageSource={characterImageSource}
+                characterBaseImage={characterBaseImage}
+                characterFallbackImage={characterFallbackImage}
+                characterItems={characterItems}
                 distanceKm={distanceKm}
                 calories={calories}
                 rewardHint={rewardHint}
@@ -98,7 +109,12 @@ export function HomeCarousel({
               />
             </View>
             <View style={{ width: pageWidth }}>
-              <BingoPreviewPage size={bingoSize} cells={bingoCells} />
+              <BingoPreviewPage
+                size={bingoSize}
+                cells={bingoCells}
+                hint={bingoHint}
+                onCellPress={onBingoCellPress}
+              />
             </View>
           </ScrollView>
         ) : null}
