@@ -1,4 +1,4 @@
-package com.wecandoit.member.dto;
+package com.wecandoit.member.controller.request;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
