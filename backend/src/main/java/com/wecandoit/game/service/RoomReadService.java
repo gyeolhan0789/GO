@@ -133,7 +133,7 @@ public class RoomReadService {
         }
 
         List<Room> targetRooms = roomRepository.findAllById(participatingRoomIds).stream()
-                .filter(room -> room.getStatus() == RoomStatus.ACTIVE && room.getMode() != GameMode.BATTLE)
+                .filter(room -> room.isActive() && room.getMode() != GameMode.BATTLE)
                 .toList();
         if (targetRooms.isEmpty()) {
             return List.of();
@@ -301,7 +301,7 @@ public class RoomReadService {
 
     private boolean isActiveRoomWithMode(Room room, GameMode mode) {
         return room != null
-                && room.getStatus() == RoomStatus.ACTIVE
+                && room.isActive()
                 && (mode == null || room.getMode() == mode);
     }
 

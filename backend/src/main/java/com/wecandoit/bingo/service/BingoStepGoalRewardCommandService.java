@@ -1,7 +1,6 @@
 package com.wecandoit.bingo.service;
 
 import com.wecandoit.bingo.domain.BingoBoard;
-import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.point.service.PointCommandService;
 import com.wecandoit.point.service.PointReadService;
@@ -71,7 +70,7 @@ public class BingoStepGoalRewardCommandService {
         BingoBoard bingoBoard = bingoBoardRepository.findByIdForUpdate(target.bingoBoardId())
                 .orElse(null);
         return bingoBoard != null
-                && bingoBoard.getStatus() == BingoBoardStatus.ACTIVE
+                && bingoBoard.isActive()
                 && !pointReadService.hasDailyStepGoalReward(target.bingoBoardId());
     }
 
