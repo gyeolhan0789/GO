@@ -176,7 +176,7 @@ public class GameResultReadService {
         return getConfigurationBoard(boards).getBoardSize();
     }
 
-    private int getTargetBingoCount(List<BingoBoard> boards) {
+    private Integer getTargetBingoCount(List<BingoBoard> boards) {
         return getConfigurationBoard(boards).getTargetBingoCount();
     }
 

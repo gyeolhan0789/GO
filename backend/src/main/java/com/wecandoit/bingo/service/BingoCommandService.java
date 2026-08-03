@@ -83,14 +83,12 @@ public class BingoCommandService {
             Long memberId,
             Long roomId,
             int boardSize,
-            int targetBingoCount,
             int targetStepCount
     ) {
         return gameCycleCommandService.renewSharedCycle(
                 memberId,
                 roomId,
                 boardSize,
-                targetBingoCount,
                 targetStepCount
         );
     }

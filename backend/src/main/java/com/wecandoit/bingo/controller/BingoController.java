@@ -63,7 +63,6 @@ public class BingoController {
                 memberId,
                 roomId,
                 request.boardSize(),
-                request.targetBingoCount(),
                 request.targetStepCount()
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(response);

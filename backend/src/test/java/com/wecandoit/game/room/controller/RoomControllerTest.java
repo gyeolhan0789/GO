@@ -2,6 +2,7 @@ package com.wecandoit.game.room.controller;
 
 import static io.restassured.module.mockmvc.RestAssuredMockMvc.given;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
@@ -45,6 +46,7 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.restdocs.RestDocumentationExtension;
 import org.springframework.restdocs.payload.FieldDescriptor;
+import org.springframework.restdocs.payload.JsonFieldType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
@@ -92,7 +94,7 @@ class RoomControllerTest {
     @DisplayName("공유 게임방을 생성하면 첫 회차가 반영된 방 상세를 반환한다")
     void createRoomReturnsRoomDetail() {
         CreateRoomRequest request =
-                new CreateRoomRequest("주간 운동", GameMode.COOPERATE, 3, 12_000, 4);
+                new CreateRoomRequest("주간 운동", GameMode.COOPERATE, null, 12_000, 4);
         RoomDetailResponse response = roomDetailResponse();
         given(roomCreateFacade.createRoom(1L, request)).willReturn(response);
 
@@ -102,7 +104,6 @@ class RoomControllerTest {
                         {
                           "name": "주간 운동",
                           "mode": "COOPERATE",
-                          "targetBingoCount": 3,
                           "targetStepCount": 12000,
                           "boardSize": 4
                         }
@@ -113,18 +114,46 @@ class RoomControllerTest {
                 .statusCode(HttpStatus.OK.value())
                 .body("status", equalTo("ACTIVE"))
                 .body("boardSize", equalTo(4))
-                .body("targetBingoCount", equalTo(3))
+                .body("targetBingoCount", nullValue())
                 .body("targetStepCount", equalTo(12_000))
                 .apply(document("room-create",
                         requestFields(
                                 fieldWithPath("name").description("게임방 이름"),
                                 fieldWithPath("mode").description("게임 모드"),
-                                fieldWithPath("targetBingoCount").description("첫 회차 목표 빙고 수"),
+                                fieldWithPath("targetBingoCount").optional()
+                                        .type(JsonFieldType.NUMBER)
+                                        .description("목표 빙고 수(BATTLE만 필수, 공유 모드는 생략 또는 null)"),
                                 fieldWithPath("targetStepCount").description("첫 회차 목표 걸음 수"),
                                 fieldWithPath("boardSize").description("첫 회차 빙고판 크기")
                         ),
                         responseFields(roomDetailFields())
                 ));
+
+        then(roomCreateFacade).should().createRoom(1L, request);
+    }
+
+    @Test
+    @DisplayName("공유 모드는 전달된 목표 빙고 수를 검증하지 않는다")
+    void createSharedRoomIgnoresLegacyTargetBingoCount() {
+        CreateRoomRequest request =
+                new CreateRoomRequest("주간 운동", GameMode.COOPERATE, 0, 12_000, 4);
+        given(roomCreateFacade.createRoom(1L, request)).willReturn(roomDetailResponse());
+
+        given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                          "name": "주간 운동",
+                          "mode": "COOPERATE",
+                          "targetBingoCount": 0,
+                          "targetStepCount": 12000,
+                          "boardSize": 4
+                        }
+                        """)
+                .when()
+                .post("/rooms")
+                .then()
+                .statusCode(HttpStatus.OK.value());
 
         then(roomCreateFacade).should().createRoom(1L, request);
     }
@@ -155,7 +184,8 @@ class RoomControllerTest {
                                 fieldWithPath("[].mode").description("게임 모드"),
                                 fieldWithPath("[].status").description("방 상태(ACTIVE, CLOSED)"),
                                 fieldWithPath("[].boardSize").description("현재 또는 최신 빙고판 크기"),
-                                fieldWithPath("[].targetBingoCount").description("현재 또는 최신 목표 빙고 수"),
+                                fieldWithPath("[].targetBingoCount").optional()
+                                        .description("목표 빙고 수(공유 모드는 null, 대결 모드만 사용)"),
                                 fieldWithPath("[].targetStepCount").description("현재 또는 최신 목표 걸음 수"),
                                 fieldWithPath("[].totalMissionCount").description("현재 또는 최신 전체 미션 수"),
                                 fieldWithPath("[].completedMissionCount").description("완료 미션 수"),
@@ -236,7 +266,7 @@ class RoomControllerTest {
                 GameMode.COOPERATE,
                 RoomStatus.ACTIVE,
                 4,
-                3,
+                null,
                 12_000,
                 16,
                 2,
@@ -254,7 +284,7 @@ class RoomControllerTest {
                 GameMode.COOPERATE,
                 RoomStatus.ACTIVE,
                 4,
-                3,
+                null,
                 12_000,
                 16,
                 2,
@@ -271,7 +301,8 @@ class RoomControllerTest {
                 fieldWithPath("mode").description("게임 모드"),
                 fieldWithPath("status").description("방 상태(ACTIVE, CLOSED)"),
                 fieldWithPath("boardSize").description("현재 또는 최신 빙고판 크기"),
-                fieldWithPath("targetBingoCount").description("현재 또는 최신 목표 빙고 수"),
+                fieldWithPath("targetBingoCount").optional()
+                        .description("목표 빙고 수(공유 모드는 null, 대결 모드만 사용)"),
                 fieldWithPath("targetStepCount").description("현재 또는 최신 목표 걸음 수"),
                 fieldWithPath("totalMissionCount").description("전체 미션 수"),
                 fieldWithPath("completedMissionCount").description("완료 미션 수"),

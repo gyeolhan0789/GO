@@ -121,7 +121,7 @@ public class RoomCommandService {
                 memberId,
                 request.name(),
                 request.mode(),
-                request.targetBingoCount(),
+                request.mode() == GameMode.BATTLE ? request.targetBingoCount() : null,
                 request.targetStepCount(),
                 request.boardSize()
         ));
@@ -187,8 +187,10 @@ public class RoomCommandService {
     }
 
     private void validateBoardSettings(CreateRoomRequest request) {
-        if (request.targetBingoCount() == null
-                || request.targetBingoCount() > 2 * request.boardSize() + 2) {
+        if (request.mode() == GameMode.BATTLE
+                && (request.targetBingoCount() == null
+                || request.targetBingoCount() < 1
+                || request.targetBingoCount() > 2 * request.boardSize() + 2)) {
             throw new CustomException(ErrorCode.BINGO_TARGET_COUNT_INVALID);
         }
         if (request.mode() != GameMode.BATTLE

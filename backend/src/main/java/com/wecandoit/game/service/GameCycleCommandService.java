@@ -72,7 +72,6 @@ public class GameCycleCommandService {
                 room.getId(),
                 game.getId(),
                 room.getBoardSize(),
-                room.getTargetBingoCount(),
                 room.getTargetStepCount()
         );
     }
@@ -96,10 +95,9 @@ public class GameCycleCommandService {
             Long memberId,
             Long roomId,
             int boardSize,
-            int targetBingoCount,
             int targetStepCount
     ) {
-        validateBoardSettings(boardSize, targetBingoCount, targetStepCount);
+        validateBoardSettings(boardSize, targetStepCount);
         Room room = findActiveRoomForUpdate(roomId);
         validateRenewalRoom(memberId, room);
 
@@ -111,8 +109,8 @@ public class GameCycleCommandService {
 
         LocalDateTime now = LocalDateTime.now();
         boolean renewalPeriodPassed = isRenewalPeriodPassed(game, now);
-        boolean targetReachedNow = countBingoLines(activeBoard, cells, now) >= activeBoard.getTargetBingoCount();
-        if (!targetReachedNow && !renewalPeriodPassed) {
+        boolean boardCompleted = isBoardCompleted(activeBoard, cells, now);
+        if (!boardCompleted && !renewalPeriodPassed) {
             throw new CustomException(ErrorCode.BINGO_BOARD_NOT_COMPLETED);
         }
 
@@ -125,7 +123,6 @@ public class GameCycleCommandService {
                 roomId,
                 nextGame.getId(),
                 boardSize,
-                targetBingoCount,
                 targetStepCount
         );
     }
@@ -235,12 +232,9 @@ public class GameCycleCommandService {
         }
     }
 
-    private void validateBoardSettings(int boardSize, int targetBingoCount, int targetStepCount) {
+    private void validateBoardSettings(int boardSize, int targetStepCount) {
         if (boardSize < 3 || boardSize > 5) {
             throw new CustomException(ErrorCode.BINGO_BOARD_SIZE_INVALID);
-        }
-        if (targetBingoCount < 1 || targetBingoCount > 2 * boardSize + 2) {
-            throw new CustomException(ErrorCode.BINGO_TARGET_COUNT_INVALID);
         }
         if (targetStepCount < 1) {
             throw new CustomException(ErrorCode.ROOM_TARGET_STEP_COUNT_REQUIRED);
@@ -273,7 +267,7 @@ public class GameCycleCommandService {
             LocalDateTime endedAt
     ) {
         int bingoCount = countBingoLines(board, cells, endedAt);
-        boolean result = bingoCount >= board.getTargetBingoCount();
+        boolean result = isBoardCompleted(board, cells, endedAt);
         int completedMissionCount = countCompletedCells(cells, endedAt);
 
         game.completeAt(endedAt);
@@ -308,7 +302,7 @@ public class GameCycleCommandService {
             boolean result
     ) {
         Map<Long, Integer> completedCountByMember = cells.stream()
-                .filter(cell -> isCompletedBy(cell, endedAt))
+                .filter(cell -> cell.isCompletedBy(endedAt))
                 .filter(cell -> cell.getMemberId() != null)
                 .collect(Collectors.groupingBy(
                         BingoCell::getMemberId,
@@ -450,14 +444,12 @@ public class GameCycleCommandService {
             Long roomId,
             Long gameId,
             int boardSize,
-            int targetBingoCount,
             int targetStepCount
     ) {
         List<Mission> missions = findMissions(boardSize);
         BingoBoard board = bingoBoardRepository.save(BingoBoard.create(
                 gameId,
                 boardSize,
-                targetBingoCount,
                 targetStepCount
         ));
         return BingoBoardResponse.of(
@@ -529,20 +521,20 @@ public class GameCycleCommandService {
         return BingoLineCounter.countCompletedLines(
                 board.getBoardSize(),
                 cells,
-                cell -> isCompletedBy(cell, endedAt)
+                cell -> cell.isCompletedBy(endedAt)
         );
     }
 
     private int countCompletedCells(List<BingoCell> cells, LocalDateTime endedAt) {
         return (int) cells.stream()
-                .filter(cell -> isCompletedBy(cell, endedAt))
+                .filter(cell -> cell.isCompletedBy(endedAt))
                 .count();
     }
 
-    private boolean isCompletedBy(BingoCell cell, LocalDateTime endedAt) {
-        return cell.getVerificationStatus() == BingoCellVerificationStatus.APPROVED
-                && cell.getSubmittedAt() != null
-                && !cell.getSubmittedAt().isAfter(endedAt);
+    private boolean isBoardCompleted(BingoBoard board, List<BingoCell> cells, LocalDateTime endedAt) {
+        int totalCellCount = board.getBoardSize() * board.getBoardSize();
+        return cells.size() == totalCellCount
+                && countCompletedCells(cells, endedAt) == totalCellCount;
     }
 
     private void grantReward(Long memberId, Long gameId, Long roomId, long rewardCash) {
