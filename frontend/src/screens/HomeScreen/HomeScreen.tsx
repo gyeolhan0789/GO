@@ -171,6 +171,7 @@ export function HomeScreen() {
       <View style={styles.content}>
         <HomeHeader
           points={points}
+          character={character.data}
           onProfilePress={() => navigation.navigate('MyPage')}
         />
         <HomeCarousel
