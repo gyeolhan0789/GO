@@ -116,6 +116,7 @@ class GameCycleCommandServiceTest {
         assertThat(response.gameId()).isEqualTo(201L);
         assertThat(response.targetBingoCount()).isNull();
         assertThat(response.targetStepCount()).isEqualTo(12_000);
+        assertThat(response.isHost()).isTrue();
     }
 
     @Test

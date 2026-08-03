@@ -69,7 +69,8 @@ public class GameCycleCommandService {
         validateSharedRoom(room);
         Game game = startGame(room, roomMembers);
         return generateSharedBoard(
-                room.getId(),
+                room,
+                room.getHostId(),
                 game.getId(),
                 room.getBoardSize(),
                 room.getTargetStepCount()
@@ -120,7 +121,8 @@ public class GameCycleCommandService {
         List<RoomMember> currentMembers = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId);
         Game nextGame = startGame(room, currentMembers);
         return generateSharedBoard(
-                roomId,
+                room,
+                memberId,
                 nextGame.getId(),
                 boardSize,
                 targetStepCount
@@ -441,7 +443,8 @@ public class GameCycleCommandService {
     }
 
     private BingoBoardResponse generateSharedBoard(
-            Long roomId,
+            Room room,
+            Long memberId,
             Long gameId,
             int boardSize,
             int targetStepCount
@@ -454,11 +457,12 @@ public class GameCycleCommandService {
         ));
         return BingoBoardResponse.of(
                 board,
-                roomId,
+                room.getId(),
                 createCells(board, boardSize, missions),
                 0,
                 0,
                 false,
+                room.isHost(memberId),
                 false,
                 false
         );

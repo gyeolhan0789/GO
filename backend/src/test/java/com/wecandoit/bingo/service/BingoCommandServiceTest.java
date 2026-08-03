@@ -175,6 +175,7 @@ class BingoCommandServiceTest {
                 BingoBoardStatus.ACTIVE,
                 List.of(),
                 false,
+                true,
                 false,
                 false,
                 null,
