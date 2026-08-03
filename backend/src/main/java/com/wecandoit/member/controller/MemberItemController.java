@@ -2,7 +2,7 @@ package com.wecandoit.member.controller;
 
 import com.wecandoit.common.security.LoginMemberId;
 import com.wecandoit.item.controller.response.MemberItemResponse;
-import com.wecandoit.item.service.CharacterItemReadService;
+import com.wecandoit.item.service.AvatarItemReadService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,13 +16,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class MemberItemController {
 
-    private final CharacterItemReadService characterItemReadService;
+    private final AvatarItemReadService avatarItemReadService;
 
     @GetMapping
     public ResponseEntity<List<MemberItemResponse>> getMyItems(
             @LoginMemberId Long memberId,
             @RequestParam(required = false) String category
     ) {
-        return ResponseEntity.ok(characterItemReadService.getMyItems(memberId, category));
+        return ResponseEntity.ok(avatarItemReadService.getMyItems(memberId, category));
     }
 }

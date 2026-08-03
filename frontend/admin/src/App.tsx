@@ -89,20 +89,24 @@ function MissionPage({ environment, onLogout }: { environment: Environment; onLo
 
   function missionInput(form: FormData) {
     const decisionConditionText = String(form.get('decisionCondition') ?? '').trim()
+    if (decisionConditionText) JSON.parse(decisionConditionText)
     return {
-      missionImageUrl: String(form.get('missionImageUrl')),
       type: String(form.get('type')),
-      title: String(form.get('title') ?? '') || null,
-      detail: String(form.get('detail') ?? '') || null,
-      decisionCondition: decisionConditionText ? JSON.parse(decisionConditionText) : null,
+      difficulty: String(form.get('difficulty')),
+      title: String(form.get('title') ?? ''),
+      detail: String(form.get('detail') ?? ''),
+      decisionCondition: decisionConditionText,
     }
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const formElement = event.currentTarget
+    const form = new FormData(formElement)
+    const image = form.get('image')
+    if (!(image instanceof File) || image.size === 0) { setCreateError('미션 이미지를 선택해 주세요.'); return }
     let input
-    try { input = missionInput(new FormData(formElement)) } catch {
+    try { input = missionInput(form) } catch {
       setCreateError('결정 조건은 올바른 JSON이어야 합니다.')
       return
     }
@@ -110,7 +114,7 @@ function MissionPage({ environment, onLogout }: { environment: Environment; onLo
     setCreateError('')
     setCreateSuccess('')
     try {
-      await createMission(input)
+      await createMission(input, image)
       formElement.reset()
       setCreateSuccess('미션을 추가했습니다.')
       await load()
@@ -121,8 +125,10 @@ function MissionPage({ environment, onLogout }: { environment: Environment; onLo
 
   async function save(mission: Mission, event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const image = form.get('image')
     let input
-    try { input = missionInput(new FormData(event.currentTarget)) } catch {
+    try { input = missionInput(form) } catch {
       setRowError('결정 조건은 올바른 JSON이어야 합니다.')
       return
     }
@@ -130,7 +136,7 @@ function MissionPage({ environment, onLogout }: { environment: Environment; onLo
     setRowError('')
     setRowSuccess('')
     try {
-      await updateMission(mission.missionId, input)
+      await updateMission(mission.missionId, input, image instanceof File && image.size > 0 ? image : undefined)
       setRowSuccess('미션을 수정했습니다.')
       await load()
     } catch (cause) {
@@ -153,8 +159,9 @@ function MissionPage({ environment, onLogout }: { environment: Environment; onLo
 
   return <main className="admin-page"><PageHeader environment={environment} onLogout={onLogout} title="미션 관리" onRefresh={() => void load()} />
     <div className="workspace"><section className="form-panel"><h2>새 미션</h2><form onSubmit={submit}>
-      <label>이미지 URL<input required name="missionImageUrl" maxLength={100} placeholder="https://..." /></label>
+      <label>이미지<input required name="image" type="file" accept="image/*" /></label>
       <label>타입<select required name="type" defaultValue=""><option value="" disabled>선택</option><option>OBJECT</option><option>ATTRIBUTE</option><option>RELATION</option></select></label>
+      <label>난이도<select required name="difficulty" defaultValue=""><option value="" disabled>선택</option><option value="LOW">하</option><option value="MEDIUM">중</option><option value="HIGH">상</option></select></label>
       <label>제목<input name="title" maxLength={255} /></label><label>상세<textarea name="detail" maxLength={255} rows={3} /></label>
       <label>결정 조건 (JSON)<textarea name="decisionCondition" rows={6} placeholder={'{"target":"flower","constraints":{"color":"red"}}'} /></label>
       {createError && <p className="error">{createError}</p>}{createSuccess && <p className="success">{createSuccess}</p>}
@@ -163,8 +170,9 @@ function MissionPage({ environment, onLogout }: { environment: Environment; onLo
     <section className="list-panel"><div className="panel-title"><h2>등록된 미션</h2><span>{missions.length}개</span></div>
       {rowError && <p className="error">{rowError}</p>}{rowSuccess && <p className="success">{rowSuccess}</p>}
       {loading ? <p>목록을 불러오는 중입니다.</p> : listError ? <p className="error">{listError}</p> : missions.length === 0 ? <p>등록된 미션이 없습니다.</p> : <div className="mission-list">{missions.map((mission) => <article key={mission.missionId} className="mission-row"><img src={resolveImageUrl(mission.missionImageUrl)} alt="" /><form onSubmit={(event) => void save(mission, event)}>
-        <label>이미지 URL<input required name="missionImageUrl" defaultValue={mission.missionImageUrl} maxLength={100} /></label>
+        <label>새 이미지 (선택)<input name="image" type="file" accept="image/*" /></label>
         <label>타입<select required name="type" defaultValue={mission.type}><option>OBJECT</option><option>ATTRIBUTE</option><option>RELATION</option></select></label>
+        <label>난이도<select required name="difficulty" defaultValue={mission.difficulty}><option value="LOW">하</option><option value="MEDIUM">중</option><option value="HIGH">상</option></select></label>
         <label>제목<input name="title" defaultValue={mission.title ?? ''} maxLength={255} /></label>
         <label>상세<textarea name="detail" defaultValue={mission.detail ?? ''} maxLength={255} rows={3} /></label>
         <label>결정 조건 (JSON)<textarea name="decisionCondition" defaultValue={mission.decisionCondition ?? ''} rows={4} /></label>

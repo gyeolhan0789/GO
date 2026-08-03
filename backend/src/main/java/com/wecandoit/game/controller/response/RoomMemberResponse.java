@@ -1,11 +1,17 @@
 package com.wecandoit.game.controller.response;
 
 import com.wecandoit.game.domain.RoomMember;
+import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.member.domain.Gender;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record RoomMemberResponse(
         Long memberId,
         String nickname,
+        Gender gender,
+        String defaultImageUrl,
+        List<EquippedItemResponse> equippedItems,
         boolean host,
         int completedMissionCount,
         LocalDateTime joinedAt,
@@ -15,6 +21,9 @@ public record RoomMemberResponse(
     public static RoomMemberResponse from(
             RoomMember roomMember,
             String nickname,
+            Gender gender,
+            String defaultImageUrl,
+            List<EquippedItemResponse> equippedItems,
             boolean host,
             int completedMissionCount,
             Long bingoBoardId
@@ -22,6 +31,9 @@ public record RoomMemberResponse(
         return new RoomMemberResponse(
                 roomMember.getMemberId(),
                 nickname,
+                gender,
+                defaultImageUrl,
+                equippedItems,
                 host,
                 completedMissionCount,
                 roomMember.getJoinedAt(),

@@ -61,11 +61,11 @@ class BingoBoardRepositoryTest {
     @DisplayName("공유 빙고판은 소유자 없이 저장한다")
     void saveSharedBoardWithoutOwner() {
         BingoBoard board = bingoBoardRepository.saveAndFlush(
-                BingoBoard.create(10L, 3, 2, 12_000));
+                BingoBoard.create(10L, 3, 12_000));
 
         assertThat(board.getGameParticipantId()).isNull();
         assertThat(board.getType()).isEqualTo(BingoBoardType.SHARED);
-        assertThat(board.getTargetBingoCount()).isEqualTo(2);
+        assertThat(board.getTargetBingoCount()).isNull();
         assertThat(board.getTargetStepCount()).isEqualTo(12_000);
     }
 

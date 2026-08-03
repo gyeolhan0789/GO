@@ -6,9 +6,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
-import com.wecandoit.character.domain.CharacterImage;
-import com.wecandoit.character.repository.CharacterImageRepository;
-import com.wecandoit.item.controller.response.CharacterResponse;
+import com.wecandoit.avatar.domain.AvatarImage;
+import com.wecandoit.avatar.repository.AvatarImageRepository;
+import com.wecandoit.item.controller.response.AvatarResponse;
 import com.wecandoit.item.controller.response.EquippedItemResponse;
 import com.wecandoit.item.domain.Item;
 import com.wecandoit.item.domain.ItemCategory;
@@ -35,7 +35,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 class AvatarReadServiceTest {
 
     @Mock
-    private CharacterImageRepository characterImageRepository;
+    private AvatarImageRepository avatarImageRepository;
     @Mock
     private MemberEquippedItemRepository memberEquippedItemRepository;
     @Mock
@@ -59,15 +59,15 @@ class AvatarReadServiceTest {
         MemberItem top = memberItem(20L, 2L, 200L);
         Item hatItem = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
         Item topItem = item(200L, "파란 상의", "TOP", "https://example.com/top.png");
-        given(characterImageRepository.findAllByOrderByGenderAsc())
+        given(avatarImageRepository.findAllByOrderByGenderAsc())
                 .willReturn(List.of(
-                        CharacterImage.create(
+                        AvatarImage.create(
                                 Gender.FEMALE,
-                                "/uploads/characters/female/default.png"
+                                "/uploads/avatars/female/default.png"
                         ),
-                        CharacterImage.create(
+                        AvatarImage.create(
                                 Gender.MALE,
-                                "/uploads/characters/male/default.png"
+                                "/uploads/avatars/male/default.png"
                         )
                 ));
         given(memberEquippedItemRepository.findAllByMemberIdIn(List.of(1L, 2L)))
@@ -78,13 +78,13 @@ class AvatarReadServiceTest {
                 .willReturn(List.of(hatItem, topItem));
 
         // when
-        Map<Long, CharacterResponse> responses =
+        Map<Long, AvatarResponse> responses =
                 avatarReadService.getAvatars(List.of(maleMember, femaleMember));
 
         // then
         assertThat(responses.get(1L).gender()).isEqualTo(Gender.MALE);
         assertThat(responses.get(1L).defaultImageUrl())
-                .isEqualTo("/uploads/characters/male/default.png");
+                .isEqualTo("/uploads/avatars/male/default.png");
         assertThat(responses.get(1L).equippedItems()).singleElement()
                 .extracting(
                         EquippedItemResponse::memberItemId,
@@ -94,7 +94,7 @@ class AvatarReadServiceTest {
                 .containsExactly(10L, 100L, "https://example.com/hat.png");
         assertThat(responses.get(2L).gender()).isEqualTo(Gender.FEMALE);
         assertThat(responses.get(2L).defaultImageUrl())
-                .isEqualTo("/uploads/characters/female/default.png");
+                .isEqualTo("/uploads/avatars/female/default.png");
         assertThat(responses.get(2L).equippedItems()).singleElement()
                 .extracting(EquippedItemResponse::memberItemId)
                 .isEqualTo(20L);
@@ -105,25 +105,25 @@ class AvatarReadServiceTest {
 
     @Test
     @DisplayName("장착 아이템이 없으면 빈 목록과 성별 기본 이미지를 반환한다")
-    void getAvatarsReturnsDefaultCharacterWithoutEquippedItems() {
+    void getAvatarsReturnsDefaultAvatarWithoutEquippedItems() {
         // given
         Member femaleMember = member(1L, "여성회원", Gender.FEMALE);
-        given(characterImageRepository.findAllByOrderByGenderAsc())
-                .willReturn(List.of(CharacterImage.create(
+        given(avatarImageRepository.findAllByOrderByGenderAsc())
+                .willReturn(List.of(AvatarImage.create(
                         Gender.FEMALE,
-                        "/uploads/characters/female/default.png"
+                        "/uploads/avatars/female/default.png"
                 )));
         given(memberEquippedItemRepository.findAllByMemberIdIn(List.of(1L)))
                 .willReturn(List.of());
 
         // when
-        Map<Long, CharacterResponse> responses =
+        Map<Long, AvatarResponse> responses =
                 avatarReadService.getAvatars(List.of(femaleMember));
 
         // then
         assertThat(responses.get(1L).gender()).isEqualTo(Gender.FEMALE);
         assertThat(responses.get(1L).defaultImageUrl())
-                .isEqualTo("/uploads/characters/female/default.png");
+                .isEqualTo("/uploads/avatars/female/default.png");
         assertThat(responses.get(1L).equippedItems()).isEmpty();
         then(memberItemRepository).shouldHaveNoInteractions();
         then(itemRepository).shouldHaveNoInteractions();
@@ -134,12 +134,12 @@ class AvatarReadServiceTest {
     void getAvatarsReturnsNullWithoutDefaultImage() {
         // given
         Member maleMember = member(1L, "남성회원", Gender.MALE);
-        given(characterImageRepository.findAllByOrderByGenderAsc()).willReturn(List.of());
+        given(avatarImageRepository.findAllByOrderByGenderAsc()).willReturn(List.of());
         given(memberEquippedItemRepository.findAllByMemberIdIn(List.of(1L)))
                 .willReturn(List.of());
 
         // when
-        Map<Long, CharacterResponse> responses = avatarReadService.getAvatars(List.of(maleMember));
+        Map<Long, AvatarResponse> responses = avatarReadService.getAvatars(List.of(maleMember));
 
         // then
         assertThat(responses.get(1L).gender()).isEqualTo(Gender.MALE);
@@ -151,11 +151,11 @@ class AvatarReadServiceTest {
     @DisplayName("조회된 회원이 없으면 아바타 저장소를 조회하지 않는다")
     void getAvatarsReturnsEmptyMapWithoutQueries() {
         // when
-        Map<Long, CharacterResponse> responses = avatarReadService.getAvatars(List.of());
+        Map<Long, AvatarResponse> responses = avatarReadService.getAvatars(List.of());
 
         // then
         assertThat(responses).isEmpty();
-        then(characterImageRepository).shouldHaveNoInteractions();
+        then(avatarImageRepository).shouldHaveNoInteractions();
         then(memberEquippedItemRepository).shouldHaveNoInteractions();
         then(memberItemRepository).shouldHaveNoInteractions();
         then(itemRepository).shouldHaveNoInteractions();

@@ -20,11 +20,11 @@ import com.wecandoit.item.controller.response.EquippedItemResponse;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Region;
-import com.wecandoit.member.dto.MemberProfileUpdateRequest;
-import com.wecandoit.member.dto.MemberRelationshipStatus;
-import com.wecandoit.member.dto.MemberSearchResponse;
-import com.wecandoit.member.dto.MyPageResponse;
-import com.wecandoit.member.dto.PasswordChangeRequest;
+import com.wecandoit.member.controller.request.MemberProfileUpdateRequest;
+import com.wecandoit.member.controller.request.PasswordChangeRequest;
+import com.wecandoit.member.controller.response.MemberSearchResponse;
+import com.wecandoit.member.controller.response.MyPageResponse;
+import com.wecandoit.member.domain.MemberRelationshipStatus;
 import com.wecandoit.member.service.MemberReadService;
 import com.wecandoit.member.service.MemberService;
 import java.util.List;
@@ -93,7 +93,7 @@ class MemberControllerTest {
                 .andExpect(jsonPath("$.nickname").value("산책러"))
                 .andExpect(jsonPath("$.gender").value("MALE"))
                 .andExpect(jsonPath("$.region").value("SEOUL"))
-                .andExpect(jsonPath("$.cash").value(100L));
+                .andExpect(jsonPath("$.point").value(100L));
         then(memberReadService).should().getMyPage(1L);
     }
 
@@ -110,7 +110,7 @@ class MemberControllerTest {
     }
 
     @Test
-    @DisplayName("닉네임 검색 결과에 관계 상태와 캐릭터 정보를 반환한다")
+    @DisplayName("닉네임 검색 결과에 관계 상태와 아바타 정보를 반환한다")
     void searchMembersReturnsRelationshipStatus() throws Exception {
         // given
         given(memberReadService.searchMembers(eq(1L), eq("산책"), any())).willReturn(

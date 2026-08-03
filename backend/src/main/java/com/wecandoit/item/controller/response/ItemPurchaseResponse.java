@@ -5,14 +5,14 @@ import com.wecandoit.item.domain.MemberItem;
 public record ItemPurchaseResponse(
         Long memberItemId,
         Long itemId,
-        long remainingCash
+        long remainingPoint
 ) {
 
-    public static ItemPurchaseResponse of(MemberItem memberItem, long remainingCash) {
+    public static ItemPurchaseResponse of(MemberItem memberItem, long remainingPoint) {
         return new ItemPurchaseResponse(
                 memberItem.getId(),
                 memberItem.getItemId(),
-                remainingCash
+                remainingPoint
         );
     }
 }

@@ -66,8 +66,12 @@ public class BingoReadService {
         List<BingoCellResponse> cellResponses = toCellResponses(cells);
         int approvedCellCount = countApprovedCells(cells);
         int completedBingoCount = BingoLineCounter.countCompletedLines(board.getBoardSize(), cells);
-        boolean completed = completedBingoCount >= board.getTargetBingoCount();
-        boolean renewalRequired = GameCycleCommandService.isRenewalPeriodPassed(game, LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        boolean renewalRequired = GameCycleCommandService.isRenewalPeriodPassed(game, now);
+        LocalDateTime completionCutoff = renewalRequired
+                ? game.getStartedAt().plusDays(GameCycleCommandService.RENEWAL_PERIOD_DAYS)
+                : now;
+        boolean completed = isBoardCompleted(board, cells, completionCutoff);
         boolean canRenew = (completed || renewalRequired) && room.isHost(memberId);
 
         return BingoBoardResponse.of(
@@ -184,6 +188,12 @@ public class BingoReadService {
         return (int) cells.stream()
                 .filter(cell -> cell.getCompletedAt() != null)
                 .count();
+    }
+
+    private boolean isBoardCompleted(BingoBoard board, List<BingoCell> cells, LocalDateTime endedAt) {
+        int totalCellCount = board.getBoardSize() * board.getBoardSize();
+        return cells.size() == totalCellCount
+                && cells.stream().filter(cell -> cell.isCompletedBy(endedAt)).count() == totalCellCount;
     }
 
     private List<BingoCellResponse> toCellResponses(List<BingoCell> cells) {

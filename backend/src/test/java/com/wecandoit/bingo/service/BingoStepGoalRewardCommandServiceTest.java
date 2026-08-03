@@ -7,8 +7,8 @@ import static org.mockito.Mockito.times;
 
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
-import com.wecandoit.cash.service.CashCommandService;
-import com.wecandoit.cash.service.CashReadService;
+import com.wecandoit.point.service.PointCommandService;
+import com.wecandoit.point.service.PointReadService;
 import com.wecandoit.game.service.RoomReadService;
 import com.wecandoit.game.service.RoomReadService.StepGoalRewardMember;
 import com.wecandoit.game.service.RoomReadService.StepGoalRewardTarget;
@@ -38,9 +38,9 @@ class BingoStepGoalRewardCommandServiceTest {
     @Mock
     private HistoryReadService historyReadService;
     @Mock
-    private CashReadService cashReadService;
+    private PointReadService pointReadService;
     @Mock
-    private CashCommandService cashCommandService;
+    private PointCommandService pointCommandService;
     @Mock
     private BingoBoardRepository bingoBoardRepository;
     @InjectMocks
@@ -64,7 +64,7 @@ class BingoStepGoalRewardCommandServiceTest {
         );
         given(roomReadService.getStepGoalRewardTargets(1L)).willReturn(List.of(target));
         given(bingoBoardRepository.findByIdForUpdate(100L)).willReturn(Optional.of(board(100L)));
-        given(cashReadService.hasDailyStepGoalReward(100L)).willReturn(false);
+        given(pointReadService.hasDailyStepGoalReward(100L)).willReturn(false);
         given(historyReadService.getStepRecords(
                 List.of(1L, 2L),
                 boardStartedDate,
@@ -80,7 +80,7 @@ class BingoStepGoalRewardCommandServiceTest {
         rewardCommandService.evaluate(1L);
 
         // then
-        then(cashCommandService).should()
+        then(pointCommandService).should()
                 .grantDailyStepGoalReward(10L, 100L, List.of(1L, 2L));
     }
 
@@ -99,7 +99,7 @@ class BingoStepGoalRewardCommandServiceTest {
         );
         given(roomReadService.getStepGoalRewardTargets(1L)).willReturn(List.of(target));
         given(bingoBoardRepository.findByIdForUpdate(100L)).willReturn(Optional.of(board(100L)));
-        given(cashReadService.hasDailyStepGoalReward(100L)).willReturn(false);
+        given(pointReadService.hasDailyStepGoalReward(100L)).willReturn(false);
         given(historyReadService.getStepRecords(
                 List.of(1L),
                 boardStartedDate,
@@ -110,7 +110,7 @@ class BingoStepGoalRewardCommandServiceTest {
         rewardCommandService.evaluate(1L);
 
         // then
-        then(cashCommandService).shouldHaveNoInteractions();
+        then(pointCommandService).shouldHaveNoInteractions();
     }
 
     @Test
@@ -127,14 +127,14 @@ class BingoStepGoalRewardCommandServiceTest {
         );
         given(roomReadService.getStepGoalRewardTargets(1L)).willReturn(List.of(target));
         given(bingoBoardRepository.findByIdForUpdate(100L)).willReturn(Optional.of(board(100L)));
-        given(cashReadService.hasDailyStepGoalReward(100L)).willReturn(true);
+        given(pointReadService.hasDailyStepGoalReward(100L)).willReturn(true);
 
         // when
         rewardCommandService.evaluate(1L);
 
         // then
         then(historyReadService).shouldHaveNoInteractions();
-        then(cashCommandService).shouldHaveNoInteractions();
+        then(pointCommandService).shouldHaveNoInteractions();
     }
 
     @Test
@@ -174,9 +174,9 @@ class BingoStepGoalRewardCommandServiceTest {
         ArgumentCaptor<Long> boardIdCaptor = ArgumentCaptor.forClass(Long.class);
         then(bingoBoardRepository).should(times(2)).findByIdForUpdate(boardIdCaptor.capture());
         assertThat(boardIdCaptor.getAllValues()).containsExactly(100L, 200L);
-        then(cashCommandService).should()
+        then(pointCommandService).should()
                 .grantDailyStepGoalReward(10L, 100L, List.of(1L));
-        then(cashCommandService).should()
+        then(pointCommandService).should()
                 .grantDailyStepGoalReward(20L, 200L, List.of(1L));
     }
 

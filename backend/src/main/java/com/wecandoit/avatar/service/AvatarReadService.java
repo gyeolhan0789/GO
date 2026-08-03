@@ -1,10 +1,10 @@
 package com.wecandoit.avatar.service;
 
-import com.wecandoit.character.domain.CharacterImage;
-import com.wecandoit.character.repository.CharacterImageRepository;
+import com.wecandoit.avatar.domain.AvatarImage;
+import com.wecandoit.avatar.repository.AvatarImageRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
-import com.wecandoit.item.controller.response.CharacterResponse;
+import com.wecandoit.item.controller.response.AvatarResponse;
 import com.wecandoit.item.controller.response.EquippedItemResponse;
 import com.wecandoit.item.domain.Item;
 import com.wecandoit.item.domain.MemberEquippedItem;
@@ -27,12 +27,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AvatarReadService {
 
-    private final CharacterImageRepository characterImageRepository;
+    private final AvatarImageRepository avatarImageRepository;
     private final MemberEquippedItemRepository memberEquippedItemRepository;
     private final MemberItemRepository memberItemRepository;
     private final ItemRepository itemRepository;
 
-    public Map<Long, CharacterResponse> getAvatars(List<Member> members) {
+    public Map<Long, AvatarResponse> getAvatars(List<Member> members) {
         if (members.isEmpty()) {
             return Map.of();
         }
@@ -41,10 +41,10 @@ public class AvatarReadService {
                 .map(Member::getId)
                 .toList();
         Map<Gender, String> defaultImageUrlsByGender =
-                characterImageRepository.findAllByOrderByGenderAsc().stream()
+                avatarImageRepository.findAllByOrderByGenderAsc().stream()
                         .collect(Collectors.toMap(
-                                CharacterImage::getGender,
-                                CharacterImage::getImageUrl
+                                AvatarImage::getGender,
+                                AvatarImage::getImageUrl
                         ));
         Map<Long, List<EquippedItemResponse>> equippedItemsByMemberId =
                 getEquippedItemsByMemberIds(memberIds);
@@ -52,7 +52,7 @@ public class AvatarReadService {
         return members.stream()
                 .collect(Collectors.toMap(
                         Member::getId,
-                        member -> CharacterResponse.of(
+                        member -> AvatarResponse.of(
                                 member,
                                 defaultImageUrlsByGender.get(member.getGender()),
                                 equippedItemsByMemberId.getOrDefault(member.getId(), List.of())

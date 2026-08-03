@@ -99,7 +99,7 @@ class RoomCommandServiceTest {
         Room room = roomCaptor.getValue();
         assertThat(room.getStatus()).isEqualTo(RoomStatus.ACTIVE);
         assertThat(room.getBoardSize()).isEqualTo(4);
-        assertThat(room.getTargetBingoCount()).isEqualTo(3);
+        assertThat(room.getTargetBingoCount()).isNull();
         assertThat(room.getTargetStepCount()).isEqualTo(12_000);
         assertThat(response.roomId()).isEqualTo(10L);
         then(gameCycleCommandService).should()
@@ -236,11 +236,23 @@ class RoomCommandServiceTest {
     }
 
     @Test
-    @DisplayName("판 크기에 비해 목표 빙고 수가 크면 생성하지 않는다")
+    @DisplayName("대결 모드에서 판 크기에 비해 목표 빙고 수가 크면 생성하지 않는다")
     void createRoomRejectsInvalidTargetBingoCount() {
         assertThatThrownBy(() -> roomCommandService.createRoom(
                 1L,
-                new CreateRoomRequest("잘못된 방", GameMode.COOPERATE, 9, 10_000, 3)
+                new CreateRoomRequest("잘못된 방", GameMode.BATTLE, 9, null, 3)
+        ))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.BINGO_TARGET_COUNT_INVALID);
+    }
+
+    @Test
+    @DisplayName("대결 모드에 목표 빙고 수가 없으면 생성하지 않는다")
+    void createBattleRoomRejectsMissingTargetBingoCount() {
+        assertThatThrownBy(() -> roomCommandService.createRoom(
+                1L,
+                new CreateRoomRequest("잘못된 방", GameMode.BATTLE, null, null, 3)
         ))
                 .isInstanceOf(CustomException.class)
                 .extracting(exception -> ((CustomException) exception).getErrorCode())

@@ -8,7 +8,7 @@ import com.wecandoit.bingo.event.BattleBingoProgressUpdatedEvent;
 import com.wecandoit.bingo.event.CooperativeBingoProgressUpdatedEvent;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
-import com.wecandoit.cash.service.CashCommandService;
+import com.wecandoit.point.service.PointCommandService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
@@ -19,7 +19,7 @@ import com.wecandoit.game.domain.RoomStatus;
 import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.GameCompletionService;
-import com.wecandoit.mission.domain.MissionType;
+import com.wecandoit.mission.domain.MissionDifficulty;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -35,11 +35,11 @@ public class BingoCellVerificationResultService {
     private final BingoBoardRepository bingoBoardRepository;
     private final GameRepository gameRepository;
     private final RoomRepository roomRepository;
-    private final CashCommandService cashCommandService;
+    private final PointCommandService pointCommandService;
     private final GameCompletionService gameCompletionService;
     private final ApplicationEventPublisher eventPublisher;
 
-    public long applyResult(Long cellId, boolean approved, String rejectionReason, MissionType missionType) {
+    public long applyResult(Long cellId, boolean approved, String rejectionReason, MissionDifficulty missionDifficulty) {
         BingoCell cell = bingoCellRepository.findByIdForUpdate(cellId)
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND));
 
@@ -68,15 +68,15 @@ public class BingoCellVerificationResultService {
 
         cell.approve();
         bingoCellRepository.save(cell);
-        long rewardCash = cashCommandService.grantBingoCellReward(
+        long rewardPoint = pointCommandService.grantBingoCellReward(
                 cell.getMemberId(),
                 room.getId(),
                 cell.getId(),
-                missionType
+                missionDifficulty
         );
         gameCompletionService.evaluateAndCompleteIfNeeded(game.getId(), board.getId());
         publishProgressEvent(room, board, cell);
-        return rewardCash;
+        return rewardPoint;
     }
 
     private void publishProgressEvent(Room room, BingoBoard board, BingoCell changedCell) {

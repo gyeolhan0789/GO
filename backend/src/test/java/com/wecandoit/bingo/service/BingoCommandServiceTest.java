@@ -180,10 +180,10 @@ class BingoCommandServiceTest {
                 null,
                 null
         );
-        given(gameCycleCommandService.renewSharedCycle(1L, 10L, 4, 3, 12_000))
+        given(gameCycleCommandService.renewSharedCycle(1L, 10L, 4, 12_000))
                 .willReturn(expected);
 
-        BingoBoardResponse result = bingoCommandService.renewBoard(1L, 10L, 4, 3, 12_000);
+        BingoBoardResponse result = bingoCommandService.renewBoard(1L, 10L, 4, 12_000);
 
         assertThat(result).isSameAs(expected);
     }
@@ -210,7 +210,7 @@ class BingoCommandServiceTest {
     }
 
     private BingoBoard board(Long boardId, Long gameId) {
-        BingoBoard board = BingoBoard.create(gameId, 3, 2, 10_000);
+        BingoBoard board = BingoBoard.create(gameId, 3, 10_000);
         ReflectionTestUtils.setField(board, "id", boardId);
         return board;
     }

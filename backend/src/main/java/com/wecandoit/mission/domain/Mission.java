@@ -36,6 +36,9 @@ public class Mission extends BaseEntity {
     @Column(name = "decision_condition", columnDefinition = "json")
     private String decisionCondition;
 
+    @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'MEDIUM'")
+    private String difficulty;
+
     @Column(name = "is_active", nullable = false, columnDefinition = "boolean default true")
     private boolean isActive = true;
 
@@ -44,13 +47,15 @@ public class Mission extends BaseEntity {
             String type,
             String title,
             String detail,
-            String decisionCondition
+            String decisionCondition,
+            String difficulty
     ) {
         this.missionImageUrl = missionImageUrl;
         this.type = type;
         this.title = title;
         this.detail = detail;
         this.decisionCondition = decisionCondition;
+        this.difficulty = difficulty;
     }
 
     public static Mission create(
@@ -60,7 +65,18 @@ public class Mission extends BaseEntity {
             String detail,
             String decisionCondition
     ) {
-        return new Mission(missionImageUrl, type, title, detail, decisionCondition);
+        return new Mission(missionImageUrl, type, title, detail, decisionCondition, MissionDifficulty.MEDIUM.name());
+    }
+
+    public static Mission create(
+            String missionImageUrl,
+            String type,
+            String title,
+            String detail,
+            String decisionCondition,
+            String difficulty
+    ) {
+        return new Mission(missionImageUrl, type, title, detail, decisionCondition, difficulty);
     }
 
     public void update(
@@ -68,13 +84,17 @@ public class Mission extends BaseEntity {
             String type,
             String title,
             String detail,
-            String decisionCondition
+            String decisionCondition,
+            String difficulty
     ) {
-        this.missionImageUrl = missionImageUrl;
+        if (missionImageUrl != null) {
+            this.missionImageUrl = missionImageUrl;
+        }
         this.type = type;
         this.title = title;
         this.detail = detail;
         this.decisionCondition = decisionCondition;
+        this.difficulty = difficulty;
     }
 
     public void deactivate() {

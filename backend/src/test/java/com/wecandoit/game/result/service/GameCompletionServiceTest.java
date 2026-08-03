@@ -10,7 +10,7 @@ import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
-import com.wecandoit.cash.repository.CashHistoryRepository;
+import com.wecandoit.point.repository.PointHistoryRepository;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.GameParticipant;
@@ -69,7 +69,7 @@ class GameCompletionServiceTest {
     private MemberRepository memberRepository;
 
     @Mock
-    private CashHistoryRepository cashHistoryRepository;
+    private PointHistoryRepository pointHistoryRepository;
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
@@ -87,7 +87,7 @@ class GameCompletionServiceTest {
                 bingoBoardRepository,
                 bingoCellRepository,
                 memberRepository,
-                cashHistoryRepository,
+                pointHistoryRepository,
                 eventPublisher,
                 new NotificationMessageFactory()
         );
