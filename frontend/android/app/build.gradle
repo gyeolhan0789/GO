@@ -145,6 +145,9 @@ dependencies {
     // SDK의 @Parcelize Parcelable 역직렬화에 필요 (kotlinx.parcelize.Parceler)
     implementation("org.jetbrains.kotlin:kotlin-parcelize-runtime:2.1.20")
 
+    // 산책 세션 포그라운드 서비스의 GPS 추적(FusedLocationProviderClient)에 사용.
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {

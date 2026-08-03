@@ -11,8 +11,9 @@
     <!-- 위치 (산책 경로 지도 표시) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <!-- 잠금화면 실시간 통계 상주 알림용 포그라운드 서비스 (서비스 구현은 이후) -->
+    <!-- 잠금화면 실시간 산책 기록 상주 알림용 포그라운드 서비스 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
 
     <!-- 카메라 없는 기기도 설치 허용 -->
@@ -66,5 +67,13 @@
               android:scheme="kakao${KAKAO_NATIVE_APP_KEY}" />
         </intent-filter>
       </activity>
+
+      <service
+        android:name=".walktracking.WalkForegroundService"
+        android:exported="false"
+        android:foregroundServiceType="location" />
+      <receiver
+        android:name=".walktracking.WalkActionReceiver"
+        android:exported="false" />
     </application>
 </manifest>
