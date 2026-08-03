@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 from app.domain.mission_result import ReasonCode
+from app.domain.model_info import ModelType
 
 
 
@@ -35,6 +36,9 @@ class AttributeResult:
 class AIResult:
     """
     AI 모델 공통 결과 DTO
+
+    모든 Vision Model 결과를
+    동일한 형태로 관리하기 위한 공통 DTO
     """
 
 
@@ -61,6 +65,22 @@ class AIResult:
 
 
     # ==========================
+    # Model Tracking
+    # ==========================
+
+    # 실제 사용 모델명
+    model_name: str = ""
+
+
+    # 모델 역할
+    model_type: Optional[ModelType] = None
+
+
+    # 모델 추론 시간(ms)
+    latency_ms: float = 0.0
+
+
+    # ==========================
     # Vision Model 결과
     # ==========================
 
@@ -82,6 +102,7 @@ class AIResult:
     image_quality: Dict = field(
         default_factory=dict
     )
+
 
 
     # ==========================

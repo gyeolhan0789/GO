@@ -3,6 +3,9 @@ from app.domain.ai_result import (
     DetectedObject
 )
 
+from app.domain.model_info import ModelType
+
+
 
 class SigLIPResultMapper:
     """
@@ -12,14 +15,63 @@ class SigLIPResultMapper:
     -----------------------
     - SigLIP similarity 결과 변환
     - 공통 AIResult 생성
-    - 모델 metadata 저장
+    - 모델 추적 정보 저장
 
     책임 제외
     -----------------------
     - 성공/실패 판단
     - confidence threshold 판단
     - ReasonCode 결정
+
+    판정 책임은 RuleEngine 담당
     """
+
+
+    MODEL_NAME = (
+        "google/siglip2-base-patch16-224"
+    )
+
+
+
+    def _normalize_label(
+        self,
+        label: str
+    ) -> str:
+        """
+        SigLIP candidate label 정제
+
+        예:
+        a photo of a flower
+        ->
+        flower
+
+        not a flower
+        ->
+        not flower
+        """
+
+        if label.startswith(
+            "a photo of a "
+        ):
+
+            return label.replace(
+                "a photo of a ",
+                ""
+            )
+
+
+        if label.startswith(
+            "not a "
+        ):
+
+            return label.replace(
+                "not a ",
+                "not "
+            )
+
+
+        return label
+
 
 
     def map(
@@ -46,7 +98,43 @@ class SigLIPResultMapper:
         )
 
 
+        latency_ms = siglip_result.get(
+            "latency_ms",
+            0.0
+        )
+
+
+        normalized_label = (
+            self._normalize_label(
+                top_label
+            )
+        )
+
+
+
         return AIResult(
+
+            # ======================
+            # Model Tracking
+            # ======================
+
+            model_name=(
+                self.MODEL_NAME
+            ),
+
+            model_type=(
+                ModelType.VISION
+            ),
+
+            latency_ms=float(
+                latency_ms
+            ),
+
+
+
+            # ======================
+            # AI Result
+            # ======================
 
             confidence=float(
                 confidence
@@ -54,30 +142,37 @@ class SigLIPResultMapper:
 
 
             reason=(
-                f"SigLIP2 matched label: "
-                f"{top_label}"
+                "SigLIP2 object matching completed"
             ),
 
 
+
             detected_objects=[
+
                 DetectedObject(
-                    name=top_label,
+
+                    name=normalized_label,
+
                     confidence=float(
                         confidence
                     )
+
                 )
+
             ],
+
 
 
             metadata={
 
-                "model": (
-                    "siglip2-base-patch16-224"
-                ),
-
+                # 원본 추적용
                 "top_label": top_label,
+
+                # 화면/판정용
+                "normalized_label": normalized_label,
 
                 "similarity_scores": scores
 
             }
+
         )
