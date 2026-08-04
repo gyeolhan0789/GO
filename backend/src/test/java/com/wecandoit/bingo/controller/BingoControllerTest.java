@@ -5,12 +5,14 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willReturn;
 import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.formParameters;
 import static org.springframework.restdocs.request.RequestDocumentation.partWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.restdocs.request.RequestDocumentation.requestParts;
@@ -42,6 +44,7 @@ import io.restassured.http.ContentType;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -295,6 +298,7 @@ class BingoControllerTest {
     @DisplayName("칸을 제출하면 AI 검증 결과를 반환한다")
     void submitCellReturnsVerificationResult() {
         // given
+        UUID clientSessionKey = UUID.fromString("2ae853f8-ff73-48fc-b166-4b85daf9960c");
         MissionResponse mission = new MissionResponse(
                 1L,
                 "https://example.com/mission.png",
@@ -310,11 +314,18 @@ class BingoControllerTest {
         );
         willReturn(response)
                 .given(missionVerificationFacade)
-                .submitAndVerify(eq(1L), eq(10L), eq(1000L), any(MultipartFile.class));
+                .submitAndVerify(
+                        eq(1L),
+                        eq(10L),
+                        eq(1000L),
+                        any(MultipartFile.class),
+                        eq(clientSessionKey)
+                );
 
         // when & then
         given()
                 .multiPart("image", "proof.png", new byte[]{1, 2, 3}, "image/png")
+                .formParam("clientSessionKey", clientSessionKey.toString())
                 .when()
                 .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/submit", 10L, 1000L)
                 .then()
@@ -332,6 +343,11 @@ class BingoControllerTest {
                         ),
                         requestParts(
                                 partWithName("image").description("제출할 미션 인증 사진 (JPEG/PNG, 최대 5MB)")
+                        ),
+                        formParameters(
+                                parameterWithName("clientSessionKey")
+                                        .description("산책 세션 연결용 UUID, 산책 중이 아니면 생략")
+                                        .optional()
                         ),
                         responseFields(
                                 fieldWithPath("cellId").description("빙고 셀 ID"),
@@ -359,7 +375,7 @@ class BingoControllerTest {
         // given
         willThrow(new CustomException(ErrorCode.AI_VERIFICATION_FAILED))
                 .given(missionVerificationFacade)
-                .submitAndVerify(eq(1L), eq(10L), eq(1000L), any(MultipartFile.class));
+                .submitAndVerify(eq(1L), eq(10L), eq(1000L), any(MultipartFile.class), isNull());
 
         // when & then
         given()
@@ -376,7 +392,7 @@ class BingoControllerTest {
         // given
         willThrow(new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND))
                 .given(missionVerificationFacade)
-                .submitAndVerify(eq(1L), eq(10L), eq(1000L), any(MultipartFile.class));
+                .submitAndVerify(eq(1L), eq(10L), eq(1000L), any(MultipartFile.class), isNull());
 
         // when & then
         given()
@@ -393,7 +409,7 @@ class BingoControllerTest {
         // given
         willThrow(new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN))
                 .given(missionVerificationFacade)
-                .submitAndVerify(eq(1L), eq(10L), eq(1000L), any(MultipartFile.class));
+                .submitAndVerify(eq(1L), eq(10L), eq(1000L), any(MultipartFile.class), isNull());
 
         // when & then
         given()
