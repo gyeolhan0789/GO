@@ -61,22 +61,30 @@ fun HomeScreen(
       item { CharacterBust(character = character, progress = goalProgress) }
     }
 
-    item {
-      Text(
-        text = state?.nickname.orEmpty().ifEmpty { "산책러" },
-        style = MaterialTheme.typography.title3,
-        textAlign = TextAlign.Center,
-      )
+    // 폰이 아직 값을 안 보냈을 때 "산책러"·0걸음 같은 자리 채우기를 그리지 않는다.
+    // 그럴듯해 보이는 가짜 값이라, 로딩 중인 걸 알 수 없어 실제 기록으로 오해한다.
+    val nickname = state?.nickname.orEmpty()
+    if (nickname.isNotEmpty()) {
+      item {
+        Text(
+          text = nickname,
+          style = MaterialTheme.typography.title3,
+          textAlign = TextAlign.Center,
+        )
+      }
     }
 
-    item { TodaySummary(today = state?.today ?: TodayStats.EMPTY) }
+    if (state != null) {
+      item { TodaySummary(today = state.today) }
+    }
 
     val session = state?.session
     if (session != null) {
       item {
         FullWidthActionChip(
           label = "산책 중",
-          secondaryLabel = session.roomName.ifEmpty { "산책방" },
+          // 방 이름이 아직 안 왔으면 비워둔다. "산책방"은 실제 방 이름처럼 보인다.
+          secondaryLabel = session.roomName.ifEmpty { null },
           onClick = onOpenSession,
         )
       }
