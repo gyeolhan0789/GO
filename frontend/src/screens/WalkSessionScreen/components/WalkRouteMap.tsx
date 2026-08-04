@@ -8,22 +8,14 @@ import type { Coords } from '../../../shared/lib/geolocation';
 
 const REGION_DELTA = 0.004;
 
-// Go!의 초록·크림 팔레트에 맞춘 지도 스타일. 상점/시설 아이콘 같은 잡다한 POI는
-// 걷기 앱에 불필요한 시각적 소음이라 지우고, 길 찾는 데 필요한 도로·지명은
-// 남긴다. 색은 shared/constants/colors의 기존 토큰만 재사용한다.
+// Go!의 초록·크림 팔레트에 맞춘 지도 스타일. 라벨(지명·도로명·아이콘)은 걷는
+// 중엔 필요 없는 시각적 소음이라 전부 지우고, 색도 배경/도로/물 세 가지로만
+// 단순하게 구분한다. 색은 shared/constants/colors의 기존 토큰만 재사용한다.
 const MAP_STYLE = [
   { elementType: 'geometry', stylers: [{ color: colors.neutralBg }] },
-  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: colors.mutedStrong }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: colors.surface }] },
-  { featureType: 'administrative', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: colors.primarySoftLight }] },
+  { elementType: 'labels', stylers: [{ visibility: 'off' }] },
   { featureType: 'road', elementType: 'geometry', stylers: [{ color: colors.surface }] },
   { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: colors.border }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: colors.highlightSoftBg }] },
-  { featureType: 'road.arterial', elementType: 'labels', stylers: [{ visibility: 'simplified' }] },
-  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
   { featureType: 'water', elementType: 'geometry', stylers: [{ color: colors.infoBg }] },
 ];
 
