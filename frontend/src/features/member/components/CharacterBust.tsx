@@ -120,8 +120,9 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     // flex가 캔버스를 가운데 놓은 뒤, 그림이 캔버스 중앙에서 벗어난 만큼만
     // 되민다. translateX %는 자기 너비 기준이라 확대율과 무관하게 맞는다.
-    transform: [
-      { translateX: `${((0.5 - ARTWORK_CENTER_X) * 100).toFixed(2)}%` },
-    ],
+    //
+    // translateX의 타입은 `${number}%`라 보간하는 값이 number여야 한다.
+    // toFixed()를 거치면 string이 되어 `${string}%`가 되고 타입이 어긋난다.
+    transform: [{ translateX: `${(0.5 - ARTWORK_CENTER_X) * 100}%` }],
   },
 });
