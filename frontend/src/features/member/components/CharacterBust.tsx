@@ -32,16 +32,23 @@ type CharacterBustProps = {
  * 목록 줄처럼 작은 자리에 전신을 그대로 축소하면 얼굴이 몇 픽셀로 뭉개져 누가
  * 누군지 구분되지 않는다. 모자 같은 아이템도 알아볼 수 없다.
  *
- * 기본 캐릭터·아이템은 모두 512x512 캔버스를 공유하고, 그 안에서 캐릭터는 세로
- * 78~415, 가로 178~352에 그려져 있다. 머리 위 여백부터 허리까지가 한 변의
- * 절반(256px)이라 2배로 키워 그 창만 남긴다.
+ * 기본 캐릭터·아이템은 모두 512x512 캔버스를 공유하고, 머리 위 여백부터 허리까지가
+ * 한 변의 절반(256px)이라 2배로 키워 그 창만 남긴다.
  *
- * 값이 캔버스 구도에 묶여 있으니 에셋을 다시 그리면 여기도 같이 봐야 한다.
+ * 가로는 캔버스를 창 가운데 두면 되므로 flex(`alignItems: 'center'`)에 맡긴다.
+ * 세로만 캔버스 구도에 묶여 있어서, 에셋을 다시 그리면 BUST_TOP을 다시 봐야 한다.
  */
 const BUST_ZOOM = 2;
-/** 흉상이 시작하는 지점을 창의 왼쪽 위로 끌어온다(캔버스 기준 x 0.268, y 0.137). */
-const BUST_LEFT = '-53.5%';
+/** 창 위쪽에 올 캔버스 지점(머리 위 여백, 캔버스 기준 y 0.137). */
 const BUST_TOP = '-27.3%';
+/**
+ * 캔버스 안에서 그림이 놓인 가로 중심(에셋 실측). 캔버스 정중앙은 0.5인데 남녀
+ * 기본 캐릭터 모두 그보다 4px 오른쪽인 0.508에 그려져 있다.
+ *
+ * flex는 그림이 아니라 캔버스를 가운데 놓기 때문에, 이 차이를 되밀지 않으면
+ * 흉상이 그만큼 오른쪽으로 쏠린다.
+ */
+const ARTWORK_CENTER_X = 0.508;
 
 /** 상자 크기 대비 대체 아이콘 비율. 원 안에서 여백이 살짝 남는 정도. */
 const FALLBACK_ICON_RATIO = 0.55;
@@ -97,16 +104,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.muted,
     backgroundColor: colors.surface,
+    // 흉상도 대체 아이콘도 가로는 여기서 가운데로 맞춘다. 흉상은 상자보다 넓어서
+    // 양옆으로 같은 만큼 넘치고, 넘친 부분은 overflow가 잘라낸다.
+    alignItems: 'center',
   },
   iconFrame: {
-    alignItems: 'center',
     justifyContent: 'center',
   },
   bust: {
     position: 'absolute',
-    width: `${BUST_ZOOM * 100}%`,
-    height: `${BUST_ZOOM * 100}%`,
-    left: BUST_LEFT,
+    // left를 비워 두면 가로는 상자의 alignItems가 잡는다. 세로만 직접 끌어올린다.
     top: BUST_TOP,
+    width: `${BUST_ZOOM * 100}%`,
+    // 상자가 정사각이 아니어도 캔버스 비율이 깨지지 않게 높이는 너비에서 끌어온다.
+    aspectRatio: 1,
+    // flex가 캔버스를 가운데 놓은 뒤, 그림이 캔버스 중앙에서 벗어난 만큼만
+    // 되민다. translateX %는 자기 너비 기준이라 확대율과 무관하게 맞는다.
+    transform: [
+      { translateX: `${((0.5 - ARTWORK_CENTER_X) * 100).toFixed(2)}%` },
+    ],
   },
 });
