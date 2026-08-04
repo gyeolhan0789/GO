@@ -28,8 +28,10 @@ function render(element: React.ReactElement) {
 }
 
 describe('흉상 크롭', () => {
-  /** 512x512 캔버스에서 흉상이 차지하는 창(가로·세로 절반, x 0.268 y 0.137부터). */
-  const CANVAS_CROP = { size: 0.5, x: 0.268, y: 0.137 };
+  /** 512x512 캔버스에서 흉상이 차지하는 창(가로·세로 절반, 세로는 y 0.137부터). */
+  const CANVAS_CROP = { size: 0.5, y: 0.137 };
+  /** 캔버스 안에서 그림이 놓인 가로 중심(에셋 실측). CharacterBust와 같은 값. */
+  const ARTWORK_CENTER_X = 0.508;
 
   function layerBoxStyle(root: ReactTestInstance) {
     // 레이어를 담은 상자. 이미지들이 이 상자를 100%로 채운다.
@@ -45,7 +47,20 @@ describe('흉상 크롭', () => {
     if (!box) {
       throw new Error('흉상 레이어 상자를 못 찾았다');
     }
-    return box as { width: string; height: string; left: string; top: string };
+    return box as {
+      width: string;
+      aspectRatio: number;
+      top: string;
+      left?: string;
+      transform: { translateX: string }[];
+    };
+  }
+
+  /** 창 역할을 하는 바깥 상자. 흉상의 가로 자리를 잡는다. */
+  function frameStyle(root: ReactTestInstance) {
+    return StyleSheet.flatten(
+      root.findAllByType(View)[0].props.style,
+    ) as { alignItems?: string };
   }
 
   test('캔버스의 머리~허리 구간만 창에 남긴다', () => {
@@ -57,11 +72,27 @@ describe('흉상 크롭', () => {
     const zoom = parseFloat(box.width) / 100;
     // 창이 캔버스의 이만큼만 보여준다. 1이면 전신이라 자른 게 아니다.
     expect(1 / zoom).toBeCloseTo(CANVAS_CROP.size, 2);
-    expect(box.height).toBe(box.width);
+    // 상자가 정사각이 아니어도 캔버스 비율이 유지돼야 레이어가 안 어긋난다.
+    expect(box.aspectRatio).toBe(1);
 
     // 오프셋은 확대된 상자 기준이라 zoom을 나눠야 캔버스 좌표가 된다.
-    expect(-parseFloat(box.left) / 100 / zoom).toBeCloseTo(CANVAS_CROP.x, 2);
     expect(-parseFloat(box.top) / 100 / zoom).toBeCloseTo(CANVAS_CROP.y, 2);
+  });
+
+  test('그림이 캔버스 중앙에서 벗어난 만큼 되밀어 가운데 맞춘다', () => {
+    const tree = render(
+      <MemberAvatar gender="MALE" defaultImageUrl={null} equippedItems={[]} />,
+    );
+    const box = layerBoxStyle(tree.root);
+
+    // 가로는 상자가 flex로 잡는다. left를 두면 그 정렬이 무시된다.
+    expect(frameStyle(tree.root).alignItems).toBe('center');
+    expect(box.left).toBeUndefined();
+
+    // flex는 그림이 아니라 캔버스를 가운데 놓는다. 남은 차이를 translateX가
+    // 지운다 — 이게 없으면 흉상이 그림이 치우친 쪽으로 쏠려 보인다.
+    const shift = parseFloat(box.transform[0].translateX) / 100;
+    expect(0.5 - shift).toBeCloseTo(ARTWORK_CENTER_X, 3);
   });
 
   test('창을 넘는 몸통은 잘라낸다', () => {

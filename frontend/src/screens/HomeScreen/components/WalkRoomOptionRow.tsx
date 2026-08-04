@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { MemberAvatar } from '../../../features/member/components/MemberAvatar';
 import { AppText } from '../../../shared/components/AppText/AppText';
 import { AvatarStack } from '../../../shared/components/AvatarStack/AvatarStack';
 import { colors } from '../../../shared/constants/colors';
@@ -34,10 +35,17 @@ export function WalkRoomOptionRow({
     >
       {option.mode === 'group' ? (
         <AvatarStack
-          members={Array.from(
-            { length: option.memberCount ?? 1 },
-            (_, index) => ({ id: `${option.id}-${index}` }),
-          )}
+          members={(option.members ?? []).map(member => ({
+            id: String(member.memberId),
+            avatar: (
+              <MemberAvatar
+                gender={member.gender}
+                defaultImageUrl={member.defaultImageUrl}
+                equippedItems={member.equippedItems}
+                style={styles.memberAvatar}
+              />
+            ),
+          }))}
           size={40}
         />
       ) : (
@@ -73,6 +81,11 @@ const styles = StyleSheet.create({
   },
   rowSelected: {
     borderColor: colors.ink,
+  },
+  // AvatarStack이 만든 원을 흉상이 꽉 채운다. 자르기는 원(overflow: hidden)이 한다.
+  memberAvatar: {
+    width: '100%',
+    height: '100%',
   },
   soloIcon: {
     width: 40,

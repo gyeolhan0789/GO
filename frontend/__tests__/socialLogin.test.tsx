@@ -56,7 +56,13 @@ const INITIAL_METRICS = {
   insets: { top: 0, left: 0, right: 0, bottom: 0 },
 };
 
-const navigation = { navigate: jest.fn(), goBack: jest.fn(), reset: jest.fn() };
+// 로그인 화면이 회원가입 이동 펜딩을 되돌릴 때 focus 리스너를 쓴다.
+const navigation = {
+  navigate: jest.fn(),
+  goBack: jest.fn(),
+  reset: jest.fn(),
+  addListener: jest.fn(() => jest.fn()),
+};
 
 let fetchMock: FetchMock;
 let renderer: ReactTestRenderer.ReactTestRenderer | null = null;
