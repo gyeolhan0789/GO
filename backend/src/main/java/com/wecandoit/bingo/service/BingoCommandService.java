@@ -21,11 +21,14 @@ import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.GameCycleCommandService;
+import com.wecandoit.history.repository.WalkSessionRepository;
+import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.notification.domain.NotificationType;
 import com.wecandoit.notification.event.NotificationMessageFactory;
 import com.wecandoit.notification.repository.NotificationRepository;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -46,6 +49,8 @@ public class BingoCommandService {
     private final GameParticipantRepository gameParticipantRepository;
     private final BingoBoardRepository bingoBoardRepository;
     private final BingoCellRepository bingoCellRepository;
+    private final MemberRepository memberRepository;
+    private final WalkSessionRepository walkSessionRepository;
     private final NotificationRepository notificationRepository;
     private final ImageUploadService imageUploadService;
     private final GameCycleCommandService gameCycleCommandService;
@@ -56,6 +61,16 @@ public class BingoCommandService {
      * 파일시스템은 트랜잭션에 참여하지 않으므로, 모든 제출 검증을 통과한 뒤에만 이미지를 저장해 고아 파일이 남지 않게 한다.
      */
     public BingoCell submitCell(Long memberId, Long roomId, Long cellId, MultipartFile image) {
+        return submitCell(memberId, roomId, cellId, image, null);
+    }
+
+    public BingoCell submitCell(
+            Long memberId,
+            Long roomId,
+            Long cellId,
+            MultipartFile image,
+            UUID clientSessionKey
+    ) {
         Room room = roomRepository.findByIdForUpdate(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
         validateMember(memberId, roomId);
@@ -68,12 +83,27 @@ public class BingoCommandService {
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND));
 
         validateCellSubmittable(cell);
+        validateSessionKeyAvailable(memberId, clientSessionKey);
         String previousSubmitUrl = cell.getSubmitUrl();
         String submitUrl = imageUploadService.upload(image, BINGO_CELL_IMAGE_DOMAIN, String.valueOf(cellId));
-        cell.submit(memberId, submitUrl);
+        cell.submit(memberId, submitUrl, clientSessionKey == null ? null : clientSessionKey.toString());
         BingoCell savedCell = bingoCellRepository.save(cell);
         imageUploadService.delete(previousSubmitUrl);
         return savedCell;
+    }
+
+    private void validateSessionKeyAvailable(Long memberId, UUID clientSessionKey) {
+        if (clientSessionKey == null) {
+            return;
+        }
+        memberRepository.findByIdForUpdate(memberId)
+                .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+        if (walkSessionRepository.existsByMemberIdAndClientSessionKey(
+                memberId,
+                clientSessionKey.toString()
+        )) {
+            throw new CustomException(ErrorCode.WALK_SESSION_ALREADY_COMPLETED);
+        }
     }
 
     public BingoBoardResponse renewBoard(

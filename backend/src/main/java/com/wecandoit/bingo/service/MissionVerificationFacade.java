@@ -11,6 +11,7 @@ import com.wecandoit.mission.domain.Mission;
 import com.wecandoit.mission.domain.MissionDifficulty;
 import com.wecandoit.mission.repository.MissionRepository;
 import java.io.IOException;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -34,9 +35,21 @@ public class MissionVerificationFacade {
     private final BingoCellRepository bingoCellRepository;
 
     public BingoCellSubmitResponse submitAndVerify(Long memberId, Long roomId, Long cellId, MultipartFile image) {
+        return submitAndVerify(memberId, roomId, cellId, image, null);
+    }
+
+    public BingoCellSubmitResponse submitAndVerify(
+            Long memberId,
+            Long roomId,
+            Long cellId,
+            MultipartFile image,
+            UUID clientSessionKey
+    ) {
         // 저장 과정의 transferTo가 업로드 스트림을 소비할 수 있으므로 반드시 저장 전에 바이트를 확보한다.
         byte[] imageBytes = readImageBytes(image);
-        BingoCell submittedCell = bingoCommandService.submitCell(memberId, roomId, cellId, image);
+        BingoCell submittedCell = clientSessionKey == null
+                ? bingoCommandService.submitCell(memberId, roomId, cellId, image)
+                : bingoCommandService.submitCell(memberId, roomId, cellId, image, clientSessionKey);
         Mission mission = missionRepository.findById(submittedCell.getMissionId())
                 .orElseThrow(() -> new CustomException(ErrorCode.MISSION_NOT_FOUND));
         MissionDifficulty missionDifficulty = mission.getDifficulty();

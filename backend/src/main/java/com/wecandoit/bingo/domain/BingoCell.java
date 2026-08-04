@@ -8,6 +8,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
@@ -26,6 +27,10 @@ import lombok.NoArgsConstructor;
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_bingo_cells_position_board",
                 columnNames = {"row_index", "col_index", "board_id"}
+        ),
+        indexes = @Index(
+                name = "idx_bingo_cells_member_client_session_key",
+                columnList = "member_id, client_session_key"
         )
 )
 public class BingoCell extends BaseEntity {
@@ -65,6 +70,9 @@ public class BingoCell extends BaseEntity {
     @Column(name = "submit_url", length = 255)
     private String submitUrl;
 
+    @Column(name = "client_session_key", length = 36)
+    private String clientSessionKey;
+
     private BingoCell(Long boardId, Long missionId, int row, int col) {
         this.boardId = boardId;
         this.missionId = missionId;
@@ -77,8 +85,13 @@ public class BingoCell extends BaseEntity {
     }
 
     public void submit(Long memberId, String submitUrl) {
+        submit(memberId, submitUrl, null);
+    }
+
+    public void submit(Long memberId, String submitUrl, String clientSessionKey) {
         this.memberId = memberId;
         this.submitUrl = submitUrl;
+        this.clientSessionKey = clientSessionKey;
         this.submittedAt = LocalDateTime.now();
         this.verificationStatus = BingoCellVerificationStatus.PENDING;
         this.rejectionReason = null;

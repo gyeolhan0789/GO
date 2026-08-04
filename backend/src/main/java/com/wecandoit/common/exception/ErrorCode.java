@@ -54,6 +54,13 @@ public enum ErrorCode {
 
     GAME_PARTICIPANT_NOT_FOUND(HttpStatus.NOT_FOUND, "게임 참가자를 찾을 수 없습니다."),
 
+    // Walk Session
+    WALK_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "산책 세션을 찾을 수 없습니다."),
+    WALK_SESSION_FORBIDDEN(HttpStatus.FORBIDDEN, "산책 세션에 접근할 권한이 없습니다."),
+    WALK_SESSION_ROOM_MISMATCH(HttpStatus.CONFLICT, "산책 세션과 산책방 정보가 일치하지 않습니다."),
+    WALK_SESSION_BINGO_VERIFICATION_IN_PROGRESS(HttpStatus.CONFLICT, "빙고 미션을 검증 중이라 산책을 종료할 수 없습니다."),
+    WALK_SESSION_ALREADY_COMPLETED(HttpStatus.CONFLICT, "이미 완료된 산책 세션입니다."),
+
     // Mission
     INVALID_MISSION_TYPE(HttpStatus.BAD_REQUEST,
             "미션 타입은 OBJECT, ATTRIBUTE, RELATION, ORDINARY, STEP_TOTAL, STEP_CONTINUOUS, STEP_UPHILL, STEP_DAILY, "

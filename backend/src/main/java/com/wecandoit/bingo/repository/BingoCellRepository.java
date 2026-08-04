@@ -15,6 +15,8 @@ public interface BingoCellRepository extends JpaRepository<BingoCell, Long> {
 
     List<BingoCell> findAllByBoardIdIn(List<Long> boardIds);
 
+    List<BingoCell> findAllByMemberIdAndClientSessionKey(Long memberId, String clientSessionKey);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from BingoCell c where c.id = :cellId")
     Optional<BingoCell> findByIdForUpdate(@Param("cellId") Long cellId);
