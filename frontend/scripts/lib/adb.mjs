@@ -47,10 +47,36 @@ export function gradlew() {
   return path.join(root, 'android', isWindows ? 'gradlew.bat' : 'gradlew');
 }
 
+/**
+ * Windows에서 `.bat`/`.cmd`는 shell 없이 spawn하면 EINVAL로 죽는다
+ * (Node 18.20+가 CVE-2024-27980 대응으로 막았다). gradlew.bat과
+ * react-native.cmd가 여기 걸리므로 shell을 거쳐 띄운다.
+ */
+function needsShell(command) {
+  return isWindows && /\.(bat|cmd)$/i.test(command);
+}
+
+/**
+ * 공백이 든 값만 감싼다. shell을 거칠 때 인자 배열을 그대로 넘기면 Node가
+ * DEP0190으로 경고하므로(이어 붙이기만 하고 이스케이프하지 않는다) 명령줄을
+ * 직접 조립해 넘긴다.
+ */
+function quoteForShell(value) {
+  return /\s/.test(value) ? `"${value}"` : value;
+}
+
 /** 출력을 그대로 콘솔에 흘리고 종료 코드만 돌려준다. */
 export function run(command, args, options = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: 'inherit', ...options });
+    const viaShell = needsShell(command);
+    const child = viaShell
+      ? spawn([command, ...args].map(quoteForShell).join(' '), {
+          stdio: 'inherit',
+          shell: true,
+          ...options,
+        })
+      : spawn(command, args, { stdio: 'inherit', ...options });
+
     child.on('error', reject);
     child.on('close', code => resolve(code ?? 1));
   });

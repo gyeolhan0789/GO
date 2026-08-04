@@ -3,7 +3,9 @@
  */
 
 const {
+  buildOnlyTask,
   findBySerial,
+  hasExplicitTasks,
   hasWatchCharacteristic,
   hasWatchFeature,
   parseArgs,
@@ -201,6 +203,42 @@ describe('findBySerial', () => {
 
     expect(result.ok).toBe(false);
     expect(result.message).toContain('offline');
+  });
+});
+
+describe('buildOnlyTask', () => {
+  // install 태스크가 넘어가면 gradle이 모든 기기에 설치해 워치 앱을 덮는다.
+  test('지정이 없으면 debug를 조립한다', () => {
+    expect(buildOnlyTask(['--no-packager'])).toBe('assembleDebug');
+  });
+
+  test('--mode를 따라간다', () => {
+    expect(buildOnlyTask(['--mode', 'release'])).toBe('assembleRelease');
+  });
+
+  test('--mode=값 형태도 받는다', () => {
+    expect(buildOnlyTask(['--mode=release'])).toBe('assembleRelease');
+  });
+
+  test('--mode에 값이 빠져 있으면 debug로 둔다', () => {
+    expect(buildOnlyTask(['--mode'])).toBe('assembleDebug');
+  });
+
+  test('어떤 경우에도 install 태스크를 만들지 않는다', () => {
+    for (const argv of [[], ['--mode'], ['--mode', 'release'], ['--mode=x']]) {
+      expect(buildOnlyTask(argv)).toMatch(/^assemble/);
+    }
+  });
+});
+
+describe('hasExplicitTasks', () => {
+  test('사람이 준 --tasks를 알아본다', () => {
+    expect(hasExplicitTasks(['--tasks', 'installDebug'])).toBe(true);
+    expect(hasExplicitTasks(['--tasks=installDebug'])).toBe(true);
+  });
+
+  test('없으면 false다', () => {
+    expect(hasExplicitTasks(['--mode', 'release'])).toBe(false);
   });
 });
 

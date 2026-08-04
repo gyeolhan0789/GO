@@ -168,6 +168,29 @@ function findBySerial(devices, serial) {
   return { ok: true, serial };
 }
 
+/**
+ * gradle에 시킬 빌드 전용 태스크 이름. `--mode`가 없으면 debug다.
+ *
+ * install 태스크를 그대로 두면 gradle이 붙어 있는 모든 기기에 설치해서 워치 앱을
+ * 덮는다(실측: "Installed on 2 devices"). 설치는 CLI가 --deviceId로 대상을
+ * 지정해 도는 adb에 맡기고, gradle에는 assemble만 시킨다.
+ */
+function buildOnlyTask(argv) {
+  const inlineMode = argv
+    .find(arg => arg.startsWith('--mode='))
+    ?.slice('--mode='.length);
+  const flagIndex = argv.indexOf('--mode');
+  const mode =
+    inlineMode || (flagIndex === -1 ? null : argv[flagIndex + 1]) || 'debug';
+
+  return `assemble${mode.charAt(0).toUpperCase()}${mode.slice(1)}`;
+}
+
+/** 사람이 직접 준 `--tasks`가 있는지. 있으면 그 의도를 덮지 않는다. */
+function hasExplicitTasks(argv) {
+  return argv.some(arg => arg === '--tasks' || arg.startsWith('--tasks='));
+}
+
 /** `--serial <값>`만 떼어내고 나머지는 그대로 넘긴다. */
 function parseArgs(argv) {
   const rest = [];
@@ -201,7 +224,9 @@ function parseArgs(argv) {
 
 module.exports = {
   READY_STATE,
+  buildOnlyTask,
   findBySerial,
+  hasExplicitTasks,
   hasWatchCharacteristic,
   hasWatchFeature,
   parseArgs,
