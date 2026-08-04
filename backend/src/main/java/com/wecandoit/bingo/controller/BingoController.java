@@ -63,6 +63,16 @@ public class BingoController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/{roomId}/bingo-boards/cells/{cellId}/complete")
+    public ResponseEntity<BingoCellSubmitResponse> completeCell(
+            @LoginMemberId Long memberId,
+            @PathVariable Long roomId,
+            @PathVariable Long cellId
+    ) {
+        BingoCellSubmitResponse response = bingoCommandService.completeCell(memberId, roomId, cellId);
+        return ResponseEntity.ok(response);
+    }
+
     private UUID resolveWalkSessionKey(UUID walkSessionKey, UUID clientSessionKey) {
         return walkSessionKey == null ? clientSessionKey : walkSessionKey;
     }

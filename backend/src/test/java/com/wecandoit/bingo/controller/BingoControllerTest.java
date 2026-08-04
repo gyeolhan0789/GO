@@ -433,6 +433,127 @@ class BingoControllerTest {
     }
 
     @Test
+    @DisplayName("활동 미션 칸을 완료하면 승인된 인증 결과를 반환한다")
+    void completeCellReturnsApprovedResult() {
+        // given
+        MissionResponse mission = new MissionResponse(
+                21L,
+                "https://example.com/mission.png",
+                MissionType.STEP_TOTAL,
+                "누적 5,000보 걷기",
+                "오늘 누적 5,000보를 달성하세요.",
+                null,
+                50L,
+                LocalDateTime.of(2026, 7, 24, 10, 0)
+        );
+        BingoCellSubmitResponse response = new BingoCellSubmitResponse(
+                1000L, 0, 0, mission, BingoCellVerificationStatus.APPROVED, 1L, null, 50L
+        );
+        willReturn(response).given(bingoCommandService).completeCell(1L, 10L, 1000L);
+
+        // when & then
+        given()
+                .when()
+                .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/complete", 10L, 1000L)
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("cellId", equalTo(1000))
+                .body("row", equalTo(0))
+                .body("col", equalTo(0))
+                .body("mission.missionId", equalTo(21))
+                .body("verificationStatus", equalTo("APPROVED"))
+                .body("rejectionReason", nullValue())
+                .body("rewardPoint", equalTo(50))
+                .apply(document("bingo-cells-complete",
+                        pathParameters(
+                                parameterWithName("roomId").description("칸을 완료할 게임방 ID"),
+                                parameterWithName("cellId").description("완료할 빙고 칸 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("cellId").description("빙고 셀 ID"),
+                                fieldWithPath("row").description("칸의 행 위치"),
+                                fieldWithPath("col").description("칸의 열 위치"),
+                                fieldWithPath("mission.missionId").description("배정된 미션 ID"),
+                                fieldWithPath("mission.missionImageUrl").description("미션 이미지 URL"),
+                                fieldWithPath("mission.type").description("미션 타입"),
+                                fieldWithPath("mission.title").description("미션 제목"),
+                                fieldWithPath("mission.detail").description("미션 설명"),
+                                fieldWithPath("mission.decisionCondition").description("미션 판정 조건"),
+                                fieldWithPath("mission.point").description("미션 완료 시 지급되는 포인트"),
+                                fieldWithPath("mission.createdAt").description("미션 생성 시각"),
+                                fieldWithPath("verificationStatus").description("인증 상태(항상 APPROVED)"),
+                                fieldWithPath("submittedByMemberId").description("미션 제출 참여자 ID"),
+                                fieldWithPath("rejectionReason").description("거절 사유(승인 시 null)"),
+                                fieldWithPath("rewardPoint").description("이번 인증으로 지급된 포인트")
+                        )
+                ));
+    }
+
+    @Test
+    @DisplayName("사진 인증 미션 칸을 완료하려 하면 400을 반환한다")
+    void completeCellRejectsPhotoMission() {
+        // given
+        willThrow(new CustomException(ErrorCode.BINGO_CELL_PHOTO_MISSION_NOT_COMPLETABLE))
+                .given(bingoCommandService)
+                .completeCell(1L, 10L, 1000L);
+
+        // when & then
+        given()
+                .when()
+                .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/complete", 10L, 1000L)
+                .then()
+                .statusCode(HttpStatus.BAD_REQUEST.value());
+    }
+
+    @Test
+    @DisplayName("이미 승인된 칸을 완료하려 하면 409를 반환한다")
+    void completeCellRejectsApprovedCell() {
+        // given
+        willThrow(new CustomException(ErrorCode.BINGO_CELL_ALREADY_APPROVED))
+                .given(bingoCommandService)
+                .completeCell(1L, 10L, 1000L);
+
+        // when & then
+        given()
+                .when()
+                .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/complete", 10L, 1000L)
+                .then()
+                .statusCode(HttpStatus.CONFLICT.value());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 칸이면 완료에 실패한다")
+    void completeCellRejectsMissingCell() {
+        // given
+        willThrow(new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND))
+                .given(bingoCommandService)
+                .completeCell(1L, 10L, 1000L);
+
+        // when & then
+        given()
+                .when()
+                .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/complete", 10L, 1000L)
+                .then()
+                .statusCode(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("방 멤버가 아니면 완료에 실패한다")
+    void completeCellRejectsNonMember() {
+        // given
+        willThrow(new CustomException(ErrorCode.ROOM_MEMBER_FORBIDDEN))
+                .given(bingoCommandService)
+                .completeCell(1L, 10L, 1000L);
+
+        // when & then
+        given()
+                .when()
+                .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/complete", 10L, 1000L)
+                .then()
+                .statusCode(HttpStatus.FORBIDDEN.value());
+    }
+
+    @Test
     @DisplayName("조기 갱신하면 새로 발급된 빙고판을 반환한다")
     void renewBoardReturnsNewlyIssuedBoard() {
         // given

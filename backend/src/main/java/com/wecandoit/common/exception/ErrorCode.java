@@ -93,6 +93,8 @@ public enum ErrorCode {
     BINGO_CELL_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 칸을 찾을 수 없습니다."),
     BINGO_CELL_VERIFICATION_IN_PROGRESS(HttpStatus.CONFLICT, "이미 검증 중인 빙고 칸입니다."),
     BINGO_CELL_ALREADY_APPROVED(HttpStatus.CONFLICT, "이미 승인된 빙고 칸입니다."),
+    BINGO_CELL_PHOTO_MISSION_NOT_COMPLETABLE(HttpStatus.BAD_REQUEST,
+            "사진 인증 미션은 인증 사진 제출로만 완료할 수 있습니다."),
 
     BINGO_BOARD_SIZE_INVALID(HttpStatus.BAD_REQUEST, "빙고판 크기는 3 이상 5 이하여야 합니다."),
     BINGO_TARGET_COUNT_INVALID(HttpStatus.BAD_REQUEST, "목표 빙고 수가 빙고판 크기에 맞지 않습니다."),
