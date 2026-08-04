@@ -59,6 +59,9 @@ public class WalkSession extends BaseEntity {
     @Column(name = "ended_at", nullable = false)
     private Instant endedAt;
 
+    @Column(name = "active_duration_seconds", nullable = false)
+    private long activeDurationSeconds;
+
     @Column(nullable = false)
     private int step;
 
@@ -75,6 +78,7 @@ public class WalkSession extends BaseEntity {
             Long initialBingoBoardId,
             Instant startedAt,
             Instant endedAt,
+            long activeDurationSeconds,
             int step,
             int distance,
             int calories
@@ -85,6 +89,7 @@ public class WalkSession extends BaseEntity {
         this.initialBingoBoardId = initialBingoBoardId;
         this.startedAt = startedAt;
         this.endedAt = endedAt;
+        this.activeDurationSeconds = activeDurationSeconds;
         this.step = step;
         this.distance = distance;
         this.calories = calories;
@@ -97,6 +102,7 @@ public class WalkSession extends BaseEntity {
             Long initialBingoBoardId,
             Instant startedAt,
             Instant endedAt,
+            long activeDurationSeconds,
             int step,
             int distance,
             int calories
@@ -108,6 +114,7 @@ public class WalkSession extends BaseEntity {
                 initialBingoBoardId,
                 startedAt,
                 endedAt,
+                activeDurationSeconds,
                 step,
                 distance,
                 calories

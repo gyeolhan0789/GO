@@ -125,6 +125,7 @@ public class WalkSessionCommandService {
         validateNoPendingCells(sessionCells);
         BoardContext boardContext = getBoardContext(activeWalkSession.getInitialBingoBoardId(), sessionCells);
         validateBoards(memberId, room.getId(), boardContext);
+        long activeDurationSeconds = getActiveDurationSeconds(activeWalkSession, request);
 
         WalkSession walkSession = walkSessionRepository.saveAndFlush(WalkSession.create(
                 memberId,
@@ -133,6 +134,7 @@ public class WalkSessionCommandService {
                 activeWalkSession.getInitialBingoBoardId(),
                 activeWalkSession.getStartedAt(),
                 request.endedAt().toInstant(),
+                activeDurationSeconds,
                 request.step(),
                 request.distance(),
                 request.calories()
@@ -156,6 +158,24 @@ public class WalkSessionCommandService {
         if (!activeWalkSession.getStartedAt().isBefore(endedAt)) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
+    }
+
+    private long getActiveDurationSeconds(
+            ActiveWalkSession activeWalkSession,
+            WalkSessionCompleteRequest request
+    ) {
+        long durationSeconds = Duration.between(
+                activeWalkSession.getStartedAt(),
+                request.endedAt().toInstant()
+        ).toSeconds();
+        Long requestedActiveDurationSeconds = request.activeDurationSeconds();
+        long activeDurationSeconds = requestedActiveDurationSeconds == null
+                ? durationSeconds
+                : requestedActiveDurationSeconds;
+        if (activeDurationSeconds > durationSeconds) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        return activeDurationSeconds;
     }
 
     private void validateRoomAccess(Long memberId, Long roomId) {
