@@ -62,9 +62,11 @@ export function BoardRenewalSheet({
     }
 
     try {
-      // TODO: 빙고 크기도 매번 다시 정하기로 했지만, 갱신 API가 아직
-      // targetStepCount만 받는다. 백엔드가 boardSize도 받으면 같이 보낸다.
-      await renewBoardMutation.mutateAsync({ roomId, targetStepCount });
+      await renewBoardMutation.mutateAsync({
+        roomId,
+        boardSize: Number(boardSize),
+        targetStepCount,
+      });
       onRenewed(roomId);
     } catch (error) {
       Alert.alert(

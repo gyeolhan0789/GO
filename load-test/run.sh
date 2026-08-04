@@ -89,4 +89,9 @@ for line in "${RESULTS[@]}"; do
   echo "$line"
 done
 
+if [[ "$TARGET_ENV" == "dev" ]]; then
+  echo ""
+  echo "🔍 DB 풀 확인: https://i15a506.p.ssafy.io/grafana-dev/d/backend-jvm-overview"
+fi
+
 cleanup

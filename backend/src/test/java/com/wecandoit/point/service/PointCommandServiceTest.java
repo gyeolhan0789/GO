@@ -2,6 +2,7 @@ package com.wecandoit.point.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.entry;
 import static org.assertj.core.groups.Tuple.tuple;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -21,6 +22,7 @@ import com.wecandoit.notification.domain.NotificationType;
 import com.wecandoit.notification.event.NotificationMessageFactory;
 import com.wecandoit.notification.event.NotificationRequestedEvent;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -136,9 +138,14 @@ class PointCommandServiceTest {
         given(notificationMessageFactory.rewardEarned(2L, 100L)).willReturn(secondEvent);
 
         // when
-        pointCommandService.grantDailyStepGoalReward(10L, 1000L, List.of(2L, 1L));
+        Map<Long, Long> rewardPointsByMemberId =
+                pointCommandService.grantDailyStepGoalReward(10L, 1000L, List.of(2L, 1L));
 
         // then
+        assertThat(rewardPointsByMemberId).containsExactly(
+                entry(1L, 100L),
+                entry(2L, 100L)
+        );
         assertThat(firstMember.getPoint()).isEqualTo(100L);
         assertThat(secondMember.getPoint()).isEqualTo(150L);
         ArgumentCaptor<Long> memberIdCaptor = ArgumentCaptor.forClass(Long.class);

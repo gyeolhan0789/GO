@@ -8,7 +8,7 @@ import com.wecandoit.friend.repository.FriendRepository;
 import com.wecandoit.history.domain.HistoryPeriod;
 import com.wecandoit.history.repository.MemberHistoryRepository;
 import com.wecandoit.history.repository.WeeklyRankingSummary;
-import com.wecandoit.item.controller.response.AvatarResponse;
+import com.wecandoit.avatar.dto.AvatarDto;
 import com.wecandoit.member.domain.Member;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -46,12 +46,12 @@ public class FriendReadService {
                 .toList();
         List<Long> friendMemberIds = friendMembers.stream().map(Member::getId).toList();
         Map<Long, Long> weeklyStepsByMemberId = getWeeklyStepsByMemberId(friendMemberIds);
-        Map<Long, AvatarResponse> avatarsByMemberId =
+        Map<Long, AvatarDto> avatarsByMemberId =
                 avatarReadService.getAvatars(friendMembers);
 
         List<FriendResponse> responses = friendMembers.stream()
                 .map(friendMember -> {
-                    AvatarResponse avatar = avatarsByMemberId.get(friendMember.getId());
+                    AvatarDto avatar = avatarsByMemberId.get(friendMember.getId());
                     return FriendResponse.of(
                             friendMember,
                             weeklyStepsByMemberId.getOrDefault(friendMember.getId(), 0L),

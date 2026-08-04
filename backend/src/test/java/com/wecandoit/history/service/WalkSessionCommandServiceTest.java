@@ -144,6 +144,7 @@ class WalkSessionCommandServiceTest {
             return walkSession;
         });
         given(achievementRepository.saveAll(any())).willAnswer(invocation -> invocation.getArgument(0));
+        given(bingoStepGoalRewardCommandService.evaluate(1L, 10L)).willReturn(100L);
 
         // when
         WalkSessionCommandService.CompletionResult result =
@@ -152,7 +153,9 @@ class WalkSessionCommandServiceTest {
         // then
         assertThat(result.created()).isTrue();
         assertThat(result.response().walkSessionId()).isEqualTo(50L);
+        assertThat(result.response().activeDurationSeconds()).isEqualTo(2_400L);
         assertThat(result.response().achievedMissionCount()).isEqualTo(1);
+        assertThat(result.response().earnedPoint()).isEqualTo(100L);
         then(achievementRepository).should().saveAll(any());
         then(historyCommandService).should().addHistory(
                 1L,
@@ -162,6 +165,21 @@ class WalkSessionCommandServiceTest {
                 214
         );
         then(bingoStepGoalRewardCommandService).should().evaluate(1L, 10L);
+    }
+
+    @Test
+    @DisplayName("실제 운동 시간이 전체 산책 시간보다 길면 산책 완료를 거절한다")
+    void completeSessionRejectsActiveDurationGreaterThanDuration() {
+        // given
+        WalkSessionCompleteRequest request = request(30L, 3_000L);
+        givenCompletionContext(request, room(), game(), board(), List.of());
+
+        // when & then
+        assertThatThrownBy(() -> walkSessionCommandService.completeSession(1L, request))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+        then(walkSessionRepository).should(never()).saveAndFlush(any());
     }
 
     @Test
@@ -176,6 +194,7 @@ class WalkSessionCommandServiceTest {
                 30L,
                 OffsetDateTime.of(2026, 8, 3, 10, 0, 0, 0, ZoneOffset.ofHours(9)).toInstant(),
                 request.endedAt().toInstant(),
+                request.activeDurationSeconds(),
                 request.step(),
                 request.distance(),
                 request.calories()
@@ -195,6 +214,7 @@ class WalkSessionCommandServiceTest {
         // then
         assertThat(result.created()).isFalse();
         assertThat(result.response().achievedMissionCount()).isEqualTo(2);
+        assertThat(result.response().earnedPoint()).isZero();
         then(walkSessionRepository).should(never()).saveAndFlush(any());
         then(historyCommandService).shouldHaveNoInteractions();
         then(bingoStepGoalRewardCommandService).shouldHaveNoInteractions();
@@ -250,6 +270,10 @@ class WalkSessionCommandServiceTest {
     }
 
     private WalkSessionCompleteRequest request(Long bingoBoardId) {
+        return request(bingoBoardId, 2_400L);
+    }
+
+    private WalkSessionCompleteRequest request(Long bingoBoardId, Long activeDurationSeconds) {
         return new WalkSessionCompleteRequest(
                 SESSION_KEY,
                 null,
@@ -257,6 +281,7 @@ class WalkSessionCommandServiceTest {
                 bingoBoardId,
                 null,
                 OffsetDateTime.of(2026, 8, 3, 10, 42, 15, 0, ZoneOffset.ofHours(9)),
+                activeDurationSeconds,
                 4_832,
                 3_382,
                 214

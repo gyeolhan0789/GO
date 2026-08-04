@@ -11,8 +11,8 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.history.repository.MemberHistoryRepository;
 import com.wecandoit.history.repository.RankedWeeklyRankingSummary;
-import com.wecandoit.item.controller.response.AvatarResponse;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.AvatarDto;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
@@ -78,12 +78,12 @@ class RankingReadServiceTest {
         given(avatarReadService.getAvatars(List.of(rankingMember, loginMember)))
                 .willReturn(Map.of(
                         3L,
-                        new AvatarResponse(
+                        new AvatarDto(
                                 3L,
                                 "회원3",
                                 Gender.FEMALE,
                                 "/uploads/avatars/female/default.png",
-                                List.of(new EquippedItemResponse(
+                                List.of(new EquippedItemDto(
                                         10L,
                                         100L,
                                         "빨간 모자",
@@ -92,7 +92,7 @@ class RankingReadServiceTest {
                                 ))
                         ),
                         4L,
-                        new AvatarResponse(
+                        new AvatarDto(
                                 4L,
                                 "로그인회원",
                                 Gender.MALE,
@@ -161,7 +161,7 @@ class RankingReadServiceTest {
         given(avatarReadService.getAvatars(List.of(firstRankingMember, secondRankingMember)))
                 .willReturn(Map.of(
                         1L,
-                        new AvatarResponse(
+                        new AvatarDto(
                                 1L,
                                 "회원1",
                                 Gender.MALE,
@@ -169,7 +169,7 @@ class RankingReadServiceTest {
                                 List.of()
                         ),
                         2L,
-                        new AvatarResponse(
+                        new AvatarDto(
                                 2L,
                                 "회원2",
                                 Gender.FEMALE,
@@ -245,7 +245,7 @@ class RankingReadServiceTest {
         given(avatarReadService.getAvatars(List.of(friend, loginMember)))
                 .willReturn(Map.of(
                         3L,
-                        new AvatarResponse(
+                        new AvatarDto(
                                 3L,
                                 "친구3",
                                 Gender.FEMALE,
@@ -253,12 +253,12 @@ class RankingReadServiceTest {
                                 List.of()
                         ),
                         4L,
-                        new AvatarResponse(
+                        new AvatarDto(
                                 4L,
                                 "로그인회원",
                                 Gender.MALE,
                                 "/uploads/avatars/male/default.png",
-                                List.of(new EquippedItemResponse(
+                                List.of(new EquippedItemDto(
                                         10L,
                                         100L,
                                         "빨간 모자",
@@ -314,7 +314,7 @@ class RankingReadServiceTest {
         given(avatarReadService.getAvatars(List.of(loginMemberEntity)))
                 .willReturn(Map.of(
                         1L,
-                        new AvatarResponse(
+                        new AvatarDto(
                                 1L,
                                 "로그인회원",
                                 Gender.MALE,

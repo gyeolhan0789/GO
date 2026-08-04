@@ -79,6 +79,7 @@ function buildBoardResponse() {
         title: `미션 ${index + 1}`,
         detail: '',
         decisionCondition: '',
+        point: 30,
       },
       verificationStatus: submittedBy === null ? 'PENDING' : 'APPROVED',
       submittedByMemberId: submittedBy,

@@ -31,37 +31,11 @@
       ]
     },
     {
-      "id": 2,
-      "title": "슬로우 쿼리 Top 10 (traceId별 최대 소요시간)",
-      "type": "table",
-      "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
-      "targets": [
-        {
-          "expr": "topk(10, max by (traceId) (max_over_time({container_name=~\"wecandoit-backend-.*\"} |= \"SLOW\" | json | line_format `{{.message}}` | regexp `^SLOW (?P<elapsed_ms>\\d+)ms` | unwrap elapsed_ms [$__range])))",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 3,
-      "title": "queries=N 상위 route (구간 누적)",
-      "type": "table",
-      "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
-      "targets": [
-        {
-          "expr": "topk(10, sum by (route) (sum_over_time({container_name=~\"wecandoit-backend-.*\"} | json | line_format `{{.message}}` | regexp `queries=(?P<queries>\\d+)` | unwrap queries [$__range])))",
-          "refId": "A"
-        }
-      ]
-    },
-    {
       "id": 4,
       "title": "traceId 드릴다운 (access log + SQL 동시 조회)",
       "type": "logs",
       "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 10 },
+      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 10 },
       "targets": [
         {
           "expr": "{container_name=~\"wecandoit-backend-.*\"} | json | traceId=\"$traceId\"",

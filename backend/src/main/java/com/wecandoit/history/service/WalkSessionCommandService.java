@@ -17,8 +17,8 @@ import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.history.controller.request.WalkSessionCompleteRequest;
 import com.wecandoit.history.controller.request.WalkSessionStartRequest;
+import com.wecandoit.history.controller.response.WalkSessionCompleteResponse;
 import com.wecandoit.history.controller.response.WalkSessionStartResponse;
-import com.wecandoit.history.controller.response.WalkSessionResponse;
 import com.wecandoit.history.domain.ActiveWalkSession;
 import com.wecandoit.history.domain.WalkSession;
 import com.wecandoit.history.domain.WalkSessionBingoAchievement;
@@ -125,6 +125,7 @@ public class WalkSessionCommandService {
         validateNoPendingCells(sessionCells);
         BoardContext boardContext = getBoardContext(activeWalkSession.getInitialBingoBoardId(), sessionCells);
         validateBoards(memberId, room.getId(), boardContext);
+        long activeDurationSeconds = getActiveDurationSeconds(activeWalkSession, request);
 
         WalkSession walkSession = walkSessionRepository.saveAndFlush(WalkSession.create(
                 memberId,
@@ -133,17 +134,18 @@ public class WalkSessionCommandService {
                 activeWalkSession.getInitialBingoBoardId(),
                 activeWalkSession.getStartedAt(),
                 request.endedAt().toInstant(),
+                activeDurationSeconds,
                 request.step(),
                 request.distance(),
                 request.calories()
         ));
         List<WalkSessionBingoAchievement> achievements = saveAchievements(walkSession, sessionCells);
         addDailyHistory(memberId, request);
-        bingoStepGoalRewardCommandService.evaluate(memberId, room.getId());
+        long earnedPoint = bingoStepGoalRewardCommandService.evaluate(memberId, room.getId());
         activeWalkSessionRepository.delete(activeWalkSession);
 
         return new CompletionResult(
-                WalkSessionResponse.of(walkSession, room, achievements.size()),
+                WalkSessionCompleteResponse.of(walkSession, room, achievements.size(), earnedPoint),
                 true
         );
     }
@@ -156,6 +158,24 @@ public class WalkSessionCommandService {
         if (!activeWalkSession.getStartedAt().isBefore(endedAt)) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
+    }
+
+    private long getActiveDurationSeconds(
+            ActiveWalkSession activeWalkSession,
+            WalkSessionCompleteRequest request
+    ) {
+        long durationSeconds = Duration.between(
+                activeWalkSession.getStartedAt(),
+                request.endedAt().toInstant()
+        ).toSeconds();
+        Long requestedActiveDurationSeconds = request.activeDurationSeconds();
+        long activeDurationSeconds = requestedActiveDurationSeconds == null
+                ? durationSeconds
+                : requestedActiveDurationSeconds;
+        if (activeDurationSeconds > durationSeconds) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        return activeDurationSeconds;
     }
 
     private void validateRoomAccess(Long memberId, Long roomId) {
@@ -259,11 +279,11 @@ public class WalkSessionCommandService {
         );
     }
 
-    private WalkSessionResponse toResponse(WalkSession walkSession) {
+    private WalkSessionCompleteResponse toResponse(WalkSession walkSession) {
         Room room = roomRepository.findById(walkSession.getRoomId())
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
         int achievedMissionCount = Math.toIntExact(achievementRepository.countByWalkSessionId(walkSession.getId()));
-        return WalkSessionResponse.of(walkSession, room, achievedMissionCount);
+        return WalkSessionCompleteResponse.of(walkSession, room, achievedMissionCount, 0L);
     }
 
     private Instant toInstant(LocalDateTime localDateTime) {
@@ -274,7 +294,7 @@ public class WalkSessionCommandService {
     }
 
     public record CompletionResult(
-            WalkSessionResponse response,
+            WalkSessionCompleteResponse response,
             boolean created
     ) {
     }
