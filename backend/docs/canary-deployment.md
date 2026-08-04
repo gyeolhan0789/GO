@@ -50,8 +50,8 @@ Host의 80/443 포트를 변경하지 않고 컨테이너를 빌드하고 검증
 
 ```bash
 cd backend
-docker build -t wecandoit-nginx-prod:latest infra/nginx
-bash infra/deploy/validate-nginx-image.sh wecandoit-nginx-prod:latest
+docker build -t wecandoit-nginx-prod:latest ../infra/nginx
+bash ../infra/deploy/validate-nginx-image.sh wecandoit-nginx-prod:latest
 NGINX_BIND_ADDRESS=127.0.0.1 \
 NGINX_HTTP_PORT=18080 \
 NGINX_HTTPS_PORT=18443 \
