@@ -57,6 +57,15 @@ object WearProtocol {
   const val KEY_UPDATED_AT = "updatedAt"
   const val KEY_NICKNAME = "nickname"
 
+  /**
+   * 폰이 로그인된 상태인지. false면 워치는 수치 대신 폰에서 로그인하라고 안내한다.
+   *
+   * 이 값이 없으면 워치가 로그아웃과 "아직 아무것도 안 받음"을 구분할 수 없다.
+   * 둘 다 닉네임이 비고 걸음이 0으로 와서 화면이 똑같아지는데, 전자는 폰에서
+   * 로그인해야 풀리고 후자는 폰 앱을 열기만 하면 된다 — 안내가 달라야 한다.
+   */
+  const val KEY_LOGGED_IN = "loggedIn"
+
   /** 오늘 누적치(폰의 홈 화면과 같은 값). 아래 KEY_STEPS 계열을 담은 DataMap. */
   const val KEY_TODAY = "today"
 

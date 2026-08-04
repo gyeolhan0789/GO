@@ -5,7 +5,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
-import com.wecandoit.bingo.service.BingoStepGoalRewardCommandService;
 import com.wecandoit.history.controller.request.HistorySaveRequest;
 import com.wecandoit.history.domain.MemberHistory;
 import com.wecandoit.history.repository.MemberHistoryRepository;
@@ -26,8 +25,6 @@ class HistoryCommandServiceTest {
 
     @Mock
     private MemberHistoryRepository memberHistoryRepository;
-    @Mock
-    private BingoStepGoalRewardCommandService bingoStepGoalRewardCommandService;
     @InjectMocks
     private HistoryCommandService historyCommandService;
 
@@ -52,7 +49,6 @@ class HistoryCommandServiceTest {
         assertThat(memberHistory.getStep()).isEqualTo(1_000);
         assertThat(memberHistory.getDistance()).isEqualTo(700);
         assertThat(memberHistory.getCalories()).isEqualTo(50);
-        then(bingoStepGoalRewardCommandService).should().evaluate(1L);
     }
 
     @Test
@@ -72,7 +68,6 @@ class HistoryCommandServiceTest {
         assertThat(memberHistory.getStep()).isEqualTo(1_500);
         assertThat(memberHistory.getDistance()).isEqualTo(1_000);
         assertThat(memberHistory.getCalories()).isEqualTo(70);
-        then(bingoStepGoalRewardCommandService).should().evaluate(1L);
     }
 
     @Test

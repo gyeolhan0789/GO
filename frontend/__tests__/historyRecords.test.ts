@@ -12,6 +12,7 @@ import {
   maxValue,
   resolveChartCeiling,
 } from '../src/features/history/model/chartScale';
+import { buildChartSegments } from '../src/features/history/model/chartSegments';
 import {
   buildHourlyChartData,
   buildStepChartData,
@@ -34,7 +35,10 @@ import {
   toWalkDetail,
   toWalkRecord,
 } from '../src/features/history/model/gameResult';
-import { resolveBarPercentage } from '../src/screens/RecordScreen/chartConfig';
+import {
+  BAR_SLOT_RATIO,
+  resolveBarPercentage,
+} from '../src/screens/RecordScreen/chartConfig';
 
 describe('resolvePeriodRange', () => {
   test('주는 월요일에 시작해 일요일에 끝난다', () => {
@@ -772,5 +776,162 @@ describe('resolveBarPercentage', () => {
   test('폭이나 개수가 0이면 안전한 기본값을 준다', () => {
     expect(resolveBarPercentage(0, 7)).toBe(1);
     expect(resolveBarPercentage(280, 0)).toBe(1);
+  });
+});
+
+describe('buildChartSegments', () => {
+  const weekHistories = [
+    { historyDate: '2026-07-20', step: 1_000, distance: 700, calories: 40 },
+    { historyDate: '2026-07-21', step: 2_000, distance: 1_400, calories: 80 },
+  ];
+
+  test('주는 막대 하나가 하루를 가리킨다', () => {
+    expect(buildChartSegments('WEEK', weekHistories, [])).toEqual([
+      {
+        index: 0,
+        label: '7.20 (월)',
+        dateRange: { startDate: '2026-07-20', endDate: '2026-07-20' },
+        step: 1_000,
+        distance: 700,
+        calories: 40,
+      },
+      {
+        index: 1,
+        label: '7.21 (화)',
+        dateRange: { startDate: '2026-07-21', endDate: '2026-07-21' },
+        step: 2_000,
+        distance: 1_400,
+        calories: 80,
+      },
+    ]);
+  });
+
+  test('주 구간은 차트 막대와 개수·순서가 같다', () => {
+    const chartData = buildStepChartData('WEEK', weekHistories, '2026-07-21');
+    const segments = buildChartSegments('WEEK', weekHistories, []);
+
+    // 탭 영역을 구간 수로 균등 분할하므로 개수가 어긋나면 누른 자리가 밀린다.
+    expect(segments).toHaveLength(chartData.length);
+    expect(segments.map(segment => segment.step)).toEqual(
+      chartData.map(datum => datum.value),
+    );
+  });
+
+  describe('월간', () => {
+    const monthHistories = [
+      { historyDate: '2026-07-01', step: 100, distance: 70, calories: 4 },
+      { historyDate: '2026-07-07', step: 200, distance: 140, calories: 8 },
+      { historyDate: '2026-07-08', step: 300, distance: 210, calories: 12 },
+      { historyDate: '2026-07-31', step: 400, distance: 280, calories: 16 },
+    ];
+
+    test('막대 하나가 7일 묶음을 가리킨다', () => {
+      const [firstBucket] = buildChartSegments('MONTH', monthHistories, []);
+
+      expect(firstBucket).toEqual({
+        index: 0,
+        label: '7.1 (수) - 7.7 (화)',
+        dateRange: { startDate: '2026-07-01', endDate: '2026-07-07' },
+        // 1일과 7일을 더한 값.
+        step: 300,
+        distance: 210,
+        calories: 12,
+      });
+    });
+
+    test('마지막 묶음은 말일에서 끊는다', () => {
+      const segments = buildChartSegments('MONTH', monthHistories, []);
+      const lastBucket = segments[segments.length - 1];
+
+      // 5번째 묶음은 29일부터라 7일을 채우지 못한다.
+      expect(lastBucket.dateRange).toEqual({
+        startDate: '2026-07-29',
+        endDate: '2026-07-31',
+      });
+      expect(lastBucket.label).toBe('7.29 (수) - 7.31 (금)');
+    });
+
+    test('구간은 차트 막대와 개수·순서가 같다', () => {
+      const chartData = buildStepChartData(
+        'MONTH',
+        monthHistories,
+        '2026-07-08',
+      );
+      const segments = buildChartSegments('MONTH', monthHistories, []);
+
+      expect(segments).toHaveLength(chartData.length);
+      expect(segments.map(segment => segment.step)).toEqual(
+        chartData.map(datum => datum.value),
+      );
+    });
+  });
+
+  describe('일간', () => {
+    const dayHistories = [
+      { historyDate: '2026-07-20', step: 600, distance: 420, calories: 24 },
+    ];
+    const hourlySteps = Array.from({ length: 24 }, (_, hour) => ({
+      hour,
+      step: hour < 6 ? 0 : 100,
+    }));
+
+    test('3시간씩 묶어 여덟 구간으로 나눈다', () => {
+      const segments = buildChartSegments('DAY', dayHistories, hourlySteps);
+
+      // 24개 시간대를 그대로 나누면 탭 영역이 손가락보다 좁아진다.
+      expect(segments).toHaveLength(8);
+      expect(segments.map(segment => segment.label)).toEqual([
+        '00시 - 03시',
+        '03시 - 06시',
+        '06시 - 09시',
+        '09시 - 12시',
+        '12시 - 15시',
+        '15시 - 18시',
+        '18시 - 21시',
+        '21시 - 24시',
+      ]);
+    });
+
+    test('묶음 안 시간대의 걸음을 더한다', () => {
+      const segments = buildChartSegments('DAY', dayHistories, hourlySteps);
+
+      expect(segments[0].step).toBe(0);
+      // 06·07·08시가 100씩.
+      expect(segments[2]).toEqual({
+        index: 2,
+        label: '06시 - 09시',
+        dateRange: { startDate: '2026-07-20', endDate: '2026-07-20' },
+        step: 300,
+        // 시간대별로는 걸음만 읽을 수 있다.
+        distance: null,
+        calories: null,
+      });
+    });
+
+    test('시간대 기록이 없으면 누를 구간도 없다', () => {
+      // 차트를 못 그리는 상태라 탭 영역만 남으면 안 된다.
+      expect(buildChartSegments('DAY', dayHistories, [])).toEqual([]);
+    });
+  });
+
+  test('기록이 비어 있으면 구간이 없다', () => {
+    expect(buildChartSegments('WEEK', [], [])).toEqual([]);
+    expect(buildChartSegments('MONTH', [], [])).toEqual([]);
+  });
+});
+
+describe('눌린 구간 표시 자리', () => {
+  // chart-kit은 막대 폭을 `32 * barPercentage`로 계산한다.
+  const barWidthOf = (percentage: number) => 32 * percentage;
+
+  test('막대는 칸의 오른쪽 BAR_SLOT_RATIO만큼을 차지한다', () => {
+    const plotWidth = 280;
+    const barCount = 7;
+    const slot = plotWidth / barCount;
+    const barWidth = barWidthOf(resolveBarPercentage(plotWidth, barCount));
+
+    // 눌린 표시(ChartSegmentOverlay)를 이 비율로 앉히므로 어긋나면 표시가 밀린다.
+    expect(barWidth / 2).toBeCloseTo(slot * (1 - BAR_SLOT_RATIO));
+    expect(barWidth).toBeCloseTo(slot * BAR_SLOT_RATIO);
   });
 });

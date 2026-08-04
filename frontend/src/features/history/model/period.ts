@@ -129,7 +129,7 @@ export function formatPeriodLabel(
 }
 
 /** '7.20 (월)'. */
-function formatShortDate(isoDate: string): string {
+export function formatShortDate(isoDate: string): string {
   const date = parseIsoDate(isoDate);
   return `${date.getMonth() + 1}.${date.getDate()} (${weekdayLabel(isoDate)})`;
 }

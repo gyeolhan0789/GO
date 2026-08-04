@@ -94,6 +94,11 @@ class WearBridgeModule(private val reactContext: ReactApplicationContext) :
     request.dataMap.apply {
       // 내용이 같으면 DataClient가 변경으로 안 쳐서 워치가 갱신을 못 받는다.
       putLong(WearProtocol.KEY_UPDATED_AT, System.currentTimeMillis())
+      // 키가 없으면(구버전 JS) 로그인된 것으로 둔다. 잘못 막는 쪽이 더 큰 고장이다.
+      putBoolean(
+        WearProtocol.KEY_LOGGED_IN,
+        !state.hasKey("loggedIn") || state.getBoolean("loggedIn"),
+      )
       putString(WearProtocol.KEY_NICKNAME, state.getString("nickname").orEmpty())
       putDataMap(WearProtocol.KEY_TODAY, state.getMap("today").toTodayDataMap())
       putDataMapArrayList(WearProtocol.KEY_ROOMS, state.getArray("rooms").toRoomDataMaps())
