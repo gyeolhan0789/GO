@@ -23,6 +23,7 @@ import { MissionVerificationModal } from '../../features/bingo/components/Missio
 import {
   MISSION_TYPE_ICONS,
   MISSION_TYPE_LABELS,
+  isPhotoMission,
 } from '../../features/bingo/model/missionType';
 import { useMyMemberIdQuery } from '../../features/member/hooks/useMyMemberIdQuery';
 import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
@@ -301,7 +302,7 @@ export function BingoBoardScreen({
                 />
                 <AppText style={styles.completedText}>인증 완료</AppText>
               </View>
-            ) : (
+            ) : isPhotoMission(selectedCell.mission.type) ? (
               <>
                 <AppText style={styles.captureHint}>
                   사물을 너무 가까이 확대해서 찍으면 인식에 실패할 수 있어요.
@@ -316,6 +317,11 @@ export function BingoBoardScreen({
                   <AppText style={styles.captureButtonText}>사진으로 인증하기</AppText>
                 </Pressable>
               </>
+            ) : (
+              <View style={styles.autoHintRow}>
+                <Ionicons name="walk-outline" size={20} color={colors.ink} style={styles.autoHintIcon} />
+                <AppText style={styles.autoHintText}>산책하는 동안 자동으로 인증돼요.</AppText>
+              </View>
             )}
           </View>
         ) : null}
@@ -495,6 +501,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: lineHeights[16],
     color: colors.successText,
+  },
+  autoHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+  },
+  autoHintIcon: {
+    opacity: 0.6,
+  },
+  autoHintText: {
+    fontFamily: fontFamily.bold,
+    fontSize: 14,
+    lineHeight: lineHeights[14],
+    color: colors.ink,
+    opacity: 0.7,
   },
   captureHint: {
     fontFamily: fontFamily.regular,

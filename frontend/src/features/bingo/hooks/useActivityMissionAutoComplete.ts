@@ -4,21 +4,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '../../../shared/api/ApiError';
 import { completeBingoCell, type BingoCellResponse } from '../api/bingoApi';
 import { isActivityMissionComplete, type ActivityMetrics } from '../model/missionJudgment';
-import type { MissionType } from '../model/missionType';
+import { isPhotoMission } from '../model/missionType';
 import { useActiveBingoBoardQuery } from './useActiveBingoBoardQuery';
 
-/** 사진 인증 미션 타입. 이 목록에 없는 타입은 전부 활동 기반(비사진) 미션으로 본다. */
-const PHOTO_MISSION_TYPES = new Set<MissionType>([
-  'OBJECT',
-  'ATTRIBUTE',
-  'RELATION',
-  'ORDINARY',
-]);
-
 function isPendingActivityCell(cell: BingoCellResponse) {
-  return (
-    !PHOTO_MISSION_TYPES.has(cell.mission.type) && cell.verificationStatus !== 'APPROVED'
-  );
+  return !isPhotoMission(cell.mission.type) && cell.verificationStatus !== 'APPROVED';
 }
 
 /**

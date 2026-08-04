@@ -34,6 +34,14 @@ export const MISSION_TYPE_ICONS: Record<MissionType, IoniconsIconName> = {
   AVERAGE_SPEED: 'barbell-outline',
 };
 
+// 사진을 찍어 AI 인증을 받는 미션 타입. 이 목록에 없는 타입은 활동 데이터
+// 기반이라 산책 중 자동으로 완료되고, 카메라로 인증할 수 없다.
+const PHOTO_MISSION_TYPES = new Set<MissionType>(['OBJECT', 'ATTRIBUTE', 'RELATION', 'ORDINARY']);
+
+export function isPhotoMission(type: MissionType): boolean {
+  return PHOTO_MISSION_TYPES.has(type);
+}
+
 export const MISSION_TYPE_LABELS: Record<MissionType, string> = {
   OBJECT: '사물',
   ATTRIBUTE: '상태',
