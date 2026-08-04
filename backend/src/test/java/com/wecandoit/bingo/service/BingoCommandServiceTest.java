@@ -9,9 +9,11 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
 import com.wecandoit.bingo.controller.response.BingoBoardResponse;
+import com.wecandoit.bingo.controller.response.BingoCellSubmitResponse;
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.domain.BingoCell;
+import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
@@ -29,6 +31,10 @@ import com.wecandoit.game.service.GameCycleCommandService;
 import com.wecandoit.history.domain.ActiveWalkSession;
 import com.wecandoit.history.repository.ActiveWalkSessionRepository;
 import com.wecandoit.history.repository.WalkSessionRepository;
+import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.domain.MissionDifficulty;
+import com.wecandoit.mission.domain.MissionType;
+import com.wecandoit.mission.repository.MissionRepository;
 import com.wecandoit.notification.event.NotificationMessageFactory;
 import com.wecandoit.notification.repository.NotificationRepository;
 import java.time.Duration;
@@ -37,9 +43,12 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -53,6 +62,7 @@ import org.springframework.web.multipart.MultipartFile;
 class BingoCommandServiceTest {
 
     private static final String STORED_SUBMIT_URL = "/uploads/test/bingo-cells/1000/stored.png";
+    private static final Long MISSION_ID = 40L;
 
     @Mock
     private RoomRepository roomRepository;
@@ -70,6 +80,10 @@ class BingoCommandServiceTest {
     private ActiveWalkSessionRepository activeWalkSessionRepository;
     @Mock
     private WalkSessionRepository walkSessionRepository;
+    @Mock
+    private MissionRepository missionRepository;
+    @Mock
+    private BingoCellVerificationResultService verificationResultService;
     @Mock
     private NotificationRepository notificationRepository;
     @Mock
@@ -263,6 +277,339 @@ class BingoCommandServiceTest {
         then(gameCycleCommandService).should().rematchBattle(1L, 10L);
     }
 
+    @Test
+    @DisplayName("활동 미션 칸을 완료하면 PENDING으로 선점한 뒤 승인 처리를 위임한다")
+    void completeCellClaimsCellBeforeDelegatingApproval() {
+        // given
+        Room room = room(10L);
+        Game game = game(20L, LocalDateTime.now());
+        BingoBoard board = board(30L, game.getId());
+        BingoCell cell = cell(50L, board.getId());
+        Mission mission = mission(MissionType.STEP_TOTAL);
+        givenRoomMembership(10L, 1L);
+        givenCellLookupChain(cell, board, game, room);
+        givenActiveSharedBoard(game, board);
+        givenMission(mission);
+        AtomicReference<BingoCellVerificationStatus> claimedStatus = new AtomicReference<>();
+        AtomicReference<Long> claimedMemberId = new AtomicReference<>();
+        AtomicReference<LocalDateTime> claimedSubmittedAt = new AtomicReference<>();
+        // 목 경계를 넘지 않도록 상태를 관찰만 하고, 실제 승인(cell.approve())은 흉내내지 않는다.
+        given(verificationResultService.applyResult(50L, true, null, MissionDifficulty.MEDIUM))
+                .willAnswer(invocation -> {
+                    claimedStatus.set(cell.getVerificationStatus());
+                    claimedMemberId.set(cell.getMemberId());
+                    claimedSubmittedAt.set(cell.getSubmittedAt());
+                    return 50L;
+                });
+
+        // when
+        bingoCommandService.completeCell(1L, 10L, 50L);
+
+        // then
+        assertThat(claimedStatus.get()).isEqualTo(BingoCellVerificationStatus.PENDING);
+        assertThat(claimedMemberId.get()).isEqualTo(1L);
+        assertThat(claimedSubmittedAt.get()).isNotNull();
+        then(verificationResultService).should().applyResult(50L, true, null, MissionDifficulty.MEDIUM);
+    }
+
+    @Test
+    @DisplayName("활동 미션 칸을 완료하면 제출자와 제출 시각이 기록된다")
+    void completeCellRecordsSubmission() {
+        // given
+        Room room = room(10L);
+        Game game = game(20L, LocalDateTime.now());
+        BingoBoard board = board(30L, game.getId());
+        BingoCell cell = cell(50L, board.getId());
+        givenRoomMembership(10L, 1L);
+        givenCellLookupChain(cell, board, game, room);
+        givenActiveSharedBoard(game, board);
+        givenMission(mission(MissionType.STEP_TOTAL));
+
+        // when
+        bingoCommandService.completeCell(1L, 10L, 50L);
+
+        // then
+        assertThat(cell.getMemberId()).isEqualTo(1L);
+        assertThat(cell.getSubmittedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("활동 미션 칸을 완료하면 지급 포인트가 응답에 담긴다")
+    void completeCellReturnsRewardPoint() {
+        // given
+        Room room = room(10L);
+        Game game = game(20L, LocalDateTime.now());
+        BingoBoard board = board(30L, game.getId());
+        BingoCell cell = cell(50L, board.getId());
+        Mission mission = mission(MissionType.STEP_TOTAL);
+        givenRoomMembership(10L, 1L);
+        givenCellLookupChain(cell, board, game, room);
+        givenActiveSharedBoard(game, board);
+        givenMission(mission);
+        given(verificationResultService.applyResult(50L, true, null, MissionDifficulty.MEDIUM))
+                .willReturn(50L);
+
+        // when
+        BingoCellSubmitResponse response = bingoCommandService.completeCell(1L, 10L, 50L);
+
+        // then
+        assertThat(response.rewardPoint()).isEqualTo(50L);
+        assertThat(response.cellId()).isEqualTo(50L);
+        assertThat(response.mission().missionId()).isEqualTo(MISSION_ID);
+    }
+
+    @Test
+    @DisplayName("사진 인증 미션 칸은 활동 완료로 처리할 수 없다")
+    void completeCellRejectsPhotoMission() {
+        // given
+        Room room = room(10L);
+        Game game = game(20L, LocalDateTime.now());
+        BingoBoard board = board(30L, game.getId());
+        BingoCell cell = cell(50L, board.getId());
+        givenRoomMembership(10L, 1L);
+        givenCellLookupChain(cell, board, game, room);
+        givenActiveSharedBoard(game, board);
+        givenMission(mission(MissionType.OBJECT));
+
+        // when & then
+        assertThatThrownBy(() -> bingoCommandService.completeCell(1L, 10L, 50L))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.BINGO_CELL_PHOTO_MISSION_NOT_COMPLETABLE);
+        then(verificationResultService).shouldHaveNoInteractions();
+        assertThat(cell.getVerificationStatus()).isNull();
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = MissionType.class, names = {"ATTRIBUTE", "RELATION", "ORDINARY"})
+    @DisplayName("사진 인증 미션 판별은 네 가지 타입 모두에 적용된다")
+    void completeCellRejectsEveryPhotoMissionType(MissionType missionType) {
+        // given
+        Room room = room(10L);
+        Game game = game(20L, LocalDateTime.now());
+        BingoBoard board = board(30L, game.getId());
+        BingoCell cell = cell(50L, board.getId());
+        givenRoomMembership(10L, 1L);
+        givenCellLookupChain(cell, board, game, room);
+        givenActiveSharedBoard(game, board);
+        givenMission(mission(missionType));
+
+        // when & then
+        assertThatThrownBy(() -> bingoCommandService.completeCell(1L, 10L, 50L))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.BINGO_CELL_PHOTO_MISSION_NOT_COMPLETABLE);
+    }
+
+    @Test
+    @DisplayName("이미 승인된 칸은 다시 완료할 수 없다")
+    void completeCellRejectsApprovedCell() {
+        // given
+        Room room = room(10L);
+        Game game = game(20L, LocalDateTime.now());
+        BingoBoard board = board(30L, game.getId());
+        BingoCell cell = cell(50L, board.getId());
+        cell.submit(1L, null);
+        cell.approve();
+        givenRoomMembership(10L, 1L);
+        givenCellLookupChain(cell, board, game, room);
+        givenActiveSharedBoard(game, board);
+        givenMission(mission(MissionType.STEP_TOTAL));
+
+        // when & then
+        assertThatThrownBy(() -> bingoCommandService.completeCell(1L, 10L, 50L))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.BINGO_CELL_ALREADY_APPROVED);
+    }
+
+    @Test
+    @DisplayName("검증 중인 칸은 완료할 수 없다")
+    void completeCellRejectsPendingCell() {
+        // given
+        Room room = room(10L);
+        Game game = game(20L, LocalDateTime.now());
+        BingoBoard board = board(30L, game.getId());
+        BingoCell cell = cell(50L, board.getId());
+        cell.submit(1L, null);
+        givenRoomMembership(10L, 1L);
+        givenCellLookupChain(cell, board, game, room);
+        givenActiveSharedBoard(game, board);
+        givenMission(mission(MissionType.STEP_TOTAL));
+
+        // when & then
+        assertThatThrownBy(() -> bingoCommandService.completeCell(1L, 10L, 50L))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.BINGO_CELL_VERIFICATION_IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("게임방 참여자가 아니면 완료할 수 없다")
+    void completeCellRejectsNonMember() {
+        // given
+        given(roomRepository.existsById(10L)).willReturn(true);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> bingoCommandService.completeCell(1L, 10L, 50L))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ROOM_MEMBER_FORBIDDEN);
+        then(bingoCellRepository).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("종료된 게임방에서는 완료할 수 없다")
+    void completeCellRejectsClosedRoom() {
+        // given
+        Room room = room(10L);
+        room.close();
+        Game game = game(20L, LocalDateTime.now());
+        BingoBoard board = board(30L, game.getId());
+        BingoCell cell = cell(50L, board.getId());
+        givenRoomMembership(10L, 1L);
+        givenCellLookupChain(cell, board, game, room);
+
+        // when & then
+        assertThatThrownBy(() -> bingoCommandService.completeCell(1L, 10L, 50L))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ROOM_CLOSED);
+    }
+
+    @Test
+    @DisplayName("활성 보드에 속하지 않은 칸은 완료할 수 없다")
+    void completeCellRejectsCellOutsideActiveBoard() {
+        // given
+        Room room = room(10L);
+        Game game = game(20L, LocalDateTime.now());
+        BingoBoard board = board(30L, game.getId());
+        BingoBoard activeBoard = board(31L, game.getId());
+        BingoCell cell = cell(50L, board.getId());
+        givenRoomMembership(10L, 1L);
+        givenCellLookupChain(cell, board, game, room);
+        givenActiveSharedBoard(game, activeBoard);
+
+        // when & then
+        assertThatThrownBy(() -> bingoCommandService.completeCell(1L, 10L, 50L))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.BINGO_CELL_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("미션을 찾을 수 없으면 완료할 수 없다")
+    void completeCellRejectsMissingMission() {
+        // given
+        Room room = room(10L);
+        Game game = game(20L, LocalDateTime.now());
+        BingoBoard board = board(30L, game.getId());
+        BingoCell cell = cell(50L, board.getId());
+        givenRoomMembership(10L, 1L);
+        givenCellLookupChain(cell, board, game, room);
+        givenActiveSharedBoard(game, board);
+        given(missionRepository.findById(MISSION_ID)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> bingoCommandService.completeCell(1L, 10L, 50L))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.MISSION_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("갱신 기한이 지난 빙고판에서는 완료할 수 없다")
+    void completeCellRejectsExpiredSharedCycle() {
+        // given
+        Room room = room(10L);
+        Game game = game(20L, LocalDateTime.now().minusDays(8));
+        BingoBoard board = board(30L, game.getId());
+        BingoCell cell = cell(50L, board.getId());
+        givenRoomMembership(10L, 1L);
+        givenCellLookupChain(cell, board, game, room);
+
+        // when & then
+        assertThatThrownBy(() -> bingoCommandService.completeCell(1L, 10L, 50L))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.BINGO_BOARD_RENEWAL_REQUIRED);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 게임방이면 완료할 수 없다")
+    void completeCellRejectsMissingRoom() {
+        // given
+        given(roomRepository.existsById(10L)).willReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> bingoCommandService.completeCell(1L, 10L, 50L))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ROOM_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("대결 모드에서 게임 참가자가 아니면 완료할 수 없다")
+    void completeCellRejectsNonBattleParticipant() {
+        // given
+        Room room = battleRoom(10L);
+        Game game = game(20L, LocalDateTime.now());
+        BingoBoard board = board(30L, game.getId());
+        BingoCell cell = cell(50L, board.getId());
+        givenRoomMembership(10L, 1L);
+        givenCellLookupChain(cell, board, game, room);
+        given(gameParticipantRepository.findByGameIdAndMemberId(game.getId(), 1L))
+                .willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> bingoCommandService.completeCell(1L, 10L, 50L))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.GAME_PARTICIPANT_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("셀이 속한 게임이 진행 중이 아니면 완료할 수 없다")
+    void completeCellRejectsEndedGame() {
+        // given
+        Room room = room(10L);
+        Game game = game(20L, LocalDateTime.now());
+        game.complete();
+        BingoBoard board = board(30L, game.getId());
+        BingoCell cell = cell(50L, board.getId());
+        givenRoomMembership(10L, 1L);
+        givenCellLookupChain(cell, board, game, room);
+
+        // when & then
+        assertThatThrownBy(() -> bingoCommandService.completeCell(1L, 10L, 50L))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ROOM_NOT_IN_PROGRESS);
+    }
+
+    private void givenRoomMembership(Long roomId, Long memberId) {
+        given(roomRepository.existsById(roomId)).willReturn(true);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(roomId, memberId)).willReturn(true);
+    }
+
+    private void givenCellLookupChain(BingoCell cell, BingoBoard board, Game game, Room room) {
+        given(bingoCellRepository.findByIdForUpdate(cell.getId())).willReturn(Optional.of(cell));
+        given(bingoBoardRepository.findById(board.getId())).willReturn(Optional.of(board));
+        given(gameRepository.findRoomIdById(game.getId())).willReturn(Optional.of(room.getId()));
+        given(gameRepository.findByIdForUpdate(game.getId())).willReturn(Optional.of(game));
+        given(roomRepository.findByIdForUpdate(room.getId())).willReturn(Optional.of(room));
+    }
+
+    private void givenActiveSharedBoard(Game game, BingoBoard activeBoard) {
+        given(bingoBoardRepository.findActiveBoardForUpdate(game.getId(), BingoBoardStatus.inactiveStatuses()))
+                .willReturn(Optional.of(activeBoard));
+    }
+
+    private void givenMission(Mission mission) {
+        given(missionRepository.findById(MISSION_ID)).willReturn(Optional.of(mission));
+    }
+
     private void givenSubmissionContext(Room room, Game game, BingoBoard board, BingoCell cell) {
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
@@ -281,6 +628,31 @@ class BingoCommandServiceTest {
         Room room = Room.create(1L, "Shared Room", GameMode.COOPERATE, 2, 10_000, 3);
         ReflectionTestUtils.setField(room, "id", roomId);
         return room;
+    }
+
+    private Room battleRoom(Long roomId) {
+        Room room = Room.create(1L, "대결 방", GameMode.BATTLE, 3, 3);
+        ReflectionTestUtils.setField(room, "id", roomId);
+        return room;
+    }
+
+    private BingoCell cell(Long cellId, Long boardId) {
+        BingoCell cell = BingoCell.create(boardId, MISSION_ID, 0, 0);
+        ReflectionTestUtils.setField(cell, "id", cellId);
+        return cell;
+    }
+
+    private Mission mission(MissionType type) {
+        Mission mission = Mission.create(
+                "https://example.com/mission.png",
+                type,
+                "미션 제목",
+                "미션 설명",
+                null,
+                MissionDifficulty.MEDIUM
+        );
+        ReflectionTestUtils.setField(mission, "id", MISSION_ID);
+        return mission;
     }
 
     private Game game(Long gameId, LocalDateTime startedAt) {

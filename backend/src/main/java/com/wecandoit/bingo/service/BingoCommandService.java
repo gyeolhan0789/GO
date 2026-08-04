@@ -1,6 +1,7 @@
 package com.wecandoit.bingo.service;
 
 import com.wecandoit.bingo.controller.response.BingoBoardResponse;
+import com.wecandoit.bingo.controller.response.BingoCellSubmitResponse;
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.domain.BingoCell;
@@ -24,6 +25,8 @@ import com.wecandoit.game.service.GameCycleCommandService;
 import com.wecandoit.history.domain.ActiveWalkSession;
 import com.wecandoit.history.repository.ActiveWalkSessionRepository;
 import com.wecandoit.history.repository.WalkSessionRepository;
+import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.repository.MissionRepository;
 import com.wecandoit.notification.domain.NotificationType;
 import com.wecandoit.notification.event.NotificationMessageFactory;
 import com.wecandoit.notification.repository.NotificationRepository;
@@ -53,6 +56,8 @@ public class BingoCommandService {
     private final BingoCellRepository bingoCellRepository;
     private final ActiveWalkSessionRepository activeWalkSessionRepository;
     private final WalkSessionRepository walkSessionRepository;
+    private final MissionRepository missionRepository;
+    private final BingoCellVerificationResultService verificationResultService;
     private final NotificationRepository notificationRepository;
     private final ImageUploadService imageUploadService;
     private final GameCycleCommandService gameCycleCommandService;
@@ -115,6 +120,54 @@ public class BingoCommandService {
         }
     }
 
+    public BingoCellSubmitResponse completeCell(Long memberId, Long roomId, Long cellId) {
+        if (!roomRepository.existsById(roomId)) {
+            throw new CustomException(ErrorCode.ROOM_NOT_FOUND);
+        }
+        validateMember(memberId, roomId);
+
+        // 교착을 피하려고 applyResult와 같은 Cell → Game → Room 순서로 잠금을 잡는다.
+        // 상태 가드가 1차 캐시의 stale 값을 보지 않도록 엔티티는 findByIdForUpdate로만 적재한다.
+        BingoCell cell = bingoCellRepository.findByIdForUpdate(cellId)
+                .orElseThrow(() -> new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND));
+        BingoBoard board = bingoBoardRepository.findById(cell.getBoardId())
+                .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
+
+        // 다른 방의 cellId로 Game/Room 행 잠금을 잡지 않도록 roomId 스칼라 조회로 소유권을 먼저 검증한다.
+        Long cellRoomId = gameRepository.findRoomIdById(board.getGameId())
+                .orElseThrow(() -> new CustomException(ErrorCode.GAME_NOT_FOUND));
+        if (!cellRoomId.equals(roomId)) {
+            throw new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND);
+        }
+
+        Game game = gameRepository.findByIdForUpdate(board.getGameId())
+                .orElseThrow(() -> new CustomException(ErrorCode.GAME_NOT_FOUND));
+        Room room = roomRepository.findByIdForUpdate(game.getRoomId())
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+
+        validateRoomActive(room);
+        validateGameActive(game);
+        validateGameCycleOpen(room, game);
+
+        BingoBoard activeBoard = findActiveBoardForUpdate(room, game.getId(), memberId);
+        if (!activeBoard.getId().equals(cell.getBoardId())) {
+            throw new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND);
+        }
+
+        Mission mission = missionRepository.findById(cell.getMissionId())
+                .orElseThrow(() -> new CustomException(ErrorCode.MISSION_NOT_FOUND));
+        validateActivityMission(mission);
+        validateCellSubmittable(cell);
+
+        cell.submitWithoutImage(memberId);
+        bingoCellRepository.save(cell);
+
+        long rewardPoint = verificationResultService.applyResult(
+                cellId, true, null, mission.getDifficulty());
+
+        return BingoCellSubmitResponse.of(cell, mission, rewardPoint);
+    }
+
     public BingoBoardResponse renewBoard(
             Long memberId,
             Long roomId,
@@ -160,6 +213,18 @@ public class BingoCommandService {
     private void validateRoomActive(Room room) {
         if (room.getStatus() != RoomStatus.ACTIVE) {
             throw new CustomException(ErrorCode.ROOM_CLOSED);
+        }
+    }
+
+    private void validateActivityMission(Mission mission) {
+        if (mission.getType().isPhotoVerified()) {
+            throw new CustomException(ErrorCode.BINGO_CELL_PHOTO_MISSION_NOT_COMPLETABLE);
+        }
+    }
+
+    private void validateGameActive(Game game) {
+        if (game.getStatus() != GameStatus.ACTIVE) {
+            throw new CustomException(ErrorCode.ROOM_NOT_IN_PROGRESS);
         }
     }
 
