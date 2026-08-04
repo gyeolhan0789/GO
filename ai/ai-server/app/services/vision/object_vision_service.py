@@ -4,29 +4,25 @@ from io import BytesIO
 
 from PIL import Image
 
+
 from app.domain.ai_result import AIResult
 from app.domain.mission_result import ReasonCode
 
-from app.prompts.prompt_builder import PromptBuilder
 
 from app.services.vision.siglip2_service import (
     SigLIP2Service
 )
 
-from app.services.vision.gemini_service import (
-    GeminiService
-)
-
-from app.mappers.siglip_result_mapper import (
-    SigLIPResultMapper
-)
-
-from app.mappers.reason_mapper import (
-    ReasonMapper
-)
-
 from app.services.rule_engine.siglip_rule_engine import (
     SigLIPRuleEngine
+)
+
+from app.services.verifier.object_verifier_service import (
+    ObjectVerifierService
+)
+
+from app.services.vision.gemini_service import (
+    GeminiService
 )
 
 
@@ -37,39 +33,56 @@ class ObjectVisionService:
     """
     OBJECT Mission Vision Pipeline
 
+
+    Responsibility
+    ----------------------
+
+    OBJECT 검증 전체 흐름 관리
+
+
+    Pipeline:
+
     Image
-      |
-      v
+
+      ↓
+
     SigLIP2
-      |
-      v
-    Rule Engine
-      |
-      + PASS
-      + OBJECT_NOT_FOUND
-      + OBJECT_UNCERTAIN
-                |
-                v
-          Gemini Fallback
+
+    (객체 후보 탐지)
+
+      ↓
+
+    SigLIPRuleEngine
+
+    (candidate 판단)
+
+      ↓
+
+    ObjectExistResult
+
+
+      ↓
+
+
+    ObjectVerifier
+
+    (REAL / NON_REAL 판단)
+
+      ↓
+
+
+    Gemini fallback
+
+    (불확실 케이스)
+
+
+      ↓
+
+
+    AIResult
+
+
     """
-
-
-    COMMON_OBJECTS = [
-        "flower",
-        "dog",
-        "cat",
-        "cup",
-        "bottle",
-        "book",
-        "phone",
-        "pen",
-        "keyboard",
-        "mouse",
-        "wallet",
-        "watch",
-        "glasses",
-        "toy"
-    ]
 
 
 
@@ -79,16 +92,16 @@ class ObjectVisionService:
             SigLIP2Service()
         )
 
-        self.mapper = (
-            SigLIPResultMapper()
-        )
 
         self.rule_engine = (
             SigLIPRuleEngine()
         )
 
-        self.gemini_service = (
-            GeminiService()
+
+        self.object_verifier = (
+            ObjectVerifierService(
+                gemini_service=GeminiService()
+            )
         )
 
 
@@ -100,8 +113,9 @@ class ObjectVisionService:
     ) -> AIResult:
 
 
+
         # ==========================
-        # Image Convert
+        # Image Load
         # ==========================
 
         image = (
@@ -114,7 +128,7 @@ class ObjectVisionService:
 
 
         # ==========================
-        # Target Object
+        # Target
         # ==========================
 
         target = (
@@ -127,7 +141,7 @@ class ObjectVisionService:
         if not target:
 
             raise ValueError(
-                "OBJECT target 조건이 필요합니다."
+                "OBJECT target required"
             )
 
 
@@ -140,28 +154,20 @@ class ObjectVisionService:
 
 
         # ==========================
-        # SigLIP Candidate 생성
+        # 1. SigLIP2 Candidate Detection
         # ==========================
 
-        candidates = (
-            self._build_candidates(
-                target
-            )
-        )
+        candidates = [
 
+            f"a photo of a real {target}",
 
-        logger.info(
-            "[SigLIP Candidates] %s",
-            candidates
-        )
+            f"a photo without a {target}"
+
+        ]
 
 
 
-        # ==========================
-        # SigLIP Inference
-        # ==========================
-
-        siglip_result = (
+        prediction = (
             self.siglip_service.predict(
                 image=image,
                 candidates=candidates
@@ -170,167 +176,172 @@ class ObjectVisionService:
 
 
 
-        logger.info(
-            "[SigLIP Result] "
-            "top=%s confidence=%.4f",
-            siglip_result["top_label"],
-            siglip_result["confidence"]
-        )
-
-
-
-        # ==========================
-        # Mapping
-        # ==========================
-
-        ai_result = (
-            self.mapper.map(
-                siglip_result
+        scores = (
+            prediction.get(
+                "scores",
+                {}
             )
         )
 
 
 
         # ==========================
-        # Rule Engine
+        # 2. SigLIP Rule Engine
         # ==========================
 
-        ai_result = (
-            self.rule_engine.validate(
-                ai_result
+        object_result = (
+            self.rule_engine.create_object_result(
+                target=target,
+                scores=scores
             )
         )
 
 
-
-        # ==========================
-        # SigLIP 직접 결정
-        # ==========================
-
-        if (
-            ai_result.reason_code
-            !=
-            ReasonCode.OBJECT_UNCERTAIN
-        ):
-
-            logger.info(
-                "[OBJECT Decision] "
-                "success=%s confidence=%.4f reason=%s",
-                ai_result.success,
-                ai_result.confidence,
-                ai_result.reason_code
-            )
-
-            return ai_result
-
-
-
-        # ==========================
-        # Gemini Fallback
-        # ==========================
 
         logger.info(
-            "[Gemini Fallback] "
-            "score=%.4f margin=%.4f",
-            ai_result.metadata.get(
-                "top_score",
-                0.0
-            ),
-            ai_result.metadata.get(
-                "margin",
-                0.0
-            )
+            """
+[OBJECT Candidate]
+
+target=%s
+
+exists=%s
+
+confidence=%.3f
+
+positive=%.6f
+
+negative=%.6f
+
+margin=%.6f
+
+""",
+
+            target,
+
+            object_result.exists,
+
+            object_result.confidence,
+
+            object_result.positive_score,
+
+            object_result.negative_score,
+
+            object_result.margin
+
         )
 
 
 
-        try:
+        # ==========================
+        # 3. Candidate Not Found
+        # ==========================
 
-            prompt = (
-                PromptBuilder.build(
-                    mission_type="OBJECT",
-                    decision_condition=decision_condition
-                )
-            )
+        if not object_result.exists:
 
 
-            gemini_result = (
-                self.gemini_service.verify_mission(
-                    image_bytes=image_bytes,
-                    prompt=prompt
-                )
-            )
+            return AIResult(
+
+                success=False,
+
+                confidence=(
+                    object_result.confidence
+                ),
+
+                reason=(
+                    f"{target} not found"
+                ),
+
+                reason_code=(
+                    ReasonCode.OBJECT_NOT_FOUND
+                ),
+
+                detected_objects=[],
 
 
+                metadata={
 
-            gemini_result = (
-                ReasonMapper.map(
-                    ai_result=gemini_result,
-                    mission_type="OBJECT"
-                )
-            )
+                    "decision_source":
+                        "SIGLIP2",
 
 
-            return gemini_result
+                    "object_candidate":
+                    {
 
+                        "target":
+                            object_result.target,
 
+                        "positive_score":
+                            object_result.positive_score,
 
-        except Exception as e:
+                        "negative_score":
+                            object_result.negative_score,
 
+                        "margin":
+                            object_result.margin,
 
-            logger.exception(
-                "[Gemini Fallback] failed"
-            )
+                        "confidence":
+                            object_result.confidence
 
+                    }
 
-            ai_result.reason = (
-                "객체를 명확하게 판별할 수 없습니다."
-            )
-
-
-            ai_result.metadata.update(
-                {
-                    "fallback_status": "FAILED",
-                    "fallback_error": str(e)
                 }
+
             )
 
 
-            return ai_result
+
+        # ==========================
+        # 4. Real Object Verification
+        # ==========================
+
+        verifier_result = (
+            self.object_verifier.verify(
+                image_bytes=image_bytes,
+                target=target,
+                object_result=object_result
+            )
+        )
 
 
 
-    def _build_candidates(
-        self,
-        target: str
-    ) -> list[str]:
-        """
-        SigLIP 비교 후보 생성
+        # ==========================
+        # 5. Final Metadata Merge
+        # ==========================
 
-        target:
-            미션 대상 객체
+        if verifier_result.metadata is None:
 
-        예:
-            flower
-
-        결과:
-            [
-                "a photo of a flower",
-                "a photo of a dog",
-                ...
-            ]
-        """
-
-        objects = [
-            target
-        ] + [
-            obj
-            for obj in self.COMMON_OBJECTS
-            if obj != target
-        ]
+            verifier_result.metadata = {}
 
 
-        return [
-            f"a photo of a {obj}"
-            for obj in objects
-        ]
+
+        verifier_result.metadata.update(
+
+            {
+
+                "siglip_candidate":
+
+                {
+
+                    "target":
+                        object_result.target,
+
+                    "positive_score":
+                        object_result.positive_score,
+
+                    "negative_score":
+                        object_result.negative_score,
+
+                    "margin":
+                        object_result.margin,
+
+                    "confidence":
+                        object_result.confidence
+
+                }
+
+            }
+
+        )
+
+
+        return verifier_result
