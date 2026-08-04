@@ -1,39 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { useMyCharacterQuery } from '../../member/hooks/useMyCharacterQuery';
-import { getGameResult } from '../api/gameResultApi';
-import { toWalkDetail } from '../model/gameResult';
-import type { WalkDetail } from '../types';
-
-type WalkDetailQueryResult = {
-  walk: WalkDetail | null;
-  isLoading: boolean;
-  isError: boolean;
-};
+import { getWalkSession } from '../../walk-session/api/walkSessionApi';
+import { toWalkDetail } from '../model/walkSession';
 
 /**
- * 산책 상세. 응답에 '이 사람이 나'라는 표시가 없어서 내 memberId를 먼저 알아야
- * 내 빙고판과 내가 완료한 칸을 가려낼 수 있다.
+ * 산책 상세. 내 산책만 조회되고 칸도 '이번 산책에 깼는지'로 갈리므로, 예전처럼
+ * 내 memberId를 먼저 받아와 내 것을 가려낼 필요가 없다.
  */
-export function useWalkDetailQuery(gameId: number): WalkDetailQueryResult {
-  const characterQuery = useMyCharacterQuery();
-  const myMemberId = characterQuery.data?.memberId ?? null;
-
-  const walkQuery = useQuery({
-    queryKey: ['game-results', 'detail', gameId, myMemberId],
-    queryFn: async () => {
-      const response = await getGameResult(gameId);
-
-      // enabled가 막아주지만 타입을 좁히려면 여기서 한 번 더 확인해야 한다.
-      return myMemberId === null ? null : toWalkDetail(response, myMemberId);
-    },
-    enabled: myMemberId !== null,
+export function useWalkDetailQuery(walkSessionId: number) {
+  return useQuery({
+    queryKey: ['walk-sessions', 'detail', walkSessionId],
+    queryFn: async () => toWalkDetail(await getWalkSession(walkSessionId)),
   });
-
-  return {
-    walk: walkQuery.data ?? null,
-    // 내 memberId를 받아오는 동안 산책 쿼리는 아직 시작도 못 한 상태다.
-    isLoading: characterQuery.isLoading || walkQuery.isLoading,
-    isError: characterQuery.isError || walkQuery.isError,
-  };
 }

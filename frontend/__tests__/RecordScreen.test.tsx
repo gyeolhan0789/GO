@@ -15,7 +15,7 @@ import { RECENT_WALK_LIMIT } from '../src/features/history/hooks/useRecentWalksQ
 import { RecordScreen } from '../src/screens/RecordScreen/RecordScreen';
 import { installFetchMock, jsonResponse } from '../jest/fetchMock';
 import type { FetchMock } from '../jest/fetchMock';
-import { buildGameResultSlice } from '../jest/gameResultFixtures';
+import { buildWalkSessionSlice } from '../jest/walkSessionFixtures';
 
 // jest에는 네이티브 모듈이 없어서 권한 통과 + 기록 있는 기기를 흉내낸다.
 jest.mock('../src/shared/lib/samsungHealth', () => ({
@@ -83,9 +83,9 @@ beforeEach(() => {
   navigateMock.mockClear();
   fetchMock = installFetchMock();
   fetchMock.mockImplementation(async url => {
-    if (url.includes('/game-results')) {
+    if (url.includes('/walk-sessions')) {
       const size = Number(/size=(\d+)/.exec(url)?.[1]);
-      return jsonResponse(200, buildGameResultSlice(0, size, TOTAL_WALKS));
+      return jsonResponse(200, buildWalkSessionSlice(0, size, TOTAL_WALKS));
     }
     throw new Error(`예상하지 못한 요청: ${url}`);
   });
@@ -158,8 +158,8 @@ function findByAccessibilityLabel(root: ReactTestInstance, label: string) {
   return root.find(node => node.props.accessibilityLabel === label);
 }
 
-function gameResultRequestCount() {
-  return fetchMock.mock.calls.filter(([url]) => url.includes('/game-results'))
+function walkSessionRequestCount() {
+  return fetchMock.mock.calls.filter(([url]) => url.includes('/walk-sessions'))
     .length;
 }
 
@@ -213,11 +213,11 @@ describe('RecordScreen', () => {
     expect(texts).toContain('이번 주 걸음');
     expect(texts).toContain('최근 산책');
     expect(texts).toContain('민서와의 산책');
-    // 걸음·거리·칼로리는 산책방 단위로 남는 데가 없어 게임 지표를 보여준다.
-    expect(texts).toContain('혼자 · 미션 4/9');
-    // 카드는 한 줄만 써서 요일·시각 없이 날짜만 남긴다.
-    expect(texts).toContain('2026.07.20');
-    expect(texts).toContain('성공');
+    // 카드 한 장이 산책 한 번이라 그날 얼마나 걸었는지가 그대로 들어간다.
+    // 요일·시각은 한 줄에 다 안 들어가 상세 화면에만 둔다.
+    expect(texts).toContain('혼자 · 2026.07.20 · 28분');
+    expect(texts).toContain('3,240');
+    expect(texts).toContain('미션 2개 달성');
     expect(texts).toContain('전체 기록 보기');
   });
 
@@ -296,8 +296,10 @@ describe('RecordScreen', () => {
       ).props.onPress();
     });
 
-    // 방 번호(4000번대)가 아니라 판 번호로 넘겨야 상세가 열린다.
-    expect(navigateMock).toHaveBeenCalledWith('WalkDetail', { gameId: 1 });
+    // 방 번호(4000번대)가 아니라 산책 번호로 넘겨야 상세가 열린다.
+    expect(navigateMock).toHaveBeenCalledWith('WalkDetail', {
+      walkSessionId: 1,
+    });
   });
 
   test('최근 산책은 3건만 보여준다', async () => {
@@ -323,7 +325,7 @@ describe('RecordScreen', () => {
   // 새로고침이 없으면 앱을 다시 열기 전까지 최근 산책이 그대로 멈춰 있었다.
   test('당겨서 새로고침하면 최근 산책을 다시 부른다', async () => {
     const tree = await renderScreen();
-    const before = gameResultRequestCount();
+    const before = walkSessionRequestCount();
 
     await act(async () => {
       tree.root
@@ -332,7 +334,7 @@ describe('RecordScreen', () => {
     });
     await flushQueries();
 
-    expect(gameResultRequestCount()).toBeGreaterThan(before);
+    expect(walkSessionRequestCount()).toBeGreaterThan(before);
   });
 });
 

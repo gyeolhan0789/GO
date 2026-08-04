@@ -18,11 +18,11 @@ import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 import { useFriendsQuery } from '../../features/friend/hooks/useFriendsQuery';
 import { todayIso } from '../../features/history/model/period';
 import { useHistoriesQuery } from '../../features/history/hooks/useHistoriesQuery';
-import { useSaveHistoryMutation } from '../../features/history/hooks/useSaveHistoryMutation';
 import { useMyMemberIdQuery } from '../../features/member/hooks/useMyMemberIdQuery';
 import { useMyPageQuery } from '../../features/member/hooks/useMyPageQuery';
 import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
 import { useWalkSession } from '../../features/walk-session/hooks/useWalkSession';
+import { recordFinishedWalk } from '../../features/walk-session/model/recordFinishedWalk';
 import {
   clearWalkSessionEndRequest,
   confirmWalkSessionStart,
@@ -208,7 +208,6 @@ export function WalkSessionScreen() {
     }),
   ).current;
 
-  const saveHistoryMutation = useSaveHistoryMutation();
   const queryClient = useQueryClient();
 
   /** 확인을 마친 뒤의 실제 종료. 워치에서 종료를 눌렀을 때도 여기로 온다
@@ -232,47 +231,57 @@ export function WalkSessionScreen() {
     }
 
     // 네이티브 세션을 종료해 서비스·알림·GPS를 정지시키고 확정된
-    // 최종 수치를 받아온다.
+    // 최종 수치를 받아온다. 여기서부터는 되돌릴 수 없으므로 이 수치를
+    // 끝까지 들고 간다.
     const final = await stopWalkSession();
     const finalSteps = Math.round(final.steps);
-    const finalDistanceKm = Math.round(final.distanceMeters / 100) / 10;
+    const finalDistanceMeters = Math.round(final.distanceMeters);
     const finalCalories = Math.round(final.calories);
+    // 서버는 이 값이 (종료 - 시작)보다 크면 요청을 거절한다. 올리지 않는다.
     const finalElapsedSeconds = Math.floor(final.activeElapsedMs / 1000);
 
-    // 오늘 걸음/거리/칼로리를 서버에 올린다. 실패해도 이 세션 자체를
-    // 못 끝내게 막을 이유는 없어서(내 기기에서 이미 다 계산해둔
-    // 값이라 결과 화면은 그대로 보여줄 수 있다), 실패는 알림만 띄우고
-    // 계속 진행한다.
-    try {
-      await saveHistoryMutation.mutateAsync({
-        historyDate: todayIso(),
-        step: finalSteps,
-        distance: Math.round(finalDistanceKm * 1000),
-        calories: finalCalories,
-      });
-    } catch (error) {
+    // 종료 시각은 여기서 한 번만 찍는다. 재시도할 때마다 새로 찍으면 산책
+    // 시간이 그만큼 늘어난다.
+    const outcome = await recordFinishedWalk({
+      roomId,
+      endedAt: new Date(),
+      activeDurationSeconds: finalElapsedSeconds,
+      step: finalSteps,
+      distance: finalDistanceMeters,
+      calories: finalCalories,
+    });
+
+    // 올리지 못해도 이 산책을 못 끝내게 막을 이유는 없다 — 수치는 이미 기기에서
+    // 확정됐고 결과 화면은 그대로 보여줄 수 있다.
+    if (outcome.status === 'failed') {
+      Alert.alert('기록 저장에 실패했어요', outcome.message);
+    } else if (outcome.status === 'stepsOnly') {
       Alert.alert(
-        '기록 저장에 실패했어요',
-        error instanceof Error ? error.message : '잠시 후 다시 시도해주세요.',
+        '산책 기록을 남기지 못했어요',
+        '걸음 수는 오늘 기록에 반영했지만, 이번 산책은 기록 목록에 남지 않아요.',
       );
     }
 
     // 기록 화면은 탭에 계속 살아 있어 다시 마운트되지 않는다. 여기서
     // 비워주지 않으면 방금 끝낸 산책이 최근 산책·전체 기록에 앱을 다시
-    // 열기 전까지 안 보인다.
-    queryClient.invalidateQueries({ queryKey: ['game-results'] });
+    // 열기 전까지 안 보인다. 걸음 합계도 같이 움직이므로 함께 비운다.
+    queryClient.invalidateQueries({ queryKey: ['walk-sessions'] });
+    queryClient.invalidateQueries({ queryKey: ['histories'] });
 
-    const resultParams = {
+    navigation.replace('WalkResult', {
       roomId,
       roomName: room?.name ?? '',
       mode: room?.mode ?? ('SINGLE' as const),
       steps: finalSteps,
-      distanceKm: finalDistanceKm,
+      distanceKm: Math.round(finalDistanceMeters / 100) / 10,
       calories: finalCalories,
       elapsedSeconds: finalElapsedSeconds,
-    };
-    navigation.replace('WalkResult', resultParams);
-  }, [navigation, roomId, room, saveHistoryMutation, queryClient]);
+      // 기록으로 남지 못했으면 보상도 없다. 재전송으로 기존 기록이 돌아온
+      // 경우에도 서버가 0을 주므로 그때는 보상 줄이 뜨지 않는다.
+      earnedPoint:
+        outcome.status === 'recorded' ? outcome.walkSession.earnedPoint : 0,
+    });
+  }, [navigation, roomId, room, queryClient]);
 
   const handleEndWalk = useCallback(() => {
     Alert.alert('산책 종료', '지금 산책을 종료할까요?', [

@@ -1,4 +1,4 @@
-import { weekdayLabel } from './period';
+import { toIsoDate, weekdayLabel } from './period';
 
 /** 12340 -> '12,340'. Hermes의 Intl 지원 편차를 피해 직접 끊는다. */
 export function formatThousands(value: number): string {
@@ -28,71 +28,53 @@ export function formatDistance(meters: number): Measure {
 }
 
 /**
- * '2026-07-20T20:00:00' -> '2026.07.20 (월) 20:00'.
- * 서버 LocalDateTime은 시간대가 없어서 Date로 파싱하지 않고 문자열을 쪼갠다.
+ * 산책 기록의 시각은 시간대가 붙은 ISO-8601(UTC)로 온다. 예전 LocalDateTime처럼
+ * 문자열을 쪼개면 그대로 UTC 벽시계를 읽어 아홉 시간 어긋나므로, Date로 파싱해
+ * 기기 시간대로 옮긴 뒤에 조립한다.
  */
-export function formatWalkDateTime(isoDateTime: string | null): string {
-  if (isoDateTime === null) {
+function toLocalDate(instant: string): Date | null {
+  const date = new Date(instant);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/** '2026-08-03T11:20:30Z' -> '2026.08.03'. 목록 카드는 한 줄만 써서 요일을 뺀다. */
+export function formatWalkDate(instant: string): string {
+  const date = toLocalDate(instant);
+  return date === null ? UNKNOWN_VALUE : toIsoDate(date).replace(/-/g, '.');
+}
+
+/** '2026-08-03T11:20:30Z' -> '2026.08.03 (월) 20:20'. */
+export function formatWalkDateTime(instant: string): string {
+  const date = toLocalDate(instant);
+  if (date === null) {
     return UNKNOWN_VALUE;
   }
 
-  const [date, time = ''] = isoDateTime.split('T');
-  const [year, month, day] = date.split('-');
-  const [hour, minute] = time.split(':');
-  const dayOfWeek = weekdayLabel(date);
-  const clock = hour && minute ? ` ${hour}:${minute}` : '';
+  const isoDate = toIsoDate(date);
+  const hour = `${date.getHours()}`.padStart(2, '0');
+  const minute = `${date.getMinutes()}`.padStart(2, '0');
 
-  return `${year}.${month}.${day} (${dayOfWeek})${clock}`;
+  return `${isoDate.replace(/-/g, '.')} (${weekdayLabel(isoDate)}) ${hour}:${minute}`;
 }
 
-/** 'yyyy-MM-ddTHH:mm:ss'에서 날짜 부분만. */
-function dateOf(isoDateTime: string): string {
-  const [date = ''] = isoDateTime.split('T');
-  return date;
-}
+const SECONDS_PER_MINUTE = 60;
+const MINUTES_PER_HOUR = 60;
 
 /**
- * 방이 열린 날부터 닫힌 날까지. 하루 안에 끝났으면 날짜 하나로 줄인다 —
- * '2026.07.26 - 2026.07.26'으로 반복할 이유가 없다.
- *
- * 시각은 어느 쪽에서도 쓰지 않는다. 방은 최대 일주일 열려 있어서 몇 시에
- * 열고 닫았는지가 기록을 읽는 데 도움이 되지 않는다.
+ * 1932 -> '32분', 4380 -> '1시간 13분'. 1분이 안 되는 산책을 '0분'으로 두면
+ * 기록이 비어 보여서 따로 적는다.
  */
-function formatDayRange(
-  startedAt: string | null,
-  endedAt: string | null,
-  formatDay: (isoDate: string) => string,
-): string {
-  if (startedAt === null) {
-    return endedAt === null ? UNKNOWN_VALUE : formatDay(dateOf(endedAt));
+export function formatWalkDuration(seconds: number): string {
+  const totalMinutes = Math.floor(seconds / SECONDS_PER_MINUTE);
+  if (totalMinutes < 1) {
+    return '1분 미만';
   }
 
-  const start = formatDay(dateOf(startedAt));
+  const hours = Math.floor(totalMinutes / MINUTES_PER_HOUR);
+  const minutes = totalMinutes % MINUTES_PER_HOUR;
 
-  if (endedAt === null) {
-    return start;
+  if (hours === 0) {
+    return `${minutes}분`;
   }
-
-  const end = formatDay(dateOf(endedAt));
-  return start === end ? start : `${start} - ${end}`;
-}
-
-/** '2026.05.14 - 2026.05.21'. 목록 카드는 한 줄만 써서 요일도 뺀다. */
-export function formatWalkDateRange(
-  startedAt: string | null,
-  endedAt: string | null,
-): string {
-  return formatDayRange(startedAt, endedAt, dotted);
-}
-
-/** '2026.05.14 (목) - 2026.05.21 (목)'. 상세 화면은 자리가 있어 요일까지 붙인다. */
-export function formatWalkDayRange(
-  startedAt: string | null,
-  endedAt: string | null,
-): string {
-  return formatDayRange(startedAt, endedAt, formatWalkDateTime);
-}
-
-function dotted(isoDate: string): string {
-  return isoDate.replace(/-/g, '.');
+  return minutes === 0 ? `${hours}시간` : `${hours}시간 ${minutes}분`;
 }

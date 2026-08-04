@@ -1,20 +1,15 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 
 import { renewBingoBoard, type RenewBingoBoardRequest } from '../api/bingoApi';
 
+// 산책 기록은 산책을 끝낼 때만 생기므로 판을 갈아도 기록은 그대로다 —
+// 여기서 비워줄 캐시가 없다.
 export function useRenewBingoBoardMutation() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: ({
       roomId,
       ...body
     }: RenewBingoBoardRequest & { roomId: number }) =>
       renewBingoBoard(roomId, body),
-    onSuccess: () => {
-      // 혼자·함께 방의 산책 기록은 이 갱신이 직전 판을 닫으면서 생긴다.
-      // 여기서 비워주지 않으면 방금 끝낸 판이 기록 화면에 안 나타난다.
-      queryClient.invalidateQueries({ queryKey: ['game-results'] });
-    },
   });
 }

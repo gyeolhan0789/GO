@@ -3,25 +3,18 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { BingoBoard } from '../../../features/bingo/components/BingoBoard/BingoBoard';
 import type { BingoBoardSize } from '../../../features/bingo/components/BingoBoard/BingoBoard';
-import {
-  countCellsByMember,
-  countCompletedCells,
-} from '../../../features/history/model/walkDetail';
-import type {
-  WalkBingoCell,
-  WalkDetailParticipant,
-} from '../../../features/history/types';
+import { countAchievedCells } from '../../../features/history/model/walkDetail';
+import type { WalkBingoBoard } from '../../../features/history/types';
 import { AppText } from '../../../shared/components/AppText/AppText';
 import { Card } from '../../../shared/components/Card/Card';
-import { colors, participantColors } from '../../../shared/constants/colors';
+import { colors } from '../../../shared/constants/colors';
 import { spacing } from '../../../shared/constants/spacing';
 import { bodyFont, lineHeights } from '../../../shared/constants/typography';
 
 type WalkBingoCardProps = {
-  size: BingoBoardSize;
-  cells: WalkBingoCell[];
-  /** 본인이 맨 앞. 이 순서대로 색을 나눠 갖는다. */
-  participants: WalkDetailParticipant[];
+  board: WalkBingoBoard;
+  /** 산책 도중 판을 갈면 여러 장이 되므로 몇 번째 판인지 알려준다. */
+  title: string;
 };
 
 const SWATCH_SIZE = 14;
@@ -39,84 +32,69 @@ const CELL_TEXT = {
   { check: number; font: number; lines: number }
 >;
 
-export function WalkBingoCard({
-  size,
-  cells,
-  participants,
-}: WalkBingoCardProps) {
-  const completedCount = countCompletedCells(cells);
-  const countsByMember = countCellsByMember(cells);
+/**
+ * 기록은 '이 산책이 뭘 했는지'를 보여주는 자리다. 그래서 누가 깼는지가 아니라
+ * 이번 산책에 깼는지로 칸을 가른다 — 지난 산책에서 이미 승인된 칸은 판에
+ * 남아 있지만 이번 몫은 아니다.
+ */
+export function WalkBingoCard({ board, title }: WalkBingoCardProps) {
+  const { cells } = board;
+  const achievedCount = countAchievedCells(cells);
+  const beforeCount = cells.filter(cell => cell.completedBefore).length;
+  const text = CELL_TEXT[board.size];
 
-  // 색은 참가자 순서로 나눠 준다. 협동은 최대 4명이라 팔레트가 모자라지 않는다.
-  const colorByMember = new Map(
-    participants.map((participant, index) => [
-      participant.memberId,
-      participantColors[index % participantColors.length],
-    ]),
-  );
-
-  const text = CELL_TEXT[size];
-
-  const boardCells = cells.map(cell => {
-    const completedBy = cell.completedBy;
-
-    return {
-      id: `${cell.index}`,
-      completed: completedBy !== null,
-      color: completedBy === null ? undefined : colorByMember.get(completedBy),
-      icon: (
-        <View style={styles.cellContent}>
-          {completedBy === null ? null : (
-            <Ionicons name="checkmark" size={text.check} color={colors.ink} />
-          )}
-          <AppText
-            style={[styles.cellTitle, { fontSize: text.font }]}
-            numberOfLines={text.lines}
-            ellipsizeMode="tail"
-          >
-            {cell.missionTitle}
-          </AppText>
-        </View>
-      ),
-    };
-  });
+  const boardCells = cells.map(cell => ({
+    id: `${cell.index}`,
+    completed: cell.achievedInSession || cell.completedBefore,
+    color: cell.achievedInSession ? colors.primary : colors.muted,
+    icon: (
+      <View style={styles.cellContent}>
+        {cell.achievedInSession ? (
+          <Ionicons name="checkmark" size={text.check} color={colors.ink} />
+        ) : null}
+        <AppText
+          style={[styles.cellTitle, { fontSize: text.font }]}
+          numberOfLines={text.lines}
+          ellipsizeMode="tail"
+        >
+          {cell.missionTitle}
+        </AppText>
+      </View>
+    ),
+  }));
 
   return (
     <Card>
       <AppText style={styles.heading}>
-        {`진행한 빙고판 ${completedCount}/${cells.length}`}
+        {`${title} ${achievedCount}/${cells.length}`}
       </AppText>
 
-      {/* 누가 어느 칸을 깼는지가 이 화면의 핵심이라 범례를 늘 펼쳐 둔다. */}
       <View style={styles.legend}>
-        {participants.map(participant => (
-          <View key={participant.memberId} style={styles.legendRow}>
-            <View
-              style={[
-                styles.legendSwatch,
-                { backgroundColor: colorByMember.get(participant.memberId) },
-              ]}
-            />
-            <AppText style={styles.legendLabel} numberOfLines={1}>
-              {participant.isMe ? '나' : participant.nickname}
-            </AppText>
-            <AppText style={styles.legendCount}>
-              {`${countsByMember.get(participant.memberId) ?? 0}칸`}
-            </AppText>
+        <View style={styles.legendRow}>
+          <View style={[styles.legendSwatch, styles.sessionSwatch]} />
+          <AppText style={styles.legendLabel}>이번 산책</AppText>
+          <AppText style={styles.legendCount}>{`${achievedCount}칸`}</AppText>
+        </View>
+
+        {beforeCount > 0 ? (
+          <View style={styles.legendRow}>
+            <View style={[styles.legendSwatch, styles.beforeSwatch]} />
+            <AppText style={styles.legendLabel}>지난 산책</AppText>
+            <AppText style={styles.legendCount}>{`${beforeCount}칸`}</AppText>
           </View>
-        ))}
+        ) : null}
 
         <View style={styles.legendRow}>
           <View style={[styles.legendSwatch, styles.emptySwatch]} />
           <AppText style={styles.legendLabel}>못 깬 칸</AppText>
           <AppText style={styles.legendCount}>
-            {`${cells.length - completedCount}칸`}
+            {`${cells.length - achievedCount - beforeCount}칸`}
           </AppText>
         </View>
       </View>
 
       <View style={styles.board}>
-        <BingoBoard size={size} cells={boardCells} />
+        <BingoBoard size={board.size} cells={boardCells} />
       </View>
     </Card>
   );
@@ -157,6 +135,12 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 2,
     borderColor: colors.ink,
+  },
+  sessionSwatch: {
+    backgroundColor: colors.primary,
+  },
+  beforeSwatch: {
+    backgroundColor: colors.muted,
   },
   emptySwatch: {
     backgroundColor: colors.neutralBg,

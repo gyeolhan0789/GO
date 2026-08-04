@@ -49,7 +49,7 @@ export type RootStackParamList = {
   Main: undefined;
   WalkList: undefined;
   // 방이 아니라 끝난 판 하나를 가리킨다. 같은 방에서 여러 판이 나온다.
-  WalkDetail: { gameId: number };
+  WalkDetail: { walkSessionId: number };
   WalkRoomDetail: { roomId: number };
   // roomId는 화면 파라미터가 아니라 walkSessionStore(전역 진행 중인 세션
   // 상태)로 전달된다.
@@ -64,6 +64,8 @@ export type RootStackParamList = {
     distanceKm: number;
     calories: number;
     elapsedSeconds: number;
+    /** 걸음 목표를 채워 받은 포인트. 없으면 0이라 결과 화면이 보상 줄을 감춘다. */
+    earnedPoint: number;
   };
   BingoBoard: { roomId: number };
   MyPage: undefined;

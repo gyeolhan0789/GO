@@ -16,7 +16,7 @@ import { WalkCard } from '../src/features/history/components/WalkCard/WalkCard';
 import { WalkListScreen } from '../src/screens/WalkListScreen/WalkListScreen';
 import { installFetchMock, jsonResponse } from '../jest/fetchMock';
 import type { FetchMock } from '../jest/fetchMock';
-import { buildGameResultSlice } from '../jest/gameResultFixtures';
+import { buildWalkSessionSlice } from '../jest/walkSessionFixtures';
 
 const INITIAL_METRICS = {
   frame: { x: 0, y: 0, width: 400, height: 800 },
@@ -36,10 +36,10 @@ beforeEach(() => {
   totalWalks = 27;
   fetchMock = installFetchMock();
   fetchMock.mockImplementation(async url => {
-    if (url.includes('/game-results')) {
+    if (url.includes('/walk-sessions')) {
       const page = Number(/page=(\d+)/.exec(url)?.[1]);
       const size = Number(/size=(\d+)/.exec(url)?.[1]);
-      return jsonResponse(200, buildGameResultSlice(page, size, totalWalks));
+      return jsonResponse(200, buildWalkSessionSlice(page, size, totalWalks));
     }
     throw new Error(`예상하지 못한 요청: ${url}`);
   });
@@ -80,7 +80,7 @@ function collectTexts(root: ReactTestInstance): string[] {
  * 렌더된 WalkCard를 세면 안 된다 — FlatList는 initialNumToRender(기본 10)만 그리고
  * 테스트 렌더러엔 뷰포트가 없어 그 이상 늘지 않는다. data가 진실이다.
  */
-function loadedWalks(root: ReactTestInstance): { gameId: number }[] {
+function loadedWalks(root: ReactTestInstance): { walkSessionId: number }[] {
   const [list] = root.findAll(
     node => typeof node.props.onEndReached === 'function' && !!node.props.data,
   );
@@ -179,7 +179,7 @@ describe('WalkListScreen', () => {
     await renderScreen();
 
     expect(fetchMock.mock.calls[0][0]).toContain(
-      '/game-results?page=0&size=10',
+      '/walk-sessions?page=0&size=10',
     );
   });
 
@@ -214,7 +214,7 @@ describe('WalkListScreen', () => {
     await scrollToEnd(tree.root);
     await scrollToEnd(tree.root);
 
-    const ids = loadedWalks(tree.root).map(walk => walk.gameId);
+    const ids = loadedWalks(tree.root).map(walk => walk.walkSessionId);
 
     expect(ids).toHaveLength(27);
     expect(new Set(ids).size).toBe(ids.length);

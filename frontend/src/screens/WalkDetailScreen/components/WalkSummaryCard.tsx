@@ -1,9 +1,13 @@
 import { StyleSheet, View } from 'react-native';
 
-import { WalkResultBadge } from '../../../features/history/components/WalkResultBadge/WalkResultBadge';
-import { formatWalkDayRange } from '../../../features/history/model/format';
-import { GAME_MODE_LABEL } from '../../../features/history/model/gameResult';
+import {
+  formatDistance,
+  formatThousands,
+  formatWalkDateTime,
+  formatWalkDuration,
+} from '../../../features/history/model/format';
 import type { WalkDetail } from '../../../features/history/types';
+import { GAME_MODE_LABEL } from '../../../features/room/model/gameMode';
 import { AppText } from '../../../shared/components/AppText/AppText';
 import { Card } from '../../../shared/components/Card/Card';
 import { colors } from '../../../shared/constants/colors';
@@ -14,50 +18,115 @@ type WalkSummaryCardProps = {
   walk: WalkDetail;
 };
 
-/**
- * 어떤 방이었는지만 알려준다. 미션·빙고·포인트 수치는 빙고판이 그대로 보여주므로
- * 따로 세지 않는다.
- */
+/** 이 산책이 언제 어느 방에서 얼마나 걸은 것인지. */
 export function WalkSummaryCard({ walk }: WalkSummaryCardProps) {
+  const distance = formatDistance(walk.distanceMeters);
+
   return (
     <Card>
-      <View style={styles.titleRow}>
-        <AppText style={styles.title} numberOfLines={2}>
-          {walk.title}
-        </AppText>
-        <WalkResultBadge mode={walk.mode} isWin={walk.isWin} />
-      </View>
-      <AppText style={styles.dayRange}>
-        {`${GAME_MODE_LABEL[walk.mode]} · ${formatWalkDayRange(
-          walk.startedAt,
-          walk.completedAt,
-        )}`}
+      <AppText style={styles.title} numberOfLines={2}>
+        {walk.title}
       </AppText>
+      <AppText style={styles.startedAt}>
+        {`${GAME_MODE_LABEL[walk.mode]} · ${formatWalkDateTime(walk.startedAt)}`}
+      </AppText>
+
+      <View style={styles.heroRow}>
+        <AppText style={styles.heroValue}>
+          {formatThousands(walk.step)}
+        </AppText>
+        <AppText style={styles.heroUnit}>보</AppText>
+      </View>
+
+      <View style={styles.statsRow}>
+        <View style={styles.stat}>
+          <AppText style={styles.statValue}>
+            {formatWalkDuration(walk.activeDurationSeconds)}
+          </AppText>
+          <AppText style={styles.statLabel}>걸은 시간</AppText>
+        </View>
+        <View style={styles.stat}>
+          <AppText style={styles.statValue}>
+            {distance.value}
+            <AppText style={styles.statUnit}> {distance.unit}</AppText>
+          </AppText>
+          <AppText style={styles.statLabel}>이동 거리</AppText>
+        </View>
+        <View style={styles.stat}>
+          <AppText style={styles.statValue}>
+            {formatThousands(walk.calories)}
+            <AppText style={styles.statUnit}> kcal</AppText>
+          </AppText>
+          <AppText style={styles.statLabel}>소모 칼로리</AppText>
+        </View>
+      </View>
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
   title: {
-    // 배지를 밀어내지 않게 긴 방 이름은 제목 쪽에서 줄바꿈한다.
-    flexShrink: 1,
     fontFamily: bodyFont.bold,
     fontSize: 16,
     lineHeight: lineHeights[16],
     color: colors.ink,
   },
-  dayRange: {
+  startedAt: {
     fontFamily: bodyFont.regular,
     fontSize: 12,
     lineHeight: lineHeights[12],
     color: colors.ink,
     opacity: 0.5,
     marginTop: spacing.xs,
+  },
+  heroRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+  },
+  heroValue: {
+    fontFamily: bodyFont.bold,
+    fontSize: 30,
+    lineHeight: lineHeights[30],
+    color: colors.primary,
+  },
+  heroUnit: {
+    fontFamily: bodyFont.bold,
+    fontSize: 15,
+    lineHeight: lineHeights[15],
+    color: colors.primary,
+    marginBottom: 4,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    marginTop: spacing.md,
+  },
+  stat: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  statValue: {
+    fontFamily: bodyFont.bold,
+    fontSize: 15,
+    lineHeight: lineHeights[15],
+    color: colors.ink,
+  },
+  statUnit: {
+    fontFamily: bodyFont.regular,
+    fontSize: 12,
+    lineHeight: lineHeights[12],
+    color: colors.ink,
+    opacity: 0.6,
+  },
+  statLabel: {
+    fontFamily: bodyFont.regular,
+    fontSize: 12,
+    lineHeight: lineHeights[12],
+    color: colors.ink,
+    opacity: 0.6,
   },
 });

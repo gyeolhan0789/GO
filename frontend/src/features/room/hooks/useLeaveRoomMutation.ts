@@ -11,8 +11,7 @@ export function useLeaveRoomMutation() {
       // 내 산책방 목록(['rooms','mine',...])과 방 상세(['rooms', roomId])를
       // 한 번에 갈아치운다.
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
-      // 방을 나가면 서버가 진행 중이던 판을 닫으면서 산책 기록을 만든다.
-      queryClient.invalidateQueries({ queryKey: ['game-results'] });
+      // 산책 기록은 방이 아니라 나에게 달려 있어서, 방을 나가도 그대로 남는다.
     },
   });
 }

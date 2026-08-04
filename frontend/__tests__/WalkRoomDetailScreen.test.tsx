@@ -16,7 +16,7 @@ import { BingoCell } from '../src/features/bingo/components/BingoCell/BingoCell'
 import { WalkRoomDetailScreen } from '../src/screens/WalkRoomDetailScreen/WalkRoomDetailScreen';
 import { installFetchMock, jsonResponse } from '../jest/fetchMock';
 import type { FetchMock } from '../jest/fetchMock';
-import { MY_CHARACTER_RESPONSE, MY_MEMBER_ID } from '../jest/gameResultFixtures';
+import { MY_CHARACTER_RESPONSE, MY_MEMBER_ID } from '../jest/walkSessionFixtures';
 
 const INITIAL_METRICS = {
   frame: { x: 0, y: 0, width: 400, height: 800 },

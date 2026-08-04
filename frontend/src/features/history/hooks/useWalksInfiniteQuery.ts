@@ -1,14 +1,14 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 
-import { getMyGameResults } from '../api/gameResultApi';
-import { toWalkRecord } from '../model/gameResult';
+import { getWalkSessions } from '../../walk-session/api/walkSessionApi';
+import { toWalkRecord } from '../model/walkSession';
 import type { WalkPage } from '../types';
 
 /** 한 번에 받아오는 산책 수. */
 export const WALK_PAGE_SIZE = 10;
 
 async function fetchWalkPage(page: number): Promise<WalkPage> {
-  const slice = await getMyGameResults({ page, size: WALK_PAGE_SIZE });
+  const slice = await getWalkSessions({ page, size: WALK_PAGE_SIZE });
 
   return { content: slice.content.map(toWalkRecord), hasNext: slice.hasNext };
 }
@@ -20,7 +20,7 @@ async function fetchWalkPage(page: number): Promise<WalkPage> {
  */
 export function useWalksInfiniteQuery() {
   return useInfiniteQuery({
-    queryKey: ['game-results', 'list'],
+    queryKey: ['walk-sessions', 'list'],
     queryFn: ({ pageParam }) => fetchWalkPage(pageParam),
     initialPageParam: 0,
     // 전체 개수를 모르니 페이지 번호를 직전 값에서 하나씩 올린다.

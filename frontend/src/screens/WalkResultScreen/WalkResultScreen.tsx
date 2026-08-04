@@ -2,14 +2,18 @@ import { StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
-import { GAME_MODE_LABEL } from '../../features/history/model/gameResult';
+import { sprites } from '../../features/member/assets/sprites';
+import { PixelSprite } from '../../features/member/components/PixelSprite';
+import { GAME_MODE_LABEL } from '../../features/room/model/gameMode';
 import { AppText } from '../../shared/components/AppText/AppText';
 import { Button } from '../../shared/components/Button/Button';
 import { Card } from '../../shared/components/Card/Card';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { colors } from '../../shared/constants/colors';
+import { radius } from '../../shared/constants/radius';
 import { spacing } from '../../shared/constants/spacing';
 import { fontFamily, lineHeights } from '../../shared/constants/typography';
+import { formatPoints } from '../../shared/lib/formatPoints';
 
 type WalkResultScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -23,8 +27,15 @@ function formatElapsed(totalSeconds: number) {
 }
 
 export function WalkResultScreen({ route, navigation }: WalkResultScreenProps) {
-  const { roomName, mode, steps, distanceKm, calories, elapsedSeconds } =
-    route.params;
+  const {
+    roomName,
+    mode,
+    steps,
+    distanceKm,
+    calories,
+    elapsedSeconds,
+    earnedPoint,
+  } = route.params;
 
   return (
     <Screen edges={['top', 'bottom']}>
@@ -69,6 +80,24 @@ export function WalkResultScreen({ route, navigation }: WalkResultScreenProps) {
               <AppText style={styles.statLabel}>칼로리</AppText>
             </View>
           </View>
+
+          {/* 걸음 목표를 채웠을 때만 나온다. 미션 인증 포인트는 인증하는 그
+              자리에서 이미 알려줘서 여기 다시 세지 않는다. */}
+          {earnedPoint > 0 ? (
+            <View
+              style={styles.rewardRow}
+              accessibilityRole="text"
+              accessibilityLabel={`걸음 목표 보상 ${formatPoints(
+                earnedPoint,
+              )} 획득`}
+            >
+              <PixelSprite sprite={sprites.coin} size={COIN_SIZE} />
+              <AppText style={styles.rewardValue}>
+                +{formatPoints(earnedPoint)}
+              </AppText>
+              <AppText style={styles.rewardLabel}>걸음 목표 달성</AppText>
+            </View>
+          ) : null}
         </Card>
 
         <Button
@@ -82,12 +111,37 @@ export function WalkResultScreen({ route, navigation }: WalkResultScreenProps) {
   );
 }
 
+const COIN_SIZE = 18;
+
 const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
     gap: spacing.xl,
+  },
+  rewardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: colors.successBg,
+  },
+  rewardValue: {
+    fontFamily: fontFamily.bold,
+    fontSize: 15,
+    lineHeight: lineHeights[15],
+    color: colors.successText,
+  },
+  rewardLabel: {
+    fontFamily: fontFamily.regular,
+    fontSize: 13,
+    lineHeight: lineHeights[13],
+    color: colors.successText,
+    opacity: 0.8,
   },
   header: {
     alignItems: 'center',
