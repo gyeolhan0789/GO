@@ -14,11 +14,11 @@ These rules apply when creating, reviewing, or modifying code in this repository
 
 When working on Java Spring Boot backend code, follow:
 
-- [Java Convention](backend/docs/java-convention.md)
-- [Spring Boot Convention](backend/docs/spring-boot-convention.md)
-- [JPA Convention](backend/docs/jpa-convention.md)
-- [Git Convention](backend/docs/git-convention.md)
-- [Backend Test Convention](backend/docs/back-test-convention.md)
+- [Java Convention](backend/docs/convention/java-convention.md)
+- [Spring Boot Convention](backend/docs/convention/spring-boot-convention.md)
+- [JPA Convention](backend/docs/convention/jpa-convention.md)
+- [Git Convention](backend/docs/convention/git-convention.md)
+- [Backend Test Convention](backend/docs/convention/back-test-convention.md)
 
 ## Frontend
 
