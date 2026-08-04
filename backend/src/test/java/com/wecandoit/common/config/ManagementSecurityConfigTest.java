@@ -2,16 +2,19 @@ package com.wecandoit.common.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.wecandoit.common.testcontainers.RedisTestContainer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.web.FilterChainProxy;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@ImportTestcontainers(RedisTestContainer.class)
 class ManagementSecurityConfigTest {
 
     @Autowired

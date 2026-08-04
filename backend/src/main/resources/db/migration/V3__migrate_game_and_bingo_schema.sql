@@ -1,0 +1,16 @@
+ALTER TABLE bingo_boards
+    MODIFY COLUMN status ENUM('ACTIVE', 'COMPLETED', 'EXPIRED', 'IN_PROGRESS') NOT NULL;
+
+ALTER TABLE games
+    MODIFY COLUMN status ENUM('ACTIVE', 'ENDED', 'IN_PROGRESS', 'COMPLETED') NOT NULL;
+
+ALTER TABLE rooms
+    MODIFY COLUMN status ENUM(
+        'ACTIVE',
+        'CLOSED',
+        'CREATED',
+        'WAITING',
+        'READY',
+        'IN_PROGRESS',
+        'COMPLETED'
+    ) NOT NULL;

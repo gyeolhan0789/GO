@@ -75,5 +75,27 @@
       <receiver
         android:name=".walktracking.WalkActionReceiver"
         android:exported="false" />
+
+      <!-- 갤럭시 워치가 보낸 산책 시작/종료 명령과 워치 앱 연결 변화를 받는
+           창구. Play 서비스가 앱이 꺼져 있어도 깨워주므로 exported여야 한다
+           (수신은 같은 패키지명·같은 서명의 워치 앱으로 제한된다).
+
+           pathPrefix로 좁히지 않는다. XML에는 상수를 못 써서 WearProtocol의
+           경로를 문자열로 베껴야 하는데, 한쪽만 바뀌면 명령이 통째로 조용히
+           안 오는 실패가 된다. 어차피 PhoneWearListenerService가 경로로
+           분기하고 있고, 같은 패키지명으로 메시지를 보내는 앱은 우리 워치
+           앱뿐이라 걸러낼 것도 없다. -->
+      <service
+        android:name="com.wecandoit.wearbridge.PhoneWearListenerService"
+        android:exported="true">
+        <intent-filter>
+            <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
+            <data android:scheme="wear" android:host="*" />
+        </intent-filter>
+        <intent-filter>
+            <action android:name="com.google.android.gms.wearable.CAPABILITY_CHANGED" />
+            <data android:scheme="wear" android:host="*" />
+        </intent-filter>
+      </service>
     </application>
 </manifest>

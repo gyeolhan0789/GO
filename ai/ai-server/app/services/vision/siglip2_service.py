@@ -1,4 +1,5 @@
 from PIL import Image
+import time
 import torch
 
 from transformers import (
@@ -15,7 +16,9 @@ class SigLIP2Service:
     -----------------------
     - 이미지와 후보 텍스트 간 similarity 계산
     - 후보 label ranking 제공
-    - 최종 미션 성공 여부 판단은 담당하지 않음
+    - 추론 latency 측정
+
+    최종 미션 성공 여부 판단은 담당하지 않음
 
     Output
     -----------------------
@@ -25,7 +28,8 @@ class SigLIP2Service:
         "scores": {
             "a flower": 0.92,
             "a tree": 0.05
-        }
+        },
+        "latency_ms": 200.5
     }
     """
 
@@ -69,27 +73,6 @@ class SigLIP2Service:
         image: Image.Image,
         candidates: list[str]
     ) -> dict:
-        """
-        이미지와 후보 label 간 similarity 계산
-
-        Args:
-            image:
-                PIL Image
-
-            candidates:
-                비교할 텍스트 후보 리스트
-
-        Returns:
-            {
-                "top_label": "a flower",
-                "confidence": 0.92,
-                "scores": {
-                    "a flower":0.92,
-                    "a tree":0.05
-                }
-            }
-        """
-
 
         inputs = self.processor(
             text=candidates,
@@ -105,11 +88,26 @@ class SigLIP2Service:
         }
 
 
+        # ==========================
+        # Inference Latency 측정
+        # ==========================
+
+        start_time = time.perf_counter()
+
+
         with torch.no_grad():
 
             outputs = (
                 self.model(**inputs)
             )
+
+
+        latency_ms = (
+            time.perf_counter()
+            -
+            start_time
+        ) * 1000
+
 
 
         logits = (
@@ -118,6 +116,7 @@ class SigLIP2Service:
 
 
         # 후보 label 간 상대 확률 변환
+
         probabilities = (
             torch.softmax(
                 logits,
@@ -148,7 +147,16 @@ class SigLIP2Service:
 
 
         return {
+
             "top_label": top_label,
-            "confidence": float(confidence),
-            "scores": score_map
+
+            "confidence": float(
+                confidence
+            ),
+
+            "scores": score_map,
+
+            "latency_ms": float(
+                latency_ms
+            )
         }

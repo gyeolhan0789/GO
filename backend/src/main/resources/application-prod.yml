@@ -5,11 +5,13 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     show-sql: false
   sql:
     init:
       mode: never
+  flyway:
+    enabled: true
   data:
     redis:
       host: localhost

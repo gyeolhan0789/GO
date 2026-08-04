@@ -21,6 +21,7 @@ pipeline {
 
     environment {
         COMPOSE_FILE = 'docker-compose.prod.yml'
+        MONITORING_COMPOSE_FILE = 'docker-compose.prod.yml'
         IMAGE_REPOSITORY = 'wecandoit-backend-prod'
         NGINX_IMAGE_REPOSITORY = 'wecandoit-nginx-prod'
         NGINX_CONTAINER = 'wecandoit-nginx-prod'
@@ -44,7 +45,7 @@ pipeline {
     }
 
     stages {
-        stage('Check Backend Changes') {
+        stage('Check Changes') {
             steps {
                 script {
                     def changedFiles = sh(
@@ -60,19 +61,26 @@ pipeline {
 
                     echo "Changed files:\n${changedFiles}"
 
-                    def hasBackendChanges = changedFiles
-                        .split('\\n')
-                        .any { it.startsWith('backend/') }
+                    def changedFileList = changedFiles.split('\\n')
 
-                    if (!hasBackendChanges) {
+                    env.HAS_BACKEND_CHANGES = changedFileList
+                        .any { (it.startsWith('backend/') || it.startsWith('infra/')) && !it.startsWith('infra/monitoring/') }
+                        .toString()
+
+                    env.HAS_MONITORING_CHANGES = changedFileList
+                        .any { it.startsWith('infra/monitoring/') }
+                        .toString()
+
+                    if (env.HAS_BACKEND_CHANGES != 'true' && env.HAS_MONITORING_CHANGES != 'true') {
                         currentBuild.result = 'NOT_BUILT'
-                        error('No backend changes. Skip backend production CD.')
+                        error('No backend or monitoring changes. Skip production CD.')
                     }
                 }
             }
         }
 
         stage('Preflight') {
+            when { expression { env.HAS_BACKEND_CHANGES == 'true' } }
             steps {
                 dir('backend') {
                     script {
@@ -173,7 +181,7 @@ pipeline {
                             fi
 
                             HEALTH_CHECK_CONTAINER="$current_container" \
-                              bash infra/deploy/check-backend-health.sh \
+                              bash ../infra/deploy/check-backend-health.sh \
                                 "$STABLE_HEALTH_URL" 5 2 >&2
 
                             revision=$(docker image inspect \
@@ -229,12 +237,14 @@ pipeline {
         }
 
         stage('Build and Test') {
+            when { expression { env.HAS_BACKEND_CHANGES == 'true' } }
             steps {
                 dir('backend') {
                     sh '''
                     set -eu
                     chmod +x gradlew
                     ./gradlew clean test bootJar
+                    bash ../infra/deploy/test/check-flyway-history-test.sh
                     docker build \
                       --build-arg GIT_COMMIT="$GIT_SHA" \
                       --tag "$IMAGE_REPOSITORY:$GIT_SHA" \
@@ -242,8 +252,8 @@ pipeline {
                       .
                     docker build \
                       --tag "$NGINX_CANDIDATE_IMAGE" \
-                      infra/nginx
-                    bash infra/deploy/validate-nginx-image.sh "$NGINX_CANDIDATE_IMAGE"
+                      ../infra/nginx
+                    bash ../infra/deploy/validate-nginx-image.sh "$NGINX_CANDIDATE_IMAGE"
 
                     expected_http_mapping="$NGINX_BIND_ADDRESS:$NGINX_HTTP_PORT"
                     expected_https_mapping="$NGINX_BIND_ADDRESS:$NGINX_HTTPS_PORT"
@@ -273,6 +283,7 @@ pipeline {
         }
 
         stage('Start Stable') {
+            when { expression { env.HAS_BACKEND_CHANGES == 'true' } }
             steps {
                 dir('backend') {
                     withCredentials([
@@ -300,7 +311,7 @@ pipeline {
                         STABLE_IMAGE="$ROLLBACK_IMAGE" \
                           docker compose -f "$COMPOSE_FILE" up -d --no-deps backend-stable
                         HEALTH_CHECK_CONTAINER="$STABLE_CONTAINER" \
-                          bash infra/deploy/check-backend-health.sh "$STABLE_HEALTH_URL"
+                          bash ../infra/deploy/check-backend-health.sh "$STABLE_HEALTH_URL"
                         '''
                     }
                 }
@@ -311,6 +322,7 @@ pipeline {
         }
 
         stage('Start Nginx') {
+            when { expression { env.HAS_BACKEND_CHANGES == 'true' } }
             steps {
                 dir('backend') {
                     withCredentials([
@@ -340,7 +352,7 @@ pipeline {
                         docker port "$NGINX_CONTAINER" 443/tcp \
                           | grep -qx "$NGINX_BIND_ADDRESS:$NGINX_HTTPS_PORT"
                         docker exec "$NGINX_CONTAINER" nginx -t
-                        bash infra/deploy/apply-backend-route.sh stable-only
+                        bash ../infra/deploy/apply-backend-route.sh stable-only
                         docker image tag "$NGINX_CANDIDATE_IMAGE" \
                           "$NGINX_IMAGE_REPOSITORY:latest"
                         '''
@@ -350,6 +362,7 @@ pipeline {
         }
 
         stage('Deploy Canary') {
+            when { expression { env.HAS_BACKEND_CHANGES == 'true' } }
             steps {
                 dir('backend') {
                     withCredentials([
@@ -363,7 +376,13 @@ pipeline {
                           docker compose -f "$COMPOSE_FILE" up -d --no-deps --force-recreate backend-canary
 
                         if ! HEALTH_CHECK_CONTAINER="$CANARY_CONTAINER" \
-                          bash infra/deploy/check-backend-health.sh "$CANARY_HEALTH_URL"; then
+                          bash ../infra/deploy/check-backend-health.sh "$CANARY_HEALTH_URL"; then
+                          docker compose -f "$COMPOSE_FILE" stop backend-canary
+                          docker compose -f "$COMPOSE_FILE" rm -f backend-canary
+                          exit 1
+                        fi
+
+                        if ! bash ../infra/deploy/check-flyway-history.sh wecandoit-mysql-prod wecandoit src/main/resources/db/migration; then
                           docker compose -f "$COMPOSE_FILE" stop backend-canary
                           docker compose -f "$COMPOSE_FILE" rm -f backend-canary
                           exit 1
@@ -379,7 +398,10 @@ pipeline {
 
         stage('Complete Temporary Validation') {
             when {
-                expression { params.DEPLOYMENT_MODE == 'validation' }
+                allOf {
+                    expression { params.DEPLOYMENT_MODE == 'validation' }
+                    expression { env.HAS_BACKEND_CHANGES == 'true' }
+                }
             }
             steps {
                 dir('backend') {
@@ -390,7 +412,7 @@ pipeline {
                     ]) {
                         sh '''
                         set -eu
-                        bash infra/deploy/apply-backend-route.sh stable-only
+                        bash ../infra/deploy/apply-backend-route.sh stable-only
                         docker compose -f "$COMPOSE_FILE" stop backend-canary
                         docker compose -f "$COMPOSE_FILE" rm -f backend-canary
                         '''
@@ -404,13 +426,16 @@ pipeline {
 
         stage('Prepare Stable Routing and Rollback') {
             when {
-                expression { params.DEPLOYMENT_MODE == 'production' }
+                allOf {
+                    expression { params.DEPLOYMENT_MODE == 'production' }
+                    expression { env.HAS_BACKEND_CHANGES == 'true' }
+                }
             }
             steps {
                 dir('backend') {
                     sh '''
                     set -eu
-                    bash infra/deploy/apply-backend-route.sh \
+                    bash ../infra/deploy/apply-backend-route.sh \
                       stable-only "$SERVICE_SMOKE_URL"
                     '''
                 }
@@ -419,7 +444,10 @@ pipeline {
 
         stage('Route Canary 10%') {
             when {
-                expression { params.DEPLOYMENT_MODE == 'production' }
+                allOf {
+                    expression { params.DEPLOYMENT_MODE == 'production' }
+                    expression { env.HAS_BACKEND_CHANGES == 'true' }
+                }
             }
             steps {
                 script {
@@ -431,7 +459,7 @@ pipeline {
                 dir('backend') {
                     sh '''
                     set -eu
-                    bash infra/deploy/apply-backend-route.sh \
+                    bash ../infra/deploy/apply-backend-route.sh \
                       canary-10 "$SERVICE_SMOKE_URL"
                     '''
                 }
@@ -443,7 +471,10 @@ pipeline {
 
         stage('Check Canary Monitoring') {
             when {
-                expression { params.DEPLOYMENT_MODE == 'production' }
+                allOf {
+                    expression { params.DEPLOYMENT_MODE == 'production' }
+                    expression { env.HAS_BACKEND_CHANGES == 'true' }
+                }
             }
             steps {
                 dir('backend') {
@@ -460,7 +491,7 @@ pipeline {
                     fi
 
                     HEALTH_CHECK_CONTAINER="$CANARY_CONTAINER" \
-                      bash infra/deploy/check-backend-health.sh \
+                      bash ../infra/deploy/check-backend-health.sh \
                         "$CANARY_HEALTH_URL" 5 2
 
                     docker logs --since "$CANARY_MONITOR_STARTED_AT" \
@@ -474,7 +505,7 @@ pipeline {
                       exit 1
                     fi
 
-                    bash infra/deploy/check-canary-monitoring.sh \
+                    bash ../infra/deploy/check-canary-monitoring.sh \
                       "$canary_ip:$BACKEND_SERVICE_PORT" \
                       "$CANARY_MIN_REQUESTS" \
                       "$CANARY_MAX_5XX_RATE" \
@@ -498,7 +529,10 @@ pipeline {
 
         stage('Approve Canary 100%') {
             when {
-                expression { params.DEPLOYMENT_MODE == 'production' }
+                allOf {
+                    expression { params.DEPLOYMENT_MODE == 'production' }
+                    expression { env.HAS_BACKEND_CHANGES == 'true' }
+                }
             }
             options {
                 timeout(time: 30, unit: 'MINUTES')
@@ -513,13 +547,16 @@ pipeline {
 
         stage('Route Canary 100%') {
             when {
-                expression { params.DEPLOYMENT_MODE == 'production' }
+                allOf {
+                    expression { params.DEPLOYMENT_MODE == 'production' }
+                    expression { env.HAS_BACKEND_CHANGES == 'true' }
+                }
             }
             steps {
                 dir('backend') {
                     sh '''
                     set -eu
-                    bash infra/deploy/apply-backend-route.sh \
+                    bash ../infra/deploy/apply-backend-route.sh \
                       canary-only "$SERVICE_SMOKE_URL"
                     '''
                 }
@@ -531,7 +568,10 @@ pipeline {
 
         stage('Approve Stable Promotion') {
             when {
-                expression { params.DEPLOYMENT_MODE == 'production' }
+                allOf {
+                    expression { params.DEPLOYMENT_MODE == 'production' }
+                    expression { env.HAS_BACKEND_CHANGES == 'true' }
+                }
             }
             options {
                 timeout(time: 30, unit: 'MINUTES')
@@ -546,7 +586,10 @@ pipeline {
 
         stage('Promote Stable') {
             when {
-                expression { params.DEPLOYMENT_MODE == 'production' }
+                allOf {
+                    expression { params.DEPLOYMENT_MODE == 'production' }
+                    expression { env.HAS_BACKEND_CHANGES == 'true' }
+                }
             }
             steps {
                 script {
@@ -565,9 +608,9 @@ pipeline {
                           docker compose -f "$COMPOSE_FILE" up \
                             -d --no-deps --force-recreate backend-stable
                         HEALTH_CHECK_CONTAINER="$STABLE_CONTAINER" \
-                          bash infra/deploy/check-backend-health.sh "$STABLE_HEALTH_URL"
+                          bash ../infra/deploy/check-backend-health.sh "$STABLE_HEALTH_URL"
 
-                        bash infra/deploy/apply-backend-route.sh \
+                        bash ../infra/deploy/apply-backend-route.sh \
                           stable-only "$SERVICE_SMOKE_URL"
                         '''
                     }
@@ -590,6 +633,39 @@ pipeline {
                 }
                 script {
                     env.DEPLOYMENT_PHASE = 'completed'
+                }
+            }
+        }
+
+        stage('Deploy Monitoring') {
+            when {
+                allOf {
+                    expression { params.DEPLOYMENT_MODE == 'production' }
+                    expression { env.HAS_MONITORING_CHANGES == 'true' }
+                }
+            }
+            steps {
+                dir('infra/monitoring') {
+                    sh '''
+                    set -eu
+                    docker compose -f "$MONITORING_COMPOSE_FILE" up -d
+
+                    TOTAL=$(docker compose -f "$MONITORING_COMPOSE_FILE" config --services | wc -l)
+                    for i in $(seq 1 12); do
+                      RUNNING=$(docker compose -f "$MONITORING_COMPOSE_FILE" ps --status running -q | wc -l)
+                      echo "Monitoring health check attempt $i/12: $RUNNING/$TOTAL services running"
+
+                      if [ "$RUNNING" = "$TOTAL" ]; then
+                        exit 0
+                      fi
+
+                      sleep 5
+                    done
+
+                    echo "Monitoring stack did not become healthy" >&2
+                    docker compose -f "$MONITORING_COMPOSE_FILE" ps
+                    exit 1
+                    '''
                 }
             }
         }
@@ -655,13 +731,13 @@ pipeline {
 
                       route_stable_with_nginx() {
                         if is_nginx_running \
-                          && bash infra/deploy/apply-backend-route.sh stable-only; then
+                          && bash ../infra/deploy/apply-backend-route.sh stable-only; then
                           return 0
                         fi
 
                         echo "Current Nginx could not restore Stable routing. Trying the preserved image." >&2
                         restore_nginx_image \
-                          && bash infra/deploy/apply-backend-route.sh stable-only
+                          && bash ../infra/deploy/apply-backend-route.sh stable-only
                       }
 
                       rollback_image_id=$(docker image inspect \
@@ -674,7 +750,7 @@ pipeline {
                             --format '{{.Image}}' "$container_name")
                           if [ "$running_image_id" = "$rollback_image_id" ] \
                             && HEALTH_CHECK_CONTAINER="$container_name" \
-                              bash infra/deploy/check-backend-health.sh \
+                              bash ../infra/deploy/check-backend-health.sh \
                                 "$STABLE_HEALTH_URL" 5 2; then
                             stable_ready=true
                             echo "Stable already uses the healthy rollback image. Skipping container recreation."
@@ -688,7 +764,7 @@ pipeline {
                           stable-promoted|completed)
                             if is_running_stable "$STABLE_CONTAINER" \
                               && HEALTH_CHECK_CONTAINER="$STABLE_CONTAINER" \
-                                bash infra/deploy/check-backend-health.sh \
+                                bash ../infra/deploy/check-backend-health.sh \
                                   "$STABLE_HEALTH_URL" 5 2; then
                               echo "Promoted Stable is healthy. Skipping rollback image restore."
                               stable_ready=true
@@ -708,7 +784,7 @@ pipeline {
                         if is_running_stable "$STABLE_CONTAINER" \
                           && [ "$restored_image_id" = "$rollback_image_id" ] \
                           && HEALTH_CHECK_CONTAINER="$STABLE_CONTAINER" \
-                            bash infra/deploy/check-backend-health.sh \
+                            bash ../infra/deploy/check-backend-health.sh \
                               "$STABLE_HEALTH_URL" 15 2; then
                           stable_ready=true
                         fi
