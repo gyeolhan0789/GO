@@ -45,6 +45,7 @@ export function getActiveBingoBoard(roomId: number) {
 }
 
 export type RenewBingoBoardRequest = {
+  boardSize: number;
   targetStepCount: number;
 };
 
