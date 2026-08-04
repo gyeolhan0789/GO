@@ -1,6 +1,5 @@
 package com.wecandoit.history.service;
 
-import com.wecandoit.bingo.service.BingoStepGoalRewardCommandService;
 import com.wecandoit.history.controller.request.HistorySaveRequest;
 import com.wecandoit.history.domain.MemberHistory;
 import com.wecandoit.history.repository.MemberHistoryRepository;
@@ -16,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class HistoryCommandService {
 
     private final MemberHistoryRepository memberHistoryRepository;
-    private final BingoStepGoalRewardCommandService bingoStepGoalRewardCommandService;
 
     public void saveHistory(Long memberId, HistorySaveRequest request) {
         addHistory(
@@ -40,7 +38,6 @@ public class HistoryCommandService {
                         memberHistory -> memberHistory.add(step, distance, calories),
                         () -> saveNewHistory(memberId, historyDate, step, distance, calories)
                 );
-        bingoStepGoalRewardCommandService.evaluate(memberId);
     }
 
     private void saveNewHistory(

@@ -227,10 +227,12 @@ pipeline {
                     }
 
                     echo "Current production image preserved as ${env.ROLLBACK_IMAGE} and ${env.IMAGE_REPOSITORY}:stable"
-                    if (env.NGINX_ROLLBACK_IMAGE) {
-                        echo "Current Nginx image preserved as ${env.NGINX_ROLLBACK_IMAGE}"
-                    } else {
-                        echo 'No running Docker Nginx image exists to preserve.'
+                    script {
+                        if (env.NGINX_ROLLBACK_IMAGE) {
+                            echo "Current Nginx image preserved as ${env.NGINX_ROLLBACK_IMAGE}"
+                        } else {
+                            echo 'No running Docker Nginx image exists to preserve.'
+                        }
                     }
                 }
             }

@@ -8,6 +8,25 @@ export function formatThousands(value: number): string {
 /** 값이 없어 채울 수 없는 자리. */
 export const UNKNOWN_VALUE = '-';
 
+const METERS_PER_KILOMETER = 1000;
+
+export type Measure = {
+  value: string;
+  unit: string;
+};
+
+/** '840m'을 '0.8km'로 보여주면 정보가 깎여서 1km 미만은 미터로 둔다. */
+export function formatDistance(meters: number): Measure {
+  if (meters < METERS_PER_KILOMETER) {
+    return { value: formatThousands(meters), unit: 'm' };
+  }
+
+  return {
+    value: (meters / METERS_PER_KILOMETER).toFixed(1),
+    unit: 'km',
+  };
+}
+
 /**
  * '2026-07-20T20:00:00' -> '2026.07.20 (월) 20:00'.
  * 서버 LocalDateTime은 시간대가 없어서 Date로 파싱하지 않고 문자열을 쪼갠다.

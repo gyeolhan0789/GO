@@ -55,6 +55,11 @@ data class WalkSession(
  * 앱을 다시 열면 이 값이 곧바로 복구된다(그래서 첫 화면이 빈 채로 뜨지 않는다).
  */
 data class PhoneState(
+  /**
+   * 폰이 로그인된 상태인지. false면 폰에서 로그인하라고 안내하고 수치는 감춘다 —
+   * 로그아웃 상태의 0걸음은 실제 값이 아니라 "아직 모른다"는 뜻이다.
+   */
+  val loggedIn: Boolean,
   val nickname: String,
   val today: TodayStats,
   val rooms: List<WalkRoom>,
@@ -93,6 +98,13 @@ fun DataMap.toPhoneState(receivedAtRealtime: Long): PhoneState {
   val session = getDataMap(WearProtocol.KEY_SESSION)
 
   return PhoneState(
+    // 키가 아예 없으면(구버전 폰 앱) 로그인된 것으로 본다. 로그인했는데 로그인
+    // 하라고 막는 쪽이 훨씬 나쁘다.
+    loggedIn = if (containsKey(WearProtocol.KEY_LOGGED_IN)) {
+      getBoolean(WearProtocol.KEY_LOGGED_IN)
+    } else {
+      true
+    },
     nickname = getString(WearProtocol.KEY_NICKNAME).orEmpty(),
     today = today?.toTodayStats() ?: TodayStats.EMPTY,
     rooms = getDataMapArrayList(WearProtocol.KEY_ROOMS)
