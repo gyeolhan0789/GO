@@ -28,6 +28,12 @@ type WalkSessionState = {
   steps: number;
   distanceMeters: number;
   calories: number;
+  /** 끊기지 않고 이어지는 현재 RUNNING 구간이 시작된 시각. 일시정지하거나
+   * 세션이 끝나면 null이 된다 — "연속 N분/N걸음" 미션 판정에 쓴다. */
+  runningSinceAt: number | null;
+  /** runningSinceAt 시점의 누적 걸음 수. steps - continuousStepsBase가 이번
+   * 연속 구간에서 걸은 걸음 수다. */
+  continuousStepsBase: number;
 };
 
 const IDLE_STATE: WalkSessionState = {
@@ -38,6 +44,8 @@ const IDLE_STATE: WalkSessionState = {
   steps: 0,
   distanceMeters: 0,
   calories: 0,
+  runningSinceAt: null,
+  continuousStepsBase: 0,
 };
 
 let state: WalkSessionState = { ...IDLE_STATE };
@@ -61,6 +69,11 @@ function applySnapshot(snapshot: WalkSessionSnapshot) {
     return;
   }
   const now = Date.now();
+  const isRunning = snapshot.status === 'RUNNING';
+  // 직전 상태가 일시정지/미시작이었는데 지금 RUNNING이면 새 연속 구간이
+  // 시작된 것이다 — 이번 스냅샷의 값을 그 구간의 기준점으로 잡는다.
+  const wasRunning = state.startedAt !== null && state.pausedAt === null;
+  const continuousStartedNow = isRunning && !wasRunning;
   state = {
     roomId: snapshot.roomId,
     startedAt: snapshot.startedAt,
@@ -69,6 +82,12 @@ function applySnapshot(snapshot: WalkSessionSnapshot) {
     steps: snapshot.steps,
     distanceMeters: snapshot.distanceMeters,
     calories: snapshot.calories,
+    runningSinceAt: isRunning ? (continuousStartedNow ? now : state.runningSinceAt) : null,
+    continuousStepsBase: isRunning
+      ? continuousStartedNow
+        ? snapshot.steps
+        : state.continuousStepsBase
+      : snapshot.steps,
   };
   notify();
 }
@@ -174,6 +193,35 @@ export function getWalkSessionDistanceMeters() {
 
 export function getWalkSessionCalories() {
   return state.calories;
+}
+
+/** getWalkSessionElapsedSeconds와 같은 계산이지만 초 단위로 반올림하지
+ * 않는다 — 활동 미션의 분 단위 문턱값 비교에 쓴다. */
+export function getWalkSessionActiveElapsedMs() {
+  if (state.startedAt === null) {
+    return 0;
+  }
+  const pausedTotalMs =
+    state.pausedMs + (state.pausedAt !== null ? Date.now() - state.pausedAt : 0);
+  return Math.max(0, Date.now() - state.startedAt - pausedTotalMs);
+}
+
+/** 마지막으로 끊기지 않고 이어지는 RUNNING 구간에서 걸은 걸음 수. 일시정지
+ * 중이거나 세션이 없으면 0이다. */
+export function getWalkSessionContinuousSteps() {
+  if (state.runningSinceAt === null) {
+    return 0;
+  }
+  return Math.max(0, state.steps - state.continuousStepsBase);
+}
+
+/** 마지막으로 끊기지 않고 이어지는 RUNNING 구간의 경과 시간(ms). 일시정지
+ * 중이거나 세션이 없으면 0이다. */
+export function getWalkSessionContinuousActiveMs() {
+  if (state.runningSinceAt === null) {
+    return 0;
+  }
+  return Math.max(0, Date.now() - state.runningSinceAt);
 }
 
 export function subscribeWalkSession(listener: Listener) {

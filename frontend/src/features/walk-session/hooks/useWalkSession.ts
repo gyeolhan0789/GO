@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 
 import {
+  getWalkSessionActiveElapsedMs,
   getWalkSessionCalories,
+  getWalkSessionContinuousActiveMs,
+  getWalkSessionContinuousSteps,
   getWalkSessionDistanceMeters,
   getWalkSessionElapsedSeconds,
   getWalkSessionRoomId,
@@ -28,6 +31,11 @@ export function useWalkSession() {
   const [steps, setSteps] = useState(getWalkSessionSteps);
   const [distanceMeters, setDistanceMeters] = useState(getWalkSessionDistanceMeters);
   const [calories, setCalories] = useState(getWalkSessionCalories);
+  const [activeElapsedMs, setActiveElapsedMs] = useState(getWalkSessionActiveElapsedMs);
+  const [continuousSteps, setContinuousSteps] = useState(getWalkSessionContinuousSteps);
+  const [continuousActiveMs, setContinuousActiveMs] = useState(
+    getWalkSessionContinuousActiveMs,
+  );
 
   useEffect(() => {
     const sync = () => {
@@ -39,6 +47,9 @@ export function useWalkSession() {
       setSteps(getWalkSessionSteps());
       setDistanceMeters(getWalkSessionDistanceMeters());
       setCalories(getWalkSessionCalories());
+      setActiveElapsedMs(getWalkSessionActiveElapsedMs());
+      setContinuousSteps(getWalkSessionContinuousSteps());
+      setContinuousActiveMs(getWalkSessionContinuousActiveMs());
     };
     sync();
     return subscribeWalkSession(sync);
@@ -50,6 +61,8 @@ export function useWalkSession() {
     }
     const timer = setInterval(() => {
       setElapsedSeconds(getWalkSessionElapsedSeconds());
+      setActiveElapsedMs(getWalkSessionActiveElapsedMs());
+      setContinuousActiveMs(getWalkSessionContinuousActiveMs());
     }, 1000);
     return () => clearInterval(timer);
   }, [isPaused, isStarted]);
@@ -63,6 +76,9 @@ export function useWalkSession() {
     steps,
     distanceMeters,
     calories,
+    activeElapsedMs,
+    continuousSteps,
+    continuousActiveMs,
     togglePause: togglePauseWalkSession,
   };
 }
