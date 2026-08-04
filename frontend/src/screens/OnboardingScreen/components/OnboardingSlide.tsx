@@ -4,7 +4,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SvgXml } from 'react-native-svg';
 import { AppText } from '../../../shared/components/AppText/AppText';
 import { colors } from '../../../shared/constants/colors';
-import { bodyFont, fontFamily, lineHeights } from '../../../shared/constants/typography';
+import {
+  bodyFont,
+  fontFamily,
+  lineHeights,
+} from '../../../shared/constants/typography';
 
 import type { OnboardingSlideData } from '../slides';
 
@@ -69,7 +73,9 @@ export function OnboardingSlide({
         <AppText style={styles.title}>
           {renderTitle(slide.title, slide.highlight)}
         </AppText>
-        <AppText style={styles.description}>{toMultiline(slide.description)}</AppText>
+        <AppText style={styles.description}>
+          {toMultiline(slide.description)}
+        </AppText>
       </View>
     </View>
   );
@@ -101,7 +107,7 @@ const styles = StyleSheet.create({
   description: {
     fontFamily: bodyFont.regular,
     marginTop: 11,
-    fontSize: 12,
+    fontSize: 14,
     lineHeight: lineHeights[12],
     color: colors.inkMuted,
     textAlign: 'center',
