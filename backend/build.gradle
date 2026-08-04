@@ -46,6 +46,8 @@ dependencies {
 
 	// Database
 	runtimeOnly 'com.mysql:mysql-connector-j'
+	runtimeOnly 'org.flywaydb:flyway-core'
+	runtimeOnly 'org.flywaydb:flyway-mysql'
 
 	// Push notification (FCM)
 	implementation 'com.google.firebase:firebase-admin:9.5.0'

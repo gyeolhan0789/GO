@@ -235,6 +235,7 @@ pipeline {
                     set -eu
                     chmod +x gradlew
                     ./gradlew clean test bootJar
+                    bash infra/deploy/test/check-flyway-history-test.sh
                     docker build \
                       --build-arg GIT_COMMIT="$GIT_SHA" \
                       --tag "$IMAGE_REPOSITORY:$GIT_SHA" \
@@ -364,6 +365,12 @@ pipeline {
 
                         if ! HEALTH_CHECK_CONTAINER="$CANARY_CONTAINER" \
                           bash infra/deploy/check-backend-health.sh "$CANARY_HEALTH_URL"; then
+                          docker compose -f "$COMPOSE_FILE" stop backend-canary
+                          docker compose -f "$COMPOSE_FILE" rm -f backend-canary
+                          exit 1
+                        fi
+
+                        if ! bash infra/deploy/check-flyway-history.sh wecandoit-mysql-prod wecandoit src/main/resources/db/migration; then
                           docker compose -f "$COMPOSE_FILE" stop backend-canary
                           docker compose -f "$COMPOSE_FILE" rm -f backend-canary
                           exit 1
