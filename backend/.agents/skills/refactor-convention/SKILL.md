@@ -9,9 +9,9 @@ description: 백엔드 기본·테스트 컨벤션을 읽고 Java 코드를 컨�
 
 작업 전에 저장소 루트 기준으로 다음 문서를 모두 읽는다.
 
-- `backend/docs/java-convention.md`
-- `backend/docs/spring-boot-convention.md`
-- `backend/docs/back-test-convention.md`
+- `backend/docs/convention/java-convention.md`
+- `backend/docs/convention/spring-boot-convention.md`
+- `backend/docs/convention/back-test-convention.md`
 
 이 문서만 리팩터링 기준으로 사용한다. 문서에 없는 규칙을 임의로 적용하지 않는다.
 
