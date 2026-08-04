@@ -105,3 +105,17 @@ export function submitBingoCellPhoto(
           },
     );
 }
+
+// 사진이 아닌 활동 기반 미션(걸음 수 등) 칸을 완료 처리한다. 요청 body 없이
+// 호출 자체가 통과를 의미하며, 백엔드는 활동 데이터를 재검증하지 않고 프론트의
+// 판정을 신뢰한다 — 성공 응답은 항상 APPROVED라 REJECTED 분기가 없다.
+export function completeBingoCell(
+  roomId: number,
+  cellId: number,
+): Promise<{ rewardPoint: number }> {
+  return apiClient
+    .post<BingoCellSubmitResponse>(
+      `/rooms/${roomId}/bingo-boards/cells/${cellId}/complete`,
+    )
+    .then(response => ({ rewardPoint: response.rewardPoint }));
+}

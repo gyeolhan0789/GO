@@ -11,7 +11,6 @@ export type MissionType =
   | 'STEP_DAILY'
   | 'WALKING_TIME_TOTAL'
   | 'WALKING_TIME_CONTINUOUS'
-  | 'STEADY_PACE'
   | 'DISTANCE_TOTAL'
   | 'CALORIES_TOTAL'
   | 'AVERAGE_SPEED';
@@ -29,7 +28,6 @@ export const MISSION_TYPE_ICONS: Record<MissionType, IoniconsIconName> = {
   DISTANCE_TOTAL: 'footsteps-outline',
   WALKING_TIME_TOTAL: 'time-outline',
   WALKING_TIME_CONTINUOUS: 'time-outline',
-  STEADY_PACE: 'barbell-outline',
   CALORIES_TOTAL: 'barbell-outline',
   AVERAGE_SPEED: 'barbell-outline',
 };
@@ -45,7 +43,6 @@ export const MISSION_TYPE_LABELS: Record<MissionType, string> = {
   DISTANCE_TOTAL: '걷기 미션',
   WALKING_TIME_TOTAL: '시간 미션',
   WALKING_TIME_CONTINUOUS: '시간 미션',
-  STEADY_PACE: '운동 미션',
   CALORIES_TOTAL: '운동 미션',
   AVERAGE_SPEED: '운동 미션',
 };
