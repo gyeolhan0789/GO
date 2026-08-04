@@ -47,13 +47,7 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: dev
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/wecandoit?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-      SPRING_DATASOURCE_USERNAME: wecandoit
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-      SPRING_JPA_HIBERNATE_DDL_AUTO: ${DEV_DDL_AUTO:-update}
-      SPRING_SQL_INIT_MODE: ${DEV_SQL_INIT_MODE:-never}
       JWT_SECRET: ${JWT_SECRET}
     ports:
       - "127.0.0.1:8081:8080"

@@ -110,7 +110,8 @@ services:
     environment:
       <<: *backend-environment
       SCHEDULING_ENABLED: "true"
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      SPRING_FLYWAY_ENABLED: ${STABLE_FLYWAY_ENABLED:-false}
     ports:
       - "127.0.0.1:8080:8080"
     networks:
@@ -125,6 +126,7 @@ services:
       <<: *backend-environment
       SCHEDULING_ENABLED: "false"
       SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_FLYWAY_ENABLED: ${CANARY_FLYWAY_ENABLED:-true}
     ports:
       - "127.0.0.1:8082:8080"
     networks:

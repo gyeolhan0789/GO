@@ -1,0 +1,73 @@
+{
+  "title": "Backend Access & Query Insights",
+  "uid": "backend-access-insights",
+  "tags": ["backend", "access-log", "query-log"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "traceId",
+        "type": "textbox",
+        "current": { "text": "", "value": "" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "route별 4xx/5xx 에러율 — 주의: 401은 DispatcherServlet에 도달하지 않아 route 템플릿이 아니라 raw URI로 폴백된다. 401 볼륨이 가장 크므로 route별 집계에서 URI가 여러 개로 쪼개져 나타난다.",
+      "type": "timeseries",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum by (route) (count_over_time({container_name=~\"wecandoit-backend-.*\"} | json | line_format `{{.message}}` | regexp `^\\S+\\s+\\S+\\s+(?P<status>\\d\\d\\d)\\s` | status >= 400 [$__interval]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "슬로우 쿼리 Top 10 (traceId별 최대 소요시간)",
+      "type": "table",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "topk(10, max by (traceId) (max_over_time({container_name=~\"wecandoit-backend-.*\"} |= \"SLOW\" | json | line_format `{{.message}}` | regexp `^SLOW (?P<elapsed_ms>\\d+)ms` | unwrap elapsed_ms [$__range])))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "queries=N 상위 route (구간 누적)",
+      "type": "table",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "topk(10, sum by (route) (sum_over_time({container_name=~\"wecandoit-backend-.*\"} | json | line_format `{{.message}}` | regexp `queries=(?P<queries>\\d+)` | unwrap queries [$__range])))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "traceId 드릴다운 (access log + SQL 동시 조회)",
+      "type": "logs",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 10 },
+      "targets": [
+        {
+          "expr": "{container_name=~\"wecandoit-backend-.*\"} | json | traceId=\"$traceId\"",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

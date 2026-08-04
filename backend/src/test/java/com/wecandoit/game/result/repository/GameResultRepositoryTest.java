@@ -3,6 +3,7 @@ package com.wecandoit.game.result.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.wecandoit.common.testcontainers.MySqlDataJpaTest;
 import com.wecandoit.game.domain.GameResult;
 import com.wecandoit.game.domain.GameResultParticipant;
 import com.wecandoit.game.repository.GameResultRepository;
@@ -12,14 +13,11 @@ import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
-import org.springframework.test.context.ActiveProfiles;
 
-@DataJpaTest
-@ActiveProfiles("test")
+@MySqlDataJpaTest
 @DisplayName("게임 결과 저장소")
 class GameResultRepositoryTest {
 

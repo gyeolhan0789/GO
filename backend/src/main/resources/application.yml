@@ -1,6 +1,8 @@
 spring:
   application:
     name: backend
+  flyway:
+    enabled: false
   servlet:
     multipart:
       max-file-size: 5MB
