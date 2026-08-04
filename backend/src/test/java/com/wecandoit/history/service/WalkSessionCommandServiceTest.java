@@ -11,6 +11,7 @@ import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
+import com.wecandoit.bingo.service.BingoStepGoalRewardCommandService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
@@ -72,6 +73,8 @@ class WalkSessionCommandServiceTest {
     private WalkSessionBingoAchievementRepository achievementRepository;
     @Mock
     private HistoryCommandService historyCommandService;
+    @Mock
+    private BingoStepGoalRewardCommandService bingoStepGoalRewardCommandService;
     @InjectMocks
     private WalkSessionCommandService walkSessionCommandService;
 
@@ -158,6 +161,7 @@ class WalkSessionCommandServiceTest {
                 3_382,
                 214
         );
+        then(bingoStepGoalRewardCommandService).should().evaluate(1L, 10L);
     }
 
     @Test
@@ -193,6 +197,7 @@ class WalkSessionCommandServiceTest {
         assertThat(result.response().achievedMissionCount()).isEqualTo(2);
         then(walkSessionRepository).should(never()).saveAndFlush(any());
         then(historyCommandService).shouldHaveNoInteractions();
+        then(bingoStepGoalRewardCommandService).shouldHaveNoInteractions();
     }
 
     @Test

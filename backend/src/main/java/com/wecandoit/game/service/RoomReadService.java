@@ -24,7 +24,6 @@ import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.item.controller.response.AvatarResponse;
 import com.wecandoit.member.service.MemberReadService;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -187,13 +186,9 @@ public class RoomReadService {
         return new StepGoalRewardTarget(
                 room.getId(),
                 board.getId(),
-                board.getCreatedAt().toLocalDate(),
                 board.getTargetStepCount(),
                 roomMembers.stream()
-                        .map(roomMember -> new StepGoalRewardMember(
-                                roomMember.getMemberId(),
-                                roomMember.getJoinedAt().toLocalDate()
-                        ))
+                        .map(roomMember -> new StepGoalRewardMember(roomMember.getMemberId()))
                         .toList()
         );
     }

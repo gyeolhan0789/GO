@@ -5,6 +5,7 @@ import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
+import com.wecandoit.bingo.service.BingoStepGoalRewardCommandService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
@@ -39,11 +40,12 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
+@Transactional(isolation = Isolation.READ_COMMITTED)
 public class WalkSessionCommandService {
 
     private static final ZoneId SERVICE_ZONE_ID = ZoneId.of("Asia/Seoul");
@@ -60,6 +62,7 @@ public class WalkSessionCommandService {
     private final WalkSessionRepository walkSessionRepository;
     private final WalkSessionBingoAchievementRepository achievementRepository;
     private final HistoryCommandService historyCommandService;
+    private final BingoStepGoalRewardCommandService bingoStepGoalRewardCommandService;
 
     public StartResult startSession(Long memberId, WalkSessionStartRequest request) {
         Instant now = Instant.now();
@@ -136,6 +139,7 @@ public class WalkSessionCommandService {
         ));
         List<WalkSessionBingoAchievement> achievements = saveAchievements(walkSession, sessionCells);
         addDailyHistory(memberId, request);
+        bingoStepGoalRewardCommandService.evaluate(memberId, room.getId());
         activeWalkSessionRepository.delete(activeWalkSession);
 
         return new CompletionResult(
