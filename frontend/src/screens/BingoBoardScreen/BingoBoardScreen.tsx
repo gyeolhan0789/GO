@@ -22,7 +22,7 @@ import { MissionVerificationModal } from '../../features/bingo/components/Missio
 import {
   MISSION_TYPE_ICONS,
   MISSION_TYPE_LABELS,
-  MISSION_TYPE_POINTS,
+  isPhotoMission,
 } from '../../features/bingo/model/missionType';
 import { useMyMemberIdQuery } from '../../features/member/hooks/useMyMemberIdQuery';
 import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
@@ -285,7 +285,7 @@ export function BingoBoardScreen({
               <AppText style={styles.detailTitle}>{selectedCell.mission.title}</AppText>
               <View style={styles.pointBadge}>
                 <AppText style={styles.pointBadgeText}>
-                  +{MISSION_TYPE_POINTS[selectedCell.mission.type]}P
+                  +{selectedCell.mission.point}P
                 </AppText>
               </View>
             </View>
@@ -303,16 +303,26 @@ export function BingoBoardScreen({
                 />
                 <AppText style={styles.completedText}>인증 완료</AppText>
               </View>
+            ) : isPhotoMission(selectedCell.mission.type) ? (
+              <>
+                <AppText style={styles.captureHint}>
+                  사물을 너무 가까이 확대해서 찍으면 인식에 실패할 수 있어요.
+                </AppText>
+                <Pressable
+                  style={styles.captureButton}
+                  onPress={handleCapturePhoto}
+                  accessibilityRole="button"
+                  accessibilityLabel="사진으로 인증하기"
+                >
+                  <Ionicons name="camera" size={18} color={colors.surface} />
+                  <AppText style={styles.captureButtonText}>사진으로 인증하기</AppText>
+                </Pressable>
+              </>
             ) : (
-              <Pressable
-                style={styles.captureButton}
-                onPress={handleCapturePhoto}
-                accessibilityRole="button"
-                accessibilityLabel="사진으로 인증하기"
-              >
-                <Ionicons name="camera" size={18} color={colors.surface} />
-                <AppText style={styles.captureButtonText}>사진으로 인증하기</AppText>
-              </Pressable>
+              <View style={styles.autoHintRow}>
+                <Ionicons name="walk-outline" size={20} color={colors.ink} style={styles.autoHintIcon} />
+                <AppText style={styles.autoHintText}>산책하는 동안 자동으로 인증돼요.</AppText>
+              </View>
             )}
           </View>
         ) : null}
@@ -492,6 +502,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: lineHeights[16],
     color: colors.successText,
+  },
+  autoHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+  },
+  autoHintIcon: {
+    opacity: 0.6,
+  },
+  autoHintText: {
+    fontFamily: fontFamily.bold,
+    fontSize: 14,
+    lineHeight: lineHeights[14],
+    color: colors.ink,
+    opacity: 0.7,
+  },
+  captureHint: {
+    fontFamily: fontFamily.regular,
+    fontSize: 12,
+    lineHeight: lineHeights[12],
+    color: colors.ink,
+    opacity: 0.5,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
   captureButton: {
     height: controlHeight.lg,

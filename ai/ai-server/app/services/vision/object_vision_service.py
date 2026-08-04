@@ -5,13 +5,24 @@ from io import BytesIO
 from PIL import Image
 
 from app.domain.ai_result import AIResult
+from app.domain.mission_result import ReasonCode
+
+from app.prompts.prompt_builder import PromptBuilder
 
 from app.services.vision.siglip2_service import (
     SigLIP2Service
 )
 
+from app.services.vision.gemini_service import (
+    GeminiService
+)
+
 from app.mappers.siglip_result_mapper import (
     SigLIPResultMapper
+)
+
+from app.mappers.reason_mapper import (
+    ReasonMapper
 )
 
 from app.services.rule_engine.siglip_rule_engine import (
@@ -22,43 +33,44 @@ from app.services.rule_engine.siglip_rule_engine import (
 logger = logging.getLogger(__name__)
 
 
-
 class ObjectVisionService:
     """
-    OBJECT Mission 전용 Vision Pipeline
-
-    역할
-    -----------------------
-    - OBJECT 미션 이미지 분석
-    - SigLIP2 기반 객체 matching
-    - RuleEngine 기반 판정
-    - AIResult 반환
-
-
-    Pipeline
-    -----------------------
+    OBJECT Mission Vision Pipeline
 
     Image
       |
       v
-    SigLIP2Service
+    SigLIP2
       |
       v
-    SigLIPResultMapper
+    Rule Engine
       |
-      v
-    SigLIPRuleEngine
-      |
-      v
-    AIResult
-
-
-    책임 제외
-    -----------------------
-    - API Response 변환
-    - 이미지 품질 검사
-    - Mission Type Routing
+      + PASS
+      + OBJECT_NOT_FOUND
+      + OBJECT_UNCERTAIN
+                |
+                v
+          Gemini Fallback
     """
+
+
+    COMMON_OBJECTS = [
+        "flower",
+        "dog",
+        "cat",
+        "cup",
+        "bottle",
+        "book",
+        "phone",
+        "pen",
+        "keyboard",
+        "mouse",
+        "wallet",
+        "watch",
+        "glasses",
+        "toy"
+    ]
+
 
 
     def __init__(self):
@@ -75,6 +87,10 @@ class ObjectVisionService:
             SigLIPRuleEngine()
         )
 
+        self.gemini_service = (
+            GeminiService()
+        )
+
 
 
     def verify(
@@ -88,37 +104,30 @@ class ObjectVisionService:
         # Image Convert
         # ==========================
 
-        image = Image.open(
-            BytesIO(image_bytes)
-        ).convert(
-            "RGB"
+        image = (
+            Image.open(
+                BytesIO(image_bytes)
+            )
+            .convert("RGB")
         )
 
 
 
         # ==========================
-        # Target Object 추출
+        # Target Object
         # ==========================
 
         target = (
-
             decision_condition.get(
                 "target"
             )
-
-            or
-
-            decision_condition.get(
-                "object"
-            )
-
         )
 
 
         if not target:
 
             raise ValueError(
-                "OBJECT 미션은 target 조건이 필요합니다."
+                "OBJECT target 조건이 필요합니다."
             )
 
 
@@ -134,18 +143,22 @@ class ObjectVisionService:
         # SigLIP Candidate 생성
         # ==========================
 
-        candidates = [
+        candidates = (
+            self._build_candidates(
+                target
+            )
+        )
 
-            f"a photo of a {target}",
 
-            f"not a {target}"
-
-        ]
+        logger.info(
+            "[SigLIP Candidates] %s",
+            candidates
+        )
 
 
 
         # ==========================
-        # SigLIP2 Inference
+        # SigLIP Inference
         # ==========================
 
         siglip_result = (
@@ -158,8 +171,10 @@ class ObjectVisionService:
 
 
         logger.info(
-            "[SigLIP Result] %s",
-            siglip_result
+            "[SigLIP Result] "
+            "top=%s confidence=%.4f",
+            siglip_result["top_label"],
+            siglip_result["confidence"]
         )
 
 
@@ -188,12 +203,134 @@ class ObjectVisionService:
 
 
 
-        logger.info(
-            "[OBJECT Decision] success=%s confidence=%s reason_code=%s",
-            ai_result.success,
-            ai_result.confidence,
+        # ==========================
+        # SigLIP 직접 결정
+        # ==========================
+
+        if (
             ai_result.reason_code
+            !=
+            ReasonCode.OBJECT_UNCERTAIN
+        ):
+
+            logger.info(
+                "[OBJECT Decision] "
+                "success=%s confidence=%.4f reason=%s",
+                ai_result.success,
+                ai_result.confidence,
+                ai_result.reason_code
+            )
+
+            return ai_result
+
+
+
+        # ==========================
+        # Gemini Fallback
+        # ==========================
+
+        logger.info(
+            "[Gemini Fallback] "
+            "score=%.4f margin=%.4f",
+            ai_result.metadata.get(
+                "top_score",
+                0.0
+            ),
+            ai_result.metadata.get(
+                "margin",
+                0.0
+            )
         )
 
 
-        return ai_result
+
+        try:
+
+            prompt = (
+                PromptBuilder.build(
+                    mission_type="OBJECT",
+                    decision_condition=decision_condition
+                )
+            )
+
+
+            gemini_result = (
+                self.gemini_service.verify_mission(
+                    image_bytes=image_bytes,
+                    prompt=prompt
+                )
+            )
+
+
+
+            gemini_result = (
+                ReasonMapper.map(
+                    ai_result=gemini_result,
+                    mission_type="OBJECT"
+                )
+            )
+
+
+            return gemini_result
+
+
+
+        except Exception as e:
+
+
+            logger.exception(
+                "[Gemini Fallback] failed"
+            )
+
+
+            ai_result.reason = (
+                "객체를 명확하게 판별할 수 없습니다."
+            )
+
+
+            ai_result.metadata.update(
+                {
+                    "fallback_status": "FAILED",
+                    "fallback_error": str(e)
+                }
+            )
+
+
+            return ai_result
+
+
+
+    def _build_candidates(
+        self,
+        target: str
+    ) -> list[str]:
+        """
+        SigLIP 비교 후보 생성
+
+        target:
+            미션 대상 객체
+
+        예:
+            flower
+
+        결과:
+            [
+                "a photo of a flower",
+                "a photo of a dog",
+                ...
+            ]
+        """
+
+        objects = [
+            target
+        ] + [
+            obj
+            for obj in self.COMMON_OBJECTS
+            if obj != target
+        ]
+
+
+        return [
+            f"a photo of a {obj}"
+            for obj in objects
+        ]

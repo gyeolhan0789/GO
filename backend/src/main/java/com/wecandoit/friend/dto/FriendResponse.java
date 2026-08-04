@@ -1,6 +1,6 @@
 package com.wecandoit.friend.dto;
 
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import java.util.List;
@@ -11,14 +11,14 @@ public record FriendResponse(
         long weeklySteps,
         Gender gender,
         String defaultImageUrl,
-        List<EquippedItemResponse> equippedItems
+        List<EquippedItemDto> equippedItems
 ) {
 
     public static FriendResponse of(
             Member member,
             long weeklySteps,
             String defaultImageUrl,
-            List<EquippedItemResponse> equippedItems
+            List<EquippedItemDto> equippedItems
     ) {
         return new FriendResponse(
                 member.getId(),

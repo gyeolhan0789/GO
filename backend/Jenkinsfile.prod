@@ -91,6 +91,7 @@ pipeline {
 
                         env.NGINX_CANDIDATE_IMAGE = "${env.NGINX_IMAGE_REPOSITORY}:${env.GIT_SHA}"
                         env.STABLE_HEALTH_URL = "http://127.0.0.1:${env.MANAGEMENT_PORT}/actuator/health"
+                        env.LEGACY_STABLE_HEALTH_URL = "http://127.0.0.1:${env.BACKEND_SERVICE_PORT}/actuator/health"
                         env.CANARY_HEALTH_URL = "http://127.0.0.1:${env.MANAGEMENT_PORT}/actuator/health"
                         env.NGINX_ROUTED_SMOKE_URL = "http://127.0.0.1:${env.NGINX_SMOKE_PORT}/v3/api-docs"
                         env.SERVICE_SMOKE_URL = "https://${env.PRODUCTION_DOMAIN}/v3/api-docs"
@@ -186,7 +187,8 @@ pipeline {
 
                             HEALTH_CHECK_CONTAINER="$current_container" \
                               bash ../infra/deploy/check-backend-health.sh \
-                                "$STABLE_HEALTH_URL" 5 2 >&2
+                                "$STABLE_HEALTH_URL" 5 2 \
+                                "$LEGACY_STABLE_HEALTH_URL" >&2
 
                             revision=$(docker image inspect \
                               --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
@@ -317,7 +319,8 @@ pipeline {
                         STABLE_IMAGE="$ROLLBACK_IMAGE" \
                           docker compose -f "$COMPOSE_FILE" up -d --no-deps backend-stable
                         HEALTH_CHECK_CONTAINER="$STABLE_CONTAINER" \
-                          bash ../infra/deploy/check-backend-health.sh "$STABLE_HEALTH_URL"
+                          bash ../infra/deploy/check-backend-health.sh \
+                            "$STABLE_HEALTH_URL" 30 2 "$LEGACY_STABLE_HEALTH_URL"
                         '''
                     }
                 }
@@ -757,7 +760,8 @@ pipeline {
                           if [ "$running_image_id" = "$rollback_image_id" ] \
                             && HEALTH_CHECK_CONTAINER="$container_name" \
                               bash ../infra/deploy/check-backend-health.sh \
-                                "$STABLE_HEALTH_URL" 5 2; then
+                                "$STABLE_HEALTH_URL" 5 2 \
+                                "$LEGACY_STABLE_HEALTH_URL"; then
                             stable_ready=true
                             echo "Stable already uses the healthy rollback image. Skipping container recreation."
                             break
@@ -791,7 +795,8 @@ pipeline {
                           && [ "$restored_image_id" = "$rollback_image_id" ] \
                           && HEALTH_CHECK_CONTAINER="$STABLE_CONTAINER" \
                             bash ../infra/deploy/check-backend-health.sh \
-                              "$STABLE_HEALTH_URL" 15 2; then
+                              "$STABLE_HEALTH_URL" 15 2 \
+                              "$LEGACY_STABLE_HEALTH_URL"; then
                           stable_ready=true
                         fi
                       fi

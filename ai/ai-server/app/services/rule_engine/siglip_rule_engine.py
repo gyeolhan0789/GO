@@ -7,29 +7,34 @@ from app.domain.mission_result import ReasonCode
 logger = logging.getLogger(__name__)
 
 
-
 class SigLIPRuleEngine:
     """
     SigLIP2 Object Validation Rule Engine
 
     역할
     -----------------------
-    - SigLIP similarity score 기반 객체 미션 판정
-    - PASS / OBJECT_UNCERTAIN / OBJECT_NOT_FOUND 결정
+    - SigLIP similarity score 기반 객체 판정
+    - PASS / OBJECT_NOT_FOUND / OBJECT_UNCERTAIN 결정
     - AIResult 업데이트
 
     책임 제외
     -----------------------
-    - SigLIP2 추론
-    - Mission Type Routing
-    - Gemini Fallback
+    - SigLIP2 inference
+    - Mission routing
+    - Gemini fallback
     """
 
+    # PASS 판정 기준
+    # 높은 확신이 있을 때만 성공 처리
+    PASS_THRESHOLD = 0.80
 
+    # Top1과 Top2 score 차이
+    # 비슷한 후보가 있으면 uncertain 처리
+    MARGIN_THRESHOLD = 0.20
 
-    PASS_SCORE = 0.50
-
-    PASS_MARGIN = 0.20
+    # 객체 존재 여부 최소 기준
+    # 이보다 낮으면 객체 없음
+    NOT_FOUND_THRESHOLD = 0.30
 
 
 
@@ -45,18 +50,18 @@ class SigLIPRuleEngine:
         )
 
 
-
-        # ==========================
+        # ==================================
         # Score 없음
-        # ==========================
+        # ==================================
 
         if not scores:
 
-
             ai_result.success = False
 
+            ai_result.confidence = 0.0
+
             ai_result.reason = (
-                "Similarity score가 존재하지 않습니다."
+                "SigLIP similarity score가 존재하지 않습니다."
             )
 
             ai_result.reason_code = (
@@ -65,17 +70,16 @@ class SigLIPRuleEngine:
 
 
             logger.warning(
-                "[SigLIP Rule] score 없음"
+                "[SigLIP Rule] similarity score 없음"
             )
-
 
             return ai_result
 
 
 
-        # ==========================
+        # ==================================
         # Top1 / Top2 계산
-        # ==========================
+        # ==================================
 
         sorted_scores = sorted(
             scores.items(),
@@ -84,20 +88,13 @@ class SigLIPRuleEngine:
         )
 
 
-
-        top_label, top_score = (
-            sorted_scores[0]
-        )
+        top_label, top_score = sorted_scores[0]
 
 
         second_score = (
-
             sorted_scores[1][1]
-
             if len(sorted_scores) > 1
-
             else 0.0
-
         )
 
 
@@ -106,15 +103,14 @@ class SigLIPRuleEngine:
         )
 
 
-
         ai_result.metadata.update(
             {
+                "top_label": top_label,
                 "top_score": float(top_score),
                 "second_score": float(second_score),
                 "margin": float(margin)
             }
         )
-
 
 
         logger.info(
@@ -127,16 +123,13 @@ class SigLIPRuleEngine:
 
 
 
-        # ==========================
+        # ==================================
         # OBJECT_NOT_FOUND
         #
-        # 예:
-        # top_label = "not a flower"
-        # ==========================
+        # 후보 객체 자체가 거의 없는 경우
+        # ==================================
 
-        if top_label.startswith(
-            "not a"
-        ):
+        if top_score < self.NOT_FOUND_THRESHOLD:
 
 
             ai_result.success = False
@@ -146,16 +139,8 @@ class SigLIPRuleEngine:
             )
 
 
-            detected_object = (
-                top_label.replace(
-                    "not a ",
-                    ""
-                )
-            )
-
-
             ai_result.reason = (
-                f"{detected_object} 객체가 감지되지 않았습니다."
+                f"{top_label} 객체를 확인할 수 없습니다."
             )
 
 
@@ -165,8 +150,8 @@ class SigLIPRuleEngine:
 
 
             logger.info(
-                "[SigLIP Rule] OBJECT_NOT_FOUND label=%s",
-                top_label
+                "[SigLIP Rule] OBJECT_NOT_FOUND score=%.4f",
+                top_score
             )
 
 
@@ -174,18 +159,16 @@ class SigLIPRuleEngine:
 
 
 
-        # ==========================
+        # ==================================
         # PASS
-        # ==========================
+        #
+        # 높은 score + 명확한 차이
+        # ==================================
 
         if (
-
-            top_score >= self.PASS_SCORE
-
+            top_score >= self.PASS_THRESHOLD
             and
-
-            margin >= self.PASS_MARGIN
-
+            margin >= self.MARGIN_THRESHOLD
         ):
 
 
@@ -197,7 +180,7 @@ class SigLIPRuleEngine:
 
 
             ai_result.reason = (
-                f"{top_label} 객체가 감지되었습니다."
+                f"{top_label} 객체가 명확하게 감지되었습니다."
             )
 
 
@@ -207,9 +190,10 @@ class SigLIPRuleEngine:
 
 
             logger.info(
-                "[SigLIP Rule] PASS label=%s confidence=%.4f",
+                "[SigLIP Rule] PASS label=%s confidence=%.4f margin=%.4f",
                 top_label,
-                top_score
+                top_score,
+                margin
             )
 
 
@@ -217,9 +201,11 @@ class SigLIPRuleEngine:
 
 
 
-        # ==========================
+        # ==================================
         # OBJECT_UNCERTAIN
-        # ==========================
+        #
+        # Gemini fallback 대상
+        # ==================================
 
         ai_result.success = False
 
@@ -229,7 +215,7 @@ class SigLIPRuleEngine:
 
 
         ai_result.reason = (
-            "객체를 명확하게 판별할 수 없습니다."
+            f"{top_label} 객체 판정이 불확실합니다."
         )
 
 
@@ -239,8 +225,9 @@ class SigLIPRuleEngine:
 
 
         logger.info(
-            "[SigLIP Rule] OBJECT_UNCERTAIN confidence=%.4f",
-            top_score
+            "[SigLIP Rule] OBJECT_UNCERTAIN score=%.4f margin=%.4f",
+            top_score,
+            margin
         )
 
 

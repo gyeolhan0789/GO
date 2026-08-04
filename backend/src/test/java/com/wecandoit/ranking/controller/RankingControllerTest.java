@@ -20,7 +20,7 @@ import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.PageResponse;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Region;
@@ -92,7 +92,7 @@ class RankingControllerTest {
                                 12_500,
                                 Gender.FEMALE,
                                 "/uploads/avatars/female/default.png",
-                                List.of(new EquippedItemResponse(
+                                List.of(new EquippedItemDto(
                                         10L,
                                         100L,
                                         "빨간 모자",

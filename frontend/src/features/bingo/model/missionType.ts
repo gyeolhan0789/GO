@@ -1,28 +1,59 @@
 import type { IoniconsIconName } from '@react-native-vector-icons/ionicons';
 
 // 백엔드 MissionType(backend/src/main/java/com/wecandoit/mission/domain/MissionType.java)과 동일하다.
-export type MissionType = 'OBJECT' | 'ATTRIBUTE' | 'RELATION' | 'ORDINARY';
+export type MissionType =
+  | 'OBJECT'
+  | 'ATTRIBUTE'
+  | 'RELATION'
+  | 'ORDINARY'
+  | 'STEP_TOTAL'
+  | 'STEP_CONTINUOUS'
+  | 'STEP_DAILY'
+  | 'WALKING_TIME_TOTAL'
+  | 'WALKING_TIME_CONTINUOUS'
+  | 'STEADY_PACE'
+  | 'DISTANCE_TOTAL'
+  | 'CALORIES_TOTAL'
+  | 'AVERAGE_SPEED';
 
-// 미션에 등록된 이미지가 없을 때 쓰는 유형별 기본 아이콘.
+// 미션에 등록된 이미지가 없을 때 쓰는 유형별 기본 아이콘. 건강 데이터 기반 타입은
+// 개별 아이콘 대신 걷기/시간/운동 세 묶음으로 묶어서 쓴다.
 export const MISSION_TYPE_ICONS: Record<MissionType, IoniconsIconName> = {
   OBJECT: 'cube-outline',
   ATTRIBUTE: 'sparkles-outline',
   RELATION: 'people-outline',
   ORDINARY: 'walk-outline',
+  STEP_TOTAL: 'footsteps-outline',
+  STEP_CONTINUOUS: 'footsteps-outline',
+  STEP_DAILY: 'footsteps-outline',
+  DISTANCE_TOTAL: 'footsteps-outline',
+  WALKING_TIME_TOTAL: 'time-outline',
+  WALKING_TIME_CONTINUOUS: 'time-outline',
+  STEADY_PACE: 'barbell-outline',
+  CALORIES_TOTAL: 'barbell-outline',
+  AVERAGE_SPEED: 'barbell-outline',
 };
 
-// 백엔드 CashRewardPolicy의 BINGO_CELL_* 보상 포인트와 맞춘 값. 실제 포인트는
-// 인증 제출 응답에서만 내려오므로, 목록에서 미리 보여주는 용도로만 쓴다.
-export const MISSION_TYPE_POINTS: Record<MissionType, number> = {
-  OBJECT: 30,
-  ATTRIBUTE: 50,
-  RELATION: 70,
-  ORDINARY: 30,
-};
+// 사진을 찍어 AI 인증을 받는 미션 타입. 이 목록에 없는 타입은 활동 데이터
+// 기반이라 산책 중 자동으로 완료되고, 카메라로 인증할 수 없다.
+const PHOTO_MISSION_TYPES = new Set<MissionType>(['OBJECT', 'ATTRIBUTE', 'RELATION', 'ORDINARY']);
+
+export function isPhotoMission(type: MissionType): boolean {
+  return PHOTO_MISSION_TYPES.has(type);
+}
 
 export const MISSION_TYPE_LABELS: Record<MissionType, string> = {
   OBJECT: '사물',
   ATTRIBUTE: '상태',
   RELATION: '관계',
   ORDINARY: '일상',
+  STEP_TOTAL: '걷기 미션',
+  STEP_CONTINUOUS: '걷기 미션',
+  STEP_DAILY: '걷기 미션',
+  DISTANCE_TOTAL: '걷기 미션',
+  WALKING_TIME_TOTAL: '시간 미션',
+  WALKING_TIME_CONTINUOUS: '시간 미션',
+  STEADY_PACE: '운동 미션',
+  CALORIES_TOTAL: '운동 미션',
+  AVERAGE_SPEED: '운동 미션',
 };

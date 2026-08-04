@@ -4,8 +4,8 @@ import com.wecandoit.avatar.domain.AvatarImage;
 import com.wecandoit.avatar.repository.AvatarImageRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
-import com.wecandoit.item.controller.response.AvatarResponse;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.AvatarDto;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.item.domain.Item;
 import com.wecandoit.item.domain.MemberEquippedItem;
 import com.wecandoit.item.domain.MemberItem;
@@ -32,7 +32,7 @@ public class AvatarReadService {
     private final MemberItemRepository memberItemRepository;
     private final ItemRepository itemRepository;
 
-    public Map<Long, AvatarResponse> getAvatars(List<Member> members) {
+    public Map<Long, AvatarDto> getAvatars(List<Member> members) {
         if (members.isEmpty()) {
             return Map.of();
         }
@@ -46,13 +46,13 @@ public class AvatarReadService {
                                 AvatarImage::getGender,
                                 AvatarImage::getImageUrl
                         ));
-        Map<Long, List<EquippedItemResponse>> equippedItemsByMemberId =
+        Map<Long, List<EquippedItemDto>> equippedItemsByMemberId =
                 getEquippedItemsByMemberIds(memberIds);
 
         return members.stream()
                 .collect(Collectors.toMap(
                         Member::getId,
-                        member -> AvatarResponse.of(
+                        member -> AvatarDto.of(
                                 member,
                                 defaultImageUrlsByGender.get(member.getGender()),
                                 equippedItemsByMemberId.getOrDefault(member.getId(), List.of())
@@ -60,7 +60,7 @@ public class AvatarReadService {
                 ));
     }
 
-    private Map<Long, List<EquippedItemResponse>> getEquippedItemsByMemberIds(
+    private Map<Long, List<EquippedItemDto>> getEquippedItemsByMemberIds(
             List<Long> memberIds
     ) {
         List<MemberEquippedItem> equippedItems =
@@ -90,7 +90,7 @@ public class AvatarReadService {
                 .collect(Collectors.groupingBy(
                         MemberEquippedItem::getMemberId,
                         Collectors.mapping(
-                                equippedItem -> toEquippedItemResponse(
+                                equippedItem -> toEquippedItemDto(
                                         equippedItem,
                                         memberItemsById,
                                         itemsById
@@ -100,7 +100,7 @@ public class AvatarReadService {
                 ));
     }
 
-    private EquippedItemResponse toEquippedItemResponse(
+    private EquippedItemDto toEquippedItemDto(
             MemberEquippedItem equippedItem,
             Map<Long, MemberItem> memberItemsById,
             Map<Long, Item> itemsById
@@ -113,6 +113,6 @@ public class AvatarReadService {
         if (item == null) {
             throw new CustomException(ErrorCode.ITEM_NOT_FOUND);
         }
-        return EquippedItemResponse.of(equippedItem, memberItem, item);
+        return EquippedItemDto.of(equippedItem, memberItem, item);
     }
 }
