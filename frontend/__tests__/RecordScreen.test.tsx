@@ -364,7 +364,7 @@ describe('RecordScreen 차트 구간 기록', () => {
     );
   });
 
-  test('막대를 누르면 그 구간의 기록이 시트로 뜬다', async () => {
+  test('막대를 누르면 그 구간의 기록이 카드로 뜬다', async () => {
     const tree = await renderScreen();
     await measureChartArea(tree.root, 320);
 
@@ -375,7 +375,7 @@ describe('RecordScreen 차트 구간 기록', () => {
       '',
     );
 
-    // 누르기 전에는 시트가 없다.
+    // 누르기 전에는 카드가 없다.
     expect(collectTexts(tree.root)).not.toContain('칼로리');
 
     await act(async () => {
@@ -384,11 +384,32 @@ describe('RecordScreen 차트 구간 기록', () => {
     await flushQueries();
 
     const texts = collectTexts(tree.root);
-    // 누른 구간이 시트 제목으로 그대로 나오고, 그 구간의 활동 수치가 붙는다.
+    // 누른 구간이 카드 제목으로 그대로 나오고, 그 구간의 활동 수치가 붙는다.
     expect(texts).toContain(dayLabel);
     expect(texts).toContain('걸음');
     expect(texts).toContain('거리');
     expect(texts).toContain('칼로리');
+    // 누른 막대에 표시가 남아야 어느 구간을 보고 있는지 알 수 있다.
+    expect(firstSlot.props.accessibilityState).toEqual({ selected: true });
+  });
+
+  test('기간을 옮기면 열려 있던 카드가 닫힌다', async () => {
+    const tree = await renderScreen();
+    await measureChartArea(tree.root, 320);
+
+    await act(async () => {
+      findByAccessibilityLabel(tree.root, '7.27 (월) 기록 보기').props.onPress();
+    });
+    await flushQueries();
+    expect(collectTexts(tree.root)).toContain('칼로리');
+
+    // 옮긴 구간에는 그 막대가 없으므로 카드도 남을 수 없다.
+    await act(async () => {
+      findByAccessibilityLabel(tree.root, '이전 구간').props.onPress();
+    });
+    await flushQueries();
+
+    expect(collectTexts(tree.root)).not.toContain('칼로리');
   });
 
   test('일간에서는 3시간 묶음으로 누른다', async () => {

@@ -4,7 +4,7 @@
 
 import React from 'react';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { ReactTestInstance } from 'react-test-renderer';
 import { BarChart, LineChart, ProgressChart } from 'react-native-chart-kit';
 
@@ -13,6 +13,7 @@ import type {
   HistoryResponse,
 } from '../src/features/history/api/historyApi';
 import type { HourlyStep } from '../src/features/history/types';
+import { colors } from '../src/shared/constants/colors';
 import { BAR_CHART_CONFIG } from '../src/screens/RecordScreen/chartConfig';
 import { StepSummaryCard } from '../src/screens/RecordScreen/components/StepSummaryCard';
 
@@ -72,6 +73,7 @@ function buildHourlySteps(): HourlyStep[] {
 async function renderCard(
   history: HistoryResponse,
   hourlySteps: HourlyStep[] = [],
+  selectedSegmentIndex: number | null = null,
 ) {
   await act(async () => {
     renderer = ReactTestRenderer.create(
@@ -80,6 +82,7 @@ async function renderCard(
         hourlySteps={hourlySteps}
         isCurrentPeriod
         todayIsoDate={TODAY}
+        selectedSegmentIndex={selectedSegmentIndex}
         onSelectSegment={() => {}}
       />,
     );
@@ -107,6 +110,18 @@ const WEEK_DAYS = [
   { historyDate: '2026-07-28', step: 12_000 },
   { historyDate: '2026-07-29', step: 0 },
 ];
+
+/**
+ * 눌린 구간을 덮는 면이 칸에서 차지하는 비율. 칸 하나가 구간 하나이므로 이 값이
+ * 곧 표시가 구간 경계와 맞는지를 말한다(ChartSegmentOverlay 참고).
+ */
+function highlightFlexes(root: ReactTestInstance): number[] {
+  return root
+    .findAllByType(View)
+    .map(node => StyleSheet.flatten(node.props.style))
+    .filter(style => style?.backgroundColor === colors.successBg)
+    .map(style => style.flex);
+}
 
 describe('StepSummaryCard - 일간', () => {
   const dayHistory = buildHistory('DAY', [
@@ -169,6 +184,15 @@ describe('StepSummaryCard - 일간', () => {
       paddingRight: 40,
     });
     expect(lineChart.props.yLabelsOffset).toBe(8);
+  });
+
+  test('고른 시간대 표시가 3시간 칸을 꽉 덮는다', async () => {
+    // 12시 - 15시 묶음.
+    const tree = await renderCard(dayHistory, buildHourlySteps(), 4);
+
+    // 막대가 없는 곡선은 칸 전체가 그 구간이다. 여기에 막대 비율(2/3)을 주면
+    // flex 합이 1보다 작아 표시가 칸의 2/3만 덮어 12-14시처럼 보인다.
+    expect(highlightFlexes(tree.root)).toEqual([1]);
   });
 
   test('목표는 여기서 다루지 않는다', async () => {
@@ -262,6 +286,14 @@ describe('StepSummaryCard - 주간/월간', () => {
     expect(barChart.props.fromNumber).toBe(80_000);
   });
 
+  test('고른 막대 표시는 막대 자리에만 앉는다', async () => {
+    const tree = await renderCard(buildHistory('WEEK', WEEK_DAYS), [], 1);
+
+    // 막대는 칸 오른쪽 2/3에 붙어 그려진다(resolveBarPercentage 참고). 앞의
+    // 1/3은 빈 칸이 차지해 둘이 칸을 정확히 나눠 가진다.
+    expect(highlightFlexes(tree.root)).toEqual([2 / 3]);
+  });
+
   test('기록이 없는 기간에는 차트 대신 안내를 보여준다', async () => {
     await act(async () => {
       renderer = ReactTestRenderer.create(
@@ -272,6 +304,7 @@ describe('StepSummaryCard - 주간/월간', () => {
           hourlySteps={[]}
           isCurrentPeriod
           todayIsoDate={TODAY}
+          selectedSegmentIndex={null}
           onSelectSegment={() => {}}
         />,
       );

@@ -9,7 +9,7 @@ import type { ReactTestInstance } from 'react-test-renderer';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import type { ChartSegment } from '../src/features/history/model/chartSegments';
-import { SegmentDetailSheet } from '../src/screens/RecordScreen/components/SegmentDetailSheet';
+import { SegmentDetailPopover } from '../src/screens/RecordScreen/components/SegmentDetailPopover';
 
 const INITIAL_METRICS = {
   frame: { x: 0, y: 0, width: 400, height: 800 },
@@ -46,11 +46,24 @@ function collectTexts(root: ReactTestInstance): string[] {
     .filter((child): child is string => typeof child === 'string');
 }
 
-async function renderSheet(segment: ChartSegment | null) {
+type PopoverOptions = {
+  segment?: ChartSegment | null;
+  onClose?: () => void;
+};
+
+async function renderPopover({
+  segment = DAY_SEGMENT,
+  onClose = () => {},
+}: PopoverOptions = {}) {
   await act(async () => {
     renderer = ReactTestRenderer.create(
       <SafeAreaProvider initialMetrics={INITIAL_METRICS}>
-        <SegmentDetailSheet segment={segment} onClose={() => {}} />
+        <SegmentDetailPopover
+          segment={segment}
+          // 테스트 렌더러는 실제 배치를 내지 않아 막대 자리를 잴 수 없다.
+          anchor={null}
+          onClose={onClose}
+        />
       </SafeAreaProvider>,
     );
   });
@@ -61,9 +74,13 @@ async function renderSheet(segment: ChartSegment | null) {
   return renderer;
 }
 
-describe('SegmentDetailSheet', () => {
+function findByAccessibilityLabel(root: ReactTestInstance, label: string) {
+  return root.find(node => node.props.accessibilityLabel === label);
+}
+
+describe('SegmentDetailPopover 활동 수치', () => {
   test('구간의 걸음·거리·칼로리를 보여준다', async () => {
-    const tree = await renderSheet(DAY_SEGMENT);
+    const tree = await renderPopover();
     const texts = collectTexts(tree.root);
 
     // 누른 구간이 어디인지 제목으로 알 수 있어야 한다.
@@ -77,7 +94,9 @@ describe('SegmentDetailSheet', () => {
   });
 
   test('1km 미만은 미터로 둔다', async () => {
-    const tree = await renderSheet({ ...DAY_SEGMENT, distance: 840 });
+    const tree = await renderPopover({
+      segment: { ...DAY_SEGMENT, distance: 840 },
+    });
     const texts = collectTexts(tree.root);
 
     // '0.8km'로 보여주면 정보가 깎인다.
@@ -86,13 +105,15 @@ describe('SegmentDetailSheet', () => {
   });
 
   test('시간대 구간은 걸음만 보여준다', async () => {
-    const tree = await renderSheet({
-      ...DAY_SEGMENT,
-      label: '18시 - 21시',
-      step: 4_231,
-      // 시간대별로는 거리·칼로리를 읽을 수 없다.
-      distance: null,
-      calories: null,
+    const tree = await renderPopover({
+      segment: {
+        ...DAY_SEGMENT,
+        label: '18시 - 21시',
+        step: 4_231,
+        // 시간대별로는 거리·칼로리를 읽을 수 없다.
+        distance: null,
+        calories: null,
+      },
     });
     const texts = collectTexts(tree.root);
 
@@ -103,20 +124,40 @@ describe('SegmentDetailSheet', () => {
   });
 
   test('걸음이 없는 구간도 0으로 보여준다', async () => {
-    // 빈 시트를 띄우는 대신 '그 구간에는 활동이 없었다'를 수치로 읽게 한다.
-    const tree = await renderSheet({
-      ...DAY_SEGMENT,
-      step: 0,
-      distance: 0,
-      calories: 0,
+    // 빈 카드를 띄우는 대신 '그 구간에는 활동이 없었다'를 수치로 읽게 한다.
+    const tree = await renderPopover({
+      segment: { ...DAY_SEGMENT, step: 0, distance: 0, calories: 0 },
     });
 
     expect(collectTexts(tree.root)).toContain('0');
   });
 
-  test('고른 구간이 없으면 시트를 띄우지 않는다', async () => {
-    const tree = await renderSheet(null);
+  test('고른 구간이 없으면 아무것도 띄우지 않는다', async () => {
+    const tree = await renderPopover({ segment: null });
 
     expect(collectTexts(tree.root)).toEqual([]);
+  });
+});
+
+describe('SegmentDetailPopover 닫기', () => {
+  test('카드 밖을 누르면 닫힌다', async () => {
+    const onClose = jest.fn();
+    const tree = await renderPopover({ onClose });
+
+    await act(async () => {
+      findByAccessibilityLabel(tree.root, '구간 기록 닫기').props.onPress();
+    });
+
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  test('산책 기록은 이 카드가 맡지 않는다', async () => {
+    // 기록 화면이 보여줄 것은 신체 활동이다. 산책 단위 기록은 '최근 산책'과
+    // 전체 목록 화면이 이미 맡고 있다.
+    const tree = await renderPopover();
+    const texts = collectTexts(tree.root);
+
+    expect(texts).not.toContain('산책 1개');
+    expect(texts.some(text => text.includes('산책'))).toBe(false);
   });
 });

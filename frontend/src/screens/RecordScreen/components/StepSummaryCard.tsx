@@ -25,6 +25,7 @@ import { spacing } from '../../../shared/constants/spacing';
 import { bodyFont, lineHeights } from '../../../shared/constants/typography';
 import { ChartSegmentOverlay } from './ChartSegmentOverlay';
 import { HourlyStepChart } from './HourlyStepChart';
+import type { SegmentAnchor } from './resolvePopoverPosition';
 import { StepBarChart } from './StepBarChart';
 
 type StepSummaryCardProps = {
@@ -34,8 +35,10 @@ type StepSummaryCardProps = {
   /** 제목 문구와 오늘 막대 강조에 쓴다. */
   isCurrentPeriod: boolean;
   todayIsoDate: string;
-  /** 차트에서 누른 구간. 그 구간의 기록을 화면이 시트로 띄운다. */
-  onSelectSegment: (segment: ChartSegment) => void;
+  /** 기록 카드가 떠 있는 구간. 그 막대에 표시를 남겨 둔다. */
+  selectedSegmentIndex: number | null;
+  /** 차트에서 누른 구간. 그 구간의 기록을 화면이 카드로 띄운다. */
+  onSelectSegment: (segment: ChartSegment, anchor: SegmentAnchor | null) => void;
 };
 
 const CHART_HEIGHT = 200;
@@ -46,6 +49,7 @@ export function StepSummaryCard({
   hourlySteps,
   isCurrentPeriod,
   todayIsoDate,
+  selectedSegmentIndex,
   onSelectSegment,
 }: StepSummaryCardProps) {
   // chart-kit은 너비를 픽셀 숫자로만 받아서 실제 레이아웃을 재야 한다.
@@ -110,6 +114,7 @@ export function StepSummaryCard({
                   <ChartSegmentOverlay
                     segments={segments}
                     alignHighlightToBar={!isHourly}
+                    selectedIndex={selectedSegmentIndex}
                     onSelect={onSelectSegment}
                   />
                 ) : null}
