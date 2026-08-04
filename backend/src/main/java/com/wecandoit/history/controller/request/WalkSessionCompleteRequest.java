@@ -19,6 +19,9 @@ public record WalkSessionCompleteRequest(
         @NotNull(message = "산책 종료 시각은 필수입니다.")
         OffsetDateTime endedAt,
 
+        @PositiveOrZero(message = "실제 운동 시간은 0 이상이어야 합니다.")
+        Long activeDurationSeconds,
+
         @PositiveOrZero(message = "걸음 수는 0 이상이어야 합니다.")
         int step,
 

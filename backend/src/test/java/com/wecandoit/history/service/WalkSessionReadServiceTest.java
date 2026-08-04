@@ -76,6 +76,7 @@ class WalkSessionReadServiceTest {
         assertThat(response.content()).hasSize(1);
         assertThat(response.content().getFirst().roomName()).isEqualTo("현재 산책방 이름");
         assertThat(response.content().getFirst().durationSeconds()).isEqualTo(2_535L);
+        assertThat(response.content().getFirst().activeDurationSeconds()).isEqualTo(2_400L);
         assertThat(response.content().getFirst().achievedMissionCount()).isEqualTo(1);
     }
 
@@ -146,6 +147,7 @@ class WalkSessionReadServiceTest {
                 30L,
                 Instant.parse("2026-08-03T01:00:00Z"),
                 Instant.parse("2026-08-03T01:42:15Z"),
+                2_400L,
                 4_832,
                 3_382,
                 214

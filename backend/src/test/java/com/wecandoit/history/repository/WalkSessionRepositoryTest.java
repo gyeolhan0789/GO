@@ -207,6 +207,7 @@ class WalkSessionRepositoryTest {
                 initialBingoBoardId,
                 endedAt.minusSeconds(600),
                 endedAt,
+                600L,
                 step,
                 700,
                 50
