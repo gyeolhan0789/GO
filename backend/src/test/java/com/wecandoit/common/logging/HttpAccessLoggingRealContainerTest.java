@@ -6,12 +6,17 @@ import static org.mockito.BDDMockito.given;
 
 import com.wecandoit.common.jwt.JwtProvider;
 import com.wecandoit.common.jwt.TokenRepository;
+import com.wecandoit.common.testcontainers.RedisTestContainer;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -20,6 +25,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 // AC-X15: 미처리 예외가 실제 임베디드 컨테이너에서 클라이언트에게 500으로 전달되는지 확인한다.
 // MockMvc의 TestDispatcherServlet은 Tomcat의 StandardHostValve 에러 페이지 전달을 흉내 내지
@@ -33,8 +41,35 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 // 고쳤다 — 상세 메시지/스택트레이스를 노출하지 않는 한 /error는 인증이 필요 없는 경로다.
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
-@Import(HttpAccessLoggingIntegrationTest.LoggingTestConfig.class)
+@ImportTestcontainers(RedisTestContainer.class)
+@Import(HttpAccessLoggingRealContainerTest.LoggingTestConfig.class)
 class HttpAccessLoggingRealContainerTest {
+
+    // 최상위 클래스로 두면 컴포넌트 스캔(com.wecandoit)과 @Import 양쪽에서 발견되어
+    // 핸들러 매핑이 중복 등록된다. 테스트 클래스에 중첩해 스캔 대상에서 제외한다.
+    @TestConfiguration
+    static class LoggingTestConfig {
+
+        @Bean
+        LoggingTestController loggingTestController() {
+            return new LoggingTestController();
+        }
+    }
+
+    @RestController
+    @RequestMapping("/test/logging")
+    static class LoggingTestController {
+
+        @GetMapping("/ok")
+        Map<String, String> ok() {
+            return Map.of("result", "ok");
+        }
+
+        @GetMapping("/boom")
+        String boom() {
+            throw new IllegalStateException("boom");
+        }
+    }
 
     private static final long TEST_MEMBER_ID = 1L;
     private static final String TEST_ROLE = "USER";

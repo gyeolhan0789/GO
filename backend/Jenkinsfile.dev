@@ -35,6 +35,19 @@ pipeline {
             }
         }
 
+        stage('Test Backend') {
+            steps {
+                dir('backend') {
+                    sh '''
+                    chmod +x gradlew
+                    export TESTCONTAINERS_HOST_OVERRIDE=$(ip route | awk '/^default/ {print $3; exit}')
+                    echo "TESTCONTAINERS_HOST_OVERRIDE=$TESTCONTAINERS_HOST_OVERRIDE"
+                    ./gradlew test
+                    '''
+                }
+            }
+        }
+
         stage('Build Backend') {
             steps {
                 dir('backend') {

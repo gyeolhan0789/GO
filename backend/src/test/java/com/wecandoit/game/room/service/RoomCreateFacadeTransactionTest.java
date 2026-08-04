@@ -10,6 +10,8 @@ import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
+import com.wecandoit.common.testcontainers.MySqlTestContainer;
+import com.wecandoit.common.testcontainers.RedisTestContainer;
 import com.wecandoit.game.controller.request.CreateRoomRequest;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.repository.GameParticipantRepository;
@@ -25,16 +27,19 @@ import com.wecandoit.mission.domain.Mission;
 import com.wecandoit.mission.domain.MissionType;
 import com.wecandoit.mission.repository.MissionRepository;
 import java.util.stream.IntStream;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@ImportTestcontainers({MySqlTestContainer.class, RedisTestContainer.class})
 @DisplayName("게임방 생성 트랜잭션")
 class RoomCreateFacadeTransactionTest {
 
@@ -62,14 +67,7 @@ class RoomCreateFacadeTransactionTest {
 
     @BeforeEach
     void setUp() {
-        bingoCellRepository.deleteAll();
-        bingoBoardRepository.deleteAll();
-        gameParticipantRepository.deleteAll();
-        gameRepository.deleteAll();
-        roomMemberRepository.deleteAll();
-        roomRepository.deleteAll();
-        missionRepository.deleteAll();
-        memberRepository.deleteAll();
+        clearPersistedData();
     }
 
     @Test
@@ -97,6 +95,22 @@ class RoomCreateFacadeTransactionTest {
         assertThat(gameParticipantRepository.count()).isZero();
         assertThat(bingoBoardRepository.count()).isZero();
         assertThat(bingoCellRepository.count()).isZero();
+    }
+
+    @AfterEach
+    void tearDown() {
+        clearPersistedData();
+    }
+
+    private void clearPersistedData() {
+        bingoCellRepository.deleteAll();
+        bingoBoardRepository.deleteAll();
+        gameParticipantRepository.deleteAll();
+        gameRepository.deleteAll();
+        roomMemberRepository.deleteAll();
+        roomRepository.deleteAll();
+        missionRepository.deleteAll();
+        memberRepository.deleteAll();
     }
 
     @Test
