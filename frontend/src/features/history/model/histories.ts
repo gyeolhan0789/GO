@@ -8,7 +8,14 @@ export type StepChartDatum = {
   highlighted?: boolean;
 };
 
-const DAYS_PER_CHART_BUCKET = 7;
+export const DAYS_PER_CHART_BUCKET = 7;
+
+/** 월간 차트에서 이 날짜가 들어가는 막대 번호. 1~7일이 0. */
+export function monthBucketIndex(historyDate: string): number {
+  return Math.floor(
+    (parseIsoDate(historyDate).getDate() - 1) / DAYS_PER_CHART_BUCKET,
+  );
+}
 
 /**
  * 주는 하루에 막대 하나(월~일), 월은 7일씩 묶어 '1주'~'5주'로 줄인다.
@@ -33,9 +40,7 @@ export function buildStepChartData(
     let lastBucket = -1;
 
     histories.forEach(day => {
-      const bucket = Math.floor(
-        (parseIsoDate(day.historyDate).getDate() - 1) / DAYS_PER_CHART_BUCKET,
-      );
+      const bucket = monthBucketIndex(day.historyDate);
 
       stepByBucket.set(bucket, (stepByBucket.get(bucket) ?? 0) + day.step);
       lastBucket = Math.max(lastBucket, bucket);

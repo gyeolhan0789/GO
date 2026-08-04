@@ -50,13 +50,17 @@ fun SessionScreen(
     state = listState,
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
-    item {
-      Text(
-        text = session.roomName.ifEmpty { "산책 중" },
-        style = MaterialTheme.typography.caption1,
-        color = MaterialTheme.colors.onSurfaceVariant,
-        textAlign = TextAlign.Center,
-      )
+    // 방 이름이 아직 안 왔으면 비워둔다. 폰이 방 목록을 늦게 채우는 동안 "산책 중"을
+    // 넣으면 그게 방 이름인 줄 알게 된다(아래 경과 시간이 이미 상태를 말해준다).
+    if (session.roomName.isNotEmpty()) {
+      item {
+        Text(
+          text = session.roomName,
+          style = MaterialTheme.typography.caption1,
+          color = MaterialTheme.colors.onSurfaceVariant,
+          textAlign = TextAlign.Center,
+        )
+      }
     }
 
     item {

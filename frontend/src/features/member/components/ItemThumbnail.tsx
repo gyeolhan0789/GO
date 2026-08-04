@@ -1,6 +1,7 @@
 import { Image, StyleSheet, View } from 'react-native';
 import type { ImageSourcePropType, StyleProp, ViewStyle } from 'react-native';
 
+import { percent } from '../../../shared/lib/percent';
 import type { ItemCategory } from '../api/memberApi';
 
 /**
@@ -55,8 +56,8 @@ export function ItemThumbnail({
           styles.image,
           {
             // 확대된 이미지에서 (CENTER_X, centerY)가 창 중앙에 오도록 끌어온다.
-            left: `${(0.5 - ZOOM * CENTER_X) * 100}%`,
-            top: `${(0.5 - ZOOM * centerY) * 100}%`,
+            left: percent((0.5 - ZOOM * CENTER_X) * 100),
+            top: percent((0.5 - ZOOM * centerY) * 100),
           },
         ]}
       />
@@ -71,7 +72,7 @@ const styles = StyleSheet.create({
   },
   image: {
     position: 'absolute',
-    width: `${ZOOM * 100}%`,
-    height: `${ZOOM * 100}%`,
+    width: percent(ZOOM * 100),
+    height: percent(ZOOM * 100),
   },
 });

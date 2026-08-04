@@ -4,10 +4,11 @@ pipeline {
     environment {
         COMPOSE_FILE = 'docker-compose.dev.yml'
         SERVICE_NAME = 'backend'
+        MONITORING_COMPOSE_FILE = 'docker-compose.dev.yml'
     }
 
     stages {
-        stage('Check Backend Changes') {
+        stage('Check Changes') {
             steps {
                 script {
                     def changedFiles = sh(
@@ -19,28 +20,33 @@ pipeline {
                         fi
                         ''',
                         returnStdout: true
-                    ).trim()
+                    ).trim().split('\\n')
 
-                    echo "Changed files:\n${changedFiles}"
+                    echo "Changed files:\n${changedFiles.join('\n')}"
 
-                    def hasBackendChanges = changedFiles
-                        .split('\\n')
-                        .any { it.startsWith('backend/') }
+                    env.HAS_BACKEND_CHANGES = changedFiles.any { it.startsWith('backend/') }.toString()
+                    env.HAS_MONITORING_CHANGES = changedFiles.any { it.startsWith('infra/monitoring/') }.toString()
 
-                    if (!hasBackendChanges) {
+                    if (env.HAS_BACKEND_CHANGES != 'true' && env.HAS_MONITORING_CHANGES != 'true') {
                         currentBuild.result = 'NOT_BUILT'
-                        error('No backend changes. Skip backend development CD.')
+                        error('No backend or monitoring changes. Skip development CD.')
                     }
                 }
             }
         }
 
         stage('Test Backend') {
+            when { expression { env.HAS_BACKEND_CHANGES == 'true' } }
             steps {
                 dir('backend') {
                     sh '''
                     chmod +x gradlew
-                    export TESTCONTAINERS_HOST_OVERRIDE=$(ip route | awk '/^default/ {print $3; exit}')
+                    GATEWAY_HEX=$(awk '$2 == "00000000" {print $3; exit}' /proc/net/route)
+                    export TESTCONTAINERS_HOST_OVERRIDE=$(printf '%d.%d.%d.%d' \
+                      0x$(echo $GATEWAY_HEX | cut -c7-8) \
+                      0x$(echo $GATEWAY_HEX | cut -c5-6) \
+                      0x$(echo $GATEWAY_HEX | cut -c3-4) \
+                      0x$(echo $GATEWAY_HEX | cut -c1-2))
                     echo "TESTCONTAINERS_HOST_OVERRIDE=$TESTCONTAINERS_HOST_OVERRIDE"
                     ./gradlew test
                     '''
@@ -49,6 +55,7 @@ pipeline {
         }
 
         stage('Build Backend') {
+            when { expression { env.HAS_BACKEND_CHANGES == 'true' } }
             steps {
                 dir('backend') {
                     sh '''
@@ -60,6 +67,7 @@ pipeline {
         }
 
         stage('Deploy Backend') {
+            when { expression { env.HAS_BACKEND_CHANGES == 'true' } }
             steps {
                 dir('backend') {
                     withCredentials([
@@ -74,10 +82,23 @@ pipeline {
         }
 
         stage('Check Deploy') {
+            when { expression { env.HAS_BACKEND_CHANGES == 'true' } }
             steps {
                 dir('backend') {
                     script {
                         waitForHealth('final deployment')
+                    }
+                }
+            }
+        }
+
+        stage('Deploy Monitoring') {
+            when { expression { env.HAS_MONITORING_CHANGES == 'true' } }
+            steps {
+                dir('infra/monitoring') {
+                    sh 'docker compose -f $MONITORING_COMPOSE_FILE up -d'
+                    script {
+                        waitForMonitoringHealth()
                     }
                 }
             }
@@ -113,6 +134,28 @@ def waitForHealth(String phase) {
     done
 
     echo "${phase} health check failed with status \$STATUS"
+    exit 1
+    """
+}
+
+def waitForMonitoringHealth() {
+    // 모니터링 컨테이너에는 HEALTHCHECK가 없어 backend처럼 Health.Status를 볼 수 없다.
+    // 대신 컴포즈에 정의된 서비스 수와 실제 running 서비스 수를 비교해 크래시루프를 감지한다.
+    sh """
+    TOTAL=\$(docker compose -f \$MONITORING_COMPOSE_FILE config --services | wc -l)
+    for i in \$(seq 1 12); do
+      RUNNING=\$(docker compose -f \$MONITORING_COMPOSE_FILE ps --status running -q | wc -l)
+      echo "Monitoring health check attempt \$i/12: \$RUNNING/\$TOTAL services running"
+
+      if [ "\$RUNNING" = "\$TOTAL" ]; then
+        exit 0
+      fi
+
+      sleep 5
+    done
+
+    echo "Monitoring stack did not become healthy" >&2
+    docker compose -f \$MONITORING_COMPOSE_FILE ps
     exit 1
     """
 }

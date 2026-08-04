@@ -10,12 +10,6 @@
   "templating": {
     "list": [
       {
-        "name": "env",
-        "type": "custom",
-        "query": "dev,prod",
-        "current": { "text": "dev", "value": "dev" }
-      },
-      {
         "name": "traceId",
         "type": "textbox",
         "current": { "text": "", "value": "" }
@@ -31,7 +25,7 @@
       "gridPos": { "x": 0, "y": 0, "w": 24, "h": 8 },
       "targets": [
         {
-          "expr": "sum by (route) (count_over_time({env=\"$env\"} | json | line_format `{{.message}}` | regexp `^\\S+\\s+\\S+\\s+(?P<status>\\d\\d\\d)\\s` | status >= 400 [$__interval]))",
+          "expr": "sum by (route) (count_over_time({container_name=~\"wecandoit-backend-.*\"} | json | line_format `{{.message}}` | regexp `^\\S+\\s+\\S+\\s+(?P<status>\\d\\d\\d)\\s` | status >= 400 [$__interval]))",
           "refId": "A"
         }
       ]
@@ -44,7 +38,7 @@
       "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
       "targets": [
         {
-          "expr": "topk(10, max by (traceId) (max_over_time({env=\"$env\"} |= \"SLOW\" | json | line_format `{{.message}}` | regexp `^SLOW (?P<elapsed_ms>\\d+)ms` | unwrap elapsed_ms [$__range])))",
+          "expr": "topk(10, max by (traceId) (max_over_time({container_name=~\"wecandoit-backend-.*\"} |= \"SLOW\" | json | line_format `{{.message}}` | regexp `^SLOW (?P<elapsed_ms>\\d+)ms` | unwrap elapsed_ms [$__range])))",
           "refId": "A"
         }
       ]
@@ -57,7 +51,7 @@
       "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
       "targets": [
         {
-          "expr": "topk(10, sum by (route) (sum_over_time({env=\"$env\"} | json | line_format `{{.message}}` | regexp `queries=(?P<queries>\\d+)` | unwrap queries [$__range])))",
+          "expr": "topk(10, sum by (route) (sum_over_time({container_name=~\"wecandoit-backend-.*\"} | json | line_format `{{.message}}` | regexp `queries=(?P<queries>\\d+)` | unwrap queries [$__range])))",
           "refId": "A"
         }
       ]
@@ -70,7 +64,7 @@
       "gridPos": { "x": 0, "y": 16, "w": 24, "h": 10 },
       "targets": [
         {
-          "expr": "{env=\"$env\"} | json | traceId=\"$traceId\"",
+          "expr": "{container_name=~\"wecandoit-backend-.*\"} | json | traceId=\"$traceId\"",
           "refId": "A"
         }
       ]

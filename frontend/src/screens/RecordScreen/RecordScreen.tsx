@@ -11,6 +11,7 @@ import { PERIOD_OPTIONS } from '../../features/history/constants/periods';
 import { useHistoriesQuery } from '../../features/history/hooks/useHistoriesQuery';
 import { useHourlyStepsQuery } from '../../features/history/hooks/useHourlyStepsQuery';
 import { useRecentWalksQuery } from '../../features/history/hooks/useRecentWalksQuery';
+import type { ChartSegment } from '../../features/history/model/chartSegments';
 import {
   formatPeriodLabel,
   isCurrentPeriod,
@@ -26,6 +27,8 @@ import { spacing } from '../../shared/constants/spacing';
 import { bodyFont, lineHeights } from '../../shared/constants/typography';
 import { PeriodPicker } from './components/PeriodPicker/PeriodPicker';
 import { PeriodRangeNavigator } from './components/PeriodRangeNavigator';
+import { SegmentDetailPopover } from './components/SegmentDetailPopover';
+import type { SegmentAnchor } from './components/resolvePopoverPosition';
 import { StepSummaryCard } from './components/StepSummaryCard';
 import { ViewAllRecordsButton } from './components/ViewAllRecordsButton';
 
@@ -37,6 +40,13 @@ export function RecordScreen() {
   const [period, setPeriod] = useState<HistoryPeriod>('WEEK');
   const [baseDate, setBaseDate] = useState(todayIso);
   const [isPickerOpen, setPickerOpen] = useState(false);
+  // 차트에서 고른 구간. null이면 기록 카드가 닫혀 있다.
+  const [selectedSegment, setSelectedSegment] = useState<ChartSegment | null>(
+    null,
+  );
+  const [segmentAnchor, setSegmentAnchor] = useState<SegmentAnchor | null>(
+    null,
+  );
 
   // 자정을 넘겨도 화면이 살아 있을 수 있어 렌더마다 다시 읽는다.
   const today = todayIso();
@@ -54,8 +64,28 @@ export function RecordScreen() {
   const hourlySteps = hourlyStepsQuery.data ?? [];
   const recentWalks = recentWalksQuery.data ?? [];
 
-  const goPrevPeriod = () => setBaseDate(prev => shiftPeriod(period, prev, -1));
-  const goNextPeriod = () => setBaseDate(prev => shiftPeriod(period, prev, 1));
+  const closeSegment = () => {
+    setSelectedSegment(null);
+    setSegmentAnchor(null);
+  };
+
+  const selectSegment = (
+    segment: ChartSegment,
+    anchor: SegmentAnchor | null,
+  ) => {
+    setSelectedSegment(segment);
+    setSegmentAnchor(anchor);
+  };
+
+  // 기간이 바뀌면 열려 있던 구간은 더 이상 차트에 없다.
+  const goPrevPeriod = () => {
+    closeSegment();
+    setBaseDate(prev => shiftPeriod(period, prev, -1));
+  };
+  const goNextPeriod = () => {
+    closeSegment();
+    setBaseDate(prev => shiftPeriod(period, prev, 1));
+  };
 
   return (
     <Screen>
@@ -81,7 +111,10 @@ export function RecordScreen() {
                 <Select
                   options={PERIOD_OPTIONS}
                   value={period}
-                  onChange={setPeriod}
+                  onChange={nextPeriod => {
+                    closeSegment();
+                    setPeriod(nextPeriod);
+                  }}
                   name="기간"
                 />
               </View>
@@ -100,6 +133,8 @@ export function RecordScreen() {
                   hourlySteps={hourlySteps}
                   isCurrentPeriod={isLatestPeriod}
                   todayIsoDate={today}
+                  selectedSegmentIndex={selectedSegment?.index ?? null}
+                  onSelectSegment={selectSegment}
                 />
               )}
 
@@ -144,12 +179,21 @@ export function RecordScreen() {
         />
       </View>
 
+      <SegmentDetailPopover
+        segment={selectedSegment}
+        anchor={segmentAnchor}
+        onClose={closeSegment}
+      />
+
       <PeriodPicker
         visible={isPickerOpen}
         period={period}
         value={baseDate}
         maxDate={today}
-        onChange={setBaseDate}
+        onChange={nextBaseDate => {
+          closeSegment();
+          setBaseDate(nextBaseDate);
+        }}
         onClose={() => setPickerOpen(false)}
       />
     </Screen>

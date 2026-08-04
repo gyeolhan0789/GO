@@ -40,6 +40,7 @@ function room(overrides: Partial<WearRoom> = {}): WearRoom {
 
 function state(rooms: WearRoom[]): WearState {
   return {
+    loggedIn: true,
     nickname: '산책이 좋아',
     today: { steps: 0, distanceMeters: 0, calories: 0, goalSteps: 0 },
     rooms,

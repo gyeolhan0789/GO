@@ -1,5 +1,6 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -24,7 +25,11 @@ import { resolveApiErrorMessage } from '../../shared/api/resolveApiErrorMessage'
 import { AppText } from '../../shared/components/AppText/AppText';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { colors } from '../../shared/constants/colors';
-import { bodyFont, fontFamily, lineHeights } from '../../shared/constants/typography';
+import {
+  bodyFont,
+  fontFamily,
+  lineHeights,
+} from '../../shared/constants/typography';
 import { useHasLoggedInBefore } from '../../shared/hooks/useHasLoggedInBefore';
 // 상단 픽셀아트 배너는 회원가입 화면의 히어로를 그대로 재활용한다.
 import { SignupHero } from '../SignupScreen/components/SignupHero';
@@ -44,6 +49,9 @@ const TIP_TITLE_COLOR = colors.inkSoft;
 const BODY_OVERLAP = 24;
 const BODY_CORNER_RADIUS = 24;
 
+// 텍스트 링크는 버튼(AuthSubmitButton, 0.8)보다 더 흐려져야 눌린 게 보인다.
+const PRESSED_OPACITY = 0.6;
+
 const SCREEN_EDGES = ['bottom'] as const;
 
 export function LoginScreen({ navigation }: LoginScreenProps) {
@@ -54,6 +62,23 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
   const passwordRef = useRef<TextInput>(null);
   const mutation = useLoginMutation();
   const { hasLoggedInBefore } = useHasLoggedInBefore();
+
+  // 회원가입 화면은 필드가 많아 올라오기까지 한 박자 걸린다. 그동안 링크를 눌린
+  // 상태로 두고, 뒤로 돌아와 이 화면이 다시 포커스되면 되돌린다. navigate는
+  // 동기라서 기다릴 대상이 없어 포커스로 판단한다.
+  const [isLeavingToSignup, setIsLeavingToSignup] = useState(false);
+  // 상태는 렌더 시점 값이라 같은 프레임에 두 번 눌리면 가드를 둘 다 통과한다
+  // (disabled도 리렌더 후에야 걸린다). 동기로 바뀌는 ref로 막는다.
+  const isLeavingToSignupRef = useRef(false);
+
+  useEffect(
+    () =>
+      navigation.addListener('focus', () => {
+        isLeavingToSignupRef.current = false;
+        setIsLeavingToSignup(false);
+      }),
+    [navigation],
+  );
 
   const social = useSocialAuthFlow(
     useCallback(
@@ -71,6 +96,21 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
 
   function notReady() {
     Alert.alert('준비 중', '아직 준비 중인 기능이에요.');
+  }
+
+  function goToSignup() {
+    if (isLeavingToSignupRef.current) {
+      return;
+    }
+    isLeavingToSignupRef.current = true;
+    setIsLeavingToSignup(true);
+    // 회원가입 화면은 입력 필드가 많아 마운트가 JS 스레드를 한동안 붙잡는다.
+    // 같은 프레임에서 navigate를 부르면 스피너가 화면에 올라가기 전에 스레드가
+    // 막혀, 회원가입 화면이 다 그려진 뒤에야 스피너가 잠깐 보인다. 한 프레임
+    // 넘겨서 스피너를 먼저 그린 다음 이동한다.
+    requestAnimationFrame(() => {
+      navigation.navigate('Signup');
+    });
   }
 
   function submit() {
@@ -156,7 +196,10 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
             </Pressable>
 
             {mutation.error ? (
-              <AppText style={styles.serverError} accessibilityLiveRegion="polite">
+              <AppText
+                style={styles.serverError}
+                accessibilityLiveRegion="polite"
+              >
                 {resolveApiErrorMessage(mutation.error)}
               </AppText>
             ) : null}
@@ -167,16 +210,37 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
               pending={mutation.isPending}
             />
 
-            <Pressable
-              style={styles.signupLink}
-              onPress={() => navigation.navigate('Signup')}
-              accessibilityRole="button"
-            >
-              <AppText style={styles.signupText}>
-                계정이 없으신가요?{' '}
-                <AppText style={styles.signupAccent}>회원가입</AppText>
-              </AppText>
-            </Pressable>
+            {isLeavingToSignup ? (
+              <ActivityIndicator
+                style={styles.signupSpinner}
+                size="small"
+                color={PRIMARY_COLOR}
+              />
+            ) : (
+              <Pressable
+                // 눌림 효과는 JS 상태를 거치지 않아 즉시 반응한다. 스피너가 뜨기
+                // 전 한 프레임을 이걸로 메운다.
+                style={({ pressed }) => [
+                  styles.signupLink,
+                  pressed && !isLeavingToSignup
+                    ? styles.signupLinkPressed
+                    : null,
+                ]}
+                onPress={goToSignup}
+                disabled={isLeavingToSignup}
+                accessibilityRole="button"
+                accessibilityLabel="회원가입"
+                accessibilityState={{
+                  disabled: isLeavingToSignup,
+                  busy: isLeavingToSignup,
+                }}
+              >
+                <AppText style={styles.signupText}>
+                  계정이 없으신가요?{' '}
+                  <AppText style={styles.signupAccent}>회원가입</AppText>
+                </AppText>
+              </Pressable>
+            )}
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
@@ -265,7 +329,16 @@ const styles = StyleSheet.create({
   },
   signupLink: {
     marginTop: 20,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  signupLinkPressed: {
+    opacity: PRESSED_OPACITY,
+  },
+  signupSpinner: {
+    paddingTop: 14,
+    paddingBottom: 8,
   },
   signupText: {
     fontFamily: bodyFont.regular,
