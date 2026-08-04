@@ -4,7 +4,7 @@
 
 import React from 'react';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Text } from 'react-native';
+import { ActivityIndicator, Text } from 'react-native';
 import type { ReactTestInstance } from 'react-test-renderer';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -26,7 +26,12 @@ const INITIAL_METRICS = {
   insets: { top: 0, left: 0, right: 0, bottom: 0 },
 };
 
-const navigation = { navigate: jest.fn(), reset: jest.fn() };
+// 화면이 회원가입 이동 펜딩을 되돌릴 때 focus 리스너를 쓴다. 해제 함수까지 돌려준다.
+const navigation = {
+  navigate: jest.fn(),
+  reset: jest.fn(),
+  addListener: jest.fn(() => jest.fn()),
+};
 
 let renderer: ReactTestRenderer.ReactTestRenderer | null = null;
 
@@ -171,5 +176,39 @@ describe('LoginScreen', () => {
     });
 
     expect(findInput(tree.root, '비밀번호').props.value).toBe(' abcd1234! ');
+  });
+
+  test('회원가입 링크는 눌리면 스피너로 바뀌고 두 번 눌려도 한 번만 이동한다', async () => {
+    const tree = await renderScreen();
+    const findSignupLinks = () =>
+      // deep: false — Pressable 합성 인스턴스와 그 아래 host View가 같은 props를
+      // 물고 있어서, 옵션 없이 findAll하면 같은 버튼이 2개로 잡힌다.
+      tree.root.findAll(node => node.props.accessibilityLabel === '회원가입', {
+        deep: false,
+      });
+
+    expect(findSignupLinks()).toHaveLength(1);
+
+    // 누르면 링크가 스피너로 교체되므로, 핸들러를 미리 잡아두고 두 번 호출해야
+    // 같은 프레임 연타를 재현할 수 있다.
+    const press = findSignupLinks()[0].props.onPress;
+    await act(async () => {
+      press();
+      press();
+    });
+
+    // 이동 중에는 링크가 사라지고 그 자리에 스피너가 남는다.
+    expect(findSignupLinks()).toHaveLength(0);
+    expect(tree.root.findAllByType(ActivityIndicator).length).toBeGreaterThan(0);
+
+    // 스피너를 먼저 그리려고 navigate를 한 프레임(requestAnimationFrame) 미룬다.
+    await act(async () => {
+      await new Promise<void>(resolve => {
+        setTimeout(() => resolve(), 0);
+      });
+    });
+
+    expect(navigation.navigate).toHaveBeenCalledTimes(1);
+    expect(navigation.navigate).toHaveBeenCalledWith('Signup');
   });
 });
