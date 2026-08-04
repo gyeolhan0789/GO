@@ -7,15 +7,12 @@ import static org.mockito.Mockito.times;
 
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
-import com.wecandoit.point.service.PointCommandService;
-import com.wecandoit.point.service.PointReadService;
 import com.wecandoit.game.service.RoomReadService;
 import com.wecandoit.game.service.StepGoalRewardMember;
 import com.wecandoit.game.service.StepGoalRewardTarget;
-import com.wecandoit.history.service.HistoryReadService;
-import com.wecandoit.history.service.StepRecord;
-import java.time.LocalDate;
-import java.time.ZoneId;
+import com.wecandoit.history.repository.WalkSessionRepository;
+import com.wecandoit.point.service.PointCommandService;
+import com.wecandoit.point.service.PointReadService;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -31,12 +28,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 @ExtendWith(MockitoExtension.class)
 class BingoStepGoalRewardCommandServiceTest {
 
-    private static final ZoneId SERVICE_ZONE_ID = ZoneId.of("Asia/Seoul");
-
     @Mock
     private RoomReadService roomReadService;
     @Mock
-    private HistoryReadService historyReadService;
+    private WalkSessionRepository walkSessionRepository;
     @Mock
     private PointReadService pointReadService;
     @Mock
@@ -47,37 +42,26 @@ class BingoStepGoalRewardCommandServiceTest {
     private BingoStepGoalRewardCommandService rewardCommandService;
 
     @Test
-    @DisplayName("현재 멤버의 유효 걸음 합계가 목표 이상이면 전원에게 보상한다")
-    void evaluateGrantsRewardWhenCurrentMembersReachGoal() {
+    @DisplayName("방 워크 세션 걸음 합계가 목표 이상이면 전원에게 보상한다")
+    void evaluateGrantsRewardWhenRoomWalkSessionsReachGoal() {
         // given
-        LocalDate today = LocalDate.now(SERVICE_ZONE_ID);
-        LocalDate boardStartedDate = today.minusDays(6);
         StepGoalRewardTarget target = target(
                 10L,
                 100L,
-                boardStartedDate,
                 1_000,
-                List.of(
-                        new StepGoalRewardMember(1L, boardStartedDate.minusDays(1)),
-                        new StepGoalRewardMember(2L, boardStartedDate.plusDays(2))
-                )
+                List.of(member(1L), member(2L))
         );
         given(roomReadService.getStepGoalRewardTargets(1L)).willReturn(List.of(target));
         given(bingoBoardRepository.findByIdForUpdate(100L)).willReturn(Optional.of(board(100L)));
         given(pointReadService.hasDailyStepGoalReward(100L)).willReturn(false);
-        given(historyReadService.getStepRecords(
-                List.of(1L, 2L),
-                boardStartedDate,
-                today
-        )).willReturn(List.of(
-                new StepRecord(1L, boardStartedDate.minusDays(1), 500),
-                new StepRecord(1L, boardStartedDate, 600),
-                new StepRecord(2L, boardStartedDate.plusDays(1), 500),
-                new StepRecord(2L, boardStartedDate.plusDays(2), 400)
-        ));
+        given(walkSessionRepository.sumStepByRoomIdAndInitialBingoBoardIdAndMemberIds(
+                10L,
+                100L,
+                List.of(1L, 2L)
+        )).willReturn(1_000L);
 
         // when
-        rewardCommandService.evaluate(1L);
+        rewardCommandService.evaluate(1L, 10L);
 
         // then
         then(pointCommandService).should()
@@ -85,90 +69,77 @@ class BingoStepGoalRewardCommandServiceTest {
     }
 
     @Test
-    @DisplayName("공동 걸음 합계가 목표 미만이면 보상하지 않는다")
+    @DisplayName("방 워크 세션 걸음 합계가 목표 미만이면 보상하지 않는다")
     void evaluateSkipsRewardBelowGoal() {
         // given
-        LocalDate today = LocalDate.now(SERVICE_ZONE_ID);
-        LocalDate boardStartedDate = today.minusDays(6);
         StepGoalRewardTarget target = target(
                 10L,
                 100L,
-                boardStartedDate,
                 1_000,
-                List.of(new StepGoalRewardMember(1L, boardStartedDate))
+                List.of(member(1L))
         );
         given(roomReadService.getStepGoalRewardTargets(1L)).willReturn(List.of(target));
         given(bingoBoardRepository.findByIdForUpdate(100L)).willReturn(Optional.of(board(100L)));
         given(pointReadService.hasDailyStepGoalReward(100L)).willReturn(false);
-        given(historyReadService.getStepRecords(
-                List.of(1L),
-                boardStartedDate,
-                today
-        )).willReturn(List.of(new StepRecord(1L, today, 999)));
+        given(walkSessionRepository.sumStepByRoomIdAndInitialBingoBoardIdAndMemberIds(
+                10L,
+                100L,
+                List.of(1L)
+        )).willReturn(999L);
 
         // when
-        rewardCommandService.evaluate(1L);
+        rewardCommandService.evaluate(1L, 10L);
 
         // then
         then(pointCommandService).shouldHaveNoInteractions();
     }
 
     @Test
-    @DisplayName("같은 빙고판에서 이미 보상했다면 걸음 합계와 보상을 다시 처리하지 않는다")
+    @DisplayName("같은 빙고판에서 이미 보상했다면 걸음 합계를 계산하지 않는다")
     void evaluateSkipsAlreadyRewardedBoard() {
         // given
-        LocalDate boardStartedDate = LocalDate.now(SERVICE_ZONE_ID).minusDays(6);
         StepGoalRewardTarget target = target(
                 10L,
                 100L,
-                boardStartedDate,
                 1_000,
-                List.of(new StepGoalRewardMember(1L, boardStartedDate))
+                List.of(member(1L))
         );
         given(roomReadService.getStepGoalRewardTargets(1L)).willReturn(List.of(target));
         given(bingoBoardRepository.findByIdForUpdate(100L)).willReturn(Optional.of(board(100L)));
         given(pointReadService.hasDailyStepGoalReward(100L)).willReturn(true);
 
         // when
-        rewardCommandService.evaluate(1L);
+        rewardCommandService.evaluate(1L, 10L);
 
         // then
-        then(historyReadService).shouldHaveNoInteractions();
+        then(walkSessionRepository).shouldHaveNoInteractions();
         then(pointCommandService).shouldHaveNoInteractions();
     }
 
     @Test
-    @DisplayName("여러 방은 빙고판 ID 순서로 잠그고 방별로 보상한다")
-    void evaluateLocksBoardsInOrderAndRewardsEachRoom() {
+    @DisplayName("요청된 방만 평가하고 빙고판 ID 순서로 잠근다")
+    void evaluateFiltersRequestedRoomAndLocksBoardsInOrder() {
         // given
-        LocalDate today = LocalDate.now(SERVICE_ZONE_ID);
-        LocalDate boardStartedDate = today.minusDays(6);
-        StepGoalRewardTarget laterBoard = target(
-                20L,
-                200L,
-                boardStartedDate,
-                100,
-                List.of(new StepGoalRewardMember(1L, boardStartedDate))
-        );
-        StepGoalRewardTarget earlierBoard = target(
-                10L,
-                100L,
-                boardStartedDate,
-                100,
-                List.of(new StepGoalRewardMember(1L, boardStartedDate))
-        );
+        StepGoalRewardTarget laterBoard = target(10L, 200L, 100, List.of(member(1L)));
+        StepGoalRewardTarget earlierBoard = target(10L, 100L, 100, List.of(member(1L)));
+        StepGoalRewardTarget otherRoom = target(20L, 50L, 100, List.of(member(1L)));
         given(roomReadService.getStepGoalRewardTargets(1L))
-                .willReturn(List.of(laterBoard, earlierBoard));
+                .willReturn(List.of(laterBoard, otherRoom, earlierBoard));
         given(bingoBoardRepository.findByIdForUpdate(100L)).willReturn(Optional.of(board(100L)));
         given(bingoBoardRepository.findByIdForUpdate(200L)).willReturn(Optional.of(board(200L)));
-        given(historyReadService.getStepRecords(
-                List.of(1L),
-                boardStartedDate,
-                today
-        )).willReturn(List.of(new StepRecord(1L, today, 100)));
+        given(walkSessionRepository.sumStepByRoomIdAndInitialBingoBoardIdAndMemberIds(
+                10L,
+                100L,
+                List.of(1L)
+        )).willReturn(100L);
+        given(walkSessionRepository.sumStepByRoomIdAndInitialBingoBoardIdAndMemberIds(
+                10L,
+                200L,
+                List.of(1L)
+        )).willReturn(100L);
 
         // when
-        rewardCommandService.evaluate(1L);
+        rewardCommandService.evaluate(1L, 10L);
 
         // then
         ArgumentCaptor<Long> boardIdCaptor = ArgumentCaptor.forClass(Long.class);
@@ -177,23 +148,25 @@ class BingoStepGoalRewardCommandServiceTest {
         then(pointCommandService).should()
                 .grantDailyStepGoalReward(10L, 100L, List.of(1L));
         then(pointCommandService).should()
-                .grantDailyStepGoalReward(20L, 200L, List.of(1L));
+                .grantDailyStepGoalReward(10L, 200L, List.of(1L));
     }
 
     private StepGoalRewardTarget target(
             Long roomId,
             Long bingoBoardId,
-            LocalDate boardStartedDate,
             int targetStepCount,
             List<StepGoalRewardMember> members
     ) {
         return new StepGoalRewardTarget(
                 roomId,
                 bingoBoardId,
-                boardStartedDate,
                 targetStepCount,
                 members
         );
+    }
+
+    private StepGoalRewardMember member(Long memberId) {
+        return new StepGoalRewardMember(memberId);
     }
 
     private BingoBoard board(Long bingoBoardId) {

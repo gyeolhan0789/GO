@@ -5,6 +5,7 @@ import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.domain.BingoCellVerificationStatus;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
+import com.wecandoit.bingo.service.BingoStepGoalRewardCommandService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.game.domain.Game;
@@ -39,11 +40,12 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
+@Transactional(isolation = Isolation.READ_COMMITTED)
 public class WalkSessionCommandService {
 
     private static final ZoneId SERVICE_ZONE_ID = ZoneId.of("Asia/Seoul");
@@ -60,6 +62,7 @@ public class WalkSessionCommandService {
     private final WalkSessionRepository walkSessionRepository;
     private final WalkSessionBingoAchievementRepository achievementRepository;
     private final HistoryCommandService historyCommandService;
+    private final BingoStepGoalRewardCommandService bingoStepGoalRewardCommandService;
 
     public StartResult startSession(Long memberId, WalkSessionStartRequest request) {
         Instant now = Instant.now();
@@ -122,6 +125,7 @@ public class WalkSessionCommandService {
         validateNoPendingCells(sessionCells);
         BoardContext boardContext = getBoardContext(activeWalkSession.getInitialBingoBoardId(), sessionCells);
         validateBoards(memberId, room.getId(), boardContext);
+        long activeDurationSeconds = getActiveDurationSeconds(activeWalkSession, request);
 
         WalkSession walkSession = walkSessionRepository.saveAndFlush(WalkSession.create(
                 memberId,
@@ -130,12 +134,14 @@ public class WalkSessionCommandService {
                 activeWalkSession.getInitialBingoBoardId(),
                 activeWalkSession.getStartedAt(),
                 request.endedAt().toInstant(),
+                activeDurationSeconds,
                 request.step(),
                 request.distance(),
                 request.calories()
         ));
         List<WalkSessionBingoAchievement> achievements = saveAchievements(walkSession, sessionCells);
         addDailyHistory(memberId, request);
+        bingoStepGoalRewardCommandService.evaluate(memberId, room.getId());
         activeWalkSessionRepository.delete(activeWalkSession);
 
         return new CompletionResult(
@@ -152,6 +158,24 @@ public class WalkSessionCommandService {
         if (!activeWalkSession.getStartedAt().isBefore(endedAt)) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
+    }
+
+    private long getActiveDurationSeconds(
+            ActiveWalkSession activeWalkSession,
+            WalkSessionCompleteRequest request
+    ) {
+        long durationSeconds = Duration.between(
+                activeWalkSession.getStartedAt(),
+                request.endedAt().toInstant()
+        ).toSeconds();
+        Long requestedActiveDurationSeconds = request.activeDurationSeconds();
+        long activeDurationSeconds = requestedActiveDurationSeconds == null
+                ? durationSeconds
+                : requestedActiveDurationSeconds;
+        if (activeDurationSeconds > durationSeconds) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        return activeDurationSeconds;
     }
 
     private void validateRoomAccess(Long memberId, Long roomId) {

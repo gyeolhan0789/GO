@@ -113,6 +113,10 @@ pipeline {
                             command -v awk >/dev/null
                             docker compose version >/dev/null
 
+                            if ! docker network inspect "$EDGE_NETWORK" >/dev/null 2>&1; then
+                              docker network create "$EDGE_NETWORK" >/dev/null
+                            fi
+
                             network_state=$(docker network inspect --format \
                               '{{.Driver}} {{.Scope}} {{.Internal}}' "$EDGE_NETWORK" 2>/dev/null) || {
                               echo "$EDGE_NETWORK Docker network is required before deployment." >&2
@@ -227,10 +231,12 @@ pipeline {
                     }
 
                     echo "Current production image preserved as ${env.ROLLBACK_IMAGE} and ${env.IMAGE_REPOSITORY}:stable"
-                    if (env.NGINX_ROLLBACK_IMAGE) {
-                        echo "Current Nginx image preserved as ${env.NGINX_ROLLBACK_IMAGE}"
-                    } else {
-                        echo 'No running Docker Nginx image exists to preserve.'
+                    script {
+                        if (env.NGINX_ROLLBACK_IMAGE) {
+                            echo "Current Nginx image preserved as ${env.NGINX_ROLLBACK_IMAGE}"
+                        } else {
+                            echo 'No running Docker Nginx image exists to preserve.'
+                        }
                     }
                 }
             }
