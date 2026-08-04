@@ -38,7 +38,6 @@ import {
   textStyles,
 } from '../../shared/constants/typography';
 import { ChangeCharacterButton } from './components/ChangeCharacterButton';
-import { FriendRequestsMenuRow } from './components/FriendRequestsMenuRow';
 import { NicknameField } from './components/NicknameField';
 
 type MyPageScreenProps = NativeStackScreenProps<RootStackParamList, 'MyPage'>;
@@ -218,13 +217,6 @@ export function MyPageScreen({ navigation }: MyPageScreenProps) {
               !isProfileChanged || !isNicknameValid || updateProfile.isPending
             }
           />
-
-          <View style={styles.section}>
-            <AppText style={styles.sectionTitle}>친구</AppText>
-            <FriendRequestsMenuRow
-              onPress={() => navigation.navigate('SentFriendRequests')}
-            />
-          </View>
 
           <Button
             label={logout.isPending ? '로그아웃 중...' : '로그아웃'}

@@ -5,15 +5,11 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 
-import type {
-  FriendResponse,
-  ReceivedFriendRequest,
-} from '../../features/friend/api/friendApi';
-import { useAcceptFriendRequestMutation } from '../../features/friend/hooks/useAcceptFriendRequestMutation';
+import type { FriendResponse } from '../../features/friend/api/friendApi';
 import { useDeleteFriendMutation } from '../../features/friend/hooks/useDeleteFriendMutation';
 import { useFriendsQuery } from '../../features/friend/hooks/useFriendsQuery';
 import { useReceivedRequestsQuery } from '../../features/friend/hooks/useReceivedRequestsQuery';
-import { useRejectFriendRequestMutation } from '../../features/friend/hooks/useRejectFriendRequestMutation';
+import { useSentRequestsQuery } from '../../features/friend/hooks/useSentRequestsQuery';
 import type {
   MyRoomResponse,
   ReceivedRoomInvite,
@@ -33,7 +29,7 @@ import { spacing } from '../../shared/constants/spacing';
 import { AddFriendSheet } from './components/AddFriendSheet';
 import { CreateWalkRoomScreen } from './components/CreateWalkRoomScreen';
 import { FriendCard } from './components/FriendCard';
-import { ReceivedRequestRow } from './components/ReceivedRequestRow';
+import { FriendRequestsSummaryCard } from './components/FriendRequestsSummaryCard';
 import { ReceivedRoomInviteRow } from './components/ReceivedRoomInviteRow';
 import { WalkRoomCard } from './components/WalkRoomCard';
 import type { MyWalkRoom } from './types';
@@ -61,7 +57,6 @@ export function CompanionScreen() {
   const [tab, setTab] = useState<CompanionTab>('walkRooms');
   const [isAddFriendVisible, setAddFriendVisible] = useState(false);
   const [isCreateRoomVisible, setCreateRoomVisible] = useState(false);
-  const [pendingRequestId, setPendingRequestId] = useState<number | null>(null);
   const [pendingInviteRequestId, setPendingInviteRequestId] = useState<
     number | null
   >(null);
@@ -74,9 +69,10 @@ export function CompanionScreen() {
   const friendsQuery = useFriendsQuery();
   const friends = friendsQuery.data?.content ?? [];
   const receivedRequestsQuery = useReceivedRequestsQuery();
-  const receivedRequests = receivedRequestsQuery.data?.content ?? [];
-  const acceptRequestMutation = useAcceptFriendRequestMutation();
-  const rejectRequestMutation = useRejectFriendRequestMutation();
+  const receivedRequestCount = receivedRequestsQuery.data?.content.length ?? 0;
+  const sentRequestsQuery = useSentRequestsQuery();
+  const sentRequestCount =
+    sentRequestsQuery.data?.pages.flatMap(page => page.content).length ?? 0;
   const deleteFriendMutation = useDeleteFriendMutation();
   const receivedInvitesQuery = useReceivedRoomInvitesQuery();
   const receivedInvites = receivedInvitesQuery.data ?? [];
@@ -103,53 +99,6 @@ export function CompanionScreen() {
                     : '잠시 후 다시 시도해주세요.',
                 );
               },
-            });
-          },
-        },
-      ],
-    );
-  };
-
-  const handleAccept = (request: ReceivedFriendRequest) => {
-    setPendingRequestId(request.requestId);
-    acceptRequestMutation.mutate(request.requestId, {
-      onSuccess: () => setToastMessage('친구 요청을 수락했어요.'),
-      onError: error => {
-        Alert.alert(
-          '친구 요청 수락 실패',
-          error instanceof Error ? error.message : '잠시 후 다시 시도해주세요.',
-        );
-        // 이미 처리된 요청 등으로 실패했을 수 있으니 목록을 최신 상태로 맞춘다.
-        receivedRequestsQuery.refetch();
-      },
-      onSettled: () => setPendingRequestId(null),
-    });
-  };
-
-  const handleReject = (request: ReceivedFriendRequest) => {
-    Alert.alert(
-      '친구 요청 거절',
-      `${request.inviterNickname}님의 친구 요청을 거절할까요?`,
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '거절',
-          style: 'destructive',
-          onPress: () => {
-            setPendingRequestId(request.requestId);
-            rejectRequestMutation.mutate(request.requestId, {
-              onSuccess: () => setToastMessage('친구 요청을 거절했어요.'),
-              onError: error => {
-                Alert.alert(
-                  '친구 요청 거절 실패',
-                  error instanceof Error
-                    ? error.message
-                    : '잠시 후 다시 시도해주세요.',
-                );
-                // 이미 처리된 요청 등으로 실패했을 수 있으니 목록을 최신 상태로 맞춘다.
-                receivedRequestsQuery.refetch();
-              },
-              onSettled: () => setPendingRequestId(null),
             });
           },
         },
@@ -300,20 +249,13 @@ export function CompanionScreen() {
             keyExtractor={friend => String(friend.memberId)}
             ListHeaderComponent={
               <>
-                {receivedRequests.length > 0 ? (
+                {receivedRequestCount > 0 || sentRequestCount > 0 ? (
                   <View style={styles.receivedRequests}>
-                    <AppText style={styles.countLabel}>
-                      받은 친구 요청 {receivedRequests.length}
-                    </AppText>
-                    {receivedRequests.map(request => (
-                      <ReceivedRequestRow
-                        key={request.requestId}
-                        request={request}
-                        onAccept={() => handleAccept(request)}
-                        onReject={() => handleReject(request)}
-                        disabled={pendingRequestId === request.requestId}
-                      />
-                    ))}
+                    <FriendRequestsSummaryCard
+                      receivedCount={receivedRequestCount}
+                      sentCount={sentRequestCount}
+                      onPress={() => navigation.navigate('FriendRequests')}
+                    />
                   </View>
                 ) : null}
                 <AppText style={styles.countLabel}>내 친구 {friends.length}</AppText>
@@ -328,10 +270,15 @@ export function CompanionScreen() {
             style={styles.list}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
-            refreshing={friendsQuery.isRefetching || receivedRequestsQuery.isRefetching}
+            refreshing={
+              friendsQuery.isRefetching ||
+              receivedRequestsQuery.isRefetching ||
+              sentRequestsQuery.isRefetching
+            }
             onRefresh={() => {
               friendsQuery.refetch();
               receivedRequestsQuery.refetch();
+              sentRequestsQuery.refetch();
             }}
           />
         )}
