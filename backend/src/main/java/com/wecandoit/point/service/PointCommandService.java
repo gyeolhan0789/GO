@@ -10,7 +10,9 @@ import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.MissionDifficulty;
 import com.wecandoit.notification.event.NotificationMessageFactory;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -44,12 +46,13 @@ public class PointCommandService {
         return rewardPoint;
     }
 
-    public void grantDailyStepGoalReward(Long roomId, Long bingoBoardId, List<Long> memberIds) {
+    public Map<Long, Long> grantDailyStepGoalReward(Long roomId, Long bingoBoardId, List<Long> memberIds) {
         long rewardPoint = PointRewardPolicy.DAILY_STEP_GOAL.getPoint();
         List<Long> sortedMemberIds = memberIds.stream()
                 .distinct()
                 .sorted()
                 .toList();
+        Map<Long, Long> rewardPointsByMemberId = new LinkedHashMap<>();
 
         sortedMemberIds.forEach(memberId -> {
             Member member = memberRepository.findByIdForUpdate(memberId)
@@ -62,6 +65,8 @@ public class PointCommandService {
                     rewardPoint
             ));
             eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, rewardPoint));
+            rewardPointsByMemberId.put(memberId, rewardPoint);
         });
+        return rewardPointsByMemberId;
     }
 }

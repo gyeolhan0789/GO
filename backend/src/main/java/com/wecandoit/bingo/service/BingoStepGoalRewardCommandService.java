@@ -10,6 +10,7 @@ import com.wecandoit.game.service.StepGoalRewardTarget;
 import com.wecandoit.history.repository.WalkSessionRepository;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -26,12 +27,12 @@ public class BingoStepGoalRewardCommandService {
     private final PointCommandService pointCommandService;
     private final BingoBoardRepository bingoBoardRepository;
 
-    public void evaluate(Long memberId, Long roomId) {
+    public long evaluate(Long memberId, Long roomId) {
         List<StepGoalRewardTarget> rewardTargets = roomReadService.getStepGoalRewardTargets(memberId).stream()
                 .filter(target -> target.roomId().equals(roomId))
                 .toList();
         if (rewardTargets.isEmpty()) {
-            return;
+            return 0L;
         }
 
         List<StepGoalRewardTarget> pendingTargets = rewardTargets.stream()
@@ -39,10 +40,12 @@ public class BingoStepGoalRewardCommandService {
                 .filter(this::lockAndCheckRewardPending)
                 .toList();
         if (pendingTargets.isEmpty()) {
-            return;
+            return 0L;
         }
 
-        pendingTargets.forEach(this::grantRewardIfGoalReached);
+        return pendingTargets.stream()
+                .mapToLong(target -> grantRewardIfGoalReached(target, memberId))
+                .sum();
     }
 
     private boolean lockAndCheckRewardPending(StepGoalRewardTarget target) {
@@ -53,15 +56,16 @@ public class BingoStepGoalRewardCommandService {
                 && !pointReadService.hasDailyStepGoalReward(target.bingoBoardId());
     }
 
-    private void grantRewardIfGoalReached(StepGoalRewardTarget target) {
+    private long grantRewardIfGoalReached(StepGoalRewardTarget target, Long memberId) {
         if (calculateTotalStep(target) < target.targetStepCount()) {
-            return;
+            return 0L;
         }
-        pointCommandService.grantDailyStepGoalReward(
+        Map<Long, Long> rewardPointsByMemberId = pointCommandService.grantDailyStepGoalReward(
                 target.roomId(),
                 target.bingoBoardId(),
                 target.members().stream().map(StepGoalRewardMember::memberId).toList()
         );
+        return rewardPointsByMemberId.getOrDefault(memberId, 0L);
     }
 
     private long calculateTotalStep(StepGoalRewardTarget target) {

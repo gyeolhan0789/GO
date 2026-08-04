@@ -17,8 +17,8 @@ import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.history.controller.request.WalkSessionCompleteRequest;
 import com.wecandoit.history.controller.request.WalkSessionStartRequest;
+import com.wecandoit.history.controller.response.WalkSessionCompleteResponse;
 import com.wecandoit.history.controller.response.WalkSessionStartResponse;
-import com.wecandoit.history.controller.response.WalkSessionResponse;
 import com.wecandoit.history.domain.ActiveWalkSession;
 import com.wecandoit.history.domain.WalkSession;
 import com.wecandoit.history.domain.WalkSessionBingoAchievement;
@@ -141,11 +141,11 @@ public class WalkSessionCommandService {
         ));
         List<WalkSessionBingoAchievement> achievements = saveAchievements(walkSession, sessionCells);
         addDailyHistory(memberId, request);
-        bingoStepGoalRewardCommandService.evaluate(memberId, room.getId());
+        long earnedPoint = bingoStepGoalRewardCommandService.evaluate(memberId, room.getId());
         activeWalkSessionRepository.delete(activeWalkSession);
 
         return new CompletionResult(
-                WalkSessionResponse.of(walkSession, room, achievements.size()),
+                WalkSessionCompleteResponse.of(walkSession, room, achievements.size(), earnedPoint),
                 true
         );
     }
@@ -279,11 +279,11 @@ public class WalkSessionCommandService {
         );
     }
 
-    private WalkSessionResponse toResponse(WalkSession walkSession) {
+    private WalkSessionCompleteResponse toResponse(WalkSession walkSession) {
         Room room = roomRepository.findById(walkSession.getRoomId())
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
         int achievedMissionCount = Math.toIntExact(achievementRepository.countByWalkSessionId(walkSession.getId()));
-        return WalkSessionResponse.of(walkSession, room, achievedMissionCount);
+        return WalkSessionCompleteResponse.of(walkSession, room, achievedMissionCount, 0L);
     }
 
     private Instant toInstant(LocalDateTime localDateTime) {
@@ -294,7 +294,7 @@ public class WalkSessionCommandService {
     }
 
     public record CompletionResult(
-            WalkSessionResponse response,
+            WalkSessionCompleteResponse response,
             boolean created
     ) {
     }
