@@ -42,12 +42,24 @@ fun HomeScreen(
   onSelectGroupRoom: () -> Unit,
   onOpenSession: () -> Unit,
 ) {
+  // 로그아웃 상태의 0걸음·빈 방 목록은 실제 값이 아니라 "아직 모른다"는 뜻이다.
+  // 그대로 그리면 산책 기록이 없는 정상 화면과 구분되지 않아서, 수치와 시작
+  // 버튼을 감추고 무엇을 해야 하는지만 남긴다.
+  if (state != null && !state.loggedIn) {
+    SignedOutScreen(phoneConnected = phoneConnected)
+    return
+  }
+
   ScalingLazyColumn(
     modifier = Modifier.fillMaxSize(),
     state = listState,
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
-    item { CharacterBust(character = character, progress = state?.today?.goalProgress) }
+    // 캐릭터도 진행률 링도 없으면 그릴 게 없다. 빈 84dp를 남기지 않는다.
+    val goalProgress = state?.today?.goalProgress
+    if (character != null || goalProgress != null) {
+      item { CharacterBust(character = character, progress = goalProgress) }
+    }
 
     item {
       Text(
@@ -117,6 +129,8 @@ private fun CharacterBust(character: ImageBitmap?, progress: Float?) {
         trackColor = MaterialTheme.colors.onSurfaceVariant.copy(alpha = 0.2f),
       )
     }
+    // 폰이 아직 캐릭터를 안 보냈으면 아무것도 그리지 않는다. 자리는 호출부가
+    // 아예 비워두므로 빈 구멍이 남지 않는다.
     if (character != null) {
       Image(
         bitmap = character,
@@ -124,9 +138,6 @@ private fun CharacterBust(character: ImageBitmap?, progress: Float?) {
         modifier = Modifier.size(64.dp),
         contentScale = ContentScale.Fit,
       )
-    } else {
-      // 폰이 아직 캐릭터를 안 보냈을 때. 링만 남기면 빈 구멍처럼 보인다.
-      Text(text = "🚶", style = MaterialTheme.typography.display3)
     }
   }
 }
@@ -160,6 +171,37 @@ private fun TodaySummary(today: TodayStats) {
         text = "${formatCount(today.calories)}kcal",
         style = MaterialTheme.typography.caption1,
       )
+    }
+  }
+}
+
+/**
+ * 폰이 로그아웃 상태일 때의 홈. 워치에는 로그인 수단이 없어서(서버 호출·소셜
+ * 로그인 모두 폰 몫) 할 수 있는 안내가 "폰에서 로그인하라"뿐이다.
+ */
+@Composable
+private fun SignedOutScreen(phoneConnected: Boolean) {
+  Column(
+    modifier = Modifier
+      .fillMaxSize()
+      .padding(horizontal = 16.dp),
+    verticalArrangement = Arrangement.Center,
+    horizontalAlignment = Alignment.CenterHorizontally,
+  ) {
+    Text(
+      text = "폰에서 먼저 로그인해주세요",
+      style = MaterialTheme.typography.title3,
+      textAlign = TextAlign.Center,
+    )
+    Text(
+      modifier = Modifier.padding(top = 4.dp),
+      text = "로그인하면 걸음수와 산책방이 워치에 나타나요.",
+      style = MaterialTheme.typography.caption2,
+      color = MaterialTheme.colors.onSurfaceVariant,
+      textAlign = TextAlign.Center,
+    )
+    if (!phoneConnected) {
+      PhoneDisconnectedNotice()
     }
   }
 }

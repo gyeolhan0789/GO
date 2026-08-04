@@ -36,6 +36,12 @@ export type WearSession = {
 };
 
 export type WearState = {
+  /**
+   * 폰이 로그인된 상태인지. false면 워치가 수치 대신 로그인 안내를 띄운다.
+   * 로그아웃과 "폰이 아직 아무것도 안 보냄"은 워치에서 화면이 똑같아지는데
+   * 해결 방법이 다르므로(로그인 vs 폰 앱 열기) 구분해서 보낸다.
+   */
+  loggedIn: boolean;
   nickname: string;
   today: WearTodayStats;
   rooms: WearRoom[];

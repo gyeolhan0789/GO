@@ -50,6 +50,8 @@ export function useWearCompanion() {
     rooms.find(room => room.roomId === session.roomId)?.name ?? '';
 
   const state: WearState = {
+    // 이 훅은 로그인된 동안만 돈다. 로그아웃 상태의 안내는 useWearSignedOutSync가 맡는다.
+    loggedIn: true,
     nickname: characterQuery.data?.nickname ?? '',
     today: {
       steps: healthSummary?.steps ?? 0,
