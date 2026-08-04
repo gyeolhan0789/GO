@@ -15,6 +15,8 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
+import { useActivityMetrics } from '../../features/bingo/hooks/useActivityMetrics';
+import { useActivityMissionAutoComplete } from '../../features/bingo/hooks/useActivityMissionAutoComplete';
 import { useFriendsQuery } from '../../features/friend/hooks/useFriendsQuery';
 import { todayIso } from '../../features/history/model/period';
 import { useHistoriesQuery } from '../../features/history/hooks/useHistoriesQuery';
@@ -33,6 +35,7 @@ import { AppText } from '../../shared/components/AppText/AppText';
 import { Button } from '../../shared/components/Button/Button';
 import { MemberProgressBar } from '../../shared/components/MemberProgressBar/MemberProgressBar';
 import { Screen } from '../../shared/components/Screen/Screen';
+import { Toast } from '../../shared/components/Toast/Toast';
 import { controlHeight } from '../../shared/constants/sizing';
 import { colors } from '../../shared/constants/colors';
 import { getParticipantColor } from '../../shared/lib/participantColor';
@@ -94,6 +97,10 @@ export function WalkSessionScreen() {
   // 파라미터가 필요 없다.
   const { route, initialCoords } = useRouteTracking();
   const myPageQuery = useMyPageQuery();
+  // 걷는 동안 활동 기반(비사진) 미션 칸을 자동으로 판정·완료 처리한다.
+  const activityMetrics = useActivityMetrics();
+  const { toastMessage: missionToastMessage, hideToast: hideMissionToast } =
+    useActivityMissionAutoComplete(roomId, activityMetrics);
 
   const roomQuery = useRoomDetailQuery(roomId);
   const room = roomQuery.data ?? null;
@@ -480,6 +487,12 @@ export function WalkSessionScreen() {
           </View>
         </View>
       </Animated.View>
+
+      <Toast
+        message={missionToastMessage}
+        onHide={hideMissionToast}
+        respectBottomInset={false}
+      />
     </Screen>
   );
 }
