@@ -19,6 +19,8 @@ import type {
 } from '../../features/bingo/components/BingoBoard/BingoBoard';
 import { BingoBoard } from '../../features/bingo/components/BingoBoard/BingoBoard';
 import { useActiveBingoBoardQuery } from '../../features/bingo/hooks/useActiveBingoBoardQuery';
+import { useBattleProgressSubscription } from '../../features/bingo/hooks/useBattleProgressSubscription';
+import { BattleProgressCard } from './components/BattleProgressCard';
 import { MissionVerificationModal } from '../../features/bingo/components/MissionVerificationModal/MissionVerificationModal';
 import {
   MISSION_TYPE_ICONS,
@@ -55,6 +57,9 @@ export function BingoBoardScreen({
   const room = roomQuery.data ?? null;
   const members = room?.members ?? [];
   const myMemberIdQuery = useMyMemberIdQuery();
+  const battleProgress = board?.battleProgress ?? null;
+  // 상대 판은 조회로 못 받는다. 이 토픽이 상대 진행률을 아는 유일한 경로다.
+  useBattleProgressSubscription(roomId, room?.mode === 'BATTLE');
 
   const [selectedCellId, setSelectedCellId] = useState<number | null>(null);
   const [capturedPhoto, setCapturedPhoto] = useState<MissionPhoto | null>(null);
@@ -217,7 +222,11 @@ export function BingoBoardScreen({
           <Ionicons name="chevron-back" size={24} color={colors.ink} />
         </Pressable>
         <AppText style={styles.headerTitle}>
-          {room?.mode === 'SINGLE' ? '내 빙고' : '팀 빙고'}
+          {room?.mode === 'SINGLE'
+            ? '내 빙고'
+            : room?.mode === 'BATTLE'
+            ? '대결 빙고'
+            : '팀 빙고'}
         </AppText>
         <View style={styles.headerSpacer} />
       </View>
@@ -231,6 +240,18 @@ export function BingoBoardScreen({
           <AppText style={styles.renewalBanner}>
             {board.renewalMessage ?? '빙고판 갱신이 필요합니다.'}
           </AppText>
+        ) : null}
+
+        {battleProgress !== null ? (
+          <BattleProgressCard
+            progress={battleProgress}
+            targetBingoCount={room?.targetBingoCount ?? null}
+            opponentNickname={
+              members.find(
+                member => member.memberId === battleProgress.opponent.memberId,
+              )?.nickname ?? '상대'
+            }
+          />
         ) : null}
 
         <View style={styles.progressCard}>

@@ -24,12 +24,29 @@ import { FriendSelectRow } from './FriendSelectRow';
 import { lineHeights, MAX_FONT_SCALE } from '../../../shared/constants/typography';
 
 type BoardSizeOption = '3' | '4' | '5';
+type RoomModeOption = 'COOPERATE' | 'BATTLE';
 
 const BOARD_SIZE_OPTIONS: { label: string; value: BoardSizeOption }[] = [
   { label: '3 x 3', value: '3' },
   { label: '4 x 4', value: '4' },
   { label: '5 x 5', value: '5' },
 ];
+
+const MODE_OPTIONS: { label: string; value: RoomModeOption }[] = [
+  { label: '함께 걷기', value: 'COOPERATE' },
+  { label: '대결', value: 'BATTLE' },
+];
+
+/** 대결은 정확히 두 명이다(GameMode.BATTLE의 정원). */
+const BATTLE_OPPONENT_COUNT = 1;
+
+/**
+ * 한 판에서 나올 수 있는 빙고 줄 수의 최대치 — 가로 n, 세로 n, 대각선 2.
+ * 서버도 같은 식으로 검증해서 넘기면 BINGO_TARGET_COUNT_INVALID가 난다.
+ */
+function maxBingoLines(boardSize: number): number {
+  return 2 * boardSize + 2;
+}
 
 type CreateWalkRoomScreenProps = {
   visible: boolean;
@@ -43,11 +60,15 @@ export function CreateWalkRoomScreen({
   onCreated,
 }: CreateWalkRoomScreenProps) {
   const [step, setStep] = useState<1 | 2>(1);
+  const [mode, setMode] = useState<RoomModeOption>('COOPERATE');
   const [roomName, setRoomName] = useState('');
   const [stepGoal, setStepGoal] = useState('');
+  const [bingoGoal, setBingoGoal] = useState('1');
   const [boardSize, setBoardSize] = useState<BoardSizeOption>('4');
   const [selectedFriendIds, setSelectedFriendIds] = useState<number[]>([]);
   const [friendSearch, setFriendSearch] = useState('');
+
+  const isBattle = mode === 'BATTLE';
 
   const friendsQuery = useFriendsQuery();
   const friends = friendsQuery.data?.content ?? [];
@@ -61,20 +82,33 @@ export function CreateWalkRoomScreen({
   const inviteMutation = useInviteToRoomMutation();
 
   const toggleFriend = (memberId: number) => {
-    setSelectedFriendIds(prev =>
-      prev.includes(memberId)
-        ? prev.filter(id => id !== memberId)
-        : [...prev, memberId],
-    );
+    setSelectedFriendIds(prev => {
+      if (prev.includes(memberId)) {
+        return prev.filter(id => id !== memberId);
+      }
+      // 대결은 두 명이라 고를 수 있는 상대도 하나뿐이다. 여럿을 고르게 두면
+      // 초대가 나간 뒤 정원 초과로 거절당해 되돌리기 어렵다.
+      return isBattle ? [memberId] : [...prev, memberId];
+    });
   };
 
   const resetForm = () => {
     setStep(1);
+    setMode('COOPERATE');
     setRoomName('');
     setStepGoal('');
+    setBingoGoal('1');
     setBoardSize('4');
     setSelectedFriendIds([]);
     setFriendSearch('');
+  };
+
+  const handleModeChange = (next: RoomModeOption) => {
+    setMode(next);
+    // 대결로 바꾸면 여럿 골라둔 게 정원을 넘는다. 첫 한 명만 남긴다.
+    if (next === 'BATTLE') {
+      setSelectedFriendIds(prev => prev.slice(0, BATTLE_OPPONENT_COUNT));
+    }
   };
 
   const handleHeaderBackPress = () => {
@@ -90,7 +124,17 @@ export function CreateWalkRoomScreen({
       Alert.alert('산책방 이름을 입력해주세요.');
       return;
     }
-    if (!stepGoal || Number(stepGoal) < 1) {
+    if (isBattle) {
+      const goal = Number(bingoGoal);
+      const maximum = maxBingoLines(Number(boardSize));
+      if (!bingoGoal || goal < 1 || goal > maximum) {
+        Alert.alert(
+          '목표 빙고 줄 수를 확인해주세요.',
+          `${boardSize} x ${boardSize} 판에서는 1줄부터 ${maximum}줄까지 정할 수 있어요.`,
+        );
+        return;
+      }
+    } else if (!stepGoal || Number(stepGoal) < 1) {
       Alert.alert('공동 목표 걸음수를 입력해주세요.');
       return;
     }
@@ -98,13 +142,19 @@ export function CreateWalkRoomScreen({
   };
 
   const handleCreate = async () => {
+    if (isBattle && selectedFriendIds.length !== BATTLE_OPPONENT_COUNT) {
+      Alert.alert('대결할 친구를 한 명 선택해주세요.');
+      return;
+    }
+
     try {
       const room = await createRoomMutation.mutateAsync({
         name: roomName.trim(),
-        mode: 'COOPERATE',
+        mode,
         boardSize: Number(boardSize) as 3 | 4 | 5,
-        targetBingoCount: Number(boardSize),
-        targetStepCount: Number(stepGoal),
+        targetBingoCount: isBattle ? Number(bingoGoal) : Number(boardSize),
+        // 대결에 targetStepCount를 실으면 서버가 400으로 막는다.
+        ...(isBattle ? {} : { targetStepCount: Number(stepGoal) }),
       });
 
       // 초대는 친구 한 명당 별도 API라 순차로 보낸다. 하나가 실패해도 나머지는
@@ -163,7 +213,13 @@ export function CreateWalkRoomScreen({
             />
           </Pressable>
           <AppText style={styles.headerTitle}>
-            {step === 1 ? '모임방 만들기' : '친구 추가'}
+            {step === 1
+              ? isBattle
+                ? '대결방 만들기'
+                : '모임방 만들기'
+              : isBattle
+              ? '상대 고르기'
+              : '친구 추가'}
           </AppText>
           <View style={styles.headerSpacer} />
         </View>
@@ -174,6 +230,18 @@ export function CreateWalkRoomScreen({
         >
           {step === 1 ? (
             <>
+              <AppText style={styles.label}>방식</AppText>
+              <SegmentedControl
+                options={MODE_OPTIONS}
+                value={mode}
+                onChange={handleModeChange}
+              />
+              <AppText style={styles.modeHint}>
+                {isBattle
+                  ? '둘이서 각자 빙고판을 받아, 목표 줄 수에 먼저 닿는 쪽이 이겨요.'
+                  : '여럿이 한 빙고판을 함께 채우고 걸음수를 모아요.'}
+              </AppText>
+
               <AppText style={styles.label}>산책방명</AppText>
               <TextInput
                 maxFontSizeMultiplier={MAX_FONT_SCALE}
@@ -184,16 +252,37 @@ export function CreateWalkRoomScreen({
                 onChangeText={setRoomName}
               />
 
-              <AppText style={styles.label}>공동 목표 걸음수</AppText>
-              <TextInput
-                maxFontSizeMultiplier={MAX_FONT_SCALE}
-                style={styles.input}
-                placeholder="일주일 기준 목표 걸음수 (예: 10000)"
-                placeholderTextColor={colors.muted}
-                value={stepGoal}
-                onChangeText={text => setStepGoal(text.replace(/[^0-9]/g, ''))}
-                keyboardType="number-pad"
-              />
+              {isBattle ? (
+                <>
+                  <AppText style={styles.label}>목표 빙고 줄 수</AppText>
+                  <TextInput
+                    maxFontSizeMultiplier={MAX_FONT_SCALE}
+                    style={styles.input}
+                    placeholder={`1 ~ ${maxBingoLines(Number(boardSize))}`}
+                    placeholderTextColor={colors.muted}
+                    value={bingoGoal}
+                    onChangeText={text =>
+                      setBingoGoal(text.replace(/[^0-9]/g, ''))
+                    }
+                    keyboardType="number-pad"
+                  />
+                </>
+              ) : (
+                <>
+                  <AppText style={styles.label}>공동 목표 걸음수</AppText>
+                  <TextInput
+                    maxFontSizeMultiplier={MAX_FONT_SCALE}
+                    style={styles.input}
+                    placeholder="일주일 기준 목표 걸음수 (예: 10000)"
+                    placeholderTextColor={colors.muted}
+                    value={stepGoal}
+                    onChangeText={text =>
+                      setStepGoal(text.replace(/[^0-9]/g, ''))
+                    }
+                    keyboardType="number-pad"
+                  />
+                </>
+              )}
 
               <AppText style={styles.label}>빙고 크기</AppText>
               <SegmentedControl
@@ -252,7 +341,15 @@ export function CreateWalkRoomScreen({
             <>
               <AppText style={styles.selectedCount}>
                 {selectedFriendIds.length > 0
-                  ? `${selectedFriendIds.length}명 선택됨`
+                  ? isBattle
+                    ? `${
+                        friends.find(
+                          friend => friend.memberId === selectedFriendIds[0],
+                        )?.nickname ?? ''
+                      }님과 대결`
+                    : `${selectedFriendIds.length}명 선택됨`
+                  : isBattle
+                  ? '대결할 친구를 한 명 골라주세요'
                   : '선택된 친구 없음'}
               </AppText>
               <Pressable
@@ -306,6 +403,14 @@ const styles = StyleSheet.create({
     color: colors.ink,
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
+  },
+  modeHint: {
+    fontFamily: 'BMDOHYEON',
+    fontSize: 12,
+    lineHeight: lineHeights[12],
+    color: colors.ink,
+    opacity: 0.6,
+    marginTop: spacing.sm,
   },
   input: {
     height: controlHeight.md,

@@ -1,0 +1,172 @@
+import { StyleSheet, View } from 'react-native';
+
+import type { BattleProgress } from '../../../features/bingo/api/bingoApi';
+import { resolveBattleOutcome } from '../../../features/bingo/model/battleOutcome';
+import { AppText } from '../../../shared/components/AppText/AppText';
+import { colors } from '../../../shared/constants/colors';
+import { spacing } from '../../../shared/constants/spacing';
+import { bodyFont, lineHeights } from '../../../shared/constants/typography';
+
+type BattleProgressCardProps = {
+  progress: BattleProgress;
+  /** 방의 목표 줄 수. 먼저 닿는 쪽이 이긴다. */
+  targetBingoCount: number | null;
+  opponentNickname: string;
+};
+
+const OUTCOME_MESSAGE: Record<string, string> = {
+  WIN: '이겼어요!',
+  LOSE: '아깝게 졌어요',
+  // 아무도 목표에 닿지 않았는데 끝났다 = 상대가 방을 나갔다(몰수). 서버가
+  // 승패를 안 내려줘서 단정하지 않는다.
+  ENDED: '대결이 끝났어요. 결과는 기록에서 확인할 수 있어요.',
+};
+
+/**
+ * 대결은 사람마다 판이 따로라 내 판만 봐서는 이기고 있는지 알 수 없다.
+ * 두 사람의 줄 수를 나란히 놓아 판세를 한 눈에 보여준다.
+ */
+export function BattleProgressCard({
+  progress,
+  targetBingoCount,
+  opponentNickname,
+}: BattleProgressCardProps) {
+  const outcome = resolveBattleOutcome(progress);
+  const message = OUTCOME_MESSAGE[outcome];
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.headerRow}>
+        <AppText style={styles.label}>대결 현황</AppText>
+        {targetBingoCount !== null ? (
+          <AppText style={styles.target}>{`목표 ${targetBingoCount}줄`}</AppText>
+        ) : null}
+      </View>
+
+      <View style={styles.versusRow}>
+        <Side
+          name="나"
+          lines={progress.me.completedBingoCount}
+          approved={progress.me.approvedCellCount}
+          total={progress.me.totalCellCount}
+          leading={
+            progress.me.completedBingoCount >
+            progress.opponent.completedBingoCount
+          }
+        />
+        <AppText style={styles.versus}>VS</AppText>
+        <Side
+          name={opponentNickname}
+          lines={progress.opponent.completedBingoCount}
+          approved={progress.opponent.approvedCellCount}
+          total={progress.opponent.totalCellCount}
+          leading={
+            progress.opponent.completedBingoCount >
+            progress.me.completedBingoCount
+          }
+        />
+      </View>
+
+      {message !== undefined ? (
+        <AppText style={styles.outcome}>{message}</AppText>
+      ) : null}
+    </View>
+  );
+}
+
+type SideProps = {
+  name: string;
+  lines: number;
+  approved: number;
+  total: number;
+  leading: boolean;
+};
+
+function Side({ name, lines, approved, total, leading }: SideProps) {
+  return (
+    <View style={styles.side}>
+      <AppText style={styles.sideName} numberOfLines={1}>
+        {name}
+      </AppText>
+      <AppText style={[styles.sideLines, leading && styles.sideLeading]}>
+        {`${lines}줄`}
+      </AppText>
+      <AppText style={styles.sideCells}>{`${approved}/${total} 칸`}</AppText>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    padding: spacing.md,
+    backgroundColor: colors.neutralBg,
+    borderRadius: 12,
+    gap: spacing.sm,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  label: {
+    fontFamily: bodyFont.bold,
+    fontSize: 14,
+    lineHeight: lineHeights[14],
+    color: colors.ink,
+  },
+  target: {
+    fontFamily: bodyFont.regular,
+    fontSize: 12,
+    lineHeight: lineHeights[12],
+    color: colors.ink,
+    opacity: 0.6,
+  },
+  versusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  side: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'center',
+    gap: 2,
+  },
+  sideName: {
+    fontFamily: bodyFont.regular,
+    fontSize: 12,
+    lineHeight: lineHeights[12],
+    color: colors.ink,
+    opacity: 0.6,
+  },
+  sideLines: {
+    fontFamily: bodyFont.bold,
+    fontSize: 24,
+    lineHeight: lineHeights[24],
+    color: colors.ink,
+  },
+  sideLeading: {
+    color: colors.primary,
+  },
+  sideCells: {
+    fontFamily: bodyFont.regular,
+    fontSize: 12,
+    lineHeight: lineHeights[12],
+    color: colors.ink,
+    opacity: 0.6,
+  },
+  versus: {
+    fontFamily: bodyFont.bold,
+    fontSize: 13,
+    lineHeight: lineHeights[13],
+    color: colors.ink,
+    opacity: 0.4,
+    paddingHorizontal: spacing.sm,
+  },
+  outcome: {
+    fontFamily: bodyFont.bold,
+    fontSize: 13,
+    lineHeight: lineHeights[13],
+    color: colors.primaryDark,
+    textAlign: 'center',
+  },
+});
