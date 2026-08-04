@@ -175,6 +175,7 @@ class BingoStepGoalRewardConcurrencyTest {
                 bingoBoardId,
                 endedAt.minusSeconds(600),
                 endedAt,
+                600L,
                 step,
                 0,
                 0

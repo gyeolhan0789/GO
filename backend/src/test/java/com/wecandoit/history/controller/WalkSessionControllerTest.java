@@ -154,6 +154,7 @@ class WalkSessionControllerTest {
                         {
                           "walkSessionKey": "2ae853f8-ff73-48fc-b166-4b85daf9960c",
                           "endedAt": "2026-08-03T10:42:15+09:00",
+                          "activeDurationSeconds": 2400,
                           "step": 4832,
                           "distance": 3382,
                           "calories": 214
@@ -165,11 +166,15 @@ class WalkSessionControllerTest {
                 .statusCode(HttpStatus.CREATED.value())
                 .body("walkSessionId", equalTo(50))
                 .body("durationSeconds", equalTo(2_535))
+                .body("activeDurationSeconds", equalTo(2_400))
                 .body("achievedMissionCount", equalTo(1))
                 .apply(document("walk-session-complete",
                         requestFields(
                                 fieldWithPath("walkSessionKey").description("Backend-issued walk session UUID"),
                                 fieldWithPath("endedAt").description("Walk end time with offset"),
+                                fieldWithPath("activeDurationSeconds")
+                                        .description("Actual active walk duration in seconds, excluding pauses")
+                                        .optional(),
                                 fieldWithPath("step").description("Step count for this walk"),
                                 fieldWithPath("distance").description("Distance for this walk"),
                                 fieldWithPath("calories").description("Calories for this walk")
@@ -193,6 +198,7 @@ class WalkSessionControllerTest {
                         {
                           "walkSessionKey": "2ae853f8-ff73-48fc-b166-4b85daf9960c",
                           "endedAt": "2026-08-03T10:42:15+09:00",
+                          "activeDurationSeconds": 2400,
                           "step": 4832,
                           "distance": 3382,
                           "calories": 214
@@ -319,6 +325,7 @@ class WalkSessionControllerTest {
                 Instant.parse("2026-08-03T01:00:00Z"),
                 Instant.parse("2026-08-03T01:42:15Z"),
                 2_535L,
+                2_400L,
                 4_832,
                 3_382,
                 214,
@@ -370,6 +377,7 @@ class WalkSessionControllerTest {
                 summary.startedAt(),
                 summary.endedAt(),
                 summary.durationSeconds(),
+                summary.activeDurationSeconds(),
                 summary.step(),
                 summary.distance(),
                 summary.calories(),
@@ -388,6 +396,8 @@ class WalkSessionControllerTest {
                 fieldWithPath("startedAt").description("UTC walk start time"),
                 fieldWithPath("endedAt").description("UTC walk end time"),
                 fieldWithPath("durationSeconds").description("Walk duration in seconds"),
+                fieldWithPath("activeDurationSeconds")
+                        .description("Actual active walk duration in seconds, excluding pauses"),
                 fieldWithPath("step").description("Step count"),
                 fieldWithPath("distance").description("Distance"),
                 fieldWithPath("calories").description("Calories"),
