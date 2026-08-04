@@ -5,6 +5,7 @@ set -euo pipefail
 HEALTH_URL="${1:?Health check URL is required.}"
 MAX_ATTEMPTS="${2:-30}"
 INTERVAL_SECONDS="${3:-2}"
+FALLBACK_HEALTH_URL="${4:-}"
 
 top_level_status_is_up() {
   awk '
@@ -97,6 +98,21 @@ while [ "$attempt" -le "$MAX_ATTEMPTS" ]; do
   if printf '%s' "$response" | top_level_status_is_up; then
     echo "Backend health check succeeded: $HEALTH_URL"
     exit 0
+  fi
+
+  if [ -n "$FALLBACK_HEALTH_URL" ]; then
+    if [ -n "${HEALTH_CHECK_CONTAINER:-}" ]; then
+      fallback_response="$(docker exec "$HEALTH_CHECK_CONTAINER" \
+        curl --fail --silent --show-error --max-time 5 "$FALLBACK_HEALTH_URL" || true)"
+    else
+      fallback_response="$(curl --fail --silent --show-error --max-time 5 \
+        "$FALLBACK_HEALTH_URL" || true)"
+    fi
+
+    if printf '%s' "$fallback_response" | top_level_status_is_up; then
+      echo "Backend health check succeeded with legacy fallback: $FALLBACK_HEALTH_URL"
+      exit 0
+    fi
   fi
 
   echo "Backend health check attempt $attempt/$MAX_ATTEMPTS failed: $HEALTH_URL"
