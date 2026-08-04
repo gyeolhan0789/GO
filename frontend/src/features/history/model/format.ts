@@ -43,18 +43,53 @@ export function formatWalkDate(instant: string): string {
   return date === null ? UNKNOWN_VALUE : toIsoDate(date).replace(/-/g, '.');
 }
 
-/** '2026-08-03T11:20:30Z' -> '2026.08.03 (월) 20:20'. */
-export function formatWalkDateTime(instant: string): string {
+/** 기기 시간대로 옮긴 뒤의 '20:20'. */
+function toClockTime(date: Date): string {
+  const hour = `${date.getHours()}`.padStart(2, '0');
+  const minute = `${date.getMinutes()}`.padStart(2, '0');
+  return `${hour}:${minute}`;
+}
+
+/** '2026-08-03T11:20:30Z' -> '2026.08.03 (월)'. 상세는 자리가 있어 요일까지 쓴다. */
+export function formatWalkDayLabel(instant: string): string {
   const date = toLocalDate(instant);
   if (date === null) {
     return UNKNOWN_VALUE;
   }
 
   const isoDate = toIsoDate(date);
-  const hour = `${date.getHours()}`.padStart(2, '0');
-  const minute = `${date.getMinutes()}`.padStart(2, '0');
+  return `${isoDate.replace(/-/g, '.')} (${weekdayLabel(isoDate)})`;
+}
 
-  return `${isoDate.replace(/-/g, '.')} (${weekdayLabel(isoDate)}) ${hour}:${minute}`;
+/** '2026-08-03T11:20:30Z' -> '20:20'. */
+export function formatWalkTime(instant: string): string {
+  const date = toLocalDate(instant);
+  return date === null ? UNKNOWN_VALUE : toClockTime(date);
+}
+
+/**
+ * '20:00 → 20:32'. 언제 나가서 언제 들어왔는지를 한 줄로 보여준다.
+ *
+ * 자정을 넘겨 끝났으면 종료 쪽에 '다음날'을 붙인다 — 안 붙이면 20:00에 나가
+ * 00:12에 들어온 산책이 거꾸로 흐르는 것처럼 읽힌다. 세션은 24시간이 지나면
+ * 만료되므로 이틀을 넘길 일은 없다.
+ */
+export function formatWalkTimeRange(
+  startedAt: string,
+  endedAt: string,
+): string {
+  const start = toLocalDate(startedAt);
+  const end = toLocalDate(endedAt);
+  if (start === null || end === null) {
+    return UNKNOWN_VALUE;
+  }
+
+  const crossesMidnight = toIsoDate(start) !== toIsoDate(end);
+  const endLabel = crossesMidnight
+    ? `다음날 ${toClockTime(end)}`
+    : toClockTime(end);
+
+  return `${toClockTime(start)} → ${endLabel}`;
 }
 
 const SECONDS_PER_MINUTE = 60;

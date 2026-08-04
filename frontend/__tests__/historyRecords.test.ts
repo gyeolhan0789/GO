@@ -5,8 +5,10 @@
 import {
   formatThousands,
   formatWalkDate,
-  formatWalkDateTime,
+  formatWalkDayLabel,
   formatWalkDuration,
+  formatWalkTime,
+  formatWalkTimeRange,
 } from '../src/features/history/model/format';
 import {
   maxValue,
@@ -322,23 +324,53 @@ describe('buildHourlyChartData', () => {
   });
 });
 
-describe('formatWalkDateTime', () => {
-  test('연월일과 요일, 시각을 붙인다', () => {
-    // 서버는 Instant(UTC)를 준다. 11:00Z는 KST 20:00이다.
-    expect(formatWalkDateTime('2026-07-20T11:00:00Z')).toBe(
-      '2026.07.20 (월) 20:00',
-    );
+describe('formatWalkDayLabel', () => {
+  test('연월일과 요일을 붙인다', () => {
+    // 서버는 Instant(UTC)를 준다. 11:00Z는 KST 20:00이라 날짜는 그대로 20일이다.
+    expect(formatWalkDayLabel('2026-07-20T11:00:00Z')).toBe('2026.07.20 (월)');
   });
 
   test('UTC 벽시계가 아니라 기기 시간대로 읽는다', () => {
-    // 문자열을 쪼개면 '2026.07.20 (월) 15:30'으로 아홉 시간 어긋난다.
-    expect(formatWalkDateTime('2026-07-20T15:30:00Z')).toBe(
-      '2026.07.21 (화) 00:30',
-    );
+    // 문자열을 쪼개면 20일 (월)로 읽혀 하루 어긋난다.
+    expect(formatWalkDayLabel('2026-07-20T15:30:00Z')).toBe('2026.07.21 (화)');
   });
 
   test('읽을 수 없는 값이면 빈 자리로 둔다', () => {
-    expect(formatWalkDateTime('')).toBe('-');
+    expect(formatWalkDayLabel('')).toBe('-');
+  });
+});
+
+describe('formatWalkTime', () => {
+  test('기기 시간대의 시각만 남긴다', () => {
+    expect(formatWalkTime('2026-07-20T11:00:00Z')).toBe('20:00');
+  });
+
+  test('자정을 넘기면 그 시간대의 시각으로 읽는다', () => {
+    // 문자열을 쪼개면 15:30으로 아홉 시간 어긋난다.
+    expect(formatWalkTime('2026-07-20T15:30:00Z')).toBe('00:30');
+  });
+
+  test('읽을 수 없는 값이면 빈 자리로 둔다', () => {
+    expect(formatWalkTime('')).toBe('-');
+  });
+});
+
+describe('formatWalkTimeRange', () => {
+  test('시작과 종료를 한 줄로 잇는다', () => {
+    expect(
+      formatWalkTimeRange('2026-07-20T11:00:00Z', '2026-07-20T11:32:00Z'),
+    ).toBe('20:00 → 20:32');
+  });
+
+  test('자정을 넘겨 끝났으면 종료에 다음날을 붙인다', () => {
+    // 안 붙이면 23:50 → 00:12가 시간이 거꾸로 흐르는 것처럼 읽힌다.
+    expect(
+      formatWalkTimeRange('2026-07-20T14:50:00Z', '2026-07-20T15:12:00Z'),
+    ).toBe('23:50 → 다음날 00:12');
+  });
+
+  test('한쪽이라도 읽을 수 없으면 빈 자리로 둔다', () => {
+    expect(formatWalkTimeRange('2026-07-20T11:00:00Z', '')).toBe('-');
   });
 });
 

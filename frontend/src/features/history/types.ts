@@ -18,6 +18,11 @@ export type WalkRecord = {
   startedAt: string;
   endedAt: string;
   /**
+   * 시작부터 종료까지(초). 쉰 시간이 들어 있어 '얼마나 걸었나'가 아니라
+   * '얼마나 나가 있었나'다. 시작~종료 구간과 짝으로만 쓴다.
+   */
+  durationSeconds: number;
+  /**
    * 일시정지를 뺀 실제 운동 시간(초). 서버가 주는 durationSeconds는 시작~종료라
    * 쉰 시간까지 들어 있어서, 화면에는 이쪽을 보여준다.
    */
@@ -54,6 +59,8 @@ export type WalkBingoCell = {
   achievedInSession: boolean;
   /** 승인은 됐지만 이번 산책의 몫은 아닌 칸. */
   completedBefore: boolean;
+  /** 이 칸을 깬 시각. 이번 산책의 몫이 아니면 null이다. */
+  achievedAt: string | null;
 };
 
 export type WalkBingoBoard = {

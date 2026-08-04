@@ -3,8 +3,9 @@ import { StyleSheet, View } from 'react-native';
 import {
   formatDistance,
   formatThousands,
-  formatWalkDateTime,
+  formatWalkDayLabel,
   formatWalkDuration,
+  formatWalkTime,
 } from '../../../features/history/model/format';
 import type { WalkDetail } from '../../../features/history/types';
 import { GAME_MODE_LABEL } from '../../../features/room/model/gameMode';
@@ -28,8 +29,37 @@ export function WalkSummaryCard({ walk }: WalkSummaryCardProps) {
         {walk.title}
       </AppText>
       <AppText style={styles.startedAt}>
-        {`${GAME_MODE_LABEL[walk.mode]} · ${formatWalkDateTime(walk.startedAt)}`}
+        {`${GAME_MODE_LABEL[walk.mode]} · ${formatWalkDayLabel(walk.startedAt)}`}
       </AppText>
+
+      {/* 걸은 시간(쉰 시간을 뺀 값)과 헷갈리지 않게 '나가 있던' 총 시간을
+          시작~종료 옆에 같이 둔다. 둘의 차이가 쉰 시간이다. */}
+      <View
+        style={styles.timeRow}
+        accessibilityRole="text"
+        accessibilityLabel={
+          `${formatWalkTime(walk.startedAt)}에 시작해 ` +
+          `${formatWalkTime(walk.endedAt)}에 종료, ` +
+          `총 ${formatWalkDuration(walk.durationSeconds)}`
+        }
+      >
+        <View style={styles.timePoint}>
+          <AppText style={styles.timeLabel}>시작</AppText>
+          <AppText style={styles.timeValue}>
+            {formatWalkTime(walk.startedAt)}
+          </AppText>
+        </View>
+        <View style={styles.timeArrow} />
+        <View style={styles.timePoint}>
+          <AppText style={styles.timeLabel}>종료</AppText>
+          <AppText style={styles.timeValue}>
+            {formatWalkTime(walk.endedAt)}
+          </AppText>
+        </View>
+        <AppText style={styles.totalDuration}>
+          {`총 ${formatWalkDuration(walk.durationSeconds)}`}
+        </AppText>
+      </View>
 
       <View style={styles.heroRow}>
         <AppText style={styles.heroValue}>
@@ -78,6 +108,47 @@ const styles = StyleSheet.create({
     color: colors.ink,
     opacity: 0.5,
     marginTop: spacing.xs,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    // 라벨 줄 높이가 서로 달라도 시각끼리는 같은 줄에 서게 아래를 맞춘다.
+    alignItems: 'flex-end',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  timePoint: {
+    gap: 2,
+  },
+  timeLabel: {
+    fontFamily: bodyFont.regular,
+    fontSize: 11,
+    lineHeight: lineHeights[12],
+    color: colors.ink,
+    opacity: 0.5,
+  },
+  timeValue: {
+    fontFamily: bodyFont.bold,
+    fontSize: 16,
+    lineHeight: lineHeights[16],
+    color: colors.ink,
+  },
+  timeArrow: {
+    // 화살표 글리프 대신 선으로 둔다 — 픽셀 폰트에서 글리프가 흐릿해진다.
+    width: 16,
+    height: 2,
+    backgroundColor: colors.ink,
+    opacity: 0.3,
+    // 시각 글씨(lineHeight 24)의 한가운데에 오도록 아래에서 띄운다.
+    marginBottom: 11,
+  },
+  totalDuration: {
+    fontFamily: bodyFont.regular,
+    fontSize: 12,
+    lineHeight: lineHeights[12],
+    color: colors.ink,
+    opacity: 0.6,
+    marginBottom: 3,
+    marginLeft: 'auto',
   },
   heroRow: {
     flexDirection: 'row',

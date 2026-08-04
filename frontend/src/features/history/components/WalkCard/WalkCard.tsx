@@ -12,6 +12,7 @@ import {
   formatThousands,
   formatWalkDate,
   formatWalkDuration,
+  formatWalkTimeRange,
 } from '../../model/format';
 import type { WalkRecord } from '../../types';
 
@@ -44,6 +45,9 @@ export function WalkCard({ walk, onPress }: WalkCardProps) {
         </AppText>
         <AppText style={styles.meta} numberOfLines={1}>
           {meta}
+        </AppText>
+        <AppText style={styles.timeRange} numberOfLines={1}>
+          {formatWalkTimeRange(walk.startedAt, walk.endedAt)}
         </AppText>
 
         <View style={styles.statsRow}>
@@ -98,6 +102,13 @@ const styles = StyleSheet.create({
     color: colors.ink,
     opacity: 0.6,
     marginTop: spacing.xs,
+  },
+  timeRange: {
+    fontFamily: bodyFont.bold,
+    fontSize: 12,
+    lineHeight: lineHeights[12],
+    color: colors.primaryDark,
+    marginTop: 2,
   },
   statsRow: {
     flexDirection: 'row',

@@ -128,8 +128,28 @@ describe('WalkDetailScreen', () => {
     const texts = collectTexts(tree.root);
 
     expect(texts).toContain('민서와의 산책');
-    // 서버가 준 11:00Z를 기기 시간대(KST)로 옮겨 20:00으로 읽어야 한다.
-    expect(texts).toContain('협동 · 2026.07.20 (월) 20:00');
+    expect(texts).toContain('협동 · 2026.07.20 (월)');
+  });
+
+  test('산책을 시작하고 종료한 시각을 보여준다', async () => {
+    const tree = await renderScreen();
+    const texts = collectTexts(tree.root);
+
+    expect(texts).toContain('시작');
+    expect(texts).toContain('종료');
+    // 서버가 준 11:00Z / 11:32Z를 기기 시간대(KST)로 옮겨 읽어야 한다.
+    expect(texts).toContain('20:00');
+    expect(texts).toContain('20:32');
+  });
+
+  test('나가 있던 총 시간과 걸은 시간을 따로 적는다', async () => {
+    const tree = await renderScreen();
+    const texts = collectTexts(tree.root);
+
+    // 시작~종료는 32분이지만 그중 4분을 쉬었다. 둘을 같은 값으로 두면
+    // 쉰 시간이 운동 시간으로 둔갑한다.
+    expect(texts).toContain('총 32분');
+    expect(texts).toContain('28분');
   });
 
   test('그 산책의 걸음·거리·칼로리·시간을 보여준다', async () => {
@@ -166,6 +186,35 @@ describe('WalkDetailScreen', () => {
     // 이번 2칸, 지난 2칸, 못 깬 5칸.
     expect(texts).toContain('2칸');
     expect(texts).toContain('5칸');
+  });
+
+  test('이번 산책에 깬 미션을 제목과 시각으로 적는다', async () => {
+    const tree = await renderScreen();
+    const texts = collectTexts(tree.root);
+
+    // 판에서 깬 칸은 0번과 3번, 즉 '미션 1'과 '미션 4'다.
+    expect(texts).toContain('이번 산책에 깬 미션');
+    expect(texts).toContain('미션 1');
+    expect(texts).toContain('미션 4');
+    // 11:10Z를 기기 시간대(KST)로 옮긴 값이다.
+    expect(texts).toContain('20:10');
+  });
+
+  test('지난 산책에서 깬 칸은 이번 목록에 넣지 않는다', async () => {
+    const tree = await renderScreen();
+    const texts = collectTexts(tree.root);
+
+    // 1번과 8번 칸도 승인됐지만 이번 산책의 몫이 아니다. 판에는 그대로 남아
+    // 있으므로 '안 보인다'가 아니라 '판에만 있고 목록엔 없다'로 가른다.
+    const countOf = (label: string) =>
+      texts.filter(text => text === label).length;
+
+    // 이번에 깬 칸은 판과 목록 양쪽에 선다.
+    expect(countOf('미션 1')).toBe(2);
+    expect(countOf('미션 4')).toBe(2);
+    // 지난 산책 몫과 못 깬 칸은 판에만 있다.
+    expect(countOf('미션 2')).toBe(1);
+    expect(countOf('미션 9')).toBe(1);
   });
 
   test('참가자 목록은 두지 않는다', async () => {

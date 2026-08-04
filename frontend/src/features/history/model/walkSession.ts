@@ -25,6 +25,7 @@ export function toWalkRecord(response: WalkSessionResponse): WalkRecord {
     mode: response.mode,
     startedAt: response.startedAt,
     endedAt: response.endedAt,
+    durationSeconds: response.durationSeconds,
     activeDurationSeconds: response.activeDurationSeconds,
     step: response.step,
     distanceMeters: response.distance,
@@ -48,6 +49,7 @@ function toBingoBoard(board: WalkSessionBingoBoardResponse): WalkBingoBoard {
       // 반려됐으면 그 칸은 아직 비어 있다.
       completedBefore:
         !cell.achievedInSession && cell.verificationStatus === 'APPROVED',
+      achievedAt: cell.achievedInSession ? cell.achievedAt : null,
     })),
   };
 }

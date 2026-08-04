@@ -3,7 +3,8 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { BingoBoard } from '../../../features/bingo/components/BingoBoard/BingoBoard';
 import type { BingoBoardSize } from '../../../features/bingo/components/BingoBoard/BingoBoard';
-import { countAchievedCells } from '../../../features/history/model/walkDetail';
+import { formatWalkTime } from '../../../features/history/model/format';
+import { selectAchievedCells } from '../../../features/history/model/walkDetail';
 import type { WalkBingoBoard } from '../../../features/history/types';
 import { AppText } from '../../../shared/components/AppText/AppText';
 import { Card } from '../../../shared/components/Card/Card';
@@ -39,7 +40,8 @@ const CELL_TEXT = {
  */
 export function WalkBingoCard({ board, title }: WalkBingoCardProps) {
   const { cells } = board;
-  const achievedCount = countAchievedCells(cells);
+  const achievedCells = selectAchievedCells(cells);
+  const achievedCount = achievedCells.length;
   const beforeCount = cells.filter(cell => cell.completedBefore).length;
   const text = CELL_TEXT[board.size];
 
@@ -95,6 +97,36 @@ export function WalkBingoCard({ board, title }: WalkBingoCardProps) {
 
       <View style={styles.board}>
         <BingoBoard size={board.size} cells={boardCells} />
+      </View>
+
+      {/* 판이 커지면 칸 글씨가 8pt까지 내려가 제목이 잘린다. 이번 산책에 뭘
+          깼는지는 판이 아니라 이 목록으로 읽게 한다. */}
+      <View style={styles.achieved}>
+        <AppText style={styles.achievedHeading}>이번 산책에 깬 미션</AppText>
+
+        {achievedCount === 0 ? (
+          <AppText style={styles.achievedEmpty}>
+            이번 산책에는 깬 칸이 없어요.
+          </AppText>
+        ) : (
+          achievedCells.map(cell => (
+            <View key={cell.index} style={styles.achievedRow}>
+              <Ionicons
+                name="checkmark-circle"
+                size={16}
+                color={colors.primary}
+              />
+              <AppText style={styles.achievedTitle} numberOfLines={2}>
+                {cell.missionTitle}
+              </AppText>
+              {cell.achievedAt !== null ? (
+                <AppText style={styles.achievedAt}>
+                  {formatWalkTime(cell.achievedAt)}
+                </AppText>
+              ) : null}
+            </View>
+          ))
+        )}
       </View>
     </Card>
   );
@@ -161,5 +193,42 @@ const styles = StyleSheet.create({
   },
   board: {
     marginTop: spacing.md,
+  },
+  achieved: {
+    gap: spacing.xs,
+    marginTop: spacing.md,
+  },
+  achievedHeading: {
+    fontFamily: bodyFont.bold,
+    fontSize: 13,
+    lineHeight: lineHeights[13],
+    color: colors.ink,
+  },
+  achievedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  achievedTitle: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: bodyFont.regular,
+    fontSize: 13,
+    lineHeight: lineHeights[13],
+    color: colors.ink,
+  },
+  achievedAt: {
+    fontFamily: bodyFont.regular,
+    fontSize: 12,
+    lineHeight: lineHeights[12],
+    color: colors.ink,
+    opacity: 0.5,
+  },
+  achievedEmpty: {
+    fontFamily: bodyFont.regular,
+    fontSize: 12,
+    lineHeight: lineHeights[12],
+    color: colors.ink,
+    opacity: 0.6,
   },
 });
