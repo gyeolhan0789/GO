@@ -1,0 +1,82 @@
+apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "org.jetbrains.kotlin.plugin.compose"
+
+android {
+    namespace "com.wecandoit.wear"
+    compileSdk rootProject.ext.compileSdkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
+
+    defaultConfig {
+        // :app과 반드시 같아야 한다. Data Layer는 "패키지명과 서명이 같은 앱"
+        // 사이에서만 메시지/DataItem을 전달하기 때문에, 이 값이 어긋나면
+        // 페어링은 되는데 아무것도 안 오는 상태가 된다.
+        applicationId "com.wecandoit"
+        minSdkVersion rootProject.ext.wearMinSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+    }
+
+    sourceSets {
+        // 폰 앱과 공유하는 Data Layer 규약(WearProtocol). :app도 같은 디렉터리를 붙인다.
+        main.java.srcDirs += "../wear-protocol/src/main/java"
+    }
+
+    signingConfigs {
+        debug {
+            // 같은 키로 서명해야 Data Layer가 두 앱을 한 쌍으로 인정한다.
+            storeFile file("../app/debug.keystore")
+            storePassword "android"
+            keyAlias "androiddebugkey"
+            keyPassword "android"
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            // :app과 같은 이유로 지금은 디버그 키를 쓴다(배포 전 교체 필요).
+            signingConfig signingConfigs.debug
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        }
+    }
+
+    buildFeatures {
+        compose true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlin {
+        compilerOptions {
+            jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        }
+    }
+}
+
+dependencies {
+    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.activity:activity-compose:1.9.3")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+
+    implementation(platform("androidx.compose:compose-bom:2024.12.01"))
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-graphics")
+
+    implementation("androidx.wear.compose:compose-material:${rootProject.ext.wearComposeVersion}")
+    implementation("androidx.wear.compose:compose-foundation:${rootProject.ext.wearComposeVersion}")
+    implementation("androidx.wear.compose:compose-navigation:${rootProject.ext.wearComposeVersion}")
+
+    implementation("com.google.android.gms:play-services-wearable:${rootProject.ext.playServicesWearableVersion}")
+    // Play 서비스의 Task를 suspend로 쓰기 위한 어댑터(.await()).
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
+}

@@ -1,14 +1,6 @@
 pipeline {
     agent any
 
-    parameters {
-        booleanParam(
-            name: 'RESET_DEV_DB',
-            defaultValue: false,
-            description: 'Recreate the dev database and load scenario seed data.'
-        )
-    }
-
     environment {
         COMPOSE_FILE = 'docker-compose.dev.yml'
         SERVICE_NAME = 'backend'
@@ -18,11 +10,6 @@ pipeline {
         stage('Check Backend Changes') {
             steps {
                 script {
-                    if (params.RESET_DEV_DB) {
-                        echo 'RESET_DEV_DB=true. Continue without backend change detection.'
-                        return
-                    }
-
                     def changedFiles = sh(
                         script: '''
                         if git rev-parse HEAD~1 >/dev/null 2>&1; then
@@ -48,6 +35,19 @@ pipeline {
             }
         }
 
+        stage('Test Backend') {
+            steps {
+                dir('backend') {
+                    sh '''
+                    chmod +x gradlew
+                    export TESTCONTAINERS_HOST_OVERRIDE=$(ip route | awk '/^default/ {print $3; exit}')
+                    echo "TESTCONTAINERS_HOST_OVERRIDE=$TESTCONTAINERS_HOST_OVERRIDE"
+                    ./gradlew test
+                    '''
+                }
+            }
+        }
+
         stage('Build Backend') {
             steps {
                 dir('backend') {
@@ -67,23 +67,7 @@ pipeline {
                         string(credentialsId: 'dev-db-root-password', variable: 'DB_ROOT_PASSWORD'),
                         string(credentialsId: 'dev-jwt-secret', variable: 'JWT_SECRET')
                     ]) {
-                        script {
-                            if (!params.RESET_DEV_DB) {
-                                deployBackend('update', 'never', false)
-                                return
-                            }
-
-                            try {
-                                sh 'docker compose -f $COMPOSE_FILE up -d mysql redis'
-                                sh 'docker compose -f $COMPOSE_FILE stop $SERVICE_NAME'
-                                sh 'docker exec wecandoit-redis-dev redis-cli FLUSHDB'
-                                deployBackend('create', 'always', true)
-                                waitForHealth('seed initialization')
-                            } finally {
-                                deployBackend('update', 'never', true)
-                                waitForHealth('safe configuration restore')
-                            }
-                        }
+                        sh 'docker compose -f $COMPOSE_FILE up -d --build $SERVICE_NAME'
                     }
                 }
             }
@@ -110,16 +94,6 @@ pipeline {
     }
 }
 
-def deployBackend(String ddlAuto, String sqlInitMode, boolean forceRecreate) {
-    withEnv([
-        "DEV_DDL_AUTO=${ddlAuto}",
-        "DEV_SQL_INIT_MODE=${sqlInitMode}"
-    ]) {
-        String recreateOption = forceRecreate ? '--force-recreate' : ''
-        sh "docker compose -f ${env.COMPOSE_FILE} up -d --build ${recreateOption} ${env.SERVICE_NAME}"
-    }
-}
-
 def waitForHealth(String phase) {
     // Jenkins는 컨테이너로 실행되어 호스트 loopback에 도달하지 못하므로(docker-outside-of-docker),
     // URL 기반 헬스체크 대신 docker 소켓으로 컨테이너 자체의 헬스 상태를 조회한다. 배포가 컨테이너를
@@ -127,15 +101,15 @@ def waitForHealth(String phase) {
     sh """
     docker ps
     CID=\$(docker compose -f \$COMPOSE_FILE ps -q \$SERVICE_NAME)
-    for i in \$(seq 1 60); do
+    for i in \$(seq 1 24); do
       STATUS=\$(docker inspect --format '{{.State.Health.Status}}' \$CID 2>/dev/null || echo "unknown")
-      echo "${phase} health check attempt \$i/60 status: \$STATUS"
+      echo "${phase} health check attempt \$i/24 status: \$STATUS"
 
       if [ "\$STATUS" = "healthy" ]; then
         exit 0
       fi
 
-      sleep 2
+      sleep 5
     done
 
     echo "${phase} health check failed with status \$STATUS"

@@ -39,6 +39,7 @@ export function WalkRoomSelectSheet({
     bingoCompleted: room.completedMissionCount,
     bingoTotal: room.totalMissionCount,
     memberCount: room.members.length,
+    members: room.members,
   }));
   const [selectedId, setSelectedId] = useState<string | null>(null);
 

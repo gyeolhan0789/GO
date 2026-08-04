@@ -1,3 +1,5 @@
+import type { MyRoomMemberResponse } from '../../features/room/api/roomApi';
+
 export type WalkRoomMode = 'solo' | 'group';
 
 export type WalkRoomOption = {
@@ -8,4 +10,6 @@ export type WalkRoomOption = {
   bingoTotal: number;
   /** mode가 'group'일 때만 유효. */
   memberCount?: number;
+  /** mode가 'group'일 때만 유효. 줄 왼쪽의 겹친 아바타를 그린다. */
+  members?: MyRoomMemberResponse[];
 };

@@ -1,24 +1,8 @@
 # Dev 전체 API 시나리오 데이터
 
-이 문서는 Jenkins 빌드에서 `RESET_DEV_DB=true`로 실행했을 때 적재되는
-고정 테스트 데이터를 설명합니다. 실행하면 기존 dev 데이터베이스 데이터와
-Redis 로그인 정보가 삭제되므로 반드시 팀에 미리 공지합니다.
-
-## 초기화 절차
-
-1. 시드 변경사항을 dev Jenkins Job이 배포하는 브랜치에 머지합니다.
-2. dev Jenkins Job에서 **Build with Parameters**를 선택합니다.
-3. `RESET_DEV_DB=true`로 한 번 실행합니다.
-4. `seed initialization`, `safe configuration restore` 헬스 체크가 모두 성공했는지 확인합니다.
-5. 이후 배포는 기본값인 `RESET_DEV_DB=false`로 실행합니다.
-
-초기화 빌드는 애플리케이션을 `create + always`로 한 번 실행한 뒤,
-`finally` 블록에서 `update + never`로 다시 생성합니다. 이 과정은 Git 파일이나
-브랜치를 변경하지 않습니다.
-
-`FLUSHDB`를 실행하면 저장된 refresh token은 즉시 무효화됩니다. access token은
-상태를 저장하지 않는 JWT이므로 설정된 30분 만료 시각까지 유효할 수 있습니다.
-모든 access token을 즉시 무효화해야 한다면 dev JWT secret을 별도로 교체해야 합니다.
+이 문서는 dev 데이터베이스에 적재되는 고정 테스트 데이터를 설명합니다.
+시딩은 dev DB 서버의 프로시저가 담당하며, Jenkins CD 파이프라인은 더 이상
+이를 관리하지 않습니다.
 
 ## 계정
 
@@ -335,6 +319,44 @@ REJECTED 결과는 실제 AI 서버 응답에 따라 달라집니다.
 }
 ```
 
+### 8. 산책 세션 기록
+
+회원 1001과 1002로 로그인해 산책 세션 목록과 상세를 확인합니다.
+
+| 세션 ID | 회원 | 방 | 초기 보드 | 시나리오 |
+| ---: | ---: | ---: | ---: | --- |
+| 10001 | 1001 | 4004 | 7004 | 활성 협력방에서 승인 미션 5개를 달성한 세션 |
+| 10002 | 1002 | 4001 | 7001 | 빙고 성과 없이 신체활동만 기록한 세션 |
+| 10003 | 1001 | 4011 | 7103 | 닫힌 방에서 승인 미션 3개를 달성한 과거 세션 |
+
+| API | 기대 결과 |
+| --- | --- |
+| `GET /walk-sessions?page=0&size=10` | 로그인 회원 소유 전체 세션을 종료 시각 내림차순으로 반환 |
+| `GET /walk-sessions?roomId=4004&page=0&size=10` | 로그인 회원의 방 4004 세션만 반환 |
+| `GET /walk-sessions/10001` | 보드 7004 전체 배치와 세션 달성 셀 5개 반환 |
+| `GET /walk-sessions/10002` | 보드 7001 전체 배치와 달성 셀 0개 반환 |
+| `GET /walk-sessions/10003` | 닫힌 방의 과거 세션과 보드 7103 반환 |
+| 다른 회원의 세션 상세 조회 | 403 반환 |
+
+산책 종료 요청 예시:
+
+```json
+{
+  "clientSessionKey": "44444444-4444-4444-4444-444444444444",
+  "roomId": 4001,
+  "bingoBoardId": 7001,
+  "startedAt": "2026-08-03T10:00:00+09:00",
+  "endedAt": "2026-08-03T10:42:15+09:00",
+  "step": 4832,
+  "distance": 3382,
+  "calories": 214
+}
+```
+
+같은 회원이 같은 `clientSessionKey`로 다시 요청하면 기존 세션을 200으로 반환하며,
+일별 신체활동과 목표 걸음 보상은 다시 누적하지 않습니다. 산책 중 미션 제출 시에는
+기존 multipart 요청에 `clientSessionKey` 폼 필드를 선택적으로 추가합니다.
+
 ## 검증 SQL
 
 ```sql
@@ -358,7 +380,15 @@ SELECT member_id, completed_mission_count, reward_cash, result
 FROM game_result_participants
 WHERE game_id = 5102
 ORDER BY member_id;
+
+SELECT id, member_id, room_id, client_session_key, ended_at
+FROM walk_sessions
+ORDER BY ended_at DESC, id DESC;
+
+SELECT walk_session_id, bingo_board_id, bingo_cell_id, achieved_at
+FROM walk_session_bingo_achievements
+ORDER BY walk_session_id, bingo_cell_id;
 ```
 
 기대 개수는 회원 13명, 미션 25개, RoomMember 4명,
-GameParticipant 4명, 공유 빙고판 1개입니다.
+GameParticipant 4명, 공유 빙고판 1개, 산책 세션 3개, 산책 빙고 성과 8개입니다.

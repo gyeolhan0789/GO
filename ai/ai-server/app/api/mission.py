@@ -9,11 +9,19 @@ from fastapi import (
     HTTPException
 )
 
-from app.prompts.prompt_builder import PromptBuilder
-from app.services.vision.gemini_service import GeminiService
-from app.services.vision.image_quality_service import ImageQualityService
-from app.validators.mission_validator import MissionValidator
-from app.mappers.reason_mapper import ReasonMapper
+
+from app.services.vision.vision_router import (
+    VisionRouter
+)
+
+from app.services.vision.image_quality_service import (
+    ImageQualityService
+)
+
+from app.validators.mission_validator import (
+    MissionValidator
+)
+
 
 
 router = APIRouter(
@@ -21,8 +29,17 @@ router = APIRouter(
     tags=["Mission"]
 )
 
-service = GeminiService()
+
+
+# ==========================
+# Service
+# ==========================
+
+vision_router = VisionRouter()
+
 image_quality_service = ImageQualityService()
+
+
 
 ALLOWED_EXTENSIONS = {
     "jpg",
@@ -31,14 +48,14 @@ ALLOWED_EXTENSIONS = {
 }
 
 
+
 @router.get("/test")
 def test():
 
-    result = service.test()
-
     return {
-        "result": result
+        "result": "AI server is running"
     }
+
 
 
 @router.post("/verify")
@@ -52,9 +69,10 @@ async def verify_mission(
 
 ):
 
-    # -----------------------------
-    # image 검증
-    # -----------------------------
+
+    # ==========================
+    # Image Validation
+    # ==========================
 
     if not image.filename:
 
@@ -63,7 +81,13 @@ async def verify_mission(
             detail="이미지를 선택해주세요."
         )
 
-    extension = image.filename.split(".")[-1].lower()
+
+    extension = (
+        image.filename
+        .split(".")[-1]
+        .lower()
+    )
+
 
     if extension not in ALLOWED_EXTENSIONS:
 
@@ -72,7 +96,9 @@ async def verify_mission(
             detail="jpg, jpeg, png 파일만 업로드 가능합니다."
         )
 
+
     image_bytes = await image.read()
+
 
     if len(image_bytes) == 0:
 
@@ -81,13 +107,16 @@ async def verify_mission(
             detail="빈 이미지입니다."
         )
 
-    # -----------------------------
-    # 이미지 품질 검사
-    # -----------------------------
+
+
+    # ==========================
+    # Image Quality Check
+    # ==========================
 
     image_quality = image_quality_service.check(
         image_bytes
     )
+
 
     if image_quality is not None:
 
@@ -95,11 +124,14 @@ async def verify_mission(
             image_quality
         )
 
-    # -----------------------------
-    # mission_type 검증
-    # -----------------------------
+
+
+    # ==========================
+    # Mission Type Validation
+    # ==========================
 
     mission_type = mission_type.upper()
+
 
     if mission_type not in {
 
@@ -114,15 +146,18 @@ async def verify_mission(
             detail="지원하지 않는 mission_type입니다."
         )
 
-    # -----------------------------
-    # decision_condition 검증
-    # -----------------------------
+
+
+    # ==========================
+    # Decision Condition Parse
+    # ==========================
 
     try:
 
         decision_condition = json.loads(
             decision_condition
         )
+
 
     except Exception:
 
@@ -131,13 +166,17 @@ async def verify_mission(
             detail="decision_condition은 JSON 형식이어야 합니다."
         )
 
-    # -----------------------------
-    # AI 판정
-    # -----------------------------
+
+
+    # ==========================
+    # Vision Pipeline
+    # ==========================
 
     try:
 
-        prompt = PromptBuilder.build(
+        ai_result = vision_router.verify(
+
+            image_bytes=image_bytes,
 
             mission_type=mission_type,
 
@@ -145,29 +184,12 @@ async def verify_mission(
 
         )
 
-        ai_result = service.verify_mission(
-
-            image_bytes=image_bytes,
-
-            prompt=prompt
-
-        )
-
-        # -----------------------------
-        # ReasonCode 매핑
-        # -----------------------------
-
-        ai_result = ReasonMapper.map(
-
-            ai_result=ai_result,
-
-            mission_type=mission_type
-
-        )
 
         return MissionValidator.validate(
             ai_result
         )
+
+
 
     except ValueError as e:
 
@@ -176,12 +198,14 @@ async def verify_mission(
             detail=str(e)
         )
 
+
     except RuntimeError as e:
 
         raise HTTPException(
             status_code=500,
             detail=str(e)
         )
+
 
     except Exception:
 

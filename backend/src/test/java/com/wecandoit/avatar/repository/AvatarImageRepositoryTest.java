@@ -3,17 +3,15 @@ package com.wecandoit.avatar.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.wecandoit.avatar.domain.AvatarImage;
+import com.wecandoit.common.testcontainers.MySqlDataJpaTest;
 import com.wecandoit.member.domain.Gender;
 import jakarta.persistence.EntityManager;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.ActiveProfiles;
 
-@DataJpaTest
-@ActiveProfiles("test")
+@MySqlDataJpaTest
 @DisplayName("기본 아바타 에셋 레포지토리")
 class AvatarImageRepositoryTest {
 

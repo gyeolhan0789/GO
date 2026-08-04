@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
+import com.wecandoit.common.testcontainers.MySqlTestContainer;
+import com.wecandoit.common.testcontainers.RedisTestContainer;
 import com.wecandoit.game.controller.request.CreateRoomRequest;
 import com.wecandoit.game.controller.response.CreateRoomResponse;
 import com.wecandoit.game.domain.GameMode;
@@ -25,15 +27,18 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.IntStream;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@ImportTestcontainers({MySqlTestContainer.class, RedisTestContainer.class})
 @DisplayName("SINGLE 게임방 생성 동시성")
 class RoomCommandServiceConcurrencyTest {
 
@@ -60,14 +65,7 @@ class RoomCommandServiceConcurrencyTest {
 
     @BeforeEach
     void setUp() {
-        bingoCellRepository.deleteAll();
-        bingoBoardRepository.deleteAll();
-        gameParticipantRepository.deleteAll();
-        gameRepository.deleteAll();
-        roomMemberRepository.deleteAll();
-        roomRepository.deleteAll();
-        missionRepository.deleteAll();
-        memberRepository.deleteAll();
+        clearPersistedData();
 
         memberId = memberRepository.save(Member.create(
                 "single@example.com",
@@ -85,6 +83,22 @@ class RoomCommandServiceConcurrencyTest {
                         null
                 ))
                 .toList());
+    }
+
+    @AfterEach
+    void tearDown() {
+        clearPersistedData();
+    }
+
+    private void clearPersistedData() {
+        bingoCellRepository.deleteAll();
+        bingoBoardRepository.deleteAll();
+        gameParticipantRepository.deleteAll();
+        gameRepository.deleteAll();
+        roomMemberRepository.deleteAll();
+        roomRepository.deleteAll();
+        missionRepository.deleteAll();
+        memberRepository.deleteAll();
     }
 
     @Test

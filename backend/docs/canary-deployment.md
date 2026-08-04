@@ -1,13 +1,11 @@
 # 백엔드 카나리 배포 운영 가이드
 
-관련 이슈: `S15P11A506-480`
-
 ## 배포 구성
 
-| 역할 | 컨테이너 | 호스트 포트 | 스케줄러 | Hibernate DDL |
-|---|---|---:|---|---|
-| Stable | `wecandoit-backend-stable` | 8080 | 활성화 | `update` |
-| Canary | `wecandoit-backend-canary` | 8082 | 비활성화 | `validate` |
+| 역할 | 컨테이너 | 호스트 포트 | 스케줄러 | Hibernate DDL | Flyway |
+|---|---|---:|---|---|---|
+| Stable | `wecandoit-backend-stable` | 8080 | 활성화 | `none` | 비활성화 |
+| Canary | `wecandoit-backend-canary` | 8082 | 비활성화 | `validate` | 활성화 |
 
 두 컨테이너는 운영 MySQL, Redis, `./uploads` 디렉터리를 함께 사용한다.
 예약 알림의 중복 실행을 방지하기 위해 `BingoBoardRenewalScheduler`는 Stable에서만
@@ -50,8 +48,8 @@ Host의 80/443 포트를 변경하지 않고 컨테이너를 빌드하고 검증
 
 ```bash
 cd backend
-docker build -t wecandoit-nginx-prod:latest infra/nginx
-bash infra/deploy/validate-nginx-image.sh wecandoit-nginx-prod:latest
+docker build -t wecandoit-nginx-prod:latest ../infra/nginx
+bash ../infra/deploy/validate-nginx-image.sh wecandoit-nginx-prod:latest
 NGINX_BIND_ADDRESS=127.0.0.1 \
 NGINX_HTTP_PORT=18080 \
 NGINX_HTTPS_PORT=18443 \
@@ -254,13 +252,32 @@ docker exec wecandoit-nginx-prod \
 
 ## DB 호환성
 
-운영 애플리케이션은 현재 Hibernate `ddl-auto=update`를 사용하며 Flyway나 Liquibase
-마이그레이션은 사용하지 않는다. 카나리 배포 중에는 다음 원칙을 적용한다.
+Flyway가 운영 스키마를 소유한다. `backend-canary`가 유일한 마이그레이션
+실행자이며(`SPRING_FLYWAY_ENABLED` 기본값 `true`), `backend-stable`은 Flyway가
+기본적으로 비활성화되어(`SPRING_FLYWAY_ENABLED` 기본값 `false`) 이미 적용된
+스키마를 그대로 신뢰한다. 카나리 배포 중에는 다음 원칙을 적용한다.
 
-- Stable은 `update`를 유지한다.
-- Canary는 `validate`를 사용하며 스키마를 변경할 수 없다.
-- 두 버전이 동일한 스키마와 저장 데이터를 모두 처리할 수 있어야 한다.
-- 컬럼 삭제, 이름 변경, 기본값 없는 필수 컬럼 추가는 이 파이프라인으로 배포하면 안 된다.
+- Canary는 대기 중인 Flyway 마이그레이션을 실행한 뒤, 트래픽 전환 전에 그 결과를
+  Hibernate `validate`로 검증한다.
+- Stable은 `ddl-auto=none`이고 Flyway도 비활성화돼 있어 스키마를 전혀 건드리지
+  않는다 — 그래서 몇 번의 마이그레이션이 적용됐든 상관없이 Stable을 이전 이미지로
+  되돌려도 항상 안전하다.
+- `validate`는 테이블/컬럼의 존재 여부와 타입만 확인하며, nullable·길이·인덱스·
+  외래키는 확인하지 않는다. 두 버전이 동일한 스키마와 저장 데이터를 모두 처리할 수
+  있어야 한다는 원칙은 그대로 유지된다.
+- 컬럼 삭제, 이름 변경, 기본값 없는 필수 컬럼 추가는 이 파이프라인으로 배포하면
+  안 된다.
+- Canary 없이 Stable만 수동으로 재기동하는 상황(예: 장애 대응)에서 대기 중인
+  마이그레이션이 있으면 아무도 이를 적용하지 않는다 — 이 경우 Canary를 먼저
+  정상적으로 띄우거나, 불가피하면 `STABLE_FLYWAY_ENABLED=true`로 Stable을
+  재기동한다.
 
-스키마를 변경할 때는 두 버전에서 모두 동작하는 하위 호환 expansion을 먼저 적용한다.
+스키마를 변경할 때는 `src/main/resources/db/migration`에 직접 작성한 Flyway
+마이그레이션으로, 두 버전에서 모두 동작하는 하위 호환 expansion을 먼저 적용한다.
 contract 또는 정리 변경은 새 버전의 Stable 승격이 끝난 후 별도 배포로 진행한다.
+
+게임·빙고 V3를 적용하기 전에는 현재 Stable 및 rollback 이미지가 상태 Enum 변경과
+호환되는지 확인하고 운영 DB를 백업한다. 적용 후에는 `flyway_schema_history`와 주요
+데이터 정합성을 확인한다. 마이그레이션이 실패하면 90:10 전환을 중단하고
+Stable-only를 유지한다. 상태 값 병합 이후의 복구에는 임의의 DOWN SQL을 사용하지
+않고 검증된 백업을 사용한다.

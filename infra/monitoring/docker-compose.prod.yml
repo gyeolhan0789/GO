@@ -1,0 +1,79 @@
+name: wecandoit-obs-prod
+
+networks:
+  default: {}
+  backend:
+    external: true
+    name: wecandoit-backend-prod_default
+
+services:
+  loki:
+    image: grafana/loki:3
+    container_name: wecandoit-loki-prod
+    restart: always
+    command: -config.file=/etc/loki/loki-config.yaml
+    volumes:
+      - ./loki/loki-config.prod.yaml:/etc/loki/loki-config.yaml:ro
+      - loki-prod-data:/loki
+    mem_limit: 384m
+    memswap_limit: 384m
+
+  # backend 네트워크에 붙는 유일한 관측 서비스(B1) — Grafana는 붙이지 않는다.
+  # prod backend 네트워크에는 미인증 Redis가 있어 인터넷에 노출되는 서비스를 늘리지 않는다.
+  prometheus:
+    image: prom/prometheus:v3
+    container_name: wecandoit-prometheus-prod
+    restart: always
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d
+    volumes:
+      - ./prometheus/prometheus.prod.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-prod-data:/prometheus
+    networks:
+      - default
+      - backend
+    mem_limit: 256m
+    memswap_limit: 256m
+
+  grafana:
+    image: grafana/grafana:11.6
+    container_name: wecandoit-grafana-prod
+    restart: always
+    ports:
+      - "127.0.0.1:3001:3000"
+    environment:
+      GF_SERVER_ROOT_URL: https://i15a506.p.ssafy.io/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_SERVER_DOMAIN: i15a506.p.ssafy.io
+      # 서버의 infra/monitoring/.env(이 compose 파일과 같은 디렉터리)에 실제 값을 넣어야 한다 —
+      # 없으면 admin/admin으로 열린다(U4).
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-prod-data:/var/lib/grafana
+    mem_limit: 256m
+    memswap_limit: 256m
+
+  alloy:
+    image: grafana/alloy:v1.18.0
+    container_name: wecandoit-alloy-prod
+    restart: always
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./alloy/config.prod.alloy:/etc/alloy/config.alloy:ro
+      - alloy-prod-data:/var/lib/alloy/data
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy/data
+    mem_limit: 128m
+    memswap_limit: 128m
+
+volumes:
+  loki-prod-data:
+  prometheus-prod-data:
+  grafana-prod-data:
+  alloy-prod-data:
