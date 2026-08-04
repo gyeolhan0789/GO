@@ -8,6 +8,25 @@ import type { Coords } from '../../../shared/lib/geolocation';
 
 const REGION_DELTA = 0.004;
 
+// Go!의 초록·크림 팔레트에 맞춘 지도 스타일. 상점/시설 아이콘 같은 잡다한 POI는
+// 걷기 앱에 불필요한 시각적 소음이라 지우고, 길 찾는 데 필요한 도로·지명은
+// 남긴다. 색은 shared/constants/colors의 기존 토큰만 재사용한다.
+const MAP_STYLE = [
+  { elementType: 'geometry', stylers: [{ color: colors.neutralBg }] },
+  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: colors.mutedStrong }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: colors.surface }] },
+  { featureType: 'administrative', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: colors.primarySoftLight }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: colors.surface }] },
+  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: colors.border }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: colors.highlightSoftBg }] },
+  { featureType: 'road.arterial', elementType: 'labels', stylers: [{ visibility: 'simplified' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: colors.infoBg }] },
+];
+
 type WalkRouteMapProps = {
   route: Coords[];
   // watchPosition의 첫 고정밀 좌표가 오기 전, 지도 초기 중심으로만 쓰는
@@ -73,6 +92,7 @@ export const WalkRouteMap = forwardRef<WalkRouteMapHandle, WalkRouteMapProps>(
         ref={mapRef}
         style={styles.map}
         provider={PROVIDER_GOOGLE}
+        customMapStyle={MAP_STYLE}
         // 자체 픽셀 마커로 현재 위치를 표시하므로 기본 파란 점은 끈다.
         showsUserLocation={false}
         followsUserLocation={false}
