@@ -50,6 +50,7 @@ public class BingoController {
             @PathVariable Long roomId,
             @PathVariable Long cellId,
             @RequestPart("image") MultipartFile image,
+            @RequestParam(required = false) UUID walkSessionKey,
             @RequestParam(required = false) UUID clientSessionKey
     ) {
         BingoCellSubmitResponse response = missionVerificationFacade.submitAndVerify(
@@ -57,9 +58,13 @@ public class BingoController {
                 roomId,
                 cellId,
                 image,
-                clientSessionKey
+                resolveWalkSessionKey(walkSessionKey, clientSessionKey)
         );
         return ResponseEntity.ok(response);
+    }
+
+    private UUID resolveWalkSessionKey(UUID walkSessionKey, UUID clientSessionKey) {
+        return walkSessionKey == null ? clientSessionKey : walkSessionKey;
     }
 
     @PostMapping("/{roomId}/bingo-boards/renewal")

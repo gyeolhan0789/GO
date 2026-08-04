@@ -27,8 +27,10 @@ import com.wecandoit.history.controller.response.WalkSessionBingoBoardResponse;
 import com.wecandoit.history.controller.response.WalkSessionBingoCellResponse;
 import com.wecandoit.history.controller.response.WalkSessionDetailResponse;
 import com.wecandoit.history.controller.response.WalkSessionResponse;
+import com.wecandoit.history.controller.response.WalkSessionStartResponse;
 import com.wecandoit.history.service.WalkSessionCommandService;
 import com.wecandoit.history.service.WalkSessionCommandService.CompletionResult;
+import com.wecandoit.history.service.WalkSessionCommandService.StartResult;
 import com.wecandoit.history.service.WalkSessionReadService;
 import com.wecandoit.mission.controller.response.MissionResponse;
 import com.wecandoit.mission.domain.MissionType;
@@ -36,7 +38,9 @@ import io.restassured.http.ContentType;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -51,6 +55,7 @@ import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.restdocs.RestDocumentationExtension;
+import org.springframework.restdocs.payload.FieldDescriptor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
@@ -94,11 +99,51 @@ class WalkSessionControllerTest {
     }
 
     @Test
-    @DisplayName("산책 세션을 처음 완료하면 201과 세션 요약을 반환한다")
+    @DisplayName("산책 세션을 시작하면 백엔드에서 생성한 세션 키를 반환한다")
+    void startWalkSessionReturnsSessionKey() {
+        // given
+        willReturn(new StartResult(startResponse(), true))
+                .given(walkSessionCommandService)
+                .startSession(eq(1L), any());
+
+        // when & then
+        given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                          "roomId": 10,
+                          "bingoBoardId": 30
+                        }
+                        """)
+                .when()
+                .post("/walk-sessions/start")
+                .then()
+                .statusCode(HttpStatus.CREATED.value())
+                .body("walkSessionKey", equalTo("2ae853f8-ff73-48fc-b166-4b85daf9960c"))
+                .body("roomId", equalTo(10))
+                .body("initialBingoBoardId", equalTo(30))
+                .apply(document("walk-session-start",
+                        requestFields(
+                                fieldWithPath("roomId").description("Walk room ID"),
+                                fieldWithPath("bingoBoardId").description("Initial bingo board ID").optional()
+                        ),
+                        responseFields(
+                                fieldWithPath("walkSessionKey").description("Backend-issued walk session UUID"),
+                                fieldWithPath("roomId").description("Walk room ID"),
+                                fieldWithPath("roomName").description("Walk room name"),
+                                fieldWithPath("mode").description("Walk room game mode"),
+                                fieldWithPath("initialBingoBoardId").description("Initial bingo board ID").optional(),
+                                fieldWithPath("startedAt").description("UTC session start time"),
+                                fieldWithPath("expiresAt").description("UTC session expiration time")
+                        )
+                ));
+    }
+
+    @Test
+    @DisplayName("산책 세션이 새로 완료되면 201과 세션 요약을 반환한다")
     void completeWalkSessionReturnsCreatedSession() {
         // given
-        WalkSessionResponse response = summary();
-        willReturn(new CompletionResult(response, true))
+        willReturn(new CompletionResult(summary(), true))
                 .given(walkSessionCommandService)
                 .completeSession(eq(1L), any());
 
@@ -107,10 +152,7 @@ class WalkSessionControllerTest {
                 .contentType(ContentType.JSON)
                 .body("""
                         {
-                          "clientSessionKey": "2ae853f8-ff73-48fc-b166-4b85daf9960c",
-                          "roomId": 10,
-                          "bingoBoardId": 30,
-                          "startedAt": "2026-08-03T10:00:00+09:00",
+                          "walkSessionKey": "2ae853f8-ff73-48fc-b166-4b85daf9960c",
                           "endedAt": "2026-08-03T10:42:15+09:00",
                           "step": 4832,
                           "distance": 3382,
@@ -126,21 +168,18 @@ class WalkSessionControllerTest {
                 .body("achievedMissionCount", equalTo(1))
                 .apply(document("walk-session-complete",
                         requestFields(
-                                fieldWithPath("clientSessionKey").description("앱에서 산책 시작 시 생성한 UUID"),
-                                fieldWithPath("roomId").description("산책을 진행한 방 ID"),
-                                fieldWithPath("bingoBoardId").description("산책 시작 당시 빙고판 ID, 보드가 없으면 null").optional(),
-                                fieldWithPath("startedAt").description("오프셋을 포함한 산책 시작 시각"),
-                                fieldWithPath("endedAt").description("오프셋을 포함한 산책 종료 시각"),
-                                fieldWithPath("step").description("이번 산책 걸음 수"),
-                                fieldWithPath("distance").description("이번 산책 거리"),
-                                fieldWithPath("calories").description("이번 산책 소모 칼로리")
+                                fieldWithPath("walkSessionKey").description("Backend-issued walk session UUID"),
+                                fieldWithPath("endedAt").description("Walk end time with offset"),
+                                fieldWithPath("step").description("Step count for this walk"),
+                                fieldWithPath("distance").description("Distance for this walk"),
+                                fieldWithPath("calories").description("Calories for this walk")
                         ),
-                        summaryResponseFields()
+                        responseFields(summaryFields())
                 ));
     }
 
     @Test
-    @DisplayName("같은 산책 세션을 다시 완료하면 기존 세션을 200으로 반환한다")
+    @DisplayName("이미 완료된 산책 세션을 다시 완료하면 200과 기존 세션을 반환한다")
     void completeWalkSessionReturnsExistingSession() {
         // given
         willReturn(new CompletionResult(summary(), false))
@@ -152,10 +191,7 @@ class WalkSessionControllerTest {
                 .contentType(ContentType.JSON)
                 .body("""
                         {
-                          "clientSessionKey": "2ae853f8-ff73-48fc-b166-4b85daf9960c",
-                          "roomId": 10,
-                          "bingoBoardId": 30,
-                          "startedAt": "2026-08-03T10:00:00+09:00",
+                          "walkSessionKey": "2ae853f8-ff73-48fc-b166-4b85daf9960c",
                           "endedAt": "2026-08-03T10:42:15+09:00",
                           "step": 4832,
                           "distance": 3382,
@@ -170,15 +206,13 @@ class WalkSessionControllerTest {
     }
 
     @Test
-    @DisplayName("산책 세션 완료 요청의 UUID 형식이 잘못되면 400을 반환한다")
-    void completeWalkSessionRejectsInvalidClientSessionKey() {
+    @DisplayName("산책 세션 키 형식이 올바르지 않으면 완료 요청을 거부한다")
+    void completeWalkSessionRejectsInvalidWalkSessionKey() {
         given()
                 .contentType(ContentType.JSON)
                 .body("""
                         {
-                          "clientSessionKey": "invalid-key",
-                          "roomId": 10,
-                          "startedAt": "2026-08-03T10:00:00+09:00",
+                          "walkSessionKey": "invalid-key",
                           "endedAt": "2026-08-03T10:42:15+09:00",
                           "step": 4832,
                           "distance": 3382,
@@ -192,7 +226,7 @@ class WalkSessionControllerTest {
     }
 
     @Test
-    @DisplayName("내 산책 세션 목록을 최신 종료순 Slice로 반환한다")
+    @DisplayName("산책 세션 목록을 최신 종료순 Slice로 반환한다")
     void getWalkSessionsReturnsSlice() {
         // given
         willReturn(new SliceResponse<>(List.of(summary()), false))
@@ -207,35 +241,24 @@ class WalkSessionControllerTest {
                 .get("/walk-sessions")
                 .then()
                 .statusCode(HttpStatus.OK.value())
-                .body("content[0].roomName", equalTo("저녁 산책방"))
+                .body("content[0].roomName", equalTo("Daily Walk Room"))
                 .body("content[0].step", equalTo(4_832))
                 .body("hasNext", equalTo(false))
                 .apply(document("walk-session-list",
                         queryParameters(
-                                parameterWithName("roomId").description("조회할 산책방 ID, 생략하면 전체 방 조회").optional(),
-                                parameterWithName("page").description("페이지 번호"),
-                                parameterWithName("size").description("페이지 크기")
+                                parameterWithName("roomId").description("Optional room ID filter").optional(),
+                                parameterWithName("page").description("Page number"),
+                                parameterWithName("size").description("Page size")
                         ),
                         responseFields(
-                                fieldWithPath("content[].walkSessionId").description("산책 세션 ID"),
-                                fieldWithPath("content[].roomId").description("산책방 ID"),
-                                fieldWithPath("content[].roomName").description("조회 시점 산책방 이름"),
-                                fieldWithPath("content[].mode").description("산책방 게임 모드"),
-                                fieldWithPath("content[].startedAt").description("UTC 산책 시작 시각"),
-                                fieldWithPath("content[].endedAt").description("UTC 산책 종료 시각"),
-                                fieldWithPath("content[].durationSeconds").description("산책 지속 시간(초)"),
-                                fieldWithPath("content[].step").description("걸음 수"),
-                                fieldWithPath("content[].distance").description("거리"),
-                                fieldWithPath("content[].calories").description("소모 칼로리"),
-                                fieldWithPath("content[].initialBingoBoardId").description("시작 당시 빙고판 ID").optional(),
-                                fieldWithPath("content[].achievedMissionCount").description("이번 세션에서 승인된 미션 수"),
-                                fieldWithPath("hasNext").description("다음 Slice 존재 여부")
-                        )
+                                fieldWithPath("content[]").description("Walk sessions"),
+                                fieldWithPath("hasNext").description("Whether another slice exists")
+                        ).andWithPrefix("content[].", summaryFields())
                 ));
     }
 
     @Test
-    @DisplayName("방 ID를 지정하면 해당 방의 산책 세션 목록을 반환한다")
+    @DisplayName("방 ID로 산책 세션 목록을 필터링할 수 있다")
     void getWalkSessionsReturnsRoomSessions() {
         // given
         willReturn(new SliceResponse<>(List.of(summary()), false))
@@ -255,7 +278,7 @@ class WalkSessionControllerTest {
     }
 
     @Test
-    @DisplayName("산책 세션 상세에 빙고판과 세션 달성 셀을 반환한다")
+    @DisplayName("산책 세션 상세는 세션 요약과 빙고 달성 정보를 반환한다")
     void getWalkSessionReturnsDetail() {
         // given
         willReturn(detail()).given(walkSessionReadService).getWalkSession(1L, 50L);
@@ -269,55 +292,29 @@ class WalkSessionControllerTest {
                 .body("bingoBoards[0].cells[0].achievedInSession", equalTo(true))
                 .apply(document("walk-session-detail",
                         pathParameters(
-                                parameterWithName("walkSessionId").description("조회할 산책 세션 ID")
+                                parameterWithName("walkSessionId").description("Walk session ID")
                         ),
-                        responseFields(
-                                fieldWithPath("walkSessionId").description("산책 세션 ID"),
-                                fieldWithPath("roomId").description("산책방 ID"),
-                                fieldWithPath("roomName").description("조회 시점 산책방 이름"),
-                                fieldWithPath("mode").description("산책방 게임 모드"),
-                                fieldWithPath("startedAt").description("UTC 산책 시작 시각"),
-                                fieldWithPath("endedAt").description("UTC 산책 종료 시각"),
-                                fieldWithPath("durationSeconds").description("산책 지속 시간(초)"),
-                                fieldWithPath("step").description("걸음 수"),
-                                fieldWithPath("distance").description("거리"),
-                                fieldWithPath("calories").description("소모 칼로리"),
-                                fieldWithPath("initialBingoBoardId").description("시작 당시 빙고판 ID").optional(),
-                                fieldWithPath("achievedMissionCount").description("이번 세션에서 승인된 미션 수"),
-                                fieldWithPath("bingoBoards[].bingoBoardId").description("빙고판 ID"),
-                                fieldWithPath("bingoBoards[].gameId").description("게임 회차 ID"),
-                                fieldWithPath("bingoBoards[].boardType").description("공유 또는 개인 보드 유형"),
-                                fieldWithPath("bingoBoards[].boardSize").description("빙고판 한 변 크기"),
-                                fieldWithPath("bingoBoards[].targetBingoCount").description("대결 목표 빙고 수").optional(),
-                                fieldWithPath("bingoBoards[].targetStepCount").description("공유 보드 목표 걸음 수").optional(),
-                                fieldWithPath("bingoBoards[].status").description("빙고판 상태"),
-                                fieldWithPath("bingoBoards[].createdAt").description("빙고판 생성 시각").optional(),
-                                fieldWithPath("bingoBoards[].completedAt").description("빙고판 종료 시각").optional(),
-                                fieldWithPath("bingoBoards[].cells[].cellId").description("빙고 셀 ID"),
-                                fieldWithPath("bingoBoards[].cells[].row").description("행 위치"),
-                                fieldWithPath("bingoBoards[].cells[].col").description("열 위치"),
-                                fieldWithPath("bingoBoards[].cells[].mission.missionId").description("미션 ID"),
-                                fieldWithPath("bingoBoards[].cells[].mission.missionImageUrl").description("미션 이미지 URL"),
-                                fieldWithPath("bingoBoards[].cells[].mission.type").description("미션 타입"),
-                                fieldWithPath("bingoBoards[].cells[].mission.title").description("미션 제목"),
-                                fieldWithPath("bingoBoards[].cells[].mission.detail").description("미션 설명"),
-                                fieldWithPath("bingoBoards[].cells[].mission.decisionCondition").description("미션 판정 조건"),
-                                fieldWithPath("bingoBoards[].cells[].mission.point").description("미션 승인 보상 포인트"),
-                                fieldWithPath("bingoBoards[].cells[].mission.createdAt").description("미션 생성 시각").optional(),
-                                fieldWithPath("bingoBoards[].cells[].verificationStatus").description("현재 셀 검증 상태").optional(),
-                                fieldWithPath("bingoBoards[].cells[].submittedByMemberId").description("현재 셀 제출자 ID").optional(),
-                                fieldWithPath("bingoBoards[].cells[].rejectionReason").description("거절 사유").optional(),
-                                fieldWithPath("bingoBoards[].cells[].achievedInSession").description("이번 산책 세션 달성 여부"),
-                                fieldWithPath("bingoBoards[].cells[].achievedAt").description("이번 산책 세션 달성 시각").optional()
-                        )
+                        responseFields(detailFields())
                 ));
+    }
+
+    private WalkSessionStartResponse startResponse() {
+        return new WalkSessionStartResponse(
+                UUID.fromString("2ae853f8-ff73-48fc-b166-4b85daf9960c"),
+                10L,
+                "Daily Walk Room",
+                GameMode.COOPERATE,
+                30L,
+                Instant.parse("2026-08-03T01:00:00Z"),
+                Instant.parse("2026-08-04T01:00:00Z")
+        );
     }
 
     private WalkSessionResponse summary() {
         return new WalkSessionResponse(
                 50L,
                 10L,
-                "저녁 산책방",
+                "Daily Walk Room",
                 GameMode.COOPERATE,
                 Instant.parse("2026-08-03T01:00:00Z"),
                 Instant.parse("2026-08-03T01:42:15Z"),
@@ -335,8 +332,8 @@ class WalkSessionControllerTest {
                 100L,
                 "https://example.com/mission.png",
                 MissionType.OBJECT,
-                "파란 물건 찾기",
-                "파란 물건을 촬영하세요.",
+                "Find a blue object",
+                "Take a picture of a blue object.",
                 "{\"target\":\"blue\"}",
                 50L,
                 LocalDateTime.of(2026, 8, 1, 10, 0)
@@ -382,20 +379,50 @@ class WalkSessionControllerTest {
         );
     }
 
-    private org.springframework.restdocs.payload.ResponseFieldsSnippet summaryResponseFields() {
-        return responseFields(
-                fieldWithPath("walkSessionId").description("산책 세션 ID"),
-                fieldWithPath("roomId").description("산책방 ID"),
-                fieldWithPath("roomName").description("조회 시점 산책방 이름"),
-                fieldWithPath("mode").description("산책방 게임 모드"),
-                fieldWithPath("startedAt").description("UTC 산책 시작 시각"),
-                fieldWithPath("endedAt").description("UTC 산책 종료 시각"),
-                fieldWithPath("durationSeconds").description("산책 지속 시간(초)"),
-                fieldWithPath("step").description("걸음 수"),
-                fieldWithPath("distance").description("거리"),
-                fieldWithPath("calories").description("소모 칼로리"),
-                fieldWithPath("initialBingoBoardId").description("시작 당시 빙고판 ID").optional(),
-                fieldWithPath("achievedMissionCount").description("이번 세션에서 승인된 미션 수")
-        );
+    private FieldDescriptor[] summaryFields() {
+        return new FieldDescriptor[]{
+                fieldWithPath("walkSessionId").description("Walk session ID"),
+                fieldWithPath("roomId").description("Walk room ID"),
+                fieldWithPath("roomName").description("Walk room name"),
+                fieldWithPath("mode").description("Walk room game mode"),
+                fieldWithPath("startedAt").description("UTC walk start time"),
+                fieldWithPath("endedAt").description("UTC walk end time"),
+                fieldWithPath("durationSeconds").description("Walk duration in seconds"),
+                fieldWithPath("step").description("Step count"),
+                fieldWithPath("distance").description("Distance"),
+                fieldWithPath("calories").description("Calories"),
+                fieldWithPath("initialBingoBoardId").description("Initial bingo board ID").optional(),
+                fieldWithPath("achievedMissionCount").description("Approved missions achieved in this session")
+        };
+    }
+
+    private FieldDescriptor[] detailFields() {
+        List<FieldDescriptor> fields = new ArrayList<>(List.of(summaryFields()));
+        fields.add(fieldWithPath("bingoBoards[].bingoBoardId").description("Bingo board ID"));
+        fields.add(fieldWithPath("bingoBoards[].gameId").description("Game cycle ID"));
+        fields.add(fieldWithPath("bingoBoards[].boardType").description("Shared or personal board type"));
+        fields.add(fieldWithPath("bingoBoards[].boardSize").description("Bingo board size"));
+        fields.add(fieldWithPath("bingoBoards[].targetBingoCount").description("Target bingo count").optional());
+        fields.add(fieldWithPath("bingoBoards[].targetStepCount").description("Target step count").optional());
+        fields.add(fieldWithPath("bingoBoards[].status").description("Bingo board status"));
+        fields.add(fieldWithPath("bingoBoards[].createdAt").description("Bingo board creation time").optional());
+        fields.add(fieldWithPath("bingoBoards[].completedAt").description("Bingo board completion time").optional());
+        fields.add(fieldWithPath("bingoBoards[].cells[].cellId").description("Bingo cell ID"));
+        fields.add(fieldWithPath("bingoBoards[].cells[].row").description("Cell row"));
+        fields.add(fieldWithPath("bingoBoards[].cells[].col").description("Cell column"));
+        fields.add(fieldWithPath("bingoBoards[].cells[].mission.missionId").description("Mission ID"));
+        fields.add(fieldWithPath("bingoBoards[].cells[].mission.missionImageUrl").description("Mission image URL"));
+        fields.add(fieldWithPath("bingoBoards[].cells[].mission.type").description("Mission type"));
+        fields.add(fieldWithPath("bingoBoards[].cells[].mission.title").description("Mission title"));
+        fields.add(fieldWithPath("bingoBoards[].cells[].mission.detail").description("Mission detail"));
+        fields.add(fieldWithPath("bingoBoards[].cells[].mission.decisionCondition").description("Mission decision condition"));
+        fields.add(fieldWithPath("bingoBoards[].cells[].mission.point").description("Mission reward point"));
+        fields.add(fieldWithPath("bingoBoards[].cells[].mission.createdAt").description("Mission creation time").optional());
+        fields.add(fieldWithPath("bingoBoards[].cells[].verificationStatus").description("Current verification status").optional());
+        fields.add(fieldWithPath("bingoBoards[].cells[].submittedByMemberId").description("Submitting member ID").optional());
+        fields.add(fieldWithPath("bingoBoards[].cells[].rejectionReason").description("Rejection reason").optional());
+        fields.add(fieldWithPath("bingoBoards[].cells[].achievedInSession").description("Whether achieved in this session"));
+        fields.add(fieldWithPath("bingoBoards[].cells[].achievedAt").description("Achievement time in this session").optional());
+        return fields.toArray(FieldDescriptor[]::new);
     }
 }

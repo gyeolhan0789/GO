@@ -325,7 +325,7 @@ class BingoControllerTest {
         // when & then
         given()
                 .multiPart("image", "proof.png", new byte[]{1, 2, 3}, "image/png")
-                .formParam("clientSessionKey", clientSessionKey.toString())
+                .formParam("walkSessionKey", clientSessionKey.toString())
                 .when()
                 .post("/rooms/{roomId}/bingo-boards/cells/{cellId}/submit", 10L, 1000L)
                 .then()
@@ -345,7 +345,7 @@ class BingoControllerTest {
                                 partWithName("image").description("제출할 미션 인증 사진 (JPEG/PNG, 최대 5MB)")
                         ),
                         formParameters(
-                                parameterWithName("clientSessionKey")
+                                parameterWithName("walkSessionKey")
                                         .description("산책 세션 연결용 UUID, 산책 중이 아니면 생략")
                                         .optional()
                         ),
