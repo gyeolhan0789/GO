@@ -28,12 +28,18 @@ export type ActivityMetrics = {
  */
 const MIN_AVERAGE_SPEED_SAMPLE_MS = 60_000;
 
+/**
+ * 실제 dev DB에 등록된 형식(GET /admin/missions로 확인). 예:
+ * {"unit":"step","value":300,"metric":"steps","operator":">="}
+ * distance는 unit이 "meter"/"kilometer"로 섞여 있어 value만으로는 부족하다.
+ * STEADY_PACE(sampleIntervalSeconds/maxDeviationFromOverallAveragePercent)는
+ * 이 함수가 다루지 않는다 — 항상 false로 떨어진다.
+ */
 type DecisionCondition = {
-  steps?: number;
-  minutes?: number;
-  meters?: number;
-  kcal?: number;
-  kmh?: number;
+  metric?: string;
+  unit?: string;
+  value?: number;
+  operator?: string;
 };
 
 function parseDecisionCondition(decisionCondition: string | null): DecisionCondition {
@@ -48,14 +54,44 @@ function parseDecisionCondition(decisionCondition: string | null): DecisionCondi
   }
 }
 
+function hasThreshold(value: number | undefined): value is number {
+  return typeof value === 'number' && value > 0;
+}
+
+function compare(actual: number, operator: string | undefined, threshold: number): boolean {
+  switch (operator) {
+    case '>':
+      return actual > threshold;
+    case '<':
+      return actual < threshold;
+    case '<=':
+      return actual <= threshold;
+    case '==':
+    case '=':
+      return actual === threshold;
+    default:
+      return actual >= threshold;
+  }
+}
+
+/** distance 조건은 unit이 "kilometer"/"meter"로 섞여 있어 m로 정규화한다. */
+function toMeters(value: number, unit: string | undefined): number {
+  return unit === 'kilometer' ? value * 1000 : value;
+}
+
+function computeAverageSpeedKmh(metrics: ActivityMetrics): number {
+  const hours = metrics.activeElapsedMs / 3_600_000;
+  return metrics.distanceMeters / 1000 / hours;
+}
+
 /**
  * 사진 인증이 아닌 활동 기반 미션(mission.type)이 metrics 기준으로 통과 조건을
  * 채웠는지 판정한다. decisionCondition은 백엔드가 검증하지 않으므로(자체 판정을
  * 신뢰) 여기서 파싱한 값이 유일한 기준이다 — 조건이 없거나 형식이 잘못됐으면
  * 항상 false를 반환한다.
  *
- * 사진 계열 타입(OBJECT/ATTRIBUTE/RELATION/ORDINARY)은 이 함수의 대상이 아니며
- * 항상 false를 반환한다.
+ * 사진 계열 타입(OBJECT/ATTRIBUTE/RELATION/ORDINARY)과 STEADY_PACE는 이 함수의
+ * 대상이 아니며 항상 false를 반환한다.
  */
 export function isActivityMissionComplete(
   type: MissionType,
@@ -63,44 +99,32 @@ export function isActivityMissionComplete(
   metrics: ActivityMetrics,
 ): boolean {
   const condition = parseDecisionCondition(decisionCondition);
+  if (!hasThreshold(condition.value)) {
+    return false;
+  }
+  const { value, operator, unit } = condition;
 
   switch (type) {
     case 'STEP_TOTAL':
-      return hasThreshold(condition.steps) && metrics.totalSteps >= condition.steps;
+      return compare(metrics.totalSteps, operator, value);
     case 'STEP_CONTINUOUS':
-      return hasThreshold(condition.steps) && metrics.continuousSteps >= condition.steps;
+      return compare(metrics.continuousSteps, operator, value);
     case 'STEP_DAILY':
-      return hasThreshold(condition.steps) && metrics.dailySteps >= condition.steps;
+      return compare(metrics.dailySteps, operator, value);
     case 'WALKING_TIME_TOTAL':
-      return (
-        hasThreshold(condition.minutes) &&
-        metrics.activeElapsedMs >= condition.minutes * 60_000
-      );
+      return compare(metrics.activeElapsedMs, operator, value * 60_000);
     case 'WALKING_TIME_CONTINUOUS':
-      return (
-        hasThreshold(condition.minutes) &&
-        metrics.continuousActiveMs >= condition.minutes * 60_000
-      );
+      return compare(metrics.continuousActiveMs, operator, value * 60_000);
     case 'DISTANCE_TOTAL':
-      return hasThreshold(condition.meters) && metrics.distanceMeters >= condition.meters;
+      return compare(metrics.distanceMeters, operator, toMeters(value, unit));
     case 'CALORIES_TOTAL':
-      return hasThreshold(condition.kcal) && metrics.calories >= condition.kcal;
+      return compare(metrics.calories, operator, value);
     case 'AVERAGE_SPEED':
       return (
-        hasThreshold(condition.kmh) &&
         metrics.activeElapsedMs >= MIN_AVERAGE_SPEED_SAMPLE_MS &&
-        computeAverageSpeedKmh(metrics) >= condition.kmh
+        compare(computeAverageSpeedKmh(metrics), operator, value)
       );
     default:
       return false;
   }
-}
-
-function hasThreshold(value: number | undefined): value is number {
-  return typeof value === 'number' && value > 0;
-}
-
-function computeAverageSpeedKmh(metrics: ActivityMetrics): number {
-  const hours = metrics.activeElapsedMs / 3_600_000;
-  return metrics.distanceMeters / 1000 / hours;
 }
