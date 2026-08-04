@@ -144,6 +144,7 @@ class WalkSessionCommandServiceTest {
             return walkSession;
         });
         given(achievementRepository.saveAll(any())).willAnswer(invocation -> invocation.getArgument(0));
+        given(bingoStepGoalRewardCommandService.evaluate(1L, 10L)).willReturn(100L);
 
         // when
         WalkSessionCommandService.CompletionResult result =
@@ -154,6 +155,7 @@ class WalkSessionCommandServiceTest {
         assertThat(result.response().walkSessionId()).isEqualTo(50L);
         assertThat(result.response().activeDurationSeconds()).isEqualTo(2_400L);
         assertThat(result.response().achievedMissionCount()).isEqualTo(1);
+        assertThat(result.response().earnedPoint()).isEqualTo(100L);
         then(achievementRepository).should().saveAll(any());
         then(historyCommandService).should().addHistory(
                 1L,
@@ -212,6 +214,7 @@ class WalkSessionCommandServiceTest {
         // then
         assertThat(result.created()).isFalse();
         assertThat(result.response().achievedMissionCount()).isEqualTo(2);
+        assertThat(result.response().earnedPoint()).isZero();
         then(walkSessionRepository).should(never()).saveAndFlush(any());
         then(historyCommandService).shouldHaveNoInteractions();
         then(bingoStepGoalRewardCommandService).shouldHaveNoInteractions();
