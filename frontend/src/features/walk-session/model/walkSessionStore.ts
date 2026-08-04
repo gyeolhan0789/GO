@@ -231,17 +231,6 @@ export function getWalkSessionCalories() {
   return state.calories;
 }
 
-/** getWalkSessionElapsedSeconds와 같은 계산이지만 초 단위로 반올림하지
- * 않는다 — 활동 미션의 분 단위 문턱값 비교에 쓴다. */
-export function getWalkSessionActiveElapsedMs() {
-  if (state.startedAt === null) {
-    return 0;
-  }
-  const pausedTotalMs =
-    state.pausedMs + (state.pausedAt !== null ? Date.now() - state.pausedAt : 0);
-  return Math.max(0, Date.now() - state.startedAt - pausedTotalMs);
-}
-
 /** 마지막으로 끊기지 않고 이어지는 RUNNING 구간에서 걸은 걸음 수. 일시정지
  * 중이거나 세션이 없으면 0이다. */
 export function getWalkSessionContinuousSteps() {

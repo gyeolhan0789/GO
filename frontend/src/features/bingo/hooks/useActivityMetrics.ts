@@ -23,7 +23,7 @@ export function useActivityMetrics(): ActivityMetrics {
   return {
     totalSteps: walkSession.steps,
     continuousSteps: walkSession.continuousSteps,
-    activeElapsedMs: walkSession.activeElapsedMs,
+    activeElapsedMs: walkSession.elapsedMs,
     continuousActiveMs: walkSession.continuousActiveMs,
     distanceMeters: walkSession.distanceMeters,
     calories: walkSession.calories,
