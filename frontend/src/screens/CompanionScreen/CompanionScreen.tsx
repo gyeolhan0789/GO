@@ -264,7 +264,7 @@ export function CompanionScreen() {
             renderItem={({ item }) => (
               <FriendCard
                 friend={item}
-                onLongPress={() => handleDeleteFriend(item)}
+                onDelete={() => handleDeleteFriend(item)}
               />
             )}
             style={styles.list}
