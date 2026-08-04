@@ -41,7 +41,12 @@ pipeline {
                 dir('backend') {
                     sh '''
                     chmod +x gradlew
-                    export TESTCONTAINERS_HOST_OVERRIDE=$(ip route | awk '/^default/ {print $3; exit}')
+                    GATEWAY_HEX=$(awk '$2 == "00000000" {print $3; exit}' /proc/net/route)
+                    export TESTCONTAINERS_HOST_OVERRIDE=$(printf '%d.%d.%d.%d' \
+                      0x$(echo $GATEWAY_HEX | cut -c7-8) \
+                      0x$(echo $GATEWAY_HEX | cut -c5-6) \
+                      0x$(echo $GATEWAY_HEX | cut -c3-4) \
+                      0x$(echo $GATEWAY_HEX | cut -c1-2))
                     echo "TESTCONTAINERS_HOST_OVERRIDE=$TESTCONTAINERS_HOST_OVERRIDE"
                     ./gradlew test
                     '''
