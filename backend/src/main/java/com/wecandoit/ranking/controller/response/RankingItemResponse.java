@@ -1,6 +1,6 @@
 package com.wecandoit.ranking.controller.response;
 
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.member.domain.Gender;
 import java.util.List;
 
@@ -11,6 +11,6 @@ public record RankingItemResponse(
         long weeklySteps,
         Gender gender,
         String defaultImageUrl,
-        List<EquippedItemResponse> equippedItems
+        List<EquippedItemDto> equippedItems
 ) {
 }

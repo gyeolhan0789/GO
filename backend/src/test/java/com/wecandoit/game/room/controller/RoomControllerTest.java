@@ -40,7 +40,7 @@ import com.wecandoit.game.service.GameRequestReadService;
 import com.wecandoit.game.service.RoomCommandService;
 import com.wecandoit.game.service.RoomCreateFacade;
 import com.wecandoit.game.service.RoomReadService;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
 import io.restassured.http.ContentType;
@@ -834,8 +834,8 @@ class RoomControllerTest {
         );
     }
 
-    private EquippedItemResponse equippedItem() {
-        return new EquippedItemResponse(
+    private EquippedItemDto equippedItem() {
+        return new EquippedItemDto(
                 10L,
                 100L,
                 "빨간 모자",

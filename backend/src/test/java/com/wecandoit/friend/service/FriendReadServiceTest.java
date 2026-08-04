@@ -14,8 +14,8 @@ import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.friend.dto.FriendResponse;
 import com.wecandoit.history.repository.MemberHistoryRepository;
 import com.wecandoit.history.repository.WeeklyRankingSummary;
-import com.wecandoit.item.controller.response.AvatarResponse;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.AvatarDto;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
@@ -72,7 +72,7 @@ class FriendReadServiceTest {
                 weeklySteps(1L, 0),
                 weeklySteps(3L, 2_500)
         ));
-        EquippedItemResponse equippedItem = new EquippedItemResponse(
+        EquippedItemDto equippedItem = new EquippedItemDto(
                 10L,
                 100L,
                 "빨간 모자",
@@ -82,7 +82,7 @@ class FriendReadServiceTest {
         given(avatarReadService.getAvatars(List.of(smallerIdFriend, largerIdFriend)))
                 .willReturn(Map.of(
                         1L,
-                        new AvatarResponse(
+                        new AvatarDto(
                                 1L,
                                 "첫번째친구",
                                 Gender.FEMALE,
@@ -90,7 +90,7 @@ class FriendReadServiceTest {
                                 List.of(equippedItem)
                         ),
                         3L,
-                        new AvatarResponse(
+                        new AvatarDto(
                                 3L,
                                 "두번째친구",
                                 Gender.MALE,

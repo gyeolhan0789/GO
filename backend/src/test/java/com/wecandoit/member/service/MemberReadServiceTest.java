@@ -13,8 +13,8 @@ import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.friend.repository.FriendRepository;
 import com.wecandoit.friend.domain.FriendRequest;
 import com.wecandoit.friend.repository.FriendRequestRepository;
-import com.wecandoit.item.controller.response.AvatarResponse;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.AvatarDto;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
@@ -87,7 +87,7 @@ class MemberReadServiceTest {
                         FriendRequest.create(loginMember, sent),
                         FriendRequest.create(received, loginMember)
                 ));
-        EquippedItemResponse equippedItem = new EquippedItemResponse(
+        EquippedItemDto equippedItem = new EquippedItemDto(
                 10L,
                 100L,
                 "빨간 모자",
@@ -205,7 +205,7 @@ class MemberReadServiceTest {
         Member firstMember = member(1L, "첫 번째");
         Member secondMember = member(2L, "두 번째");
         List<Member> members = List.of(firstMember, secondMember);
-        Map<Long, AvatarResponse> avatars = Map.of(
+        Map<Long, AvatarDto> avatars = Map.of(
                 1L, avatar(firstMember, "https://example.com/male.png", List.of()),
                 2L, avatar(secondMember, "https://example.com/male.png", List.of())
         );
@@ -213,7 +213,7 @@ class MemberReadServiceTest {
         given(avatarReadService.getAvatars(members)).willReturn(avatars);
 
         // when
-        Map<Long, AvatarResponse> responses =
+        Map<Long, AvatarDto> responses =
                 memberReadService.getAvatarsByIds(List.of(1L, 2L));
 
         // then
@@ -286,12 +286,12 @@ class MemberReadServiceTest {
         return member;
     }
 
-    private AvatarResponse avatar(
+    private AvatarDto avatar(
             Member member,
             String defaultImageUrl,
-            List<EquippedItemResponse> equippedItems
+            List<EquippedItemDto> equippedItems
     ) {
-        return new AvatarResponse(
+        return new AvatarDto(
                 member.getId(),
                 member.getNickname(),
                 member.getGender(),

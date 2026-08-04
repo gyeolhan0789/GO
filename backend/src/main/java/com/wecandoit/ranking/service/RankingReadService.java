@@ -6,7 +6,7 @@ import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.PageResponse;
 import com.wecandoit.history.repository.MemberHistoryRepository;
 import com.wecandoit.history.repository.RankedWeeklyRankingSummary;
-import com.wecandoit.item.controller.response.AvatarResponse;
+import com.wecandoit.avatar.dto.AvatarDto;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.domain.Region;
 import com.wecandoit.member.repository.MemberRepository;
@@ -75,7 +75,7 @@ public class RankingReadService {
         if (rankingMemberIds.contains(memberId)) {
             rankingMembers.add(loginMember);
         }
-        Map<Long, AvatarResponse> avatarsByMemberId = avatarReadService.getAvatars(rankingMembers);
+        Map<Long, AvatarDto> avatarsByMemberId = avatarReadService.getAvatars(rankingMembers);
 
         return new RankingResponse(
                 region,
@@ -108,7 +108,7 @@ public class RankingReadService {
                 .map(RankedWeeklyRankingSummary::getMemberId)
                 .toList();
         List<Member> rankingMembers = memberRepository.findAllById(rankingMemberIds);
-        Map<Long, AvatarResponse> avatarsByMemberId = avatarReadService.getAvatars(rankingMembers);
+        Map<Long, AvatarDto> avatarsByMemberId = avatarReadService.getAvatars(rankingMembers);
 
         return new FriendRankingResponse(
                 myRanking.getRanking(),
@@ -124,9 +124,9 @@ public class RankingReadService {
 
     private static RankingItemResponse toRankingItemResponse(
             RankedWeeklyRankingSummary summary,
-            Map<Long, AvatarResponse> avatarsByMemberId
+            Map<Long, AvatarDto> avatarsByMemberId
     ) {
-        AvatarResponse avatar = avatarsByMemberId.get(summary.getMemberId());
+        AvatarDto avatar = avatarsByMemberId.get(summary.getMemberId());
         if (avatar == null) {
             throw new CustomException(ErrorCode.MEMBER_NOT_FOUND);
         }

@@ -20,7 +20,7 @@ import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.friend.dto.ReceivedFriendRequestResponse;
 import com.wecandoit.friend.dto.SendFriendRequest;
 import com.wecandoit.friend.dto.SentFriendRequestResponse;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
 import java.time.LocalDateTime;
@@ -104,7 +104,7 @@ class FriendRequestControllerTest {
                         createdAt,
                         Gender.MALE,
                         "https://example.com/male.png",
-                        List.of(new EquippedItemResponse(
+                        List.of(new EquippedItemDto(
                                 11L,
                                 101L,
                                 "파란 모자",

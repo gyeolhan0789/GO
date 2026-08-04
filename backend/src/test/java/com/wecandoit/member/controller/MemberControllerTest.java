@@ -16,7 +16,7 @@ import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Region;
@@ -121,7 +121,7 @@ class MemberControllerTest {
                                 MemberRelationshipStatus.FRIEND,
                                 Gender.FEMALE,
                                 "https://example.com/female.png",
-                                List.of(new EquippedItemResponse(
+                                List.of(new EquippedItemDto(
                                         10L,
                                         100L,
                                         "빨간 모자",

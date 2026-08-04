@@ -33,7 +33,7 @@ import com.wecandoit.game.controller.response.GameResultResponse;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.RoomStatus;
 import com.wecandoit.game.service.GameResultReadService;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.mission.controller.response.MissionResponse;
@@ -476,7 +476,7 @@ class GameResultControllerTest {
     }
 
     private List<GameResultParticipantResponse> participantResponses() {
-        EquippedItemResponse equippedItem = new EquippedItemResponse(
+        EquippedItemDto equippedItem = new EquippedItemDto(
                 10L,
                 100L,
                 "빨간 모자",

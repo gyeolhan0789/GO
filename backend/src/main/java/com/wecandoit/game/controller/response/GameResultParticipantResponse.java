@@ -1,7 +1,7 @@
 package com.wecandoit.game.controller.response;
 
 import com.wecandoit.game.domain.GameResultParticipant;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import java.util.List;
@@ -11,7 +11,7 @@ public record GameResultParticipantResponse(
         String nickname,
         Gender gender,
         String defaultImageUrl,
-        List<EquippedItemResponse> equippedItems,
+        List<EquippedItemDto> equippedItems,
         int completedMissionCount,
         long rewardPoint,
         Boolean result
@@ -21,7 +21,7 @@ public record GameResultParticipantResponse(
             GameResultParticipant participant,
             Member member,
             String defaultImageUrl,
-            List<EquippedItemResponse> equippedItems
+            List<EquippedItemDto> equippedItems
     ) {
         return new GameResultParticipantResponse(
                 member.getId(),

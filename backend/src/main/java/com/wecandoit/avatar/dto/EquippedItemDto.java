@@ -1,11 +1,11 @@
-package com.wecandoit.item.controller.response;
+package com.wecandoit.avatar.dto;
 
 import com.wecandoit.item.domain.Item;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.item.domain.MemberEquippedItem;
 import com.wecandoit.item.domain.MemberItem;
 
-public record EquippedItemResponse(
+public record EquippedItemDto(
         Long memberItemId,
         Long itemId,
         String name,
@@ -13,12 +13,12 @@ public record EquippedItemResponse(
         String imageUrl
 ) {
 
-    public static EquippedItemResponse of(
+    public static EquippedItemDto of(
             MemberEquippedItem equippedItem,
             MemberItem memberItem,
             Item item
     ) {
-        return new EquippedItemResponse(
+        return new EquippedItemDto(
                 memberItem.getId(),
                 item.getId(),
                 item.getName(),
