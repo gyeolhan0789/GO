@@ -21,7 +21,10 @@ import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.history.controller.request.WalkSessionCompleteRequest;
+import com.wecandoit.history.controller.request.WalkSessionStartRequest;
+import com.wecandoit.history.domain.ActiveWalkSession;
 import com.wecandoit.history.domain.WalkSession;
+import com.wecandoit.history.repository.ActiveWalkSessionRepository;
 import com.wecandoit.history.repository.WalkSessionBingoAchievementRepository;
 import com.wecandoit.history.repository.WalkSessionRepository;
 import com.wecandoit.member.domain.Member;
@@ -62,6 +65,8 @@ class WalkSessionCommandServiceTest {
     @Mock
     private BingoCellRepository bingoCellRepository;
     @Mock
+    private ActiveWalkSessionRepository activeWalkSessionRepository;
+    @Mock
     private WalkSessionRepository walkSessionRepository;
     @Mock
     private WalkSessionBingoAchievementRepository achievementRepository;
@@ -69,6 +74,56 @@ class WalkSessionCommandServiceTest {
     private HistoryCommandService historyCommandService;
     @InjectMocks
     private WalkSessionCommandService walkSessionCommandService;
+
+    @Test
+    @DisplayName("산책 세션을 시작하면 서버가 생성한 세션 키를 저장하고 반환한다")
+    void startSessionCreatesActiveSession() {
+        // given
+        WalkSessionStartRequest request = new WalkSessionStartRequest(10L, 30L);
+        Room room = room();
+        Game game = game();
+        BingoBoard board = board();
+        given(memberRepository.findByIdForUpdate(1L))
+                .willReturn(Optional.of(Member.create("a@a.com", "pw", "a", null, Gender.MALE)));
+        given(activeWalkSessionRepository.findByMemberIdForUpdate(1L)).willReturn(Optional.empty());
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(bingoBoardRepository.findAllById(any())).willReturn(List.of(board));
+        given(gameRepository.findAllById(any())).willReturn(List.of(game));
+        given(gameParticipantRepository.existsByGameIdAndMemberId(20L, 1L)).willReturn(true);
+        given(activeWalkSessionRepository.save(any(ActiveWalkSession.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        WalkSessionCommandService.StartResult result = walkSessionCommandService.startSession(1L, request);
+
+        // then
+        assertThat(result.created()).isTrue();
+        assertThat(result.response().walkSessionKey()).isNotNull();
+        assertThat(result.response().roomId()).isEqualTo(10L);
+        assertThat(result.response().initialBingoBoardId()).isEqualTo(30L);
+    }
+
+    @Test
+    @DisplayName("진행 중인 산책 세션이 있으면 새로 만들지 않고 기존 세션을 반환한다")
+    void startSessionReturnsExistingActiveSession() {
+        // given
+        WalkSessionStartRequest request = new WalkSessionStartRequest(10L, 30L);
+        ActiveWalkSession activeWalkSession = activeSession();
+        given(memberRepository.findByIdForUpdate(1L))
+                .willReturn(Optional.of(Member.create("a@a.com", "pw", "a", null, Gender.MALE)));
+        given(activeWalkSessionRepository.findByMemberIdForUpdate(1L))
+                .willReturn(Optional.of(activeWalkSession));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room()));
+
+        // when
+        WalkSessionCommandService.StartResult result = walkSessionCommandService.startSession(1L, request);
+
+        // then
+        assertThat(result.created()).isFalse();
+        assertThat(result.response().walkSessionKey()).isEqualTo(SESSION_KEY);
+        then(activeWalkSessionRepository).should(never()).save(any());
+    }
 
     @Test
     @DisplayName("산책 세션을 완료하면 승인된 내 빙고 성과와 일별 기록을 저장한다")
@@ -115,7 +170,7 @@ class WalkSessionCommandServiceTest {
                 10L,
                 SESSION_KEY.toString(),
                 30L,
-                request.startedAt().toInstant(),
+                OffsetDateTime.of(2026, 8, 3, 10, 0, 0, 0, ZoneOffset.ofHours(9)).toInstant(),
                 request.endedAt().toInstant(),
                 request.step(),
                 request.distance(),
@@ -151,6 +206,8 @@ class WalkSessionCommandServiceTest {
                 .willReturn(Optional.of(Member.create("a@a.com", "pw", "a", null, Gender.MALE)));
         given(walkSessionRepository.findByMemberIdAndClientSessionKey(1L, SESSION_KEY.toString()))
                 .willReturn(Optional.empty());
+        given(activeWalkSessionRepository.findByMemberIdAndWalkSessionKeyForUpdate(1L, SESSION_KEY.toString()))
+                .willReturn(Optional.of(activeSession()));
         given(roomRepository.findById(10L)).willReturn(Optional.of(room()));
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
         given(bingoCellRepository.findAllByMemberIdAndClientSessionKey(1L, SESSION_KEY.toString()))
@@ -162,6 +219,7 @@ class WalkSessionCommandServiceTest {
                 .extracting(exception -> ((CustomException) exception).getErrorCode())
                 .isEqualTo(ErrorCode.WALK_SESSION_BINGO_VERIFICATION_IN_PROGRESS);
         then(walkSessionRepository).should(never()).saveAndFlush(any());
+        then(activeWalkSessionRepository).should(never()).delete(any());
     }
 
     private void givenCompletionContext(
@@ -175,7 +233,9 @@ class WalkSessionCommandServiceTest {
                 .willReturn(Optional.of(Member.create("a@a.com", "pw", "a", null, Gender.MALE)));
         given(walkSessionRepository.findByMemberIdAndClientSessionKey(1L, SESSION_KEY.toString()))
                 .willReturn(Optional.empty());
-        given(roomRepository.findById(request.roomId())).willReturn(Optional.of(room));
+        given(activeWalkSessionRepository.findByMemberIdAndWalkSessionKeyForUpdate(1L, SESSION_KEY.toString()))
+                .willReturn(Optional.of(activeSession()));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
         given(roomMemberRepository.existsByRoomIdAndMemberId(request.roomId(), 1L)).willReturn(true);
         given(bingoCellRepository.findAllByMemberIdAndClientSessionKey(1L, SESSION_KEY.toString()))
                 .willReturn(cells);
@@ -187,9 +247,10 @@ class WalkSessionCommandServiceTest {
     private WalkSessionCompleteRequest request(Long bingoBoardId) {
         return new WalkSessionCompleteRequest(
                 SESSION_KEY,
+                null,
                 10L,
                 bingoBoardId,
-                OffsetDateTime.of(2026, 8, 3, 10, 0, 0, 0, ZoneOffset.ofHours(9)),
+                null,
                 OffsetDateTime.of(2026, 8, 3, 10, 42, 15, 0, ZoneOffset.ofHours(9)),
                 4_832,
                 3_382,
@@ -221,5 +282,16 @@ class WalkSessionCommandServiceTest {
         cell.submit(1L, "https://example.com/approved.png", SESSION_KEY.toString());
         cell.approve();
         return cell;
+    }
+
+    private ActiveWalkSession activeSession() {
+        return ActiveWalkSession.create(
+                1L,
+                10L,
+                SESSION_KEY.toString(),
+                30L,
+                OffsetDateTime.of(2026, 8, 3, 10, 0, 0, 0, ZoneOffset.ofHours(9)).toInstant(),
+                OffsetDateTime.now().plusDays(1).toInstant()
+        );
     }
 }

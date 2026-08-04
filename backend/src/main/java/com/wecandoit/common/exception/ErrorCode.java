@@ -61,6 +61,8 @@ public enum ErrorCode {
     WALK_SESSION_BINGO_VERIFICATION_IN_PROGRESS(HttpStatus.CONFLICT, "빙고 미션을 검증 중이라 산책을 종료할 수 없습니다."),
     WALK_SESSION_ALREADY_COMPLETED(HttpStatus.CONFLICT, "이미 완료된 산책 세션입니다."),
 
+    WALK_SESSION_EXPIRED(HttpStatus.CONFLICT, "만료된 산책 세션입니다."),
+
     // Mission
     INVALID_MISSION_TYPE(HttpStatus.BAD_REQUEST,
             "미션 타입은 OBJECT, ATTRIBUTE, RELATION, ORDINARY, STEP_TOTAL, STEP_CONTINUOUS, STEP_UPHILL, STEP_DAILY, "

@@ -26,12 +26,13 @@ import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.GameCycleCommandService;
+import com.wecandoit.history.domain.ActiveWalkSession;
+import com.wecandoit.history.repository.ActiveWalkSessionRepository;
 import com.wecandoit.history.repository.WalkSessionRepository;
-import com.wecandoit.member.domain.Member;
-import com.wecandoit.member.domain.Gender;
-import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.notification.event.NotificationMessageFactory;
 import com.wecandoit.notification.repository.NotificationRepository;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -66,7 +67,7 @@ class BingoCommandServiceTest {
     @Mock
     private BingoCellRepository bingoCellRepository;
     @Mock
-    private MemberRepository memberRepository;
+    private ActiveWalkSessionRepository activeWalkSessionRepository;
     @Mock
     private WalkSessionRepository walkSessionRepository;
     @Mock
@@ -82,94 +83,71 @@ class BingoCommandServiceTest {
     @InjectMocks
     private BingoCommandService bingoCommandService;
 
-    private MultipartFile image() {
-        return new MockMultipartFile("image", "proof.png", "image/png", new byte[]{1, 2, 3});
-    }
-
     @Test
-    @DisplayName("활성 공유 회차의 셀을 제출하면 제출자와 제출 시각을 기록한다")
+    @DisplayName("활성 빙고 셀을 제출하면 제출자와 제출 시각과 이미지 URL을 기록한다")
     void submitCellRecordsSubmission() {
+        // given
         Room room = room(10L);
         Game game = game(20L, LocalDateTime.now());
         BingoBoard board = board(30L, game.getId());
         BingoCell cell = BingoCell.create(board.getId(), 40L, 0, 0);
         ReflectionTestUtils.setField(cell, "id", 50L);
-        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(
-                10L,
-                GameStatus.ACTIVE
-        )).willReturn(Optional.of(game));
-        given(bingoBoardRepository.findActiveBoardForUpdate(game.getId(), BingoBoardStatus.inactiveStatuses()))
-                .willReturn(Optional.of(board));
-        given(bingoCellRepository.findByIdForUpdate(50L)).willReturn(Optional.of(cell));
+        givenSubmissionContext(room, game, board, cell);
         given(bingoCellRepository.save(cell)).willReturn(cell);
         given(imageUploadService.upload(any(MultipartFile.class), eq("bingo-cells"), anyString()))
                 .willReturn(STORED_SUBMIT_URL);
 
+        // when
         BingoCell result = bingoCommandService.submitCell(1L, 10L, 50L, image());
 
+        // then
         assertThat(result.getMemberId()).isEqualTo(1L);
         assertThat(result.getSubmittedAt()).isNotNull();
         assertThat(result.getSubmitUrl()).isEqualTo(STORED_SUBMIT_URL);
     }
 
     @Test
-    @DisplayName("산책 세션 키로 셀을 제출하면 셀에 세션 키를 기록한다")
+    @DisplayName("진행 중인 산책 세션 키로 셀을 제출하면 세션 키를 기록한다")
     void submitCellRecordsClientSessionKey() {
         // given
-        UUID clientSessionKey = UUID.fromString("2ae853f8-ff73-48fc-b166-4b85daf9960c");
+        UUID walkSessionKey = UUID.fromString("2ae853f8-ff73-48fc-b166-4b85daf9960c");
         Room room = room(10L);
         Game game = game(20L, LocalDateTime.now());
         BingoBoard board = board(30L, game.getId());
         BingoCell cell = BingoCell.create(board.getId(), 40L, 0, 0);
         ReflectionTestUtils.setField(cell, "id", 50L);
-        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.ACTIVE))
-                .willReturn(Optional.of(game));
-        given(bingoBoardRepository.findActiveBoardForUpdate(game.getId(), BingoBoardStatus.inactiveStatuses()))
-                .willReturn(Optional.of(board));
-        given(bingoCellRepository.findByIdForUpdate(50L)).willReturn(Optional.of(cell));
-        given(memberRepository.findByIdForUpdate(1L))
-                .willReturn(Optional.of(Member.create("member@test.com", "password", "산책자", null, Gender.MALE)));
-        given(walkSessionRepository.existsByMemberIdAndClientSessionKey(1L, clientSessionKey.toString()))
+        givenSubmissionContext(room, game, board, cell);
+        given(walkSessionRepository.existsByMemberIdAndClientSessionKey(1L, walkSessionKey.toString()))
                 .willReturn(false);
+        given(activeWalkSessionRepository.findByMemberIdAndWalkSessionKey(1L, walkSessionKey.toString()))
+                .willReturn(Optional.of(activeSession(walkSessionKey, 10L)));
         given(bingoCellRepository.save(cell)).willReturn(cell);
         given(imageUploadService.upload(any(MultipartFile.class), eq("bingo-cells"), anyString()))
                 .willReturn(STORED_SUBMIT_URL);
 
         // when
-        BingoCell result = bingoCommandService.submitCell(1L, 10L, 50L, image(), clientSessionKey);
+        BingoCell result = bingoCommandService.submitCell(1L, 10L, 50L, image(), walkSessionKey);
 
         // then
-        assertThat(result.getClientSessionKey()).isEqualTo(clientSessionKey.toString());
+        assertThat(result.getClientSessionKey()).isEqualTo(walkSessionKey.toString());
     }
 
     @Test
-    @DisplayName("완료된 산책 세션 키로 새 빙고 셀을 제출할 수 없다")
+    @DisplayName("완료된 산책 세션 키로 셀을 제출하면 거부한다")
     void submitCellRejectsCompletedSessionKey() {
         // given
-        UUID clientSessionKey = UUID.fromString("2ae853f8-ff73-48fc-b166-4b85daf9960c");
+        UUID walkSessionKey = UUID.fromString("2ae853f8-ff73-48fc-b166-4b85daf9960c");
         Room room = room(10L);
         Game game = game(20L, LocalDateTime.now());
         BingoBoard board = board(30L, game.getId());
         BingoCell cell = BingoCell.create(board.getId(), 40L, 0, 0);
         ReflectionTestUtils.setField(cell, "id", 50L);
-        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.ACTIVE))
-                .willReturn(Optional.of(game));
-        given(bingoBoardRepository.findActiveBoardForUpdate(game.getId(), BingoBoardStatus.inactiveStatuses()))
-                .willReturn(Optional.of(board));
-        given(bingoCellRepository.findByIdForUpdate(50L)).willReturn(Optional.of(cell));
-        given(memberRepository.findByIdForUpdate(1L))
-                .willReturn(Optional.of(Member.create("member@test.com", "password", "산책자", null, Gender.MALE)));
-        given(walkSessionRepository.existsByMemberIdAndClientSessionKey(1L, clientSessionKey.toString()))
+        givenSubmissionContext(room, game, board, cell);
+        given(walkSessionRepository.existsByMemberIdAndClientSessionKey(1L, walkSessionKey.toString()))
                 .willReturn(true);
 
         // when & then
-        assertThatThrownBy(() -> bingoCommandService.submitCell(1L, 10L, 50L, image(), clientSessionKey))
+        assertThatThrownBy(() -> bingoCommandService.submitCell(1L, 10L, 50L, image(), walkSessionKey))
                 .isInstanceOf(CustomException.class)
                 .extracting(exception -> ((CustomException) exception).getErrorCode())
                 .isEqualTo(ErrorCode.WALK_SESSION_ALREADY_COMPLETED);
@@ -177,8 +155,33 @@ class BingoCommandServiceTest {
     }
 
     @Test
-    @DisplayName("거절된 칸을 재제출하면 이전 인증 이미지가 삭제된다")
+    @DisplayName("다른 방의 산책 세션 키로 셀을 제출하면 거부한다")
+    void submitCellRejectsRoomMismatchSessionKey() {
+        // given
+        UUID walkSessionKey = UUID.fromString("2ae853f8-ff73-48fc-b166-4b85daf9960c");
+        Room room = room(10L);
+        Game game = game(20L, LocalDateTime.now());
+        BingoBoard board = board(30L, game.getId());
+        BingoCell cell = BingoCell.create(board.getId(), 40L, 0, 0);
+        ReflectionTestUtils.setField(cell, "id", 50L);
+        givenSubmissionContext(room, game, board, cell);
+        given(walkSessionRepository.existsByMemberIdAndClientSessionKey(1L, walkSessionKey.toString()))
+                .willReturn(false);
+        given(activeWalkSessionRepository.findByMemberIdAndWalkSessionKey(1L, walkSessionKey.toString()))
+                .willReturn(Optional.of(activeSession(walkSessionKey, 99L)));
+
+        // when & then
+        assertThatThrownBy(() -> bingoCommandService.submitCell(1L, 10L, 50L, image(), walkSessionKey))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.WALK_SESSION_ROOM_MISMATCH);
+        then(imageUploadService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("거절된 셀을 다시 제출하면 이전 이미지를 삭제한다")
     void submitCellDeletesPreviousImageOnResubmit() {
+        // given
         Room room = room(10L);
         Game game = game(20L, LocalDateTime.now());
         BingoBoard board = board(30L, game.getId());
@@ -186,51 +189,41 @@ class BingoCommandServiceTest {
         ReflectionTestUtils.setField(cell, "id", 50L);
         String previousSubmitUrl = "/uploads/test/bingo-cells/1000/previous.png";
         cell.submit(1L, previousSubmitUrl);
-        cell.reject("인증 이미지가 조건과 다릅니다.");
-        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
-        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(
-                10L,
-                GameStatus.ACTIVE
-        )).willReturn(Optional.of(game));
-        given(bingoBoardRepository.findActiveBoardForUpdate(game.getId(), BingoBoardStatus.inactiveStatuses()))
-                .willReturn(Optional.of(board));
-        given(bingoCellRepository.findByIdForUpdate(50L)).willReturn(Optional.of(cell));
+        cell.reject("Proof image does not match the condition.");
+        givenSubmissionContext(room, game, board, cell);
         given(bingoCellRepository.save(cell)).willReturn(cell);
         given(imageUploadService.upload(any(MultipartFile.class), eq("bingo-cells"), anyString()))
                 .willReturn(STORED_SUBMIT_URL);
 
+        // when
         bingoCommandService.submitCell(1L, 10L, 50L, image());
 
+        // then
         then(imageUploadService).should().delete(previousSubmitUrl);
     }
 
     @Test
-    @DisplayName("공유 회차 시작 후 7일이 지나면 새 제출을 거부한다")
+    @DisplayName("공유 사이클이 만료된 뒤 셀을 제출하면 거부한다")
     void submitCellRejectsExpiredSharedCycle() {
+        // given
         Room room = room(10L);
         Game game = game(20L, LocalDateTime.now().minusDays(8));
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
-        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(
-                10L,
-                GameStatus.ACTIVE
-        )).willReturn(Optional.of(game));
+        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.ACTIVE))
+                .willReturn(Optional.of(game));
 
-        assertThatThrownBy(() -> bingoCommandService.submitCell(
-                1L,
-                10L,
-                50L,
-                image()
-        ))
+        // when & then
+        assertThatThrownBy(() -> bingoCommandService.submitCell(1L, 10L, 50L, image()))
                 .isInstanceOf(CustomException.class)
                 .extracting(exception -> ((CustomException) exception).getErrorCode())
                 .isEqualTo(ErrorCode.BINGO_BOARD_RENEWAL_REQUIRED);
     }
 
     @Test
-    @DisplayName("빙고판 갱신 설정 세 값을 회차 서비스에 전달한다")
+    @DisplayName("빙고판 갱신 설정을 게임 사이클 서비스에 전달한다")
     void renewBoardDelegatesAllSettings() {
+        // given
         BingoBoardResponse expected = new BingoBoardResponse(
                 30L,
                 20L,
@@ -253,21 +246,39 @@ class BingoCommandServiceTest {
         given(gameCycleCommandService.renewSharedCycle(1L, 10L, 4, 12_000))
                 .willReturn(expected);
 
+        // when
         BingoBoardResponse result = bingoCommandService.renewBoard(1L, 10L, 4, 12_000);
 
+        // then
         assertThat(result).isSameAs(expected);
     }
 
     @Test
-    @DisplayName("대결 재대결 요청을 회차 서비스에 위임한다")
+    @DisplayName("재대결 요청을 게임 사이클 서비스에 위임한다")
     void rematchBattleDelegates() {
+        // when
         bingoCommandService.rematchBattle(1L, 10L);
 
+        // then
         then(gameCycleCommandService).should().rematchBattle(1L, 10L);
     }
 
+    private void givenSubmissionContext(Room room, Game game, BingoBoard board, BingoCell cell) {
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.ACTIVE))
+                .willReturn(Optional.of(game));
+        given(bingoBoardRepository.findActiveBoardForUpdate(game.getId(), BingoBoardStatus.inactiveStatuses()))
+                .willReturn(Optional.of(board));
+        given(bingoCellRepository.findByIdForUpdate(50L)).willReturn(Optional.of(cell));
+    }
+
+    private MultipartFile image() {
+        return new MockMultipartFile("image", "proof.png", "image/png", new byte[]{1, 2, 3});
+    }
+
     private Room room(Long roomId) {
-        Room room = Room.create(1L, "공유 방", GameMode.COOPERATE, 2, 10_000, 3);
+        Room room = Room.create(1L, "Shared Room", GameMode.COOPERATE, 2, 10_000, 3);
         ReflectionTestUtils.setField(room, "id", roomId);
         return room;
     }
@@ -283,5 +294,16 @@ class BingoCommandServiceTest {
         BingoBoard board = BingoBoard.create(gameId, 3, 10_000);
         ReflectionTestUtils.setField(board, "id", boardId);
         return board;
+    }
+
+    private ActiveWalkSession activeSession(UUID walkSessionKey, Long roomId) {
+        return ActiveWalkSession.create(
+                1L,
+                roomId,
+                walkSessionKey.toString(),
+                30L,
+                Instant.now().minus(Duration.ofMinutes(10)),
+                Instant.now().plus(Duration.ofHours(1))
+        );
     }
 }

@@ -21,11 +21,13 @@ import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.GameCycleCommandService;
+import com.wecandoit.history.domain.ActiveWalkSession;
+import com.wecandoit.history.repository.ActiveWalkSessionRepository;
 import com.wecandoit.history.repository.WalkSessionRepository;
-import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.notification.domain.NotificationType;
 import com.wecandoit.notification.event.NotificationMessageFactory;
 import com.wecandoit.notification.repository.NotificationRepository;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.UUID;
@@ -49,7 +51,7 @@ public class BingoCommandService {
     private final GameParticipantRepository gameParticipantRepository;
     private final BingoBoardRepository bingoBoardRepository;
     private final BingoCellRepository bingoCellRepository;
-    private final MemberRepository memberRepository;
+    private final ActiveWalkSessionRepository activeWalkSessionRepository;
     private final WalkSessionRepository walkSessionRepository;
     private final NotificationRepository notificationRepository;
     private final ImageUploadService imageUploadService;
@@ -83,7 +85,7 @@ public class BingoCommandService {
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND));
 
         validateCellSubmittable(cell);
-        validateSessionKeyAvailable(memberId, clientSessionKey);
+        validateSessionKeyAvailable(memberId, roomId, clientSessionKey);
         String previousSubmitUrl = cell.getSubmitUrl();
         String submitUrl = imageUploadService.upload(image, BINGO_CELL_IMAGE_DOMAIN, String.valueOf(cellId));
         cell.submit(memberId, submitUrl, clientSessionKey == null ? null : clientSessionKey.toString());
@@ -92,17 +94,24 @@ public class BingoCommandService {
         return savedCell;
     }
 
-    private void validateSessionKeyAvailable(Long memberId, UUID clientSessionKey) {
+    private void validateSessionKeyAvailable(Long memberId, Long roomId, UUID clientSessionKey) {
         if (clientSessionKey == null) {
             return;
         }
-        memberRepository.findByIdForUpdate(memberId)
-                .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
         if (walkSessionRepository.existsByMemberIdAndClientSessionKey(
                 memberId,
                 clientSessionKey.toString()
         )) {
             throw new CustomException(ErrorCode.WALK_SESSION_ALREADY_COMPLETED);
+        }
+        ActiveWalkSession activeWalkSession = activeWalkSessionRepository
+                .findByMemberIdAndWalkSessionKey(memberId, clientSessionKey.toString())
+                .orElseThrow(() -> new CustomException(ErrorCode.WALK_SESSION_NOT_FOUND));
+        if (!activeWalkSession.getRoomId().equals(roomId)) {
+            throw new CustomException(ErrorCode.WALK_SESSION_ROOM_MISMATCH);
+        }
+        if (activeWalkSession.isExpired(Instant.now())) {
+            throw new CustomException(ErrorCode.WALK_SESSION_EXPIRED);
         }
     }
 

@@ -3,10 +3,13 @@ package com.wecandoit.history.controller;
 import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.common.security.LoginMemberId;
 import com.wecandoit.history.controller.request.WalkSessionCompleteRequest;
+import com.wecandoit.history.controller.request.WalkSessionStartRequest;
 import com.wecandoit.history.controller.response.WalkSessionDetailResponse;
 import com.wecandoit.history.controller.response.WalkSessionResponse;
+import com.wecandoit.history.controller.response.WalkSessionStartResponse;
 import com.wecandoit.history.service.WalkSessionCommandService;
 import com.wecandoit.history.service.WalkSessionCommandService.CompletionResult;
+import com.wecandoit.history.service.WalkSessionCommandService.StartResult;
 import com.wecandoit.history.service.WalkSessionReadService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +31,16 @@ public class WalkSessionController {
 
     private final WalkSessionCommandService walkSessionCommandService;
     private final WalkSessionReadService walkSessionReadService;
+
+    @PostMapping("/start")
+    public ResponseEntity<WalkSessionStartResponse> startSession(
+            @LoginMemberId Long memberId,
+            @Valid @RequestBody WalkSessionStartRequest request
+    ) {
+        StartResult result = walkSessionCommandService.startSession(memberId, request);
+        HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
+        return ResponseEntity.status(status).body(result.response());
+    }
 
     @PostMapping
     public ResponseEntity<WalkSessionResponse> completeSession(
