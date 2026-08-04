@@ -57,12 +57,26 @@ services:
     mem_limit: 256m
     memswap_limit: 256m
 
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.3.0
+    container_name: wecandoit-docker-socket-proxy-prod
+    restart: always
+    environment:
+      CONTAINERS: 1
+      NETWORKS: 1
+      LOG_LEVEL: warning
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    mem_limit: 64m
+    memswap_limit: 64m
+
   alloy:
     image: grafana/alloy:v1.18.0
     container_name: wecandoit-alloy-prod
     restart: always
+    depends_on:
+      - docker-socket-proxy
     volumes:
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - ./alloy/config.prod.alloy:/etc/alloy/config.alloy:ro
       - alloy-prod-data:/var/lib/alloy/data
     command:

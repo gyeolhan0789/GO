@@ -21,6 +21,7 @@ pipeline {
 
     environment {
         COMPOSE_FILE = 'docker-compose.prod.yml'
+        MONITORING_COMPOSE_FILE = 'docker-compose.prod.yml'
         IMAGE_REPOSITORY = 'wecandoit-backend-prod'
         NGINX_IMAGE_REPOSITORY = 'wecandoit-nginx-prod'
         NGINX_CONTAINER = 'wecandoit-nginx-prod'
@@ -44,7 +45,7 @@ pipeline {
     }
 
     stages {
-        stage('Check Backend Changes') {
+        stage('Check Changes') {
             steps {
                 script {
                     def changedFiles = sh(
@@ -60,19 +61,26 @@ pipeline {
 
                     echo "Changed files:\n${changedFiles}"
 
-                    def hasBackendChanges = changedFiles
-                        .split('\\n')
-                        .any { it.startsWith('backend/') || it.startsWith('infra/') }
+                    def changedFileList = changedFiles.split('\\n')
 
-                    if (!hasBackendChanges) {
+                    env.HAS_BACKEND_CHANGES = changedFileList
+                        .any { (it.startsWith('backend/') || it.startsWith('infra/')) && !it.startsWith('infra/monitoring/') }
+                        .toString()
+
+                    env.HAS_MONITORING_CHANGES = changedFileList
+                        .any { it.startsWith('infra/monitoring/') }
+                        .toString()
+
+                    if (env.HAS_BACKEND_CHANGES != 'true' && env.HAS_MONITORING_CHANGES != 'true') {
                         currentBuild.result = 'NOT_BUILT'
-                        error('No backend changes. Skip backend production CD.')
+                        error('No backend or monitoring changes. Skip production CD.')
                     }
                 }
             }
         }
 
         stage('Preflight') {
+            when { expression { env.HAS_BACKEND_CHANGES == 'true' } }
             steps {
                 dir('backend') {
                     script {
@@ -229,6 +237,7 @@ pipeline {
         }
 
         stage('Build and Test') {
+            when { expression { env.HAS_BACKEND_CHANGES == 'true' } }
             steps {
                 dir('backend') {
                     sh '''
@@ -274,6 +283,7 @@ pipeline {
         }
 
         stage('Start Stable') {
+            when { expression { env.HAS_BACKEND_CHANGES == 'true' } }
             steps {
                 dir('backend') {
                     withCredentials([
@@ -312,6 +322,7 @@ pipeline {
         }
 
         stage('Start Nginx') {
+            when { expression { env.HAS_BACKEND_CHANGES == 'true' } }
             steps {
                 dir('backend') {
                     withCredentials([
@@ -351,6 +362,7 @@ pipeline {
         }
 
         stage('Deploy Canary') {
+            when { expression { env.HAS_BACKEND_CHANGES == 'true' } }
             steps {
                 dir('backend') {
                     withCredentials([
@@ -386,7 +398,10 @@ pipeline {
 
         stage('Complete Temporary Validation') {
             when {
-                expression { params.DEPLOYMENT_MODE == 'validation' }
+                allOf {
+                    expression { params.DEPLOYMENT_MODE == 'validation' }
+                    expression { env.HAS_BACKEND_CHANGES == 'true' }
+                }
             }
             steps {
                 dir('backend') {
@@ -411,7 +426,10 @@ pipeline {
 
         stage('Prepare Stable Routing and Rollback') {
             when {
-                expression { params.DEPLOYMENT_MODE == 'production' }
+                allOf {
+                    expression { params.DEPLOYMENT_MODE == 'production' }
+                    expression { env.HAS_BACKEND_CHANGES == 'true' }
+                }
             }
             steps {
                 dir('backend') {
@@ -426,7 +444,10 @@ pipeline {
 
         stage('Route Canary 10%') {
             when {
-                expression { params.DEPLOYMENT_MODE == 'production' }
+                allOf {
+                    expression { params.DEPLOYMENT_MODE == 'production' }
+                    expression { env.HAS_BACKEND_CHANGES == 'true' }
+                }
             }
             steps {
                 script {
@@ -450,7 +471,10 @@ pipeline {
 
         stage('Check Canary Monitoring') {
             when {
-                expression { params.DEPLOYMENT_MODE == 'production' }
+                allOf {
+                    expression { params.DEPLOYMENT_MODE == 'production' }
+                    expression { env.HAS_BACKEND_CHANGES == 'true' }
+                }
             }
             steps {
                 dir('backend') {
@@ -505,7 +529,10 @@ pipeline {
 
         stage('Approve Canary 100%') {
             when {
-                expression { params.DEPLOYMENT_MODE == 'production' }
+                allOf {
+                    expression { params.DEPLOYMENT_MODE == 'production' }
+                    expression { env.HAS_BACKEND_CHANGES == 'true' }
+                }
             }
             options {
                 timeout(time: 30, unit: 'MINUTES')
@@ -520,7 +547,10 @@ pipeline {
 
         stage('Route Canary 100%') {
             when {
-                expression { params.DEPLOYMENT_MODE == 'production' }
+                allOf {
+                    expression { params.DEPLOYMENT_MODE == 'production' }
+                    expression { env.HAS_BACKEND_CHANGES == 'true' }
+                }
             }
             steps {
                 dir('backend') {
@@ -538,7 +568,10 @@ pipeline {
 
         stage('Approve Stable Promotion') {
             when {
-                expression { params.DEPLOYMENT_MODE == 'production' }
+                allOf {
+                    expression { params.DEPLOYMENT_MODE == 'production' }
+                    expression { env.HAS_BACKEND_CHANGES == 'true' }
+                }
             }
             options {
                 timeout(time: 30, unit: 'MINUTES')
@@ -553,7 +586,10 @@ pipeline {
 
         stage('Promote Stable') {
             when {
-                expression { params.DEPLOYMENT_MODE == 'production' }
+                allOf {
+                    expression { params.DEPLOYMENT_MODE == 'production' }
+                    expression { env.HAS_BACKEND_CHANGES == 'true' }
+                }
             }
             steps {
                 script {
@@ -597,6 +633,39 @@ pipeline {
                 }
                 script {
                     env.DEPLOYMENT_PHASE = 'completed'
+                }
+            }
+        }
+
+        stage('Deploy Monitoring') {
+            when {
+                allOf {
+                    expression { params.DEPLOYMENT_MODE == 'production' }
+                    expression { env.HAS_MONITORING_CHANGES == 'true' }
+                }
+            }
+            steps {
+                dir('infra/monitoring') {
+                    sh '''
+                    set -eu
+                    docker compose -f "$MONITORING_COMPOSE_FILE" up -d
+
+                    TOTAL=$(docker compose -f "$MONITORING_COMPOSE_FILE" config --services | wc -l)
+                    for i in $(seq 1 12); do
+                      RUNNING=$(docker compose -f "$MONITORING_COMPOSE_FILE" ps --status running -q | wc -l)
+                      echo "Monitoring health check attempt $i/12: $RUNNING/$TOTAL services running"
+
+                      if [ "$RUNNING" = "$TOTAL" ]; then
+                        exit 0
+                      fi
+
+                      sleep 5
+                    done
+
+                    echo "Monitoring stack did not become healthy" >&2
+                    docker compose -f "$MONITORING_COMPOSE_FILE" ps
+                    exit 1
+                    '''
                 }
             }
         }
