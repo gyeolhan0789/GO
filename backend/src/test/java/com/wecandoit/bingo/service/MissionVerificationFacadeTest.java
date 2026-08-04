@@ -117,7 +117,7 @@ class MissionVerificationFacadeTest {
         );
         assertThat(reasonCaptor.getValue())
                 .isNotEqualTo(AI_REASON)
-                .isEqualTo("AI 검증 신뢰도가 기준(0.7)에 미달했습니다.");
+                .isEqualTo("제출한 사진으로는 미션 완료를 확인할 수 없어요. 사진을 다시 확인하고 재시도해 주세요.");
     }
 
     @Test
