@@ -1,0 +1,174 @@
+// STOMP 1.2 프레임 코덱. 소켓도 타이머도 모르는 순수 함수만 둔다 —
+// 연결 수명은 shared/api/stompClient가 맡는다.
+//
+// 라이브러리(@stomp/stompjs)를 쓰지 않는 이유: RN 0.86에는 TextEncoder 전역이
+// 없어 폴리필이 더 필요해질 수 있고, 우리가 쓰는 건 구독뿐이라 표면이 작다.
+
+/** 프레임의 끝. 본문 뒤에 이 한 바이트가 붙는다. */
+const NULL = '\0';
+
+/** 하트비트는 프레임이 아니라 개행 한 글자로 온다. */
+export const HEARTBEAT_FRAME = '\n';
+
+export type StompFrame = {
+  command: string;
+  headers: Record<string, string>;
+  body: string;
+};
+
+/**
+ * CONNECT와 CONNECTED만 헤더 이스케이프에서 빠진다. STOMP 1.0에는 이스케이프가
+ * 없었고, 두 프레임은 버전을 합의하기 *전에* 오가서 규칙을 정할 수가 없다.
+ */
+function isEscapeExempt(command: string): boolean {
+  return command === 'CONNECT' || command === 'CONNECTED';
+}
+
+/** 역슬래시를 먼저 바꿔야 뒤에 새로 생긴 역슬래시를 다시 건드리지 않는다. */
+function escapeHeaderValue(value: string): string {
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/\r/g, '\\r')
+    .replace(/\n/g, '\\n')
+    .replace(/:/g, '\\c');
+}
+
+function unescapeHeaderValue(value: string): string {
+  return value.replace(/\\(.)/g, (match, escaped: string) => {
+    switch (escaped) {
+      case 'r':
+        return '\r';
+      case 'n':
+        return '\n';
+      case 'c':
+        return ':';
+      case '\\':
+        return '\\';
+      default:
+        // 규약에 없는 조합. 끊어버리는 것보다 원문을 그대로 두는 편이 낫다.
+        return match;
+    }
+  });
+}
+
+export function encodeFrame(frame: StompFrame): string {
+  const exempt = isEscapeExempt(frame.command);
+  const headerLines = Object.entries(frame.headers).map(([name, value]) => {
+    return exempt
+      ? `${name}:${value}`
+      : `${escapeHeaderValue(name)}:${escapeHeaderValue(value)}`;
+  });
+
+  return `${[frame.command, ...headerLines].join('\n')}\n\n${frame.body}${NULL}`;
+}
+
+type DecodeResult = {
+  frames: StompFrame[];
+  /** 아직 NULL을 못 만난 나머지. 다음 청크 앞에 이어 붙인다. */
+  rest: string;
+};
+
+/**
+ * 버퍼에서 완성된 프레임만 꺼낸다.
+ *
+ * 소켓은 프레임 경계를 지켜 주지 않는다 — 한 청크에 여러 프레임이 올 수도,
+ * 한 프레임이 여러 청크로 쪼개져 올 수도 있다. 그래서 호출부가 rest를 들고
+ * 있다가 다음 청크 앞에 붙여 다시 부른다.
+ *
+ * content-length는 읽지 않고 NULL로 끊는다. 그 값은 바이트 수인데 JS 문자열은
+ * UTF-16 단위라 한글이 섞이면 어긋난다.
+ */
+export function decodeFrames(buffer: string): DecodeResult {
+  const frames: StompFrame[] = [];
+  let rest = buffer;
+
+  for (;;) {
+    // 프레임 사이의 하트비트(개행)를 먼저 걷어낸다.
+    rest = rest.replace(/^(\r?\n)+/, '');
+
+    const end = rest.indexOf(NULL);
+    if (end === -1) {
+      return { frames, rest };
+    }
+
+    const raw = rest.slice(0, end);
+    rest = rest.slice(end + 1);
+
+    const frame = parseFrame(raw);
+    if (frame !== null) {
+      frames.push(frame);
+    }
+  }
+}
+
+function parseFrame(raw: string): StompFrame | null {
+  const separator = raw.search(/\r?\n\r?\n/);
+  // 헤더와 본문을 가르는 빈 줄이 없으면 프레임이 아니다.
+  if (separator === -1) {
+    return null;
+  }
+
+  const head = raw.slice(0, separator);
+  const body = raw.slice(separator).replace(/^\r?\n\r?\n/, '');
+
+  const [command, ...headerLines] = head.split(/\r?\n/);
+  if (!command) {
+    return null;
+  }
+
+  const exempt = isEscapeExempt(command);
+  const headers: Record<string, string> = {};
+
+  headerLines.forEach(line => {
+    const colon = line.indexOf(':');
+    if (colon === -1) {
+      return;
+    }
+
+    const name = line.slice(0, colon);
+    const value = line.slice(colon + 1);
+    const key = exempt ? name : unescapeHeaderValue(name);
+
+    // 같은 헤더가 여러 번 오면 맨 앞이 이긴다(STOMP 1.2).
+    if (!(key in headers)) {
+      headers[key] = exempt ? value : unescapeHeaderValue(value);
+    }
+  });
+
+  return { command, headers, body };
+}
+
+/**
+ * 'heart-beat: 보낼 수 있는 최소 간격, 받고 싶은 간격'을 [보내기, 받기]로 읽는다.
+ * 헤더가 없으면 양쪽 다 0(하트비트 없음)이다.
+ */
+export function parseHeartBeat(header: string | undefined): [number, number] {
+  if (header === undefined) {
+    return [0, 0];
+  }
+
+  const [send, receive] = header.split(',').map(part => Number(part.trim()));
+
+  return [
+    Number.isFinite(send) ? send : 0,
+    Number.isFinite(receive) ? receive : 0,
+  ];
+}
+
+/**
+ * 내가 보낼 간격과 받기를 기대할 간격. 한쪽이 0이면 그 방향은 끈다 —
+ * 0은 "못 한다"는 뜻이라 상대가 못 하겠다면 강요할 수 없다.
+ */
+export function negotiateHeartBeat(
+  mine: [number, number],
+  theirs: [number, number],
+): { sendEvery: number; expectEvery: number } {
+  const [mySend, myReceive] = mine;
+  const [theirSend, theirReceive] = theirs;
+
+  return {
+    sendEvery: mySend === 0 || theirReceive === 0 ? 0 : Math.max(mySend, theirReceive),
+    expectEvery:
+      myReceive === 0 || theirSend === 0 ? 0 : Math.max(myReceive, theirSend),
+  };
+}
