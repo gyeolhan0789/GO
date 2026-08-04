@@ -1,6 +1,7 @@
 package com.wecandoit.bingo.service;
 
 import com.wecandoit.bingo.controller.response.BingoBoardResponse;
+import com.wecandoit.bingo.controller.response.BingoCellSubmitResponse;
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.domain.BingoBoardStatus;
 import com.wecandoit.bingo.domain.BingoCell;
@@ -21,14 +22,22 @@ import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.GameCycleCommandService;
+import com.wecandoit.history.domain.ActiveWalkSession;
+import com.wecandoit.history.repository.ActiveWalkSessionRepository;
+import com.wecandoit.history.repository.WalkSessionRepository;
+import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.repository.MissionRepository;
 import com.wecandoit.notification.domain.NotificationType;
 import com.wecandoit.notification.event.NotificationMessageFactory;
 import com.wecandoit.notification.repository.NotificationRepository;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -46,6 +55,10 @@ public class BingoCommandService {
     private final GameParticipantRepository gameParticipantRepository;
     private final BingoBoardRepository bingoBoardRepository;
     private final BingoCellRepository bingoCellRepository;
+    private final ActiveWalkSessionRepository activeWalkSessionRepository;
+    private final WalkSessionRepository walkSessionRepository;
+    private final MissionRepository missionRepository;
+    private final BingoCellVerificationResultService verificationResultService;
     private final NotificationRepository notificationRepository;
     private final ImageUploadService imageUploadService;
     private final GameCycleCommandService gameCycleCommandService;
@@ -56,6 +69,16 @@ public class BingoCommandService {
      * 파일시스템은 트랜잭션에 참여하지 않으므로, 모든 제출 검증을 통과한 뒤에만 이미지를 저장해 고아 파일이 남지 않게 한다.
      */
     public BingoCell submitCell(Long memberId, Long roomId, Long cellId, MultipartFile image) {
+        return submitCell(memberId, roomId, cellId, image, null);
+    }
+
+    public BingoCell submitCell(
+            Long memberId,
+            Long roomId,
+            Long cellId,
+            MultipartFile image,
+            UUID clientSessionKey
+    ) {
         Room room = roomRepository.findByIdForUpdate(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
         validateMember(memberId, roomId);
@@ -68,12 +91,83 @@ public class BingoCommandService {
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND));
 
         validateCellSubmittable(cell);
+        validateSessionKeyAvailable(memberId, roomId, clientSessionKey);
         String previousSubmitUrl = cell.getSubmitUrl();
         String submitUrl = imageUploadService.upload(image, BINGO_CELL_IMAGE_DOMAIN, String.valueOf(cellId));
-        cell.submit(memberId, submitUrl);
+        cell.submit(memberId, submitUrl, clientSessionKey == null ? null : clientSessionKey.toString());
         BingoCell savedCell = bingoCellRepository.save(cell);
         imageUploadService.delete(previousSubmitUrl);
         return savedCell;
+    }
+
+    private void validateSessionKeyAvailable(Long memberId, Long roomId, UUID clientSessionKey) {
+        if (clientSessionKey == null) {
+            return;
+        }
+        if (walkSessionRepository.existsByMemberIdAndClientSessionKey(
+                memberId,
+                clientSessionKey.toString()
+        )) {
+            throw new CustomException(ErrorCode.WALK_SESSION_ALREADY_COMPLETED);
+        }
+        ActiveWalkSession activeWalkSession = activeWalkSessionRepository
+                .findByMemberIdAndWalkSessionKey(memberId, clientSessionKey.toString())
+                .orElseThrow(() -> new CustomException(ErrorCode.WALK_SESSION_NOT_FOUND));
+        if (!activeWalkSession.getRoomId().equals(roomId)) {
+            throw new CustomException(ErrorCode.WALK_SESSION_ROOM_MISMATCH);
+        }
+        if (activeWalkSession.isExpired(Instant.now())) {
+            throw new CustomException(ErrorCode.WALK_SESSION_EXPIRED);
+        }
+    }
+
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public BingoCellSubmitResponse completeCell(Long memberId, Long roomId, Long cellId) {
+        if (!roomRepository.existsById(roomId)) {
+            throw new CustomException(ErrorCode.ROOM_NOT_FOUND);
+        }
+        validateMember(memberId, roomId);
+
+        // 교착을 피하려고 applyResult와 같은 Cell → Game → Room 순서로 잠금을 잡는다.
+        // 상태 가드가 1차 캐시의 stale 값을 보지 않도록 엔티티는 findByIdForUpdate로만 적재한다.
+        BingoCell cell = bingoCellRepository.findByIdForUpdate(cellId)
+                .orElseThrow(() -> new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND));
+        BingoBoard board = bingoBoardRepository.findById(cell.getBoardId())
+                .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
+
+        // 다른 방의 cellId로 Game/Room 행 잠금을 잡지 않도록 roomId 스칼라 조회로 소유권을 먼저 검증한다.
+        Long cellRoomId = gameRepository.findRoomIdById(board.getGameId())
+                .orElseThrow(() -> new CustomException(ErrorCode.GAME_NOT_FOUND));
+        if (!cellRoomId.equals(roomId)) {
+            throw new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND);
+        }
+
+        Game game = gameRepository.findByIdForUpdate(board.getGameId())
+                .orElseThrow(() -> new CustomException(ErrorCode.GAME_NOT_FOUND));
+        Room room = roomRepository.findByIdForUpdate(game.getRoomId())
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
+
+        validateRoomActive(room);
+        validateGameActive(game);
+        validateGameCycleOpen(room, game);
+
+        BingoBoard activeBoard = findActiveBoardForUpdate(room, game.getId(), memberId);
+        if (!activeBoard.getId().equals(cell.getBoardId())) {
+            throw new CustomException(ErrorCode.BINGO_CELL_NOT_FOUND);
+        }
+
+        Mission mission = missionRepository.findById(cell.getMissionId())
+                .orElseThrow(() -> new CustomException(ErrorCode.MISSION_NOT_FOUND));
+        validateActivityMission(mission);
+        validateCellSubmittable(cell);
+
+        cell.submitWithoutImage(memberId);
+        bingoCellRepository.save(cell);
+
+        long rewardPoint = verificationResultService.applyResult(
+                cellId, true, null, mission.getDifficulty());
+
+        return BingoCellSubmitResponse.of(cell, mission, rewardPoint);
     }
 
     public BingoBoardResponse renewBoard(
@@ -121,6 +215,18 @@ public class BingoCommandService {
     private void validateRoomActive(Room room) {
         if (room.getStatus() != RoomStatus.ACTIVE) {
             throw new CustomException(ErrorCode.ROOM_CLOSED);
+        }
+    }
+
+    private void validateActivityMission(Mission mission) {
+        if (mission.getType().isPhotoVerified()) {
+            throw new CustomException(ErrorCode.BINGO_CELL_PHOTO_MISSION_NOT_COMPLETABLE);
+        }
+    }
+
+    private void validateGameActive(Game game) {
+        if (game.getStatus() != GameStatus.ACTIVE) {
+            throw new CustomException(ErrorCode.ROOM_NOT_IN_PROGRESS);
         }
     }
 

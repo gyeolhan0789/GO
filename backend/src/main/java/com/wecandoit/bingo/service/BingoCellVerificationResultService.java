@@ -24,11 +24,12 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
+@Transactional(isolation = Isolation.READ_COMMITTED)
 public class BingoCellVerificationResultService {
 
     private final BingoCellRepository bingoCellRepository;

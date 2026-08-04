@@ -28,6 +28,10 @@ type WalkSessionState = {
   steps: number;
   distanceMeters: number;
   calories: number;
+  /** 워치에서 "산책 종료"를 눌렀을 때 선다. 기록 저장·결과 화면 이동은
+   * WalkSessionScreen만 할 수 있어서(저장할 수치와 방 정보를 그 화면이
+   * 들고 있다), 여기서는 요청만 남기고 화면이 마운트되면 이어받는다. */
+  endRequested: boolean;
 };
 
 const IDLE_STATE: WalkSessionState = {
@@ -38,6 +42,7 @@ const IDLE_STATE: WalkSessionState = {
   steps: 0,
   distanceMeters: 0,
   calories: 0,
+  endRequested: false,
 };
 
 let state: WalkSessionState = { ...IDLE_STATE };
@@ -69,6 +74,10 @@ function applySnapshot(snapshot: WalkSessionSnapshot) {
     steps: snapshot.steps,
     distanceMeters: snapshot.distanceMeters,
     calories: snapshot.calories,
+    // 네이티브 스냅샷에는 없는 값이라 그대로 이어간다. 워치가 종료를 눌러둔
+    // 사이에 스냅샷이 와도 요청이 사라지면 안 된다(세션이 IDLE이 되면 위에서
+    // IDLE_STATE로 초기화되면서 자연히 내려간다).
+    endRequested: state.endRequested,
   };
   notify();
 }
@@ -106,6 +115,28 @@ export function confirmWalkSessionStart(gender: Gender | null) {
   startWalkTrackingSession(roomId, gender)
     .then(applySnapshot)
     .catch(() => {});
+}
+
+/** 워치의 "산책 종료"가 도착했을 때. 실제 종료는 WalkSessionScreen이 한다. */
+export function requestWalkSessionEnd() {
+  if (state.roomId === null || state.endRequested) {
+    return;
+  }
+  state = { ...state, endRequested: true };
+  notify();
+}
+
+export function isWalkSessionEndRequested() {
+  return state.endRequested;
+}
+
+/** 종료 흐름을 시작한 화면이 요청을 소비한다(같은 요청을 두 번 타지 않게). */
+export function clearWalkSessionEndRequest() {
+  if (!state.endRequested) {
+    return;
+  }
+  state = { ...state, endRequested: false };
+  notify();
 }
 
 export function togglePauseWalkSession() {
@@ -152,16 +183,21 @@ export function isWalkSessionPaused() {
   return state.pausedAt !== null;
 }
 
-export function getWalkSessionElapsedSeconds() {
+/**
+ * 내림하지 않은 경과 밀리초. 워치로 보낼 때 쓴다 — 초로 넘기면 폰이 내림한 값에
+ * 워치가 자기 경과분을 또 내림해 더해서, 두 화면이 1초쯤 어긋난다.
+ */
+export function getWalkSessionElapsedMs() {
   if (state.startedAt === null) {
     return 0;
   }
   const pausedTotalMs =
     state.pausedMs + (state.pausedAt !== null ? Date.now() - state.pausedAt : 0);
-  return Math.max(
-    0,
-    Math.floor((Date.now() - state.startedAt - pausedTotalMs) / 1000),
-  );
+  return Math.max(0, Date.now() - state.startedAt - pausedTotalMs);
+}
+
+export function getWalkSessionElapsedSeconds() {
+  return Math.floor(getWalkSessionElapsedMs() / 1000);
 }
 
 export function getWalkSessionSteps() {

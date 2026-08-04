@@ -2,6 +2,7 @@ package com.wecandoit.common.logging;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.wecandoit.common.testcontainers.RedisTestContainer;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -23,6 +25,7 @@ import org.springframework.test.context.ActiveProfiles;
 // @Async 경로가 바로 이 배선에 의존한다.
 @SpringBootTest
 @ActiveProfiles("test")
+@ImportTestcontainers(RedisTestContainer.class)
 @Import(MdcTaskDecoratorWiringTest.AsyncProbeConfig.class)
 class MdcTaskDecoratorWiringTest {
 

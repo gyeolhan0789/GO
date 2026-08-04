@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Pressable,
@@ -36,6 +37,11 @@ export function OnboardingScreen() {
 
   const scrollRef = useRef<ScrollView>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  // 완료 저장이 끝날 때까지 눌린 상태를 보여준다. 이동한 뒤 화면이 사라지므로
+  // 다시 false로 되돌릴 필요는 없다. 상태는 렌더 시점 값이라 같은 프레임에 두 번
+  // 눌리면 가드를 둘 다 통과하므로, 재진입 판단은 동기로 바뀌는 ref로 한다.
+  const [isFinishing, setIsFinishing] = useState(false);
+  const isFinishingRef = useRef(false);
 
   const lastIndex = ONBOARDING_SLIDES.length - 1;
   const isLastSlide = activeIndex >= lastIndex;
@@ -49,6 +55,12 @@ export function OnboardingScreen() {
   );
 
   const finish = useCallback(async () => {
+    // 저장이 끝나기 전에 또 눌리면 reset이 두 번 불린다.
+    if (isFinishingRef.current) {
+      return;
+    }
+    isFinishingRef.current = true;
+    setIsFinishing(true);
     // 저장이 실패해도 진행은 막지 않는다. 다음 실행에서 온보딩을 한 번 더 보게
     // 될 뿐이고, 여기서 사용자를 세워두는 편이 더 나쁘다.
     await complete().catch(() => {});
@@ -88,8 +100,10 @@ export function OnboardingScreen() {
       {!isLastSlide && (
         <Pressable
           onPress={finish}
+          disabled={isFinishing}
           accessibilityRole="button"
           accessibilityLabel="온보딩 건너뛰기"
+          accessibilityState={{ disabled: isFinishing }}
           hitSlop={12}
           style={[styles.skipButton, { top: insets.top + 8 }]}
         >
@@ -104,13 +118,19 @@ export function OnboardingScreen() {
         />
         <Pressable
           onPress={handleNext}
+          disabled={isFinishing}
           accessibilityRole="button"
           accessibilityLabel={isLastSlide ? '시작하기' : '다음'}
+          accessibilityState={{ disabled: isFinishing, busy: isFinishing }}
           style={styles.nextButton}
         >
-          <AppText style={styles.nextText}>
-            {isLastSlide ? '시작하기' : '다음'}
-          </AppText>
+          {isFinishing ? (
+            <ActivityIndicator color={colors.surface} />
+          ) : (
+            <AppText style={styles.nextText}>
+              {isLastSlide ? '시작하기' : '다음'}
+            </AppText>
+          )}
         </Pressable>
       </View>
     </View>

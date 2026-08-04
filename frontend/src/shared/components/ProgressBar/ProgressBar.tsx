@@ -2,6 +2,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { colors } from '../../constants/colors';
 import { radius } from '../../constants/radius';
+import { percent } from '../../lib/percent';
 
 type ProgressBarProps = {
   /** 0 to 1 */
@@ -13,7 +14,7 @@ export function ProgressBar({ progress }: ProgressBarProps) {
 
   return (
     <View style={styles.track}>
-      <View style={[styles.fill, { width: `${clamped * 100}%` }]} />
+      <View style={[styles.fill, { width: percent(clamped * 100) }]} />
     </View>
   );
 }

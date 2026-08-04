@@ -4,6 +4,7 @@ import { AppText } from '../AppText/AppText';
 import { colors } from '../../constants/colors';
 import { radius } from '../../constants/radius';
 import { spacing } from '../../constants/spacing';
+import { percent } from '../../lib/percent';
 import { fontFamily, lineHeights } from '../../constants/typography';
 
 type BarChartDatum = {
@@ -46,7 +47,7 @@ export function BarChart({ data, height = DEFAULT_HEIGHT }: BarChartProps) {
               <View
                 style={[
                   styles.bar,
-                  { height: `${(datum.value / maxValue) * 100}%` },
+                  { height: percent((datum.value / maxValue) * 100) },
                 ]}
               />
             </View>

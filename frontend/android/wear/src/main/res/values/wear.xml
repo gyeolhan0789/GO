@@ -1,0 +1,8 @@
+<resources>
+    <!-- 폰이 "우리 워치 앱이 깔려 있고 닿는지" 판단하는 근거. 이름은
+         WearProtocol.CAPABILITY_WATCH_APP과 같아야 한다(다르면 폰이 워치를
+         영영 못 찾는다). XML이라 상수를 참조할 수 없어 여기만 문자열이다. -->
+    <string-array name="android_wear_capabilities">
+        <item>wecandoit_watch_app</item>
+    </string-array>
+</resources>

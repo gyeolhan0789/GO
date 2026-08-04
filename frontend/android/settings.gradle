@@ -3,4 +3,7 @@ plugins { id("com.facebook.react.settings") }
 extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autolinkLibrariesFromCommand() }
 rootProject.name = 'frontend'
 include ':app'
+// 갤럭시 워치(Wear OS) 컴패니언 앱. :app과 applicationId·서명이 같아야
+// Data Layer로 서로를 찾을 수 있다(wear/build.gradle 참고).
+include ':wear'
 includeBuild('../node_modules/@react-native/gradle-plugin')

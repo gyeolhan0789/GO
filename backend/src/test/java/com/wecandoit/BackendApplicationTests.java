@@ -3,14 +3,17 @@ package com.wecandoit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.wecandoit.common.jwt.JwtProperties;
+import com.wecandoit.common.testcontainers.RedisTestContainer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@ImportTestcontainers(RedisTestContainer.class)
 @DisplayName("백엔드 애플리케이션")
 class BackendApplicationTests {
 

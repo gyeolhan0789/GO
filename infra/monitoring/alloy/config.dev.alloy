@@ -1,0 +1,47 @@
+discovery.docker "containers" {
+    host = "tcp://docker-socket-proxy:2375"
+}
+
+discovery.relabel "docker_containers" {
+    targets = discovery.docker.containers.targets
+
+    rule {
+        source_labels = ["__meta_docker_container_id"]
+        regex         = "(.{12}).*"
+        target_label  = "container_id"
+    }
+
+    rule {
+        source_labels = ["__meta_docker_container_name"]
+        regex         = "^/(.*)"
+        target_label  = "container_name"
+    }
+
+    rule {
+        source_labels = ["container_name"]
+        regex         = "wecandoit-alloy-dev"
+        action        = "drop"
+    }
+}
+
+loki.source.docker "docker_containers" {
+    host       = "tcp://docker-socket-proxy:2375"
+    targets    = discovery.relabel.docker_containers.output
+    forward_to = [loki.process.docker.receiver]
+}
+
+loki.process "docker" {
+    forward_to = [loki.write.default.receiver]
+
+    stage.static_labels {
+        values = {
+            env = "dev",
+        }
+    }
+}
+
+loki.write "default" {
+    endpoint {
+        url = "http://loki:3100/loki/api/v1/push"
+    }
+}
