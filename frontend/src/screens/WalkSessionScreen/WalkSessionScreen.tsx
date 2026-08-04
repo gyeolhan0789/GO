@@ -491,7 +491,10 @@ export function WalkSessionScreen() {
       <Toast
         message={missionToastMessage}
         onHide={hideMissionToast}
-        respectBottomInset={false}
+        position="top"
+        // 상단 바(뒤로가기·방 이름·빙고 버튼, ~48px)와 경과시간 배지(~34px) 아래로
+        // 밀어서 겹치지 않게 한다.
+        offset={72}
       />
     </Screen>
   );
