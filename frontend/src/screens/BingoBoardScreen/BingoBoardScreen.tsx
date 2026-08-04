@@ -302,15 +302,20 @@ export function BingoBoardScreen({
                 <AppText style={styles.completedText}>인증 완료</AppText>
               </View>
             ) : (
-              <Pressable
-                style={styles.captureButton}
-                onPress={handleCapturePhoto}
-                accessibilityRole="button"
-                accessibilityLabel="사진으로 인증하기"
-              >
-                <Ionicons name="camera" size={18} color={colors.surface} />
-                <AppText style={styles.captureButtonText}>사진으로 인증하기</AppText>
-              </Pressable>
+              <>
+                <AppText style={styles.captureHint}>
+                  사물을 너무 가까이 확대해서 찍으면 인식에 실패할 수 있어요.
+                </AppText>
+                <Pressable
+                  style={styles.captureButton}
+                  onPress={handleCapturePhoto}
+                  accessibilityRole="button"
+                  accessibilityLabel="사진으로 인증하기"
+                >
+                  <Ionicons name="camera" size={18} color={colors.surface} />
+                  <AppText style={styles.captureButtonText}>사진으로 인증하기</AppText>
+                </Pressable>
+              </>
             )}
           </View>
         ) : null}
@@ -490,6 +495,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: lineHeights[16],
     color: colors.successText,
+  },
+  captureHint: {
+    fontFamily: fontFamily.regular,
+    fontSize: 12,
+    lineHeight: lineHeights[12],
+    color: colors.ink,
+    opacity: 0.5,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
   captureButton: {
     height: controlHeight.lg,
