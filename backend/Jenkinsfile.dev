@@ -69,18 +69,38 @@ pipeline {
                     ]) {
                         script {
                             if (!params.RESET_DEV_DB) {
-                                deployBackend('update', 'never', false)
+                                deployBackend('validate', 'never', false)
                                 return
                             }
 
                             try {
-                                sh 'docker compose -f $COMPOSE_FILE up -d mysql redis'
+                                sh '''
+                                docker compose -f $COMPOSE_FILE up -d mysql redis
+                                for i in $(seq 1 30); do
+                                  if docker exec wecandoit-mysql-dev mysqladmin ping -h localhost -uroot -p"$DB_ROOT_PASSWORD" --silent; then
+                                    break
+                                  fi
+                                  if [ "$i" = 30 ]; then
+                                    echo "mysql did not become ready in time" >&2
+                                    exit 1
+                                  fi
+                                  sleep 2
+                                done
+                                '''
                                 sh 'docker compose -f $COMPOSE_FILE stop $SERVICE_NAME'
                                 sh 'docker exec wecandoit-redis-dev redis-cli FLUSHDB'
-                                deployBackend('create', 'always', true)
+                                sh '''
+                                docker exec wecandoit-mysql-dev mysql -uroot -p"$DB_ROOT_PASSWORD" -e "
+                                  DROP DATABASE IF EXISTS wecandoit;
+                                  CREATE DATABASE wecandoit CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+                                  GRANT ALL PRIVILEGES ON wecandoit.* TO 'wecandoit'@'%';
+                                  FLUSH PRIVILEGES;
+                                "
+                                '''
+                                deployBackend('validate', 'always', true)
                                 waitForHealth('seed initialization')
                             } finally {
-                                deployBackend('update', 'never', true)
+                                deployBackend('validate', 'never', true)
                                 waitForHealth('safe configuration restore')
                             }
                         }
