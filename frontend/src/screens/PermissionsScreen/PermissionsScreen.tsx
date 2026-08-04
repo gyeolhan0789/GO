@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   AppState,
   Pressable,
   ScrollView,
@@ -80,6 +81,11 @@ export function PermissionsScreen() {
     Partial<Record<PermissionKey, PermissionResult>>
   >({});
   const [requested, setRequested] = useState(false);
+  // 완료 저장이 끝날 때까지 시작하기를 눌린 상태로 둔다. 이동한 뒤 화면이
+  // 사라지므로 다시 false로 되돌릴 필요는 없다. 상태는 렌더 시점 값이라 같은
+  // 프레임에 두 번 눌리면 가드를 둘 다 통과하므로, 재진입 판단은 ref로 한다.
+  const [isStarting, setIsStarting] = useState(false);
+  const isStartingRef = useRef(false);
   // 삼성헬스(건강 데이터)는 자체 권한 모델이라 상태를 따로 추적한다.
   const [healthAvailable] = useState(isSamsungHealthAvailable());
   const [healthGranted, setHealthGranted] = useState(false);
@@ -126,6 +132,12 @@ export function PermissionsScreen() {
   // 권한 허용 이후 로그인으로 이동한다. reset이라 뒤로가기로 권한 화면에
   // 되돌아올 수 없고, 로그인 화면에도 뒤로가기가 남지 않는다.
   const goToLogin = useCallback(async () => {
+    // 저장이 끝나기 전에 또 눌리면 reset이 두 번 불린다.
+    if (isStartingRef.current) {
+      return;
+    }
+    isStartingRef.current = true;
+    setIsStarting(true);
     // 저장이 실패해도 진행은 막지 않는다. 다음 실행에서 이 화면을 한 번 더 보게
     // 될 뿐이고(권한은 이미 허용돼 있어 바로 넘어간다), 여기서 세워두는 편이 더
     // 나쁘다.
@@ -196,11 +208,17 @@ export function PermissionsScreen() {
         {allGranted ? (
           <Pressable
             onPress={goToLogin}
+            disabled={isStarting}
             accessibilityRole="button"
             accessibilityLabel="시작하기"
+            accessibilityState={{ disabled: isStarting, busy: isStarting }}
             style={styles.primaryButton}
           >
-            <AppText style={styles.primaryText}>시작하기</AppText>
+            {isStarting ? (
+              <ActivityIndicator color={colors.surface} />
+            ) : (
+              <AppText style={styles.primaryText}>시작하기</AppText>
+            )}
           </Pressable>
         ) : anyBlocked ? (
           <Pressable
