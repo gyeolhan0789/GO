@@ -68,7 +68,7 @@ export function formatWalkTime(instant: string): string {
 }
 
 /**
- * '20:00 → 20:32'. 언제 나가서 언제 들어왔는지를 한 줄로 보여준다.
+ * '20:00 ~ 20:32'. 언제 나가서 언제 들어왔는지를 한 줄로 보여준다.
  *
  * 자정을 넘겨 끝났으면 종료 쪽에 '다음날'을 붙인다 — 안 붙이면 20:00에 나가
  * 00:12에 들어온 산책이 거꾸로 흐르는 것처럼 읽힌다. 세션은 24시간이 지나면
@@ -89,7 +89,7 @@ export function formatWalkTimeRange(
     ? `다음날 ${toClockTime(end)}`
     : toClockTime(end);
 
-  return `${toClockTime(start)} → ${endLabel}`;
+  return `${toClockTime(start)} ~ ${endLabel}`;
 }
 
 const SECONDS_PER_MINUTE = 60;

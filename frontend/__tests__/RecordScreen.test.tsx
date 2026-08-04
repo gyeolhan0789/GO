@@ -213,10 +213,10 @@ describe('RecordScreen', () => {
     expect(texts).toContain('이번 주 걸음');
     expect(texts).toContain('최근 산책');
     expect(texts).toContain('민서와의 산책');
-    // 카드 한 장이 산책 한 번이라 그날 얼마나 걸었는지가 그대로 들어간다.
-    // 요일·시각은 한 줄에 다 안 들어가 상세 화면에만 둔다.
+    // 카드 한 장이 산책 한 번이다. 언제 나가서 언제 들어왔는지까지만 싣고,
+    // 걸음·거리·칼로리는 상세 화면에 둔다.
     expect(texts).toContain('혼자 · 2026.07.20 · 28분');
-    expect(texts).toContain('3,240');
+    expect(texts).toContain('20:00 ~ 20:32');
     expect(texts).toContain('미션 2개 달성');
     expect(texts).toContain('전체 기록 보기');
   });

@@ -29,7 +29,9 @@ export function WalkSummaryCard({ walk }: WalkSummaryCardProps) {
         {walk.title}
       </AppText>
       <AppText style={styles.startedAt}>
-        {`${GAME_MODE_LABEL[walk.mode]} · ${formatWalkDayLabel(walk.startedAt)}`}
+        {`${GAME_MODE_LABEL[walk.mode]} · ${formatWalkDayLabel(
+          walk.startedAt,
+        )}`}
       </AppText>
 
       {/* 걸은 시간(쉰 시간을 뺀 값)과 헷갈리지 않게 '나가 있던' 총 시간을
@@ -62,9 +64,7 @@ export function WalkSummaryCard({ walk }: WalkSummaryCardProps) {
       </View>
 
       <View style={styles.heroRow}>
-        <AppText style={styles.heroValue}>
-          {formatThousands(walk.step)}
-        </AppText>
+        <AppText style={styles.heroValue}>{formatThousands(walk.step)}</AppText>
         <AppText style={styles.heroUnit}>보</AppText>
       </View>
 

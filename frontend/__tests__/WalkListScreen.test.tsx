@@ -179,7 +179,7 @@ describe('WalkListScreen', () => {
     const tree = await renderScreen();
 
     // 서버가 준 11:00Z~11:32Z를 기기 시간대(KST)로 옮겨 읽어야 한다.
-    expect(collectTexts(tree.root)).toContain('20:00 → 20:32');
+    expect(collectTexts(tree.root)).toContain('20:00 ~ 20:32');
   });
 
   test('첫 요청은 0페이지부터 정해진 크기로 나간다', async () => {
