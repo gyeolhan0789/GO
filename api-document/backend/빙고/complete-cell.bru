@@ -1,0 +1,163 @@
+meta {
+  name: 빙고 칸 활동 미션 완료
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{backendBaseUrl}}/rooms/1/bingo-boards/cells/1/complete
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+docs {
+  ## 빙고 칸 활동 미션 완료
+
+  게임방 참여자가 활동 기반(비사진) 미션 칸을 완료 처리한다. 요청 body가 없으며, **호출 자체가 미션 통과를 의미**한다. 백엔드는 걸음 수·거리·시간 같은 활동 데이터를 재검증하지 않고 프론트엔드의 자체 판정을 신뢰한다.
+
+  ### Request 필드
+
+  없음. 요청 body를 보내지 않는다.
+
+  ### 성공 응답 (200 OK)
+  ```json
+  {
+    "cellId": 1,
+    "row": 0,
+    "col": 0,
+    "mission": {
+      "missionId": 21,
+      "missionImageUrl": "https://cdn.example.com/missions/21.png",
+      "type": "STEP_TOTAL",
+      "title": "누적 5,000보 걷기",
+      "detail": "오늘 누적 5,000보를 달성하세요.",
+      "decisionCondition": null,
+      "point": 50,
+      "createdAt": "2026-07-24T10:00:00"
+    },
+    "verificationStatus": "APPROVED",
+    "submittedByMemberId": 2,
+    "rejectionReason": null,
+    "rewardPoint": 50
+  }
+  ```
+
+  ### 비즈니스 규칙
+
+  - 사진 계열 미션 타입(`OBJECT`, `ATTRIBUTE`, `RELATION`, `ORDINARY`) 칸은 이 API로 완료할 수 없고, `POST /rooms/{roomId}/bingo-boards/cells/{cellId}/submit`(multipart)으로 인증 사진을 제출해야 한다.
+  - `mission.decisionCondition`은 이 플로우에서 사용하지 않는다. AI 검증을 거치지 않기 때문이다.
+  - 성공 시 `verificationStatus`는 항상 `APPROVED`이고 `rejectionReason`은 항상 `null`이다. 거절(`REJECTED`) 경로가 존재하지 않는다.
+  - **재호출은 멱등이 아니다.** 이미 완료된 칸에 다시 호출하면 409를 반환하며 포인트도 중복 지급되지 않는다.
+  - 선점(`PENDING`) → 승인(`APPROVED`) → 포인트 지급 → 게임 완료 판정이 하나의 트랜잭션에서 처리된다. 사진 제출 경로의 승인·보상·완료 로직을 그대로 재사용하므로 `completedAt`, `submittedAt`, 진행률 이벤트 발행이 사진 경로와 동일하게 동작한다.
+  - 히스토리 저장(`POST /histories`) 시 동작하는 보드 단위 일일 걸음 목표 자동 보상과는 **완전히 별개**의 보상 경로다. 서로 호출하지 않으며 중복 지급되지 않는다.
+
+  ### 에러 케이스
+
+  **사진 인증 미션 칸에 호출**
+  ```json
+  {
+    "status": 400,
+    "message": "사진 인증 미션은 인증 사진 제출로만 완료할 수 있습니다."
+  }
+  ```
+
+  **존재하지 않는 게임방**
+  ```json
+  {
+    "status": 404,
+    "message": "게임방을 찾을 수 없습니다."
+  }
+  ```
+
+  **게임방 참여자가 아님**
+  ```json
+  {
+    "status": 403,
+    "message": "게임방 참여자만 접근할 수 있습니다."
+  }
+  ```
+
+  **종료된 게임방**
+  ```json
+  {
+    "status": 409,
+    "message": "종료된 게임방은 처리할 수 없습니다."
+  }
+  ```
+
+  **진행 중인 게임이 아님 (이전 회차 칸 포함)**
+  ```json
+  {
+    "status": 409,
+    "message": "게임이 시작된 방에서만 빙고판을 생성할 수 있습니다."
+  }
+  ```
+
+  **싱글·협동 빙고판의 갱신 기한(생성 후 7일)이 지남**
+  ```json
+  {
+    "status": 409,
+    "message": "빙고판 갱신이 필요합니다."
+  }
+  ```
+
+  **활성화된 빙고판이 없음**
+  ```json
+  {
+    "status": 404,
+    "message": "활성화된 빙고판이 없습니다."
+  }
+  ```
+
+  **대결 모드에서 게임 참가자 정보 없음**
+  ```json
+  {
+    "status": 404,
+    "message": "게임 참가자를 찾을 수 없습니다."
+  }
+  ```
+
+  **존재하지 않는 칸(또는 활성 보드 소속 아님, 다른 방의 칸)**
+  ```json
+  {
+    "status": 404,
+    "message": "해당 칸을 찾을 수 없습니다."
+  }
+  ```
+
+  **미션을 찾을 수 없음**
+  ```json
+  {
+    "status": 404,
+    "message": "미션을 찾을 수 없습니다."
+  }
+  ```
+
+  **이미 승인된 칸(중복 완료)**
+  ```json
+  {
+    "status": 409,
+    "message": "이미 승인된 빙고 칸입니다."
+  }
+  ```
+
+  **이미 검증 중인 칸**
+  ```json
+  {
+    "status": 409,
+    "message": "이미 검증 중인 빙고 칸입니다."
+  }
+  ```
+
+  **Authorization 헤더 없음**
+  ```json
+  {
+    "status": 401,
+    "message": "인증이 필요합니다."
+  }
+  ```
+}

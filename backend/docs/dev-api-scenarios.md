@@ -1,24 +1,8 @@
 # Dev 전체 API 시나리오 데이터
 
-이 문서는 Jenkins 빌드에서 `RESET_DEV_DB=true`로 실행했을 때 적재되는
-고정 테스트 데이터를 설명합니다. 실행하면 기존 dev 데이터베이스 데이터와
-Redis 로그인 정보가 삭제되므로 반드시 팀에 미리 공지합니다.
-
-## 초기화 절차
-
-1. 시드 변경사항을 dev Jenkins Job이 배포하는 브랜치에 머지합니다.
-2. dev Jenkins Job에서 **Build with Parameters**를 선택합니다.
-3. `RESET_DEV_DB=true`로 한 번 실행합니다.
-4. `seed initialization`, `safe configuration restore` 헬스 체크가 모두 성공했는지 확인합니다.
-5. 이후 배포는 기본값인 `RESET_DEV_DB=false`로 실행합니다.
-
-초기화 빌드는 애플리케이션을 `create + always`로 한 번 실행한 뒤,
-`finally` 블록에서 `update + never`로 다시 생성합니다. 이 과정은 Git 파일이나
-브랜치를 변경하지 않습니다.
-
-`FLUSHDB`를 실행하면 저장된 refresh token은 즉시 무효화됩니다. access token은
-상태를 저장하지 않는 JWT이므로 설정된 30분 만료 시각까지 유효할 수 있습니다.
-모든 access token을 즉시 무효화해야 한다면 dev JWT secret을 별도로 교체해야 합니다.
+이 문서는 dev 데이터베이스에 적재되는 고정 테스트 데이터를 설명합니다.
+시딩은 dev DB 서버의 프로시저가 담당하며, Jenkins CD 파이프라인은 더 이상
+이를 관리하지 않습니다.
 
 ## 계정
 

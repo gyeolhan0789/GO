@@ -97,6 +97,10 @@ public class BingoCell extends BaseEntity {
         this.rejectionReason = null;
     }
 
+    public void submitWithoutImage(Long memberId) {
+        submit(memberId, null);
+    }
+
     public void approve() {
         this.verificationStatus = BingoCellVerificationStatus.APPROVED;
         this.rejectionReason = null;

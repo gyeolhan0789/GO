@@ -9,6 +9,8 @@ import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
+import com.wecandoit.common.testcontainers.MySqlTestContainer;
+import com.wecandoit.common.testcontainers.RedisTestContainer;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.domain.GameMode;
@@ -23,16 +25,19 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@ImportTestcontainers({MySqlTestContainer.class, RedisTestContainer.class})
 @DisplayName("빙고 셀 제출 동시성")
 class BingoCommandServiceConcurrencyTest {
 
@@ -54,11 +59,7 @@ class BingoCommandServiceConcurrencyTest {
 
     @BeforeEach
     void setUp() {
-        bingoCellRepository.deleteAll();
-        bingoBoardRepository.deleteAll();
-        gameRepository.deleteAll();
-        roomMemberRepository.deleteAll();
-        roomRepository.deleteAll();
+        clearPersistedData();
 
         Room room = Room.create(1L, "테스트 방", GameMode.COOPERATE, null, 3);
         roomId = roomRepository.save(room).getId();
@@ -68,6 +69,19 @@ class BingoCommandServiceConcurrencyTest {
         Game game = gameRepository.save(Game.start(roomId));
         BingoBoard board = bingoBoardRepository.save(BingoBoard.create(game.getId(), 3));
         cellId = bingoCellRepository.save(BingoCell.create(board.getId(), 1L, 0, 0)).getId();
+    }
+
+    @AfterEach
+    void tearDown() {
+        clearPersistedData();
+    }
+
+    private void clearPersistedData() {
+        bingoCellRepository.deleteAll();
+        bingoBoardRepository.deleteAll();
+        gameRepository.deleteAll();
+        roomMemberRepository.deleteAll();
+        roomRepository.deleteAll();
     }
 
     @Test
