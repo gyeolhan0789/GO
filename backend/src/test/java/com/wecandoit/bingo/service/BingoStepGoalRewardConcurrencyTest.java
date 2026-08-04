@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
+import com.wecandoit.common.testcontainers.MySqlTestContainer;
+import com.wecandoit.common.testcontainers.RedisTestContainer;
 import com.wecandoit.point.domain.PointHistoryType;
 import com.wecandoit.point.repository.PointHistoryRepository;
 import com.wecandoit.game.domain.Game;
@@ -26,16 +28,19 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@ImportTestcontainers({MySqlTestContainer.class, RedisTestContainer.class})
 @DisplayName("빙고 공동 걸음 목표 보상 동시성")
 class BingoStepGoalRewardConcurrencyTest {
 
@@ -65,13 +70,7 @@ class BingoStepGoalRewardConcurrencyTest {
 
     @BeforeEach
     void setUp() {
-        pointHistoryRepository.deleteAll();
-        memberHistoryRepository.deleteAll();
-        bingoBoardRepository.deleteAll();
-        gameRepository.deleteAll();
-        roomMemberRepository.deleteAll();
-        roomRepository.deleteAll();
-        memberRepository.deleteAll();
+        clearPersistedData();
 
         firstMemberId = memberRepository.save(Member.create(
                 "step-first@example.com",
@@ -94,6 +93,21 @@ class BingoStepGoalRewardConcurrencyTest {
         roomMemberRepository.saveAndFlush(RoomMember.create(roomId, secondMemberId));
         Game game = gameRepository.saveAndFlush(Game.start(roomId));
         bingoBoardRepository.saveAndFlush(BingoBoard.create(game.getId(), 3, 1_000));
+    }
+
+    @AfterEach
+    void tearDown() {
+        clearPersistedData();
+    }
+
+    private void clearPersistedData() {
+        pointHistoryRepository.deleteAll();
+        memberHistoryRepository.deleteAll();
+        bingoBoardRepository.deleteAll();
+        gameRepository.deleteAll();
+        roomMemberRepository.deleteAll();
+        roomRepository.deleteAll();
+        memberRepository.deleteAll();
     }
 
     @Test

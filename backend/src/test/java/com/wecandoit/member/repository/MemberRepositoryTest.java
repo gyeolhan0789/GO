@@ -2,18 +2,16 @@ package com.wecandoit.member.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.wecandoit.common.testcontainers.MySqlDataJpaTest;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
-import org.springframework.test.context.ActiveProfiles;
 
-@DataJpaTest
-@ActiveProfiles("test")
+@MySqlDataJpaTest
 @DisplayName("회원 저장소")
 class MemberRepositoryTest {
 

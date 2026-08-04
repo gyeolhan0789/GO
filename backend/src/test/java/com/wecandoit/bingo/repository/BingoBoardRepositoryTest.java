@@ -5,18 +5,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.domain.BingoBoardType;
+import com.wecandoit.common.testcontainers.MySqlDataJpaTest;
 import com.wecandoit.game.domain.GameParticipant;
 import com.wecandoit.game.repository.GameParticipantRepository;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.test.context.ActiveProfiles;
 
-@DataJpaTest
-@ActiveProfiles("test")
+@MySqlDataJpaTest
 @DisplayName("빙고판 저장소")
 class BingoBoardRepositoryTest {
 

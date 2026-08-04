@@ -37,6 +37,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -120,6 +121,7 @@ public class BingoCommandService {
         }
     }
 
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public BingoCellSubmitResponse completeCell(Long memberId, Long roomId, Long cellId) {
         if (!roomRepository.existsById(roomId)) {
             throw new CustomException(ErrorCode.ROOM_NOT_FOUND);
