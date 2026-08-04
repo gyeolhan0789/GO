@@ -1,7 +1,5 @@
 # 백엔드 카나리 배포 운영 가이드
 
-관련 이슈: `S15P11A506-480`
-
 ## 배포 구성
 
 | 역할 | 컨테이너 | 호스트 포트 | 스케줄러 | Hibernate DDL | Flyway |
@@ -277,3 +275,9 @@ Flyway가 운영 스키마를 소유한다. `backend-canary`가 유일한 마이
 스키마를 변경할 때는 `src/main/resources/db/migration`에 직접 작성한 Flyway
 마이그레이션으로, 두 버전에서 모두 동작하는 하위 호환 expansion을 먼저 적용한다.
 contract 또는 정리 변경은 새 버전의 Stable 승격이 끝난 후 별도 배포로 진행한다.
+
+게임·빙고 V3를 적용하기 전에는 현재 Stable 및 rollback 이미지가 상태 Enum 변경과
+호환되는지 확인하고 운영 DB를 백업한다. 적용 후에는 `flyway_schema_history`와 주요
+데이터 정합성을 확인한다. 마이그레이션이 실패하면 90:10 전환을 중단하고
+Stable-only를 유지한다. 상태 값 병합 이후의 복구에는 임의의 DOWN SQL을 사용하지
+않고 검증된 백업을 사용한다.
