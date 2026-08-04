@@ -8,6 +8,20 @@ import type { Coords } from '../../../shared/lib/geolocation';
 
 const REGION_DELTA = 0.004;
 
+// 지도 전용 색 — 다크 미니맵의 물. 배경(ink)보다 살짝 밝은 어두운 청록이라
+// shared 팔레트에 없어 여기서만 쓴다.
+const MAP_WATER_COLOR = '#123A3D';
+
+// 게임 미니맵처럼: 어두운 배경 위에 도로만 밝은 초록 라인으로 강조하고
+// 라벨·경계선은 다 지운다.
+const MAP_STYLE = [
+  { elementType: 'geometry', stylers: [{ color: colors.ink }] },
+  { elementType: 'labels', stylers: [{ visibility: 'off' }] },
+  { featureType: 'administrative', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: colors.primary }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: MAP_WATER_COLOR }] },
+];
+
 type WalkRouteMapProps = {
   route: Coords[];
   // watchPosition의 첫 고정밀 좌표가 오기 전, 지도 초기 중심으로만 쓰는
@@ -73,15 +87,17 @@ export const WalkRouteMap = forwardRef<WalkRouteMapHandle, WalkRouteMapProps>(
         ref={mapRef}
         style={styles.map}
         provider={PROVIDER_GOOGLE}
+        customMapStyle={MAP_STYLE}
         // 자체 픽셀 마커로 현재 위치를 표시하므로 기본 파란 점은 끈다.
         showsUserLocation={false}
         followsUserLocation={false}
         initialRegion={toRegion(current)}
       >
         {route.length > 1 ? (
+          // 도로도 primary(초록)라 걸어온 경로는 눈에 띄는 노란색으로 대비를 준다.
           <Polyline
             coordinates={route}
-            strokeColor={colors.primary}
+            strokeColor={colors.highlightBg}
             strokeWidth={4}
             lineDashPattern={[10, 8]}
             lineCap="square"
@@ -104,7 +120,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   loading: {
-    backgroundColor: colors.neutralBg,
+    backgroundColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -113,8 +129,10 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: radius.xs,
     borderWidth: 2,
-    borderColor: colors.ink,
-    backgroundColor: colors.primary,
+    // ink 배경 위에서도 보이도록 밝은 테두리로 바꿨다(원래 ink 테두리는
+    // 다크 미니맵 배경에 묻혀 안 보임).
+    borderColor: colors.surface,
+    backgroundColor: colors.highlightBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -122,6 +140,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: radius.xs,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.ink,
   },
 });
