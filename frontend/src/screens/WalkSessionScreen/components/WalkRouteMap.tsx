@@ -8,17 +8,6 @@ import type { Coords } from '../../../shared/lib/geolocation';
 
 const REGION_DELTA = 0.004;
 
-// Go!의 초록·크림 팔레트에 맞춘 지도 스타일. 라벨(지명·도로명·아이콘)은 걷는
-// 중엔 필요 없는 시각적 소음이라 전부 지우고, 색도 배경/도로/물 세 가지로만
-// 단순하게 구분한다. 색은 shared/constants/colors의 기존 토큰만 재사용한다.
-const MAP_STYLE = [
-  { elementType: 'geometry', stylers: [{ color: colors.neutralBg }] },
-  { elementType: 'labels', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: colors.surface }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: colors.border }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: colors.infoBg }] },
-];
-
 type WalkRouteMapProps = {
   route: Coords[];
   // watchPosition의 첫 고정밀 좌표가 오기 전, 지도 초기 중심으로만 쓰는
@@ -84,7 +73,6 @@ export const WalkRouteMap = forwardRef<WalkRouteMapHandle, WalkRouteMapProps>(
         ref={mapRef}
         style={styles.map}
         provider={PROVIDER_GOOGLE}
-        customMapStyle={MAP_STYLE}
         // 자체 픽셀 마커로 현재 위치를 표시하므로 기본 파란 점은 끈다.
         showsUserLocation={false}
         followsUserLocation={false}
