@@ -1,5 +1,12 @@
-import { useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -7,7 +14,7 @@ import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 
 import type { FriendResponse } from '../../features/friend/api/friendApi';
 import { useDeleteFriendMutation } from '../../features/friend/hooks/useDeleteFriendMutation';
-import { useFriendsQuery } from '../../features/friend/hooks/useFriendsQuery';
+import { useInfiniteFriendsQuery } from '../../features/friend/hooks/useFriendsQuery';
 import { useReceivedRequestsQuery } from '../../features/friend/hooks/useReceivedRequestsQuery';
 import { useSentRequestsQuery } from '../../features/friend/hooks/useSentRequestsQuery';
 import type {
@@ -39,6 +46,9 @@ type CompanionTab = 'walkRooms' | 'friends';
 
 type CompanionNavigation = NativeStackNavigationProp<RootStackParamList, 'Main'>;
 
+// 화면 끝에서 반 화면 남았을 때 다음 페이지를 부른다.
+const END_REACHED_THRESHOLD = 0.5;
+
 // 산책방 일정(scheduleLabel) 개념은 백엔드에 아직 없어 채우지 못한다.
 function toMyWalkRoom(room: MyRoomResponse): MyWalkRoom {
   return {
@@ -66,8 +76,11 @@ export function CompanionScreen() {
   const myWalkRooms = (myRoomsQuery.data?.map(toMyWalkRoom) ?? []).sort(
     (a, b) => Number(b.mode === 'solo') - Number(a.mode === 'solo'),
   );
-  const friendsQuery = useFriendsQuery();
-  const friends = friendsQuery.data?.content ?? [];
+  const friendsQuery = useInfiniteFriendsQuery();
+  const friends = useMemo(
+    () => friendsQuery.data?.pages.flatMap(page => page.content) ?? [],
+    [friendsQuery.data],
+  );
   const receivedRequestsQuery = useReceivedRequestsQuery();
   const receivedRequestCount = receivedRequestsQuery.data?.content.length ?? 0;
   const sentRequestsQuery = useSentRequestsQuery();
@@ -104,6 +117,13 @@ export function CompanionScreen() {
         },
       ],
     );
+  };
+
+  const loadNextFriendsPage = () => {
+    // onEndReached는 스크롤 도중 여러 번 발화해서, 막지 않으면 중복 요청한다.
+    if (friendsQuery.hasNextPage && !friendsQuery.isFetchingNextPage) {
+      friendsQuery.fetchNextPage();
+    }
   };
 
   const handleAcceptInvite = (invite: ReceivedRoomInvite) => {
@@ -267,11 +287,20 @@ export function CompanionScreen() {
                 onDelete={() => handleDeleteFriend(item)}
               />
             )}
+            onEndReached={loadNextFriendsPage}
+            onEndReachedThreshold={END_REACHED_THRESHOLD}
+            ListFooterComponent={
+              <View style={styles.footer}>
+                {friendsQuery.isFetchingNextPage ? (
+                  <ActivityIndicator color={colors.primary} />
+                ) : null}
+              </View>
+            }
             style={styles.list}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             refreshing={
-              friendsQuery.isRefetching ||
+              (friendsQuery.isRefetching && !friendsQuery.isFetchingNextPage) ||
               receivedRequestsQuery.isRefetching ||
               sentRequestsQuery.isRefetching
             }
@@ -365,5 +394,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: spacing.lg,
     bottom: spacing.lg,
+  },
+  footer: {
+    // 스피너가 들어와도 목록이 튀지 않게 자리를 잡아둔다.
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
