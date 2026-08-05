@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
@@ -18,6 +19,8 @@ import com.wecandoit.game.domain.GameRequest;
 import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomMember;
 import com.wecandoit.game.domain.RoomStatus;
+import com.wecandoit.game.event.BattleMatchingEventType;
+import com.wecandoit.game.event.BattleMatchingMessageRequestedEvent;
 import com.wecandoit.game.repository.GameRequestRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
@@ -144,6 +147,49 @@ class GameRequestCommandServiceTest {
         then(eventPublisher).should().publishEvent(captor.capture());
         assertThat(captor.getValue().recipientMemberId()).isEqualTo(2L);
         assertThat(captor.getValue().type()).isEqualTo(NotificationType.FRIEND_INVITE);
+    }
+
+    @Test
+    @DisplayName("대결 방 초대 요청은 배틀 초대 이벤트 없이 기존 초대 알림만 발행한다")
+    void createBattleGameRequestPublishesOnlyNotificationEvent() {
+        // given
+        givenInvitableBattleRoom(RoomStatus.ACTIVE);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 1L)).willReturn(true);
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
+        given(memberRepository.existsById(2L)).willReturn(true);
+        given(friendRepository.existsBetween(1L, 2L)).willReturn(true);
+        given(gameRequestRepository
+                .findFirstByRoomIdAndInviteeIdAndStatusOrderByCreatedAtDesc(10L, 2L, RequestStatus.PENDING))
+                .willReturn(Optional.empty());
+        given(gameRequestRepository.save(any(GameRequest.class))).willAnswer(invocation -> {
+            GameRequest gameRequest = invocation.getArgument(0);
+            ReflectionTestUtils.setField(gameRequest, "id", 20L);
+            return gameRequest;
+        });
+
+        // when
+        GameRequestCreateResponse response = gameRequestCommandService.createGameRequest(
+                1L,
+                10L,
+                new GameRequestCreateRequest(2L)
+        );
+
+        // then
+        assertThat(response.requestId()).isEqualTo(20L);
+        assertThat(response.created()).isTrue();
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        then(eventPublisher).should().publishEvent(captor.capture());
+        assertThat(captor.getAllValues())
+                .filteredOn(NotificationRequestedEvent.class::isInstance)
+                .singleElement()
+                .satisfies(event -> {
+                    NotificationRequestedEvent notificationEvent = (NotificationRequestedEvent) event;
+                    assertThat(notificationEvent.recipientMemberId()).isEqualTo(2L);
+                    assertThat(notificationEvent.type()).isEqualTo(NotificationType.FRIEND_INVITE);
+                });
+        assertThat(captor.getAllValues())
+                .filteredOn(BattleMatchingMessageRequestedEvent.class::isInstance)
+                .isEmpty();
     }
 
     @Test
@@ -320,6 +366,42 @@ class GameRequestCommandServiceTest {
         assertThat(roomMember.getRoomId()).isEqualTo(10L);
         assertThat(roomMember.getMemberId()).isEqualTo(2L);
         assertThat(room.getStatus()).isEqualTo(RoomStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("대결 초대 수락으로 게임이 시작되면 양쪽에 카운트다운 이벤트를 발행한다")
+    void acceptBattleGameRequestPublishesCountdownEvent() {
+        // given
+        GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
+        Room room = givenAcceptableBattleRoom(RoomStatus.ACTIVE);
+        List<RoomMember> roomMembers = List.of(
+                RoomMember.create(10L, 1L),
+                RoomMember.create(10L, 2L)
+        );
+        given(gameRequestRepository.findByIdForUpdate(20L)).willReturn(Optional.of(gameRequest));
+        given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
+        given(roomMemberRepository.countByRoomId(10L)).willReturn(1L);
+        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L)).willReturn(roomMembers);
+
+        // when
+        gameRequestCommandService.acceptGameRequest(2L, 10L, 20L);
+
+        // then
+        then(gameCycleCommandService).should().startInitialBattleCycle(room, roomMembers);
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        then(eventPublisher).should(times(2)).publishEvent(captor.capture());
+        assertThat(captor.getAllValues())
+                .filteredOn(BattleMatchingMessageRequestedEvent.class::isInstance)
+                .hasSize(2)
+                .allSatisfy(event -> {
+                    BattleMatchingMessageRequestedEvent battleEvent =
+                            (BattleMatchingMessageRequestedEvent) event;
+                    assertThat(battleEvent.message().type())
+                            .isEqualTo(BattleMatchingEventType.BATTLE_COUNTDOWN_STARTED);
+                    assertThat(battleEvent.message().roomId()).isEqualTo(10L);
+                    assertThat(battleEvent.message().requestId()).isEqualTo(20L);
+                    assertThat(battleEvent.message().countdownSeconds()).isEqualTo(3);
+                });
     }
 
     @Test
@@ -542,6 +624,48 @@ class GameRequestCommandServiceTest {
         then(roomMemberRepository).should(never()).save(any(RoomMember.class));
     }
 
+    @Test
+    @DisplayName("대결 초대를 거절하면 초대한 회원에게 거절 이벤트를 발행한다")
+    void rejectBattleGameRequestPublishesRejectedEvent() {
+        // given
+        GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
+        givenAcceptableBattleRoom(RoomStatus.ACTIVE);
+        given(gameRequestRepository.findByIdForUpdate(20L)).willReturn(Optional.of(gameRequest));
+
+        // when
+        gameRequestCommandService.rejectGameRequest(2L, 10L, 20L);
+
+        // then
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        then(eventPublisher).should().publishEvent(captor.capture());
+        BattleMatchingMessageRequestedEvent event = (BattleMatchingMessageRequestedEvent) captor.getValue();
+        assertThat(event.recipientMemberId()).isEqualTo(1L);
+        assertThat(event.message().type()).isEqualTo(BattleMatchingEventType.INVITATION_REJECTED);
+        assertThat(event.message().roomId()).isEqualTo(10L);
+        assertThat(event.message().requestId()).isEqualTo(20L);
+    }
+
+    @Test
+    @DisplayName("대결 초대를 취소하면 초대 대상에게 취소 이벤트를 발행한다")
+    void cancelBattleGameRequestPublishesCancelledEvent() {
+        // given
+        GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
+        givenAcceptableBattleRoom(RoomStatus.ACTIVE);
+        given(gameRequestRepository.findByIdForUpdate(20L)).willReturn(Optional.of(gameRequest));
+
+        // when
+        gameRequestCommandService.cancelGameRequest(1L, 10L, 20L);
+
+        // then
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        then(eventPublisher).should().publishEvent(captor.capture());
+        BattleMatchingMessageRequestedEvent event = (BattleMatchingMessageRequestedEvent) captor.getValue();
+        assertThat(event.recipientMemberId()).isEqualTo(2L);
+        assertThat(event.message().type()).isEqualTo(BattleMatchingEventType.INVITATION_CANCELLED);
+        assertThat(event.message().roomId()).isEqualTo(10L);
+        assertThat(event.message().requestId()).isEqualTo(20L);
+    }
+
     private void givenInvitableRoom(RoomStatus status) {
         Room room = Room.create(1L, "테스트 방", GameMode.COOPERATE, null, 3);
         ReflectionTestUtils.setField(room, "id", 10L);
@@ -555,6 +679,21 @@ class GameRequestCommandServiceTest {
 
     private Room givenAcceptableRoom(RoomStatus status) {
         Room room = Room.create(1L, "테스트 방", GameMode.COOPERATE, null, 3);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        ReflectionTestUtils.setField(room, "status", status);
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
+        return room;
+    }
+
+    private void givenInvitableBattleRoom(RoomStatus status) {
+        Room room = Room.create(1L, "테스트 방", GameMode.BATTLE, 2, 3);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        ReflectionTestUtils.setField(room, "status", status);
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
+    }
+
+    private Room givenAcceptableBattleRoom(RoomStatus status) {
+        Room room = Room.create(1L, "테스트 방", GameMode.BATTLE, 2, 3);
         ReflectionTestUtils.setField(room, "id", 10L);
         ReflectionTestUtils.setField(room, "status", status);
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));

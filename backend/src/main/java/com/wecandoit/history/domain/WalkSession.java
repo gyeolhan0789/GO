@@ -71,6 +71,15 @@ public class WalkSession extends BaseEntity {
     @Column(nullable = false)
     private int calories;
 
+    @Column(name = "mission_earned_point", nullable = false)
+    private long missionEarnedPoint;
+
+    @Column(name = "step_goal_earned_point", nullable = false)
+    private long stepGoalEarnedPoint;
+
+    @Column(name = "game_earned_point", nullable = false)
+    private long gameEarnedPoint;
+
     private WalkSession(
             Long memberId,
             Long roomId,
@@ -123,5 +132,19 @@ public class WalkSession extends BaseEntity {
 
     public long getDurationSeconds() {
         return Duration.between(startedAt, endedAt).toSeconds();
+    }
+
+    public void recordEarnedPoints(
+            long missionEarnedPoint,
+            long stepGoalEarnedPoint,
+            long gameEarnedPoint
+    ) {
+        this.missionEarnedPoint = missionEarnedPoint;
+        this.stepGoalEarnedPoint = stepGoalEarnedPoint;
+        this.gameEarnedPoint = gameEarnedPoint;
+    }
+
+    public long getEarnedPoint() {
+        return missionEarnedPoint + stepGoalEarnedPoint + gameEarnedPoint;
     }
 }

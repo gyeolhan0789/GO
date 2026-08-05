@@ -34,6 +34,14 @@ proxy_http_version 1.1;
 proxy_read_timeout 3600s;
 proxy_set_header Upgrade $http_upgrade;
 proxy_set_header Connection $connection_upgrade;
+}
+location /dev/ {
+proxy_http_version 1.1;
+proxy_read_timeout 3600s;
+proxy_send_timeout 3600s;
+proxy_set_header Upgrade $http_upgrade;
+proxy_set_header Connection $connection_upgrade;
+}
 NGINX
 elif [ "$1" = "exec" ] && [ "${3:-}" = "curl" ]; then
   printf '{"openapi":"3.0.1"}\n'
@@ -47,6 +55,20 @@ printf '{"openapi":"3.0.1"}\n'
 EOF
 
 chmod +x "$MOCK_BIN/docker" "$MOCK_BIN/curl"
+
+JENKINSFILE="$PROJECT_ROOT/backend/Jenkinsfile.prod"
+grep -Fq "'{{range .Containers}}{{println .Name}}{{end}}'" "$JENKINSFILE"
+grep -Fq "'{{range .Containers}}{{println .Name .IPv4Address}}{{end}}'" "$JENKINSFILE"
+grep -Fq 'docker network disconnect' "$JENKINSFILE"
+grep -Fq 'for dependency in wecandoit-mysql-prod wecandoit-redis-prod; do' "$JENKINSFILE"
+if grep -Fq 'up -d mysql redis' "$JENKINSFILE"; then
+  echo "CD-prod must not recreate production database dependencies." >&2
+  exit 1
+fi
+if grep -Fq 'index .NetworkSettings.Networks' "$JENKINSFILE"; then
+  echo "Dynamic Docker network index syntax must not be used." >&2
+  exit 1
+fi
 
 PATH="$MOCK_BIN:$PATH" DOCKER_LOG="$DOCKER_LOG" \
   bash "$PROJECT_ROOT/infra/deploy/validate-nginx-image.sh" \
