@@ -69,6 +69,20 @@ if grep -Fq 'index .NetworkSettings.Networks' "$JENKINSFILE"; then
   echo "Dynamic Docker network index syntax must not be used." >&2
   exit 1
 fi
+grep -Fq 'docker logs --tail 300 "$CANARY_CONTAINER" 2>&1 || true' "$JENKINSFILE"
+grep -Fq 'docker inspect "$CANARY_CONTAINER" || true' "$JENKINSFILE"
+
+canary_logs_line="$(grep -nF 'docker logs --tail 300 "$CANARY_CONTAINER"' \
+  "$JENKINSFILE" | cut -d: -f1)"
+canary_inspect_line="$(grep -nF 'docker inspect "$CANARY_CONTAINER" || true' \
+  "$JENKINSFILE" | cut -d: -f1)"
+canary_stop_line="$(grep -nF 'docker compose -f "$COMPOSE_FILE" stop backend-canary' \
+  "$JENKINSFILE" | tail -n 1 | cut -d: -f1)"
+if [ "$canary_logs_line" -ge "$canary_inspect_line" ] \
+  || [ "$canary_inspect_line" -ge "$canary_stop_line" ]; then
+  echo "Canary diagnostics must run before failed Canary cleanup." >&2
+  exit 1
+fi
 
 PATH="$MOCK_BIN:$PATH" DOCKER_LOG="$DOCKER_LOG" \
   bash "$PROJECT_ROOT/infra/deploy/validate-nginx-image.sh" \
