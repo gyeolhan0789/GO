@@ -18,6 +18,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     static final String ENDPOINT = "/ws";
     private static final String TOPIC_PREFIX = "/topic";
+    private static final String QUEUE_PREFIX = "/queue";
 
     private final CorsProperties corsProperties;
     private final WebSocketAuthenticationInterceptor authenticationInterceptor;
@@ -33,7 +34,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker(TOPIC_PREFIX);
+        registry.enableSimpleBroker(TOPIC_PREFIX, QUEUE_PREFIX);
     }
 
     @Override
