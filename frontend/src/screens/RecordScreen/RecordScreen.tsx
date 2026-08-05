@@ -7,9 +7,13 @@ import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 import type { HistoryPeriod } from '../../features/history/api/historyApi';
 import { WalkCard } from '../../features/history/components/WalkCard/WalkCard';
 import { AppText } from '../../shared/components/AppText/AppText';
-import { PERIOD_OPTIONS } from '../../features/history/constants/periods';
+import {
+  PERIOD_OPTIONS,
+  PERIOD_OPTIONS_WITHOUT_DAY,
+} from '../../features/history/constants/periods';
 import { useHistoriesQuery } from '../../features/history/hooks/useHistoriesQuery';
 import { useHourlyStepsQuery } from '../../features/history/hooks/useHourlyStepsQuery';
+import { useHourlyStepsSupport } from '../../features/history/hooks/useHourlyStepsSupport';
 import { useRecentWalksQuery } from '../../features/history/hooks/useRecentWalksQuery';
 import type { ChartSegment } from '../../features/history/model/chartSegments';
 import {
@@ -48,17 +52,28 @@ export function RecordScreen() {
     null,
   );
 
+  // 시간대별 차트를 그릴 수 없는 기기(삼성헬스 없음)에서는 일간 구간을 아예 감춘다.
+  const supportsHourlySteps = useHourlyStepsSupport().data;
+  const periodOptions =
+    supportsHourlySteps === false ? PERIOD_OPTIONS_WITHOUT_DAY : PERIOD_OPTIONS;
+  // 판단이 늦게 왔을 때 고를 수 없는 구간에 머물지 않게 한다.
+  const visiblePeriod: HistoryPeriod =
+    supportsHourlySteps === false && period === 'DAY' ? 'WEEK' : period;
+
   // 자정을 넘겨도 화면이 살아 있을 수 있어 렌더마다 다시 읽는다.
   const today = todayIso();
   const range = useMemo(
-    () => resolvePeriodRange(period, baseDate),
-    [period, baseDate],
+    () => resolvePeriodRange(visiblePeriod, baseDate),
+    [visiblePeriod, baseDate],
   );
-  const isLatestPeriod = isCurrentPeriod(period, baseDate, today);
+  const isLatestPeriod = isCurrentPeriod(visiblePeriod, baseDate, today);
 
-  const historiesQuery = useHistoriesQuery(period, baseDate);
+  const historiesQuery = useHistoriesQuery(visiblePeriod, baseDate);
   // 일간 차트만 쓰므로 그 구간에서만 불러온다.
-  const hourlyStepsQuery = useHourlyStepsQuery(baseDate, period === 'DAY');
+  const hourlyStepsQuery = useHourlyStepsQuery(
+    baseDate,
+    visiblePeriod === 'DAY',
+  );
   const recentWalksQuery = useRecentWalksQuery();
 
   const hourlySteps = hourlyStepsQuery.data ?? [];
@@ -80,11 +95,11 @@ export function RecordScreen() {
   // 기간이 바뀌면 열려 있던 구간은 더 이상 차트에 없다.
   const goPrevPeriod = () => {
     closeSegment();
-    setBaseDate(prev => shiftPeriod(period, prev, -1));
+    setBaseDate(prev => shiftPeriod(visiblePeriod, prev, -1));
   };
   const goNextPeriod = () => {
     closeSegment();
-    setBaseDate(prev => shiftPeriod(period, prev, 1));
+    setBaseDate(prev => shiftPeriod(visiblePeriod, prev, 1));
   };
 
   return (
@@ -102,15 +117,15 @@ export function RecordScreen() {
             <View style={styles.listHeader}>
               <View style={styles.periodRow}>
                 <PeriodRangeNavigator
-                  label={formatPeriodLabel(period, range)}
+                  label={formatPeriodLabel(visiblePeriod, range)}
                   onPrev={goPrevPeriod}
                   onNext={goNextPeriod}
                   isNextDisabled={isLatestPeriod}
                   onPressLabel={() => setPickerOpen(true)}
                 />
                 <Select
-                  options={PERIOD_OPTIONS}
-                  value={period}
+                  options={periodOptions}
+                  value={visiblePeriod}
                   onChange={nextPeriod => {
                     closeSegment();
                     setPeriod(nextPeriod);
@@ -189,7 +204,7 @@ export function RecordScreen() {
 
       <PeriodPicker
         visible={isPickerOpen}
-        period={period}
+        period={visiblePeriod}
         value={baseDate}
         maxDate={today}
         onChange={nextBaseDate => {

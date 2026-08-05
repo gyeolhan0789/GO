@@ -86,8 +86,10 @@ export function PermissionsScreen() {
   // 프레임에 두 번 눌리면 가드를 둘 다 통과하므로, 재진입 판단은 ref로 한다.
   const [isStarting, setIsStarting] = useState(false);
   const isStartingRef = useRef(false);
-  // 삼성헬스(건강 데이터)는 자체 권한 모델이라 상태를 따로 추적한다.
-  const [healthAvailable] = useState(isSamsungHealthAvailable());
+  // 삼성헬스(건강 데이터)는 자체 권한 모델이라 상태를 따로 추적한다. 삼성헬스가
+  // 없는 기기에서는 카드도 요청도 없다 — 물어봐도 SDK가 거절해서 영구히 '거부됨'으로
+  // 남고, 그런 기기는 기기 걸음 센서로 대체한다(useStepDataToday).
+  const [healthAvailable, setHealthAvailable] = useState(false);
   const [healthGranted, setHealthGranted] = useState(false);
 
   // 진입 게이트는 표준 런타임 권한 기준. 삼성헬스는 갤럭시/개발자모드 의존이라
@@ -114,7 +116,9 @@ export function PermissionsScreen() {
       return next;
     });
 
-    if (isSamsungHealthAvailable()) {
+    const available = await isSamsungHealthAvailable();
+    setHealthAvailable(available);
+    if (available) {
       setHealthGranted(await hasSamsungHealthPermissions());
     }
   }, []);
@@ -149,8 +153,8 @@ export function PermissionsScreen() {
     const next = await requestAllPermissions();
     setResults(next);
 
-    // 삼성헬스 권한은 자체 UI(삼성헬스 팝업)로 요청한다(사용 가능할 때만).
-    if (isSamsungHealthAvailable()) {
+    // 삼성헬스 권한은 자체 UI(삼성헬스 팝업)로 요청한다(삼성헬스가 있을 때만).
+    if (await isSamsungHealthAvailable()) {
       setHealthGranted(await requestSamsungHealthPermissions());
     }
 
@@ -177,18 +181,16 @@ export function PermissionsScreen() {
               status={results[card.key]}
             />
           ))}
-          <PermissionCard
-            icon="fitness-outline"
-            title="건강 데이터"
-            description={
-              healthAvailable
-                ? '걸음·거리·칼로리를 삼성헬스에서 가져와 표시할 때 사용해요.'
-                : '삼성헬스(갤럭시)에서만 사용할 수 있어요.'
-            }
-            status={
-              healthGranted ? 'granted' : requested ? 'denied' : undefined
-            }
-          />
+          {healthAvailable ? (
+            <PermissionCard
+              icon="fitness-outline"
+              title="건강 데이터"
+              description="걸음·거리·칼로리를 삼성헬스에서 가져와 표시할 때 사용해요."
+              status={
+                healthGranted ? 'granted' : requested ? 'denied' : undefined
+              }
+            />
+          ) : null}
         </View>
 
         {requested && !allGranted ? (

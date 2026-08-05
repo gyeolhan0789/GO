@@ -20,6 +20,7 @@ export type SamsungHealthHourlySteps = {
 };
 
 type SamsungHealthNativeModule = {
+  isSupported(): Promise<boolean>;
   requestPermissions(): Promise<boolean>;
   hasPermissions(): Promise<boolean>;
   readToday(): Promise<SamsungHealthSummary>;
@@ -34,9 +35,22 @@ const native = NativeModules.SamsungHealth as
   | SamsungHealthNativeModule
   | undefined;
 
-/** 네이티브 모듈(삼성헬스 SDK) 사용 가능 여부. Android + 모듈 로드 시 true. */
-export function isSamsungHealthAvailable(): boolean {
-  return Platform.OS === 'android' && native != null;
+/**
+ * 삼성헬스 데이터 경로를 쓸 수 있는 기기인지.
+ *
+ * 모듈 로드 여부로 판단하면 안 된다 — SamsungHealthPackage는 모든 안드로이드 빌드에
+ * 항상 등록되므로 픽셀·LG에서도 모듈이 존재한다. 네이티브가 삼성헬스 앱 설치 여부를
+ * 직접 보고 답한다.
+ */
+export async function isSamsungHealthAvailable(): Promise<boolean> {
+  if (Platform.OS !== 'android' || !native) {
+    return false;
+  }
+  try {
+    return await native.isSupported();
+  } catch {
+    return false;
+  }
 }
 
 /** 삼성헬스 권한(걸음·활동요약 읽기)을 요청한다. */

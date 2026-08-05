@@ -16,6 +16,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
 
+    <!-- 삼성헬스 설치 여부를 조회하려면 선언해야 한다(Android 11+ 패키지 가시성).
+         없으면 깔려 있어도 NameNotFoundException이 나서 항상 미지원으로 읽힌다. -->
+    <queries>
+      <package android:name="com.sec.android.app.shealth" />
+    </queries>
+
     <!-- 카메라 없는 기기도 설치 허용 -->
     <uses-feature
       android:name="android.hardware.camera"
