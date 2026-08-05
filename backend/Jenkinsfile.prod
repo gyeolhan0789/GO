@@ -472,7 +472,8 @@ If the next stage fails, immediately run `sudo systemctl start nginx`.''',
                         NGINX_BIND_ADDRESS="$NGINX_BIND_ADDRESS" \
                         NGINX_HTTP_PORT="$NGINX_HTTP_PORT" \
                         NGINX_HTTPS_PORT="$NGINX_HTTPS_PORT" \
-                          docker compose -f "$COMPOSE_FILE" up -d --no-deps nginx
+                          docker compose -f "$COMPOSE_FILE" up -d --no-deps \
+                            --force-recreate nginx
 
                         running_nginx_image_id=$(docker inspect \
                           --format '{{.Image}}' "$NGINX_CONTAINER")
@@ -487,6 +488,10 @@ If the next stage fails, immediately run `sudo systemctl start nginx`.''',
                           | grep -qx "$NGINX_BIND_ADDRESS:$NGINX_HTTP_PORT"
                         docker port "$NGINX_CONTAINER" 443/tcp \
                           | grep -qx "$NGINX_BIND_ADDRESS:$NGINX_HTTPS_PORT"
+                        docker inspect --format \
+                          '{{range .Mounts}}{{println .Source .Destination .RW}}{{end}}' \
+                          "$NGINX_CONTAINER" \
+                          | grep -Fx '/etc/letsencrypt /etc/letsencrypt false'
                         docker exec "$NGINX_CONTAINER" nginx -t
                         bash ../infra/deploy/apply-backend-route.sh stable-only
                         docker image tag "$NGINX_CANDIDATE_IMAGE" \
