@@ -4,7 +4,6 @@ RUN apk add --no-cache curl openssl
 
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY wecandoit.conf /etc/nginx/conf.d/default.conf
-COPY admin.wecandoit.conf /etc/nginx/conf.d/admin.conf
 COPY admin-ui.location.conf /etc/nginx/snippets/admin-ui.conf
 COPY ai-dev.location.conf /etc/nginx/snippets/ai-dev.conf
 COPY jenkins.location.conf /etc/nginx/snippets/jenkins.conf
