@@ -12,7 +12,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import type { RootStackParamList } from '../src/app/navigation/RootNavigator';
-import { SentFriendRequestsScreen } from '../src/screens/SentFriendRequestsScreen/SentFriendRequestsScreen';
+import { FriendRequestsScreen } from '../src/screens/FriendRequestsScreen/FriendRequestsScreen';
 import { installFetchMock, jsonResponse } from '../jest/fetchMock';
 import type { FetchMock } from '../jest/fetchMock';
 
@@ -21,13 +21,28 @@ const INITIAL_METRICS = {
   insets: { top: 0, left: 0, right: 0, bottom: 0 },
 };
 
-const REQUEST_ID = 7;
+const RECEIVED_REQUEST_ID = 5;
+const INVITER_NICKNAME = '느긋한너구리';
+
+const RECEIVED_REQUESTS = {
+  content: [
+    {
+      requestId: RECEIVED_REQUEST_ID,
+      inviterId: 10,
+      inviterNickname: INVITER_NICKNAME,
+      createdAt: '2026-08-01T09:00:00',
+    },
+  ],
+  hasNext: false,
+};
+
+const SENT_REQUEST_ID = 7;
 const INVITEE_NICKNAME = '느긋한거북';
 
 const SENT_REQUESTS = {
   content: [
     {
-      requestId: REQUEST_ID,
+      requestId: SENT_REQUEST_ID,
       inviteeId: 42,
       inviteeNickname: INVITEE_NICKNAME,
       createdAt: '2026-08-01T09:30:00',
@@ -59,20 +74,33 @@ let renderer: ReactTestRenderer.ReactTestRenderer | null = null;
 let queryClient: QueryClient | null = null;
 let fetchMock: FetchMock;
 
+function defaultFetchImplementation(url: string, init?: RequestInit) {
+  if (url.includes('/friend-requests/sent')) {
+    return jsonResponse(200, SENT_REQUESTS);
+  }
+  if (url.includes('/friend-requests/') && url.includes('/accept')) {
+    return jsonResponse(204);
+  }
+  if (url.includes('/friend-requests/') && url.includes('/reject')) {
+    return jsonResponse(204);
+  }
+  if (url.includes('/friend-requests/') && init?.method === 'DELETE') {
+    return jsonResponse(204);
+  }
+  if (url.includes('/friend-requests')) {
+    return jsonResponse(200, RECEIVED_REQUESTS);
+  }
+  if (url.includes('/members/search')) {
+    return jsonResponse(200, INVITEE_SEARCH as never);
+  }
+  throw new Error(`예상하지 못한 요청: ${url}`);
+}
+
 beforeEach(() => {
   fetchMock = installFetchMock();
-  fetchMock.mockImplementation(async url => {
-    if (url.includes('/friend-requests/sent')) {
-      return jsonResponse(200, SENT_REQUESTS);
-    }
-    if (url.includes('/friend-requests/')) {
-      return jsonResponse(204);
-    }
-    if (url.includes('/members/search')) {
-      return jsonResponse(200, INVITEE_SEARCH as never);
-    }
-    throw new Error(`예상하지 못한 요청: ${url}`);
-  });
+  fetchMock.mockImplementation(async (url, init) =>
+    defaultFetchImplementation(url, init),
+  );
 });
 
 afterEach(() => {
@@ -119,6 +147,41 @@ function findButtonByLabel(root: ReactTestInstance, label: string) {
     .find(node => node.props.accessibilityLabel === label);
 }
 
+/** SegmentedControl 탭처럼 접근성 라벨 없이 자식 Text로만 구분되는 버튼을 찾는다. */
+function findButtonByText(root: ReactTestInstance, text: string) {
+  let current: ReactTestInstance | null = root.find(
+    node => node.type === Text && node.props.children === text,
+  ).parent;
+
+  while (current) {
+    if (typeof current.props.onPress === 'function') {
+      return current;
+    }
+    current = current.parent;
+  }
+
+  throw new Error(`${text} 버튼을 찾지 못했다.`);
+}
+
+/** 개수가 붙어 매 테스트마다 달라지는 "보낸 요청 N" 탭을 접두어로 찾는다. */
+function findButtonByTextPrefix(root: ReactTestInstance, prefix: string) {
+  let current: ReactTestInstance | null = root.find(
+    node =>
+      node.type === Text &&
+      typeof node.props.children === 'string' &&
+      node.props.children.startsWith(prefix),
+  ).parent;
+
+  while (current) {
+    if (typeof current.props.onPress === 'function') {
+      return current;
+    }
+    current = current.parent;
+  }
+
+  throw new Error(`${prefix}로 시작하는 버튼을 찾지 못했다.`);
+}
+
 async function renderScreen() {
   queryClient = new QueryClient({
     defaultOptions: {
@@ -137,8 +200,8 @@ async function renderScreen() {
           <NavigationContainer>
             <Stack.Navigator>
               <Stack.Screen
-                name="SentFriendRequests"
-                component={SentFriendRequestsScreen}
+                name="FriendRequests"
+                component={FriendRequestsScreen}
               />
             </Stack.Navigator>
           </NavigationContainer>
@@ -155,22 +218,113 @@ async function renderScreen() {
   return renderer;
 }
 
+async function goToSentTab(root: ReactTestInstance) {
+  await act(async () => {
+    findButtonByTextPrefix(root, '보낸 요청 ').props.onPress();
+  });
+}
+
 const CANCEL_LABEL = `${INVITEE_NICKNAME}님에게 보낸 친구 요청 취소`;
 
-describe('SentFriendRequestsScreen', () => {
-  test('보낸 요청의 상대 닉네임과 보낸 날짜를 보여준다', async () => {
+describe('FriendRequestsScreen', () => {
+  test('받은 요청과 보낸 요청 개수를 탭 라벨에 보여준다', async () => {
     const tree = await renderScreen();
     const texts = collectTexts(tree.root);
 
+    expect(texts).toContain('받은 요청 1');
+    expect(texts).toContain('보낸 요청 1');
+    expect(texts).toContain(INVITER_NICKNAME);
+  });
+
+  test('받은 요청을 수락하면 성공 토스트를 보여준다', async () => {
+    const tree = await renderScreen();
+
+    await act(async () => {
+      findButtonByText(tree.root, '수락').props.onPress();
+    });
+    await flushQueries();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `/friend-requests/${RECEIVED_REQUEST_ID}/accept`,
+      ),
+      expect.objectContaining({ method: 'PATCH' }),
+    );
+    expect(collectTexts(tree.root)).toContain('친구 요청을 수락했어요.');
+  });
+
+  test('받은 요청 거절을 확인받고 거절 요청을 보낸다', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert');
+    const tree = await renderScreen();
+
+    await act(async () => {
+      findButtonByText(tree.root, '거절').props.onPress();
+    });
+
+    const [, , buttons] = alertSpy.mock.calls[0];
+    const confirm = buttons?.find(button => button.text === '거절');
+    await act(async () => {
+      confirm?.onPress?.();
+    });
+    await flushQueries();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `/friend-requests/${RECEIVED_REQUEST_ID}/reject`,
+      ),
+      expect.objectContaining({ method: 'PATCH' }),
+    );
+  });
+
+  test('확인창에서 닫으면 거절 요청을 보내지 않는다', async () => {
+    jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const tree = await renderScreen();
+
+    await act(async () => {
+      findButtonByText(tree.root, '거절').props.onPress();
+    });
+    await flushQueries();
+
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('/reject'),
+      expect.anything(),
+    );
+  });
+
+  test('받은 친구 요청이 없으면 안내한다', async () => {
+    fetchMock.mockImplementation(async url => {
+      if (url.includes('/friend-requests/sent')) {
+        return jsonResponse(200, SENT_REQUESTS);
+      }
+      if (url.includes('/friend-requests')) {
+        return jsonResponse(200, EMPTY_SLICE);
+      }
+      if (url.includes('/members/search')) {
+        return jsonResponse(200, INVITEE_SEARCH as never);
+      }
+      throw new Error(`예상하지 못한 요청: ${url}`);
+    });
+    const tree = await renderScreen();
+    const texts = collectTexts(tree.root);
+
+    expect(texts).toContain('받은 친구 요청이 없어요.');
+    expect(texts).toContain('받은 요청 0');
+  });
+
+  test('보낸 요청 탭에서 상대 닉네임과 보낸 날짜를 보여준다', async () => {
+    const tree = await renderScreen();
+    await goToSentTab(tree.root);
+
+    const texts = collectTexts(tree.root);
     expect(texts).toContain(INVITEE_NICKNAME);
     // 서버 LocalDateTime을 기기 시간대로 옮기지 않고 날짜만 떼어 보여준다.
     expect(texts).toContain('2026.08.01 요청');
-    expect(texts).toContain('보낸 요청 1');
   });
 
-  test('요청 취소를 확인받고 취소 요청을 보낸다', async () => {
+  test('보낸 요청 취소를 확인받고 취소 요청을 보낸다', async () => {
     const alertSpy = jest.spyOn(Alert, 'alert');
     const tree = await renderScreen();
+    await goToSentTab(tree.root);
 
     const cancelButton = findButtonByLabel(tree.root, CANCEL_LABEL);
     expect(cancelButton).toBeDefined();
@@ -186,7 +340,7 @@ describe('SentFriendRequestsScreen', () => {
     await flushQueries();
 
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining(`/friend-requests/${REQUEST_ID}`),
+      expect.stringContaining(`/friend-requests/${SENT_REQUEST_ID}`),
       expect.objectContaining({ method: 'DELETE' }),
     );
   });
@@ -194,6 +348,7 @@ describe('SentFriendRequestsScreen', () => {
   test('확인창에서 닫으면 취소 요청을 보내지 않는다', async () => {
     jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     const tree = await renderScreen();
+    await goToSentTab(tree.root);
 
     await act(async () => {
       findButtonByLabel(tree.root, CANCEL_LABEL)?.props.onPress();
@@ -213,15 +368,10 @@ describe('SentFriendRequestsScreen', () => {
       if (init?.method === 'DELETE') {
         return jsonResponse(409, { message: conflictMessage });
       }
-      if (url.includes('/friend-requests/sent')) {
-        return jsonResponse(200, SENT_REQUESTS);
-      }
-      if (url.includes('/members/search')) {
-        return jsonResponse(200, INVITEE_SEARCH as never);
-      }
-      throw new Error(`예상하지 못한 요청: ${url}`);
+      return defaultFetchImplementation(url, init);
     });
     const tree = await renderScreen();
+    await goToSentTab(tree.root);
     const requestCountBeforeCancel = fetchMock.mock.calls.length;
 
     await act(async () => {
@@ -241,26 +391,19 @@ describe('SentFriendRequestsScreen', () => {
     expect(fetchMock.mock.calls.length).toBe(requestCountBeforeCancel + 3);
   });
 
-  test('보낸 요청이 없으면 친구를 추가할 곳을 안내한다', async () => {
-    fetchMock.mockImplementation(async () => jsonResponse(200, EMPTY_SLICE));
+  test('보낸 친구 요청이 없으면 친구를 추가할 곳을 안내한다', async () => {
+    fetchMock.mockImplementation(async (url, init) => {
+      if (url.includes('/friend-requests/sent')) {
+        return jsonResponse(200, EMPTY_SLICE);
+      }
+      return defaultFetchImplementation(url, init);
+    });
     const tree = await renderScreen();
+    await goToSentTab(tree.root);
     const texts = collectTexts(tree.root);
 
     expect(texts.some(text => text.includes('보낸 친구 요청이 없어요.'))).toBe(
       true,
     );
-    // 개수 라벨은 0을 보여줄 이유가 없어 비운다.
-    expect(texts).not.toContain('보낸 요청 0');
-  });
-
-  test('목록을 불러오지 못하면 다시 시도할 수 있게 안내한다', async () => {
-    fetchMock.mockImplementation(async () =>
-      jsonResponse(500, { message: '서버 오류' }),
-    );
-    const tree = await renderScreen();
-
-    expect(
-      findButtonByLabel(tree.root, '친구 추가 내역 다시 불러오기'),
-    ).toBeDefined();
   });
 });

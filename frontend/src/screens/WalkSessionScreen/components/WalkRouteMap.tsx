@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 
 import { colors } from '../../../shared/constants/colors';
@@ -57,6 +57,17 @@ export const WalkRouteMap = forwardRef<WalkRouteMapHandle, WalkRouteMapProps>(
       [current],
     );
 
+    // initialRegion은 마운트 시점에만 적용되고 이후 갱신은 무시된다. 좌표를
+    // 모르는 채로 먼저 마운트하면 지도가 기본 위치(적도 부근)로 떴다가 애니메이션
+    // 으로 튀는 것처럼 보인다 — 좌표가 생기기 전엔 아예 지도를 마운트하지 않는다.
+    if (!current) {
+      return (
+        <View style={[styles.map, styles.loading]}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      );
+    }
+
     return (
       <MapView
         ref={mapRef}
@@ -65,7 +76,7 @@ export const WalkRouteMap = forwardRef<WalkRouteMapHandle, WalkRouteMapProps>(
         // 자체 픽셀 마커로 현재 위치를 표시하므로 기본 파란 점은 끈다.
         showsUserLocation={false}
         followsUserLocation={false}
-        initialRegion={current ? toRegion(current) : undefined}
+        initialRegion={toRegion(current)}
       >
         {route.length > 1 ? (
           <Polyline
@@ -78,13 +89,11 @@ export const WalkRouteMap = forwardRef<WalkRouteMapHandle, WalkRouteMapProps>(
           />
         ) : null}
 
-        {current ? (
-          <Marker coordinate={current} anchor={{ x: 0.5, y: 0.5 }}>
-            <View style={styles.marker}>
-              <View style={styles.markerDot} />
-            </View>
-          </Marker>
-        ) : null}
+        <Marker coordinate={current} anchor={{ x: 0.5, y: 0.5 }}>
+          <View style={styles.marker}>
+            <View style={styles.markerDot} />
+          </View>
+        </Marker>
       </MapView>
     );
   },
@@ -93,6 +102,11 @@ export const WalkRouteMap = forwardRef<WalkRouteMapHandle, WalkRouteMapProps>(
 const styles = StyleSheet.create({
   map: {
     flex: 1,
+  },
+  loading: {
+    backgroundColor: colors.neutralBg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   marker: {
     width: 28,

@@ -1,20 +1,25 @@
 from app.domain.ai_result import AIResult
 
+
 from app.services.vision.object_vision_service import (
     ObjectVisionService
 )
+
 
 from app.services.vision.gemini_service import (
     GeminiService
 )
 
+
 from app.prompts.prompt_builder import (
     PromptBuilder
 )
 
+
 from app.mappers.reason_mapper import (
     ReasonMapper
 )
+
 
 
 class VisionRouter:
@@ -23,36 +28,56 @@ class VisionRouter:
 
     역할
     -----------------------
-    - Mission Type에 따른 Vision Model 선택
-    - 적절한 Vision Pipeline 호출
+    - Mission Type에 따른 Vision Pipeline 선택
+    - 적절한 Service 호출
     - AIResult 반환
+
 
     Routing
     -----------------------
+
     OBJECT
-        -> SigLIP2 Pipeline
+
+        ObjectVisionService
+
+            ↓
+
+        SigLIP2
+            ↓
+        RuleEngine
+            ↓
+        ObjectVerifier
+
 
     ATTRIBUTE
-        -> Gemini Vision
+
+        Gemini Vision
+
 
     RELATION
-        -> Gemini Vision
+
+        Gemini Vision
+
 
 
     책임 제외
     -----------------------
     - 이미지 품질 검사
     - Rule 판단
-    - API Response 변환
+    - Response 변환
     """
+
 
 
     def __init__(self):
 
+        # OBJECT Pipeline
         self.object_service = (
             ObjectVisionService()
         )
 
+
+        # Gemini Pipeline
         self.gemini_service = (
             GeminiService()
         )
@@ -67,20 +92,8 @@ class VisionRouter:
     ) -> AIResult:
         """
         Mission Type 기반 Vision Routing
-
-        Args:
-            image_bytes:
-                업로드 이미지 bytes
-
-            mission_type:
-                OBJECT / ATTRIBUTE / RELATION
-
-            decision_condition:
-                미션 조건
-
-        Returns:
-            AIResult
         """
+
 
 
         mission_type = (
@@ -91,6 +104,13 @@ class VisionRouter:
 
         # ==========================
         # OBJECT
+        #
+        # SigLIP2
+        #    ↓
+        # RuleEngine
+        #    ↓
+        # ObjectVerifier
+        #
         # ==========================
 
         if mission_type == "OBJECT":
@@ -105,6 +125,9 @@ class VisionRouter:
         # ==========================
         # ATTRIBUTE
         # RELATION
+        #
+        # Gemini Vision
+        #
         # ==========================
 
         if mission_type in (
@@ -112,12 +135,14 @@ class VisionRouter:
             "RELATION"
         ):
 
+
             prompt = (
                 PromptBuilder.build(
                     mission_type=mission_type,
                     decision_condition=decision_condition
                 )
             )
+
 
 
             ai_result = (
@@ -128,20 +153,19 @@ class VisionRouter:
             )
 
 
-            # Gemini 자연어 결과 -> ReasonCode 변환
-            ai_result = ReasonMapper.map(
-                ai_result=ai_result,
-                mission_type=mission_type
+
+            ai_result = (
+                ReasonMapper.map(
+                    ai_result=ai_result,
+                    mission_type=mission_type
+                )
             )
+
 
 
             return ai_result
 
 
-
-        # ==========================
-        # Unsupported
-        # ==========================
 
         raise ValueError(
             f"지원하지 않는 mission_type입니다: {mission_type}"

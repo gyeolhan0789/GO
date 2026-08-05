@@ -4,61 +4,86 @@ from io import BytesIO
 
 from PIL import Image
 
+
 from app.domain.ai_result import AIResult
+from app.domain.mission_result import ReasonCode
+
 
 from app.services.vision.siglip2_service import (
     SigLIP2Service
-)
-
-from app.mappers.siglip_result_mapper import (
-    SigLIPResultMapper
 )
 
 from app.services.rule_engine.siglip_rule_engine import (
     SigLIPRuleEngine
 )
 
+from app.services.verifier.object_verifier_service import (
+    ObjectVerifierService
+)
+
+from app.services.vision.gemini_service import (
+    GeminiService
+)
+
 
 logger = logging.getLogger(__name__)
 
 
-
 class ObjectVisionService:
     """
-    OBJECT Mission 전용 Vision Pipeline
-
-    역할
-    -----------------------
-    - OBJECT 미션 이미지 분석
-    - SigLIP2 기반 객체 matching
-    - RuleEngine 기반 판정
-    - AIResult 반환
+    OBJECT Mission Vision Pipeline
 
 
-    Pipeline
-    -----------------------
+    Responsibility
+    ----------------------
+
+    OBJECT 검증 전체 흐름 관리
+
+
+    Pipeline:
 
     Image
-      |
-      v
-    SigLIP2Service
-      |
-      v
-    SigLIPResultMapper
-      |
-      v
+
+      ↓
+
+    SigLIP2
+
+    (객체 후보 탐지)
+
+      ↓
+
     SigLIPRuleEngine
-      |
-      v
+
+    (candidate 판단)
+
+      ↓
+
+    ObjectExistResult
+
+
+      ↓
+
+
+    ObjectVerifier
+
+    (REAL / NON_REAL 판단)
+
+      ↓
+
+
+    Gemini fallback
+
+    (불확실 케이스)
+
+
+      ↓
+
+
     AIResult
 
 
-    책임 제외
-    -----------------------
-    - API Response 변환
-    - 이미지 품질 검사
-    - Mission Type Routing
     """
+
 
 
     def __init__(self):
@@ -67,12 +92,16 @@ class ObjectVisionService:
             SigLIP2Service()
         )
 
-        self.mapper = (
-            SigLIPResultMapper()
-        )
 
         self.rule_engine = (
             SigLIPRuleEngine()
+        )
+
+
+        self.object_verifier = (
+            ObjectVerifierService(
+                gemini_service=GeminiService()
+            )
         )
 
 
@@ -84,41 +113,35 @@ class ObjectVisionService:
     ) -> AIResult:
 
 
+
         # ==========================
-        # Image Convert
+        # Image Load
         # ==========================
 
-        image = Image.open(
-            BytesIO(image_bytes)
-        ).convert(
-            "RGB"
+        image = (
+            Image.open(
+                BytesIO(image_bytes)
+            )
+            .convert("RGB")
         )
 
 
 
         # ==========================
-        # Target Object 추출
+        # Target
         # ==========================
 
         target = (
-
             decision_condition.get(
                 "target"
             )
-
-            or
-
-            decision_condition.get(
-                "object"
-            )
-
         )
 
 
         if not target:
 
             raise ValueError(
-                "OBJECT 미션은 target 조건이 필요합니다."
+                "OBJECT target required"
             )
 
 
@@ -131,24 +154,20 @@ class ObjectVisionService:
 
 
         # ==========================
-        # SigLIP Candidate 생성
+        # 1. SigLIP2 Candidate Detection
         # ==========================
 
         candidates = [
 
-            f"a photo of a {target}",
+            f"a photo of a real {target}",
 
-            f"not a {target}"
+            f"a photo without a {target}"
 
         ]
 
 
 
-        # ==========================
-        # SigLIP2 Inference
-        # ==========================
-
-        siglip_result = (
+        prediction = (
             self.siglip_service.predict(
                 image=image,
                 candidates=candidates
@@ -157,43 +176,172 @@ class ObjectVisionService:
 
 
 
-        logger.info(
-            "[SigLIP Result] %s",
-            siglip_result
-        )
-
-
-
-        # ==========================
-        # Mapping
-        # ==========================
-
-        ai_result = (
-            self.mapper.map(
-                siglip_result
+        scores = (
+            prediction.get(
+                "scores",
+                {}
             )
         )
 
 
 
         # ==========================
-        # Rule Engine
+        # 2. SigLIP Rule Engine
         # ==========================
 
-        ai_result = (
-            self.rule_engine.validate(
-                ai_result
+        object_result = (
+            self.rule_engine.create_object_result(
+                target=target,
+                scores=scores
             )
         )
 
 
 
         logger.info(
-            "[OBJECT Decision] success=%s confidence=%s reason_code=%s",
-            ai_result.success,
-            ai_result.confidence,
-            ai_result.reason_code
+            """
+[OBJECT Candidate]
+
+target=%s
+
+exists=%s
+
+confidence=%.3f
+
+positive=%.6f
+
+negative=%.6f
+
+margin=%.6f
+
+""",
+
+            target,
+
+            object_result.exists,
+
+            object_result.confidence,
+
+            object_result.positive_score,
+
+            object_result.negative_score,
+
+            object_result.margin
+
         )
 
 
-        return ai_result
+
+        # ==========================
+        # 3. Candidate Not Found
+        # ==========================
+
+        if not object_result.exists:
+
+
+            return AIResult(
+
+                success=False,
+
+                confidence=(
+                    object_result.confidence
+                ),
+
+                reason=(
+                    f"{target} not found"
+                ),
+
+                reason_code=(
+                    ReasonCode.OBJECT_NOT_FOUND
+                ),
+
+                detected_objects=[],
+
+
+                metadata={
+
+                    "decision_source":
+                        "SIGLIP2",
+
+
+                    "object_candidate":
+                    {
+
+                        "target":
+                            object_result.target,
+
+                        "positive_score":
+                            object_result.positive_score,
+
+                        "negative_score":
+                            object_result.negative_score,
+
+                        "margin":
+                            object_result.margin,
+
+                        "confidence":
+                            object_result.confidence
+
+                    }
+
+                }
+
+            )
+
+
+
+        # ==========================
+        # 4. Real Object Verification
+        # ==========================
+
+        verifier_result = (
+            self.object_verifier.verify(
+                image_bytes=image_bytes,
+                target=target,
+                object_result=object_result
+            )
+        )
+
+
+
+        # ==========================
+        # 5. Final Metadata Merge
+        # ==========================
+
+        if verifier_result.metadata is None:
+
+            verifier_result.metadata = {}
+
+
+
+        verifier_result.metadata.update(
+
+            {
+
+                "siglip_candidate":
+
+                {
+
+                    "target":
+                        object_result.target,
+
+                    "positive_score":
+                        object_result.positive_score,
+
+                    "negative_score":
+                        object_result.negative_score,
+
+                    "margin":
+                        object_result.margin,
+
+                    "confidence":
+                        object_result.confidence
+
+                }
+
+            }
+
+        )
+
+
+        return verifier_result

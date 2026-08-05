@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 
 import {
   getWalkSessionCalories,
+  getWalkSessionContinuousActiveMs,
+  getWalkSessionContinuousSteps,
   getWalkSessionDistanceMeters,
   getWalkSessionElapsedMs,
   getWalkSessionElapsedSeconds,
@@ -33,6 +35,10 @@ export function useWalkSession() {
   const [steps, setSteps] = useState(getWalkSessionSteps);
   const [distanceMeters, setDistanceMeters] = useState(getWalkSessionDistanceMeters);
   const [calories, setCalories] = useState(getWalkSessionCalories);
+  const [continuousSteps, setContinuousSteps] = useState(getWalkSessionContinuousSteps);
+  const [continuousActiveMs, setContinuousActiveMs] = useState(
+    getWalkSessionContinuousActiveMs,
+  );
   // 워치에서 "산책 종료"를 눌렀다는 표시. WalkSessionScreen이 보고 폰의
   // 종료 흐름(기록 저장 -> 결과 화면)을 그대로 탄다.
   const [isEndRequested, setEndRequested] = useState(isWalkSessionEndRequested);
@@ -48,6 +54,8 @@ export function useWalkSession() {
       setSteps(getWalkSessionSteps());
       setDistanceMeters(getWalkSessionDistanceMeters());
       setCalories(getWalkSessionCalories());
+      setContinuousSteps(getWalkSessionContinuousSteps());
+      setContinuousActiveMs(getWalkSessionContinuousActiveMs());
       setEndRequested(isWalkSessionEndRequested());
     };
     sync();
@@ -61,6 +69,7 @@ export function useWalkSession() {
     const timer = setInterval(() => {
       setElapsedSeconds(getWalkSessionElapsedSeconds());
       setElapsedMs(getWalkSessionElapsedMs());
+      setContinuousActiveMs(getWalkSessionContinuousActiveMs());
     }, 1000);
     return () => clearInterval(timer);
   }, [isPaused, isStarted]);
@@ -75,6 +84,8 @@ export function useWalkSession() {
     steps,
     distanceMeters,
     calories,
+    continuousSteps,
+    continuousActiveMs,
     isEndRequested,
     togglePause: togglePauseWalkSession,
   };

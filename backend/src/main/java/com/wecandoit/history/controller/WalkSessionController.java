@@ -4,6 +4,7 @@ import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.common.security.LoginMemberId;
 import com.wecandoit.history.controller.request.WalkSessionCompleteRequest;
 import com.wecandoit.history.controller.request.WalkSessionStartRequest;
+import com.wecandoit.history.controller.response.WalkSessionCompleteResponse;
 import com.wecandoit.history.controller.response.WalkSessionDetailResponse;
 import com.wecandoit.history.controller.response.WalkSessionResponse;
 import com.wecandoit.history.controller.response.WalkSessionStartResponse;
@@ -43,7 +44,7 @@ public class WalkSessionController {
     }
 
     @PostMapping
-    public ResponseEntity<WalkSessionResponse> completeSession(
+    public ResponseEntity<WalkSessionCompleteResponse> completeSession(
             @LoginMemberId Long memberId,
             @Valid @RequestBody WalkSessionCompleteRequest request
     ) {

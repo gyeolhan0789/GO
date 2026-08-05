@@ -8,8 +8,8 @@ import static org.mockito.BDDMockito.then;
 
 import com.wecandoit.avatar.domain.AvatarImage;
 import com.wecandoit.avatar.repository.AvatarImageRepository;
-import com.wecandoit.item.controller.response.AvatarResponse;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.AvatarDto;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.item.domain.Item;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.item.domain.MemberEquippedItem;
@@ -78,7 +78,7 @@ class AvatarReadServiceTest {
                 .willReturn(List.of(hatItem, topItem));
 
         // when
-        Map<Long, AvatarResponse> responses =
+        Map<Long, AvatarDto> responses =
                 avatarReadService.getAvatars(List.of(maleMember, femaleMember));
 
         // then
@@ -87,16 +87,16 @@ class AvatarReadServiceTest {
                 .isEqualTo("/uploads/avatars/male/default.png");
         assertThat(responses.get(1L).equippedItems()).singleElement()
                 .extracting(
-                        EquippedItemResponse::memberItemId,
-                        EquippedItemResponse::itemId,
-                        EquippedItemResponse::imageUrl
+                        EquippedItemDto::memberItemId,
+                        EquippedItemDto::itemId,
+                        EquippedItemDto::imageUrl
                 )
                 .containsExactly(10L, 100L, "https://example.com/hat.png");
         assertThat(responses.get(2L).gender()).isEqualTo(Gender.FEMALE);
         assertThat(responses.get(2L).defaultImageUrl())
                 .isEqualTo("/uploads/avatars/female/default.png");
         assertThat(responses.get(2L).equippedItems()).singleElement()
-                .extracting(EquippedItemResponse::memberItemId)
+                .extracting(EquippedItemDto::memberItemId)
                 .isEqualTo(20L);
         then(memberEquippedItemRepository).should().findAllByMemberIdIn(List.of(1L, 2L));
         then(memberItemRepository).should().findAllById(List.of(10L, 20L));
@@ -117,7 +117,7 @@ class AvatarReadServiceTest {
                 .willReturn(List.of());
 
         // when
-        Map<Long, AvatarResponse> responses =
+        Map<Long, AvatarDto> responses =
                 avatarReadService.getAvatars(List.of(femaleMember));
 
         // then
@@ -139,7 +139,7 @@ class AvatarReadServiceTest {
                 .willReturn(List.of());
 
         // when
-        Map<Long, AvatarResponse> responses = avatarReadService.getAvatars(List.of(maleMember));
+        Map<Long, AvatarDto> responses = avatarReadService.getAvatars(List.of(maleMember));
 
         // then
         assertThat(responses.get(1L).gender()).isEqualTo(Gender.MALE);
@@ -151,7 +151,7 @@ class AvatarReadServiceTest {
     @DisplayName("조회된 회원이 없으면 아바타 저장소를 조회하지 않는다")
     void getAvatarsReturnsEmptyMapWithoutQueries() {
         // when
-        Map<Long, AvatarResponse> responses = avatarReadService.getAvatars(List.of());
+        Map<Long, AvatarDto> responses = avatarReadService.getAvatars(List.of());
 
         // then
         assertThat(responses).isEmpty();

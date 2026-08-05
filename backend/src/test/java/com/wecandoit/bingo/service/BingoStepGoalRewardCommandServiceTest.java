@@ -14,6 +14,7 @@ import com.wecandoit.history.repository.WalkSessionRepository;
 import com.wecandoit.point.service.PointCommandService;
 import com.wecandoit.point.service.PointReadService;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -59,11 +60,14 @@ class BingoStepGoalRewardCommandServiceTest {
                 100L,
                 List.of(1L, 2L)
         )).willReturn(1_000L);
+        given(pointCommandService.grantDailyStepGoalReward(10L, 100L, List.of(1L, 2L)))
+                .willReturn(Map.of(1L, 100L, 2L, 100L));
 
         // when
-        rewardCommandService.evaluate(1L, 10L);
+        long earnedPoint = rewardCommandService.evaluate(1L, 10L);
 
         // then
+        assertThat(earnedPoint).isEqualTo(100L);
         then(pointCommandService).should()
                 .grantDailyStepGoalReward(10L, 100L, List.of(1L, 2L));
     }
@@ -88,9 +92,10 @@ class BingoStepGoalRewardCommandServiceTest {
         )).willReturn(999L);
 
         // when
-        rewardCommandService.evaluate(1L, 10L);
+        long earnedPoint = rewardCommandService.evaluate(1L, 10L);
 
         // then
+        assertThat(earnedPoint).isZero();
         then(pointCommandService).shouldHaveNoInteractions();
     }
 
@@ -109,9 +114,10 @@ class BingoStepGoalRewardCommandServiceTest {
         given(pointReadService.hasDailyStepGoalReward(100L)).willReturn(true);
 
         // when
-        rewardCommandService.evaluate(1L, 10L);
+        long earnedPoint = rewardCommandService.evaluate(1L, 10L);
 
         // then
+        assertThat(earnedPoint).isZero();
         then(walkSessionRepository).shouldHaveNoInteractions();
         then(pointCommandService).shouldHaveNoInteractions();
     }
@@ -137,11 +143,16 @@ class BingoStepGoalRewardCommandServiceTest {
                 200L,
                 List.of(1L)
         )).willReturn(100L);
+        given(pointCommandService.grantDailyStepGoalReward(10L, 100L, List.of(1L)))
+                .willReturn(Map.of(1L, 100L));
+        given(pointCommandService.grantDailyStepGoalReward(10L, 200L, List.of(1L)))
+                .willReturn(Map.of(1L, 100L));
 
         // when
-        rewardCommandService.evaluate(1L, 10L);
+        long earnedPoint = rewardCommandService.evaluate(1L, 10L);
 
         // then
+        assertThat(earnedPoint).isEqualTo(200L);
         ArgumentCaptor<Long> boardIdCaptor = ArgumentCaptor.forClass(Long.class);
         then(bingoBoardRepository).should(times(2)).findByIdForUpdate(boardIdCaptor.capture());
         assertThat(boardIdCaptor.getAllValues()).containsExactly(100L, 200L);

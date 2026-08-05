@@ -1,5 +1,9 @@
-from PIL import Image
+import io
 import time
+import logging
+
+from PIL import Image
+
 import torch
 
 from transformers import (
@@ -8,36 +12,58 @@ from transformers import (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
 class SigLIP2Service:
     """
-    SigLIP2 기반 이미지-텍스트 유사도 분석 서비스
+    SigLIP2 Image-Text Similarity Service
+
 
     역할
     -----------------------
-    - 이미지와 후보 텍스트 간 similarity 계산
-    - 후보 label ranking 제공
-    - 추론 latency 측정
+    - Image / Text prompt similarity 계산
+    - Positive / Negative prompt score 반환
+    - Inference latency 측정
 
-    최종 미션 성공 여부 판단은 담당하지 않음
 
-    Output
+    책임 제외
     -----------------------
-    {
-        "top_label": "a flower",
-        "confidence": 0.92,
-        "scores": {
-            "a flower": 0.92,
-            "a tree": 0.05
-        },
-        "latency_ms": 200.5
-    }
+    ❌ 객체 존재 여부 판단
+    ❌ threshold 적용
+    ❌ margin 계산
+    ❌ PASS / FAIL 판단
+    ❌ Gemini fallback
+
+
+    Flow:
+
+    Image
+
+      +
+
+    Prompt List
+
+      ↓
+
+    SigLIP2
+
+      ↓
+
+    sigmoid score
+
+      ↓
+
+    ObjectVisionService
     """
+
 
 
     MODEL_NAME = (
         "google/"
         "siglip2-base-patch16-224"
     )
+
 
 
     def __init__(self):
@@ -49,6 +75,13 @@ class SigLIP2Service:
         )
 
 
+        logger.info(
+            "[SigLIP2] device=%s",
+            self.device
+        )
+
+
+
         self.processor = (
             AutoProcessor.from_pretrained(
                 self.MODEL_NAME
@@ -58,7 +91,12 @@ class SigLIP2Service:
 
         self.model = (
             AutoModel.from_pretrained(
-                self.MODEL_NAME
+                self.MODEL_NAME,
+                dtype=(
+                    torch.float16
+                    if self.device == "cuda"
+                    else torch.float32
+                )
             )
             .to(self.device)
         )
@@ -68,11 +106,107 @@ class SigLIP2Service:
 
 
 
+        logger.info(
+            "[SigLIP2] warm-up start"
+        )
+
+
+        self._warm_up()
+
+
+        logger.info(
+            "[SigLIP2] ready"
+        )
+
+
+
+    def load_image(
+        self,
+        image_bytes: bytes
+    ) -> Image.Image:
+        """
+        bytes -> RGB PIL Image
+        """
+
+        return (
+            Image.open(
+                io.BytesIO(image_bytes)
+            )
+            .convert("RGB")
+        )
+
+
+
+    def _warm_up(self):
+
+        dummy_image = Image.new(
+            "RGB",
+            (224, 224),
+            color="white"
+        )
+
+
+        self.predict(
+            image=dummy_image,
+            candidates=[
+                "a photo of an object",
+                "there is no object in the image"
+            ]
+        )
+
+
+
     def predict(
         self,
         image: Image.Image,
         candidates: list[str]
     ) -> dict:
+        """
+        Image-text similarity 계산
+
+
+        Args:
+            image:
+                PIL Image
+
+
+            candidates:
+                비교할 text prompt 목록
+
+
+        Returns:
+
+        {
+            "scores": {
+                prompt: score
+            },
+
+            "latency_ms": float
+        }
+
+        """
+
+        if not candidates:
+
+            raise ValueError(
+                "SigLIP candidate text가 없습니다."
+            )
+
+
+
+        if self.device == "cuda":
+
+            torch.cuda.synchronize()
+
+
+
+        start = time.perf_counter()
+
+
+
+        # ==========================
+        # Preprocess
+        # ==========================
 
         inputs = self.processor(
             text=candidates,
@@ -82,81 +216,96 @@ class SigLIP2Service:
         )
 
 
+
         inputs = {
             key: value.to(self.device)
             for key, value in inputs.items()
         }
 
 
+
         # ==========================
-        # Inference Latency 측정
+        # Inference
         # ==========================
 
-        start_time = time.perf_counter()
-
-
-        with torch.no_grad():
+        with torch.inference_mode():
 
             outputs = (
-                self.model(**inputs)
+                self.model(
+                    **inputs
+                )
             )
+
+
+            logits = (
+                outputs
+                .logits_per_image
+                .squeeze(0)
+            )
+
+            # SigLIP은 softmax 확률보다
+            # sigmoid 기반 image-text matching score 사용
+            scores = (
+                torch.sigmoid(
+                    logits
+                )
+            )
+
+
+
+        if self.device == "cuda":
+
+            torch.cuda.synchronize()
+
 
 
         latency_ms = (
             time.perf_counter()
             -
-            start_time
+            start
         ) * 1000
 
 
 
-        logits = (
-            outputs.logits_per_image
-        )
+        # ==========================
+        # Score Mapping
+        # ==========================
 
-
-        # 후보 label 간 상대 확률 변환
-
-        probabilities = (
-            torch.softmax(
-                logits,
-                dim=1
-            )
+        score_values = (
+            scores
             .cpu()
-            .numpy()[0]
+            .tolist()
         )
 
 
-        score_map = dict(
-            zip(
+        score_map = {
+
+            candidate:
+                float(score)
+
+            for candidate, score
+            in zip(
                 candidates,
-                probabilities.tolist()
+                score_values
             )
+        }
+
+
+
+        logger.info(
+            "[SigLIP2] latency=%.2fms scores=%s",
+            latency_ms,
+            score_map
         )
 
-
-        top_label = max(
-            score_map,
-            key=score_map.get
-        )
-
-
-        confidence = (
-            score_map[top_label]
-        )
 
 
         return {
-
-            "top_label": top_label,
-
-            "confidence": float(
-                confidence
-            ),
 
             "scores": score_map,
 
             "latency_ms": float(
                 latency_ms
             )
+
         }

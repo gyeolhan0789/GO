@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.friend.dto.FriendResponse;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
 import java.util.List;
@@ -74,7 +74,7 @@ class FriendControllerTest {
                         12_500,
                         Gender.FEMALE,
                         "https://example.com/female.png",
-                        List.of(new EquippedItemResponse(
+                        List.of(new EquippedItemDto(
                                 10L,
                                 100L,
                                 "빨간 모자",

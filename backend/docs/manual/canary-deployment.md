@@ -66,9 +66,9 @@ Nginx 컨테이너는 다음 Host 경로의 기존 인증서와 Admin UI 파일�
 /var/www/certbot
 ```
 
-`i15a506.p.ssafy.io`와 `admin.i15a506.p.ssafy.io` 인증서 파일이 모두 존재해야 한다.
-후보 이미지 검증 과정에서 두 server block을 모두 읽으며, TLS 설정이 하나라도
-잘못되면 실행 중인 Nginx를 교체하기 전에 실패 처리한다.
+`i15a506.p.ssafy.io` 인증서 파일이 존재해야 한다. Admin UI는 별도 서브도메인 없이
+동일한 메인 도메인의 `/admin-ui/` 경로로 제공하며, 후보 이미지 검증 과정에서 메인
+도메인의 TLS 설정과 Admin UI 경로 설정을 확인한다.
 
 백엔드 WebSocket 엔드포인트 `/ws`는 HTTP/1.1 Upgrade 헤더를 사용해 프록시한다.
 multipart 경계값 때문에 정상적인 5MB 파일이 Nginx에서 먼저 거부되지 않도록 Nginx의

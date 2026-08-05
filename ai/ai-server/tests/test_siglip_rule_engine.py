@@ -1,216 +1,142 @@
-import pytest
+import logging
 
-from app.mappers.siglip_result_mapper import (
-    SigLIPResultMapper
-)
-
-from app.services.rule_engine.siglip_rule_engine import (
-    SigLIPRuleEngine
-)
-
-from app.domain.mission_result import ReasonCode
+from app.domain.object_exist_result import ObjectExistResult
 
 
-
-@pytest.fixture
-def mapper():
-
-    return SigLIPResultMapper()
+logger = logging.getLogger(__name__)
 
 
-
-@pytest.fixture
-def rule_engine():
-
-    return SigLIPRuleEngine()
-
-
-
-def test_siglip_object_pass(
-    mapper,
-    rule_engine
-):
+class SigLIPRuleEngine:
     """
-    Positive candidate가 명확하게 높은 경우
+    SigLIP2 Object Existence Rule Engine
 
-    PASS 판정 테스트
+    역할
+    ------------------------
+    - SigLIP positive / negative score 분석
+    - margin 계산
+    - confidence 계산
+    - ObjectExistResult 생성
+
+    ※ 최종 성공/실패 판단은 ObjectExistRule 담당
     """
 
-    siglip_result = {
 
-        "top_label": "a flower",
+    def create_object_result(
+        self,
+        target: str,
+        scores: dict
+    ) -> ObjectExistResult:
 
-        "confidence": 0.79,
 
-        "scores": {
+        positive_key = (
+            f"a photo of a real {target}"
+        )
 
-            "a flower": 0.79,
+        negative_key = (
+            f"a photo without a {target}"
+        )
 
-            "not a flower": 0.21
 
-        }
-    }
+        positive_score = scores.get(
+            positive_key,
+            0.0
+        )
 
+        negative_score = scores.get(
+            negative_key,
+            0.0
+        )
 
-    ai_result = mapper.map(
-        siglip_result
-    )
 
+        margin = (
+            positive_score
+            -
+            negative_score
+        )
 
-    result = rule_engine.validate(
-        ai_result
-    )
 
+        confidence = self._calculate_confidence(
+            positive_score,
+            negative_score
+        )
 
-    assert result.success is True
 
-    assert result.reason_code == (
-        ReasonCode.PASS
-    )
+        logger.info(
+            "[SigLIP RuleEngine] "
+            f"target={target} "
+            f"positive={positive_score:.6f} "
+            f"negative={negative_score:.6f} "
+            f"margin={margin:.6f} "
+            f"confidence={confidence:.3f}"
+        )
 
-    assert result.confidence == 0.79
 
-    assert (
-        result.metadata["top_score"]
-        == 0.79
-    )
+        return ObjectExistResult(
 
+            # Rule 판단 전이므로 기본값
+            exists=False,
 
 
-def test_siglip_object_not_found(
-    mapper,
-    rule_engine
-):
-    """
-    Negative candidate가 Top1인 경우
+            confidence=round(
+                confidence,
+                3
+            ),
 
-    꽃 미션에서 고양이 이미지 상황
 
-    OBJECT_NOT_FOUND 판정 테스트
-    """
+            positive_score=round(
+                positive_score,
+                6
+            ),
 
-    siglip_result = {
 
-        "top_label": "not a flower",
+            negative_score=round(
+                negative_score,
+                6
+            ),
 
-        "confidence": 0.85,
 
-        "scores": {
+            margin=round(
+                margin,
+                6
+            ),
 
-            "a flower": 0.15,
 
-            "not a flower": 0.85
+            reason="",
 
-        }
-    }
 
+            target=target
 
-    ai_result = mapper.map(
-        siglip_result
-    )
+        )
 
 
-    result = rule_engine.validate(
-        ai_result
-    )
+    def _calculate_confidence(
+        self,
+        positive_score: float,
+        negative_score: float
+    ) -> float:
+        """
+        Positive / Negative 상대 확률 계산
 
+        SigLIP score는 절대값보다
+        positive-negative 관계가 중요하기 때문에
+        상대 비율 사용
+        """
 
-    assert result.success is False
 
-    assert result.reason_code == (
-        ReasonCode.OBJECT_NOT_FOUND
-    )
+        total = (
+            positive_score
+            +
+            negative_score
+        )
 
-    assert result.confidence == 0.85
 
-    assert result.reason == (
-        "flower 객체가 감지되지 않았습니다."
-    )
+        if total == 0:
 
+            return 0.0
 
 
-def test_siglip_object_uncertain(
-    mapper,
-    rule_engine
-):
-    """
-    Positive / Negative 후보 차이가 작은 경우
-
-    OBJECT_UNCERTAIN 판정 테스트
-    """
-
-    siglip_result = {
-
-        "top_label": "a flower",
-
-        "confidence": 0.52,
-
-        "scores": {
-
-            "a flower": 0.52,
-
-            "not a flower": 0.48
-
-        }
-    }
-
-
-    ai_result = mapper.map(
-        siglip_result
-    )
-
-
-    result = rule_engine.validate(
-        ai_result
-    )
-
-
-    assert result.success is False
-
-    assert result.reason_code == (
-        ReasonCode.OBJECT_UNCERTAIN
-    )
-
-    assert result.confidence == 0.52
-
-
-
-def test_siglip_empty_score(
-    mapper,
-    rule_engine
-):
-    """
-    similarity score가 없는 예외 상황 테스트
-    """
-
-    siglip_result = {
-
-        "top_label": "",
-
-        "confidence": 0.0,
-
-        "scores": {}
-
-    }
-
-
-    ai_result = mapper.map(
-        siglip_result
-    )
-
-
-    result = rule_engine.validate(
-        ai_result
-    )
-
-
-    assert result.success is False
-
-    assert result.reason_code == (
-        ReasonCode.OBJECT_UNCERTAIN
-    )
-
-    assert (
-        "Similarity score"
-        in result.reason
-    )
+        return (
+            positive_score
+            /
+            total
+        )

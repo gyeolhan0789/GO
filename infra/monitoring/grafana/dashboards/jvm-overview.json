@@ -71,6 +71,11 @@
           "expr": "hikaricp_connections_max",
           "legendFormat": "max {{instance}}",
           "refId": "B"
+        },
+        {
+          "expr": "hikaricp_connections_pending",
+          "legendFormat": "pending {{instance}}",
+          "refId": "C"
         }
       ]
     },
@@ -97,6 +102,20 @@
       "targets": [
         {
           "expr": "jvm_threads_live_threads",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "HikariCP Timeout Rate",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "increase(hikaricp_connections_timeout_total[$__rate_interval])",
           "legendFormat": "{{instance}}",
           "refId": "A"
         }

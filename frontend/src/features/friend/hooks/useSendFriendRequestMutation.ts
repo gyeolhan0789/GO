@@ -9,6 +9,7 @@ export function useSendFriendRequestMutation() {
     mutationFn: (inviteeId: number) => sendFriendRequest(inviteeId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['members', 'search'] });
+      queryClient.invalidateQueries({ queryKey: ['friend-requests', 'sent'] });
     },
   });
 }
