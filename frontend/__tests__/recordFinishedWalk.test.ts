@@ -58,15 +58,10 @@ beforeEach(async () => {
   fetchMock = installFetchMock();
 });
 
-/** 완료 요청만 골라 본다. */
 function completeCalls() {
   return fetchMock.mock.calls.filter(
     ([url, init]) => url.endsWith('/walk-sessions') && init?.method === 'POST',
   );
-}
-
-function historyCalls() {
-  return fetchMock.mock.calls.filter(([url]) => url.endsWith('/histories'));
 }
 
 function bodyOf(call: [string, RequestInit?]) {
@@ -81,9 +76,10 @@ async function storeKey(roomId = ROOM_ID) {
   });
 }
 
-describe('recordFinishedWalk — 세션 키가 쓸 만할 때', () => {
-  test('산책 기록으로 남기고 걸음 합계는 따로 올리지 않는다', async () => {
-    // 완료 API가 그 안에서 그날 걸음까지 누적한다. 둘 다 부르면 두 배가 된다.
+describe('recordFinishedWalk — 기록으로 남을 때', () => {
+  test('산책 완료 요청 하나로만 올린다', async () => {
+    // 서버가 이 요청 안에서 그날 걸음 합계까지 누적한다. /histories를 같이
+    // 부르면 같은 걸음이 두 번 더해진다.
     await storeKey();
     fetchMock.mockResolvedValue(jsonResponse(201, buildCompleteResponse()));
 
@@ -93,8 +89,7 @@ describe('recordFinishedWalk — 세션 키가 쓸 만할 때', () => {
       status: 'recorded',
       walkSession: buildCompleteResponse(),
     });
-    expect(completeCalls()).toHaveLength(1);
-    expect(historyCalls()).toHaveLength(0);
+    expect(fetchMock.mock.calls).toHaveLength(1);
   });
 
   test('기록으로 남았으면 저장해둔 키를 지운다', async () => {
@@ -125,65 +120,44 @@ describe('recordFinishedWalk — 세션 키가 쓸 만할 때', () => {
 });
 
 describe('recordFinishedWalk — 세션 키를 못 쓸 때', () => {
-  test('키가 없으면 그날 걸음 합계만 올린다', async () => {
-    fetchMock.mockResolvedValue(jsonResponse(201, null));
-
+  test('키가 없으면 아무것도 보내지 않는다', async () => {
     const outcome = await recordFinishedWalk(FINISHED_WALK);
 
-    expect(outcome).toEqual({ status: 'stepsOnly' });
-    expect(completeCalls()).toHaveLength(0);
-    expect(historyCalls()).toHaveLength(1);
+    expect(outcome.status).toBe('failed');
+    expect(fetchMock.mock.calls).toHaveLength(0);
   });
 
   test('저장된 키가 다른 방 것이면 쓰지 않는다', async () => {
     // 그 키로 끝내면 이번 산책의 수치가 엉뚱한 방의 기록이 된다.
     await storeKey(ROOM_ID + 1);
-    fetchMock.mockResolvedValue(jsonResponse(201, null));
 
     const outcome = await recordFinishedWalk(FINISHED_WALK);
 
-    expect(outcome).toEqual({ status: 'stepsOnly' });
-    expect(completeCalls()).toHaveLength(0);
-  });
-
-  test('걸음 합계는 종료한 날짜로 올린다', async () => {
-    fetchMock.mockResolvedValue(jsonResponse(201, null));
-
-    await recordFinishedWalk(FINISHED_WALK);
-
-    // 11:32Z는 KST로 8월 4일 20:32다.
-    expect(bodyOf(historyCalls()[0])).toEqual({
-      historyDate: '2026-08-04',
-      step: 3_240,
-      distance: 2_400,
-      calories: 118,
-    });
+    expect(outcome.status).toBe('failed');
+    expect(fetchMock.mock.calls).toHaveLength(0);
   });
 });
 
 describe('recordFinishedWalk — 서버가 거절할 때', () => {
-  test('거절당하면 걸음 합계로 내려가고 못 쓰는 키는 지운다', async () => {
-    // 서버가 거절하면 트랜잭션이 롤백돼 걸음 합계도 안 들어갔다.
+  test('못 쓰는 키는 지운다', async () => {
     await storeKey();
-    fetchMock.mockImplementation(async url =>
-      url.endsWith('/walk-sessions')
-        ? jsonResponse(409, { message: '만료된 산책 세션입니다.' })
-        : jsonResponse(201, null),
+    fetchMock.mockResolvedValue(
+      jsonResponse(409, { message: '만료된 산책 세션입니다.' }),
     );
 
     const outcome = await recordFinishedWalk(FINISHED_WALK);
 
-    expect(outcome).toEqual({ status: 'stepsOnly' });
-    expect(historyCalls()).toHaveLength(1);
+    expect(outcome).toEqual({
+      status: 'failed',
+      message: '만료된 산책 세션입니다.',
+    });
     expect(await readActiveWalkSession()).toBeNull();
   });
 
   test('거절은 재시도하지 않는다', async () => {
     await storeKey();
-    fetchMock.mockImplementation(async url =>
-      url.endsWith('/walk-sessions')
-        ? jsonResponse(409, { message: '만료된 산책 세션입니다.' })
-        : jsonResponse(201, null),
+    fetchMock.mockResolvedValue(
+      jsonResponse(409, { message: '만료된 산책 세션입니다.' }),
     );
 
     await recordFinishedWalk(FINISHED_WALK);
@@ -221,33 +195,14 @@ describe('recordFinishedWalk — 응답을 못 받을 때', () => {
     expect(second.endedAt).toBe(first.endedAt);
   });
 
-  test('두 번 다 실패하면 걸음 합계로 내려가지 않는다', async () => {
-    // 서버가 이미 그날 걸음을 더했을 수 있다. 두 번 세느니 이번 산책을 못
-    // 남기는 편이 낫다.
+  test('두 번 다 실패하면 키를 남겨둔다', async () => {
+    // 서버가 이미 기록을 만들어뒀을 수 있다. 다음 시작 때 이 키로 판정한다.
     await storeKey();
     fetchMock.mockRejectedValue(new Error('Network request failed'));
 
     const outcome = await recordFinishedWalk(FINISHED_WALK);
 
     expect(outcome.status).toBe('failed');
-    expect(historyCalls()).toHaveLength(0);
-  });
-
-  test('두 번 다 실패해도 키는 남겨둔다', async () => {
-    await storeKey();
-    fetchMock.mockRejectedValue(new Error('Network request failed'));
-
-    await recordFinishedWalk(FINISHED_WALK);
-
-    // 다음 산책을 시작할 때 이 키로 정합성을 판정해야 한다.
     expect(await readActiveWalkSession()).not.toBeNull();
-  });
-
-  test('걸음 합계마저 못 올리면 실패로 끝낸다', async () => {
-    fetchMock.mockRejectedValue(new Error('Network request failed'));
-
-    const outcome = await recordFinishedWalk(FINISHED_WALK);
-
-    expect(outcome.status).toBe('failed');
   });
 });

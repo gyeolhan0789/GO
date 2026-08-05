@@ -18,7 +18,9 @@ const INITIAL_METRICS = {
   insets: { top: 0, left: 0, right: 0, bottom: 0 },
 };
 
-const BASE_PARAMS = {
+type WalkResultParams = RootStackParamList['WalkResult'];
+
+const BASE_PARAMS: WalkResultParams = {
   roomId: 12,
   roomName: '황덕',
   mode: 'SINGLE' as const,
@@ -26,7 +28,9 @@ const BASE_PARAMS = {
   distanceKm: 2.4,
   calories: 118,
   elapsedSeconds: 1_680,
+  achievedMissionCount: 0,
   earnedPoint: 0,
+  targetStepCount: 10_000,
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -67,7 +71,7 @@ function hasLabel(root: ReactTestInstance, label: string): boolean {
 }
 
 async function renderScreen(
-  params: Partial<typeof BASE_PARAMS> = {},
+  params: Partial<WalkResultParams> = {},
 ): Promise<ReactTestRenderer.ReactTestRenderer> {
   await act(async () => {
     renderer = ReactTestRenderer.create(
@@ -102,28 +106,80 @@ describe('WalkResultScreen', () => {
     expect(texts).toContain('118');
   });
 
-  test('걸음 목표를 채우면 받은 포인트를 알려준다', async () => {
-    const tree = await renderScreen({ earnedPoint: 50 });
+  test('걸음 목표를 채우면 목표 보수와 받은 포인트를 나눠 적는다', async () => {
+    const tree = await renderScreen({ earnedPoint: 100 });
     const texts = collectTexts(tree.root);
 
-    expect(texts).toContain('+50P');
-    expect(texts).toContain('걸음 목표 달성');
-    expect(hasLabel(tree.root, '걸음 목표 보상 50P 획득')).toBe(true);
+    expect(texts).toContain('목표 걸음 달성!');
+    expect(texts).toContain('10,000 걸음');
+    expect(texts).toContain('보상 획득!');
+    expect(texts).toContain('+ 100P');
   });
 
-  test('받은 포인트가 없으면 보상 줄을 아예 그리지 않는다', async () => {
+  test('받은 포인트가 없으면 목표·보상 줄을 아예 그리지 않는다', async () => {
     // 0P를 띄우면 못 받은 걸 받은 것처럼 읽힌다. 서버는 목표 미달일 때도,
     // 같은 키로 다시 보내 기존 기록이 돌아왔을 때도 0을 준다.
     const tree = await renderScreen({ earnedPoint: 0 });
     const texts = collectTexts(tree.root);
 
-    expect(texts).not.toContain('걸음 목표 달성');
-    expect(texts).not.toContain('+0P');
+    expect(texts).not.toContain('목표 걸음 달성!');
+    expect(texts).not.toContain('보상 획득!');
+  });
+
+  test('목표 걸음을 모르면 보상만 적는다', async () => {
+    // 목표 걸음이 없는 방도 있다.
+    const tree = await renderScreen({ earnedPoint: 100, targetStepCount: null });
+    const texts = collectTexts(tree.root);
+
+    expect(texts).not.toContain('목표 걸음 달성!');
+    expect(texts).toContain('보상 획득!');
   });
 
   test('포인트가 커도 자릿수를 끊어 보여준다', async () => {
     const tree = await renderScreen({ earnedPoint: 1_200 });
 
-    expect(collectTexts(tree.root)).toContain('+1,200P');
+    expect(collectTexts(tree.root)).toContain('+ 1,200P');
+  });
+
+  test('이번 산책에 깬 미션 수를 보여준다', async () => {
+    const tree = await renderScreen({ achievedMissionCount: 3 });
+    const texts = collectTexts(tree.root);
+
+    expect(texts).toContain('미션 3개 성공!');
+    expect(hasLabel(tree.root, '미션 3개 성공! 이번 산책에서 깬 칸')).toBe(true);
+  });
+
+  test('깬 미션이 없으면 그 줄도 그리지 않는다', async () => {
+    const tree = await renderScreen({ achievedMissionCount: 0 });
+
+    expect(collectTexts(tree.root)).not.toContain('미션 0개 성공!');
+  });
+
+  test('이룬 게 하나도 없으면 목록 자체를 그리지 않는다', async () => {
+    const tree = await renderScreen({
+      achievedMissionCount: 0,
+      earnedPoint: 0,
+    });
+    const texts = collectTexts(tree.root);
+
+    // 빈 상자가 남으면 뭔가 못 받은 것처럼 보인다.
+    expect(texts).not.toContain('보상 획득!');
+    expect(texts).not.toContain('미션 0개 성공!');
+    expect(texts).toContain('산책 완료!');
+  });
+
+  test('목표·미션·보상을 모두 이루면 세 줄이 순서대로 선다', async () => {
+    const tree = await renderScreen({
+      achievedMissionCount: 2,
+      earnedPoint: 100,
+    });
+    const texts = collectTexts(tree.root);
+
+    expect(texts.indexOf('목표 걸음 달성!')).toBeLessThan(
+      texts.indexOf('미션 2개 성공!'),
+    );
+    expect(texts.indexOf('미션 2개 성공!')).toBeLessThan(
+      texts.indexOf('보상 획득!'),
+    );
   });
 });

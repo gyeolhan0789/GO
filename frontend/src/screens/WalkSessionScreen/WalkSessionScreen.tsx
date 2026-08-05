@@ -260,12 +260,7 @@ export function WalkSessionScreen() {
     // 올리지 못해도 이 산책을 못 끝내게 막을 이유는 없다 — 수치는 이미 기기에서
     // 확정됐고 결과 화면은 그대로 보여줄 수 있다.
     if (outcome.status === 'failed') {
-      Alert.alert('기록 저장에 실패했어요', outcome.message);
-    } else if (outcome.status === 'stepsOnly') {
-      Alert.alert(
-        '산책 기록을 남기지 못했어요',
-        '걸음 수는 오늘 기록에 반영했지만, 이번 산책은 기록 목록에 남지 않아요.',
-      );
+      Alert.alert('산책 기록을 남기지 못했어요', outcome.message);
     }
 
     // 기록 화면은 탭에 계속 살아 있어 다시 마운트되지 않는다. 여기서
@@ -282,12 +277,17 @@ export function WalkSessionScreen() {
       distanceKm: Math.round(finalDistanceMeters / 100) / 10,
       calories: finalCalories,
       elapsedSeconds: finalElapsedSeconds,
-      // 기록으로 남지 못했으면 보상도 없다. 재전송으로 기존 기록이 돌아온
-      // 경우에도 서버가 0을 주므로 그때는 보상 줄이 뜨지 않는다.
+      // 기록으로 남지 못했으면 이번 산책의 성과도 서버가 세어주지 못한다.
+      achievedMissionCount:
+        outcome.status === 'recorded'
+          ? outcome.walkSession.achievedMissionCount
+          : 0,
+      // 재전송으로 기존 기록이 돌아온 경우에는 서버가 0을 준다.
       earnedPoint:
         outcome.status === 'recorded' ? outcome.walkSession.earnedPoint : 0,
+      targetStepCount,
     });
-  }, [navigation, roomId, room, queryClient]);
+  }, [navigation, roomId, room, targetStepCount, queryClient]);
 
   const handleEndWalk = useCallback(() => {
     Alert.alert('산책 종료', '지금 산책을 종료할까요?', [

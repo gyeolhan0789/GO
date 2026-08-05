@@ -1,6 +1,4 @@
 import { ApiError } from '../../../shared/api/ApiError';
-import { saveHistory } from '../../history/api/historyApi';
-import { toIsoDate } from '../../history/model/period';
 import {
   completeWalkSession,
   type WalkSessionCompleteRequest,
@@ -26,9 +24,7 @@ export type FinishedWalk = {
 export type RecordFinishedWalkResult =
   /** 산책 기록으로 남았다. 그날 걸음 합계는 서버가 같이 처리한다. */
   | { status: 'recorded'; walkSession: WalkSessionCompleteResponse }
-  /** 세션 키를 못 써서 그날 걸음 합계만 올렸다. 기록 카드는 생기지 않는다. */
-  | { status: 'stepsOnly' }
-  /** 아무것도 못 올렸다. */
+  /** 못 올렸다. 이 산책은 기록에도, 그날 걸음 합계에도 들어가지 않는다. */
   | { status: 'failed'; message: string };
 
 function messageOf(error: unknown): string {
@@ -52,28 +48,11 @@ async function completeWithRetry(
   }
 }
 
-async function saveStepsOnly(
-  walk: FinishedWalk,
-): Promise<RecordFinishedWalkResult> {
-  try {
-    await saveHistory({
-      historyDate: toIsoDate(walk.endedAt),
-      step: walk.step,
-      distance: walk.distance,
-      calories: walk.calories,
-    });
-    return { status: 'stepsOnly' };
-  } catch (error) {
-    return { status: 'failed', message: messageOf(error) };
-  }
-}
-
 /**
  * 끝난 산책을 서버에 올린다.
  *
- * 세션 키가 있으면 산책 기록으로 남기고, 없거나 서버가 그 키를 거절하면 그날
- * 걸음 합계만 따로 올린다. 두 경로를 다 타면 안 된다 — 산책 완료 API가 그
- * 안에서 걸음 합계까지 누적하기 때문에, 둘 다 부르면 같은 걸음이 두 번 더해진다.
+ * 걸음·거리·칼로리는 이 요청 하나로만 보낸다. 서버가 완료 처리 안에서 그날
+ * 걸음 합계까지 누적하므로, /histories를 따로 부르면 같은 걸음이 두 번 더해진다.
  */
 export async function recordFinishedWalk(
   walk: FinishedWalk,
@@ -86,30 +65,30 @@ export async function recordFinishedWalk(
       ? stored.walkSessionKey
       : null;
 
-  if (walkSessionKey !== null) {
-    try {
-      const walkSession = await completeWithRetry({
-        walkSessionKey,
-        endedAt: walk.endedAt.toISOString(),
-        activeDurationSeconds: walk.activeDurationSeconds,
-        step: walk.step,
-        distance: walk.distance,
-        calories: walk.calories,
-      });
-      await clearActiveWalkSession();
-      return { status: 'recorded', walkSession };
-    } catch (error) {
-      if (!(error instanceof ApiError)) {
-        // 재시도까지 응답을 못 받았다. 서버가 이미 그날 걸음을 더했을 수 있어
-        // 걸음 합계 쪽으로 내려가지 않는다 — 두 번 세느니 이번 산책을 못
-        // 남기는 편이 낫다. 키는 남겨둬 다음 시작 때 판정에 쓰게 한다.
-        return { status: 'failed', message: messageOf(error) };
-      }
-      // 서버가 거절했으면 트랜잭션이 통째로 롤백돼 걸음 합계도 안 들어갔다.
-      // 이 키는 더 쓸 수 없으므로 지우고 걸음만 올린다.
-      await clearActiveWalkSession();
-    }
+  if (walkSessionKey === null) {
+    return {
+      status: 'failed',
+      message: '산책을 시작할 때 서버와 연결하지 못했어요.',
+    };
   }
 
-  return saveStepsOnly(walk);
+  try {
+    const walkSession = await completeWithRetry({
+      walkSessionKey,
+      endedAt: walk.endedAt.toISOString(),
+      activeDurationSeconds: walk.activeDurationSeconds,
+      step: walk.step,
+      distance: walk.distance,
+      calories: walk.calories,
+    });
+    await clearActiveWalkSession();
+    return { status: 'recorded', walkSession };
+  } catch (error) {
+    // 서버가 거절했으면 이 키는 더 쓸 수 없다. 응답을 아예 못 받은 경우에는
+    // 서버가 기록을 만들어뒀을 수 있어 키를 남겨둔다.
+    if (error instanceof ApiError) {
+      await clearActiveWalkSession();
+    }
+    return { status: 'failed', message: messageOf(error) };
+  }
 }
