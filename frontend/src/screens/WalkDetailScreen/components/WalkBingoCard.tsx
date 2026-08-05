@@ -3,7 +3,6 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { BingoBoard } from '../../../features/bingo/components/BingoBoard/BingoBoard';
 import type { BingoBoardSize } from '../../../features/bingo/components/BingoBoard/BingoBoard';
-import { formatWalkTime } from '../../../features/history/model/format';
 import { selectAchievedCells } from '../../../features/history/model/walkDetail';
 import type { WalkBingoBoard } from '../../../features/history/types';
 import { AppText } from '../../../shared/components/AppText/AppText';
@@ -119,11 +118,6 @@ export function WalkBingoCard({ board, title }: WalkBingoCardProps) {
               <AppText style={styles.achievedTitle} numberOfLines={2}>
                 {cell.missionTitle}
               </AppText>
-              {cell.achievedAt !== null ? (
-                <AppText style={styles.achievedAt}>
-                  {formatWalkTime(cell.achievedAt)}
-                </AppText>
-              ) : null}
             </View>
           ))
         )}
@@ -216,13 +210,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: lineHeights[13],
     color: colors.ink,
-  },
-  achievedAt: {
-    fontFamily: bodyFont.regular,
-    fontSize: 12,
-    lineHeight: lineHeights[12],
-    color: colors.ink,
-    opacity: 0.5,
   },
   achievedEmpty: {
     fontFamily: bodyFont.regular,

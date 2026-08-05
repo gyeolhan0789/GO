@@ -188,7 +188,9 @@ describe('WalkDetailScreen', () => {
     expect(texts).toContain('5칸');
   });
 
-  test('이번 산책에 깬 미션을 제목과 시각으로 적는다', async () => {
+  test('이번 산책에 깬 미션을 제목으로 적는다', async () => {
+    // 판이 커지면 칸 글씨가 8pt까지 내려가 제목이 잘려서, 뭘 깼는지는 이
+    // 목록으로 읽는다.
     const tree = await renderScreen();
     const texts = collectTexts(tree.root);
 
@@ -196,8 +198,6 @@ describe('WalkDetailScreen', () => {
     expect(texts).toContain('이번 산책에 깬 미션');
     expect(texts).toContain('미션 1');
     expect(texts).toContain('미션 4');
-    // 11:10Z를 기기 시간대(KST)로 옮긴 값이다.
-    expect(texts).toContain('20:10');
   });
 
   test('지난 산책에서 깬 칸은 이번 목록에 넣지 않는다', async () => {
