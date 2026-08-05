@@ -124,11 +124,23 @@ export function BattleWaitingRoom({
   const isFull = room.members.length >= BATTLE_PARTICIPANT_COUNT;
 
   /**
-   * 빙고판이 있다는 것만으로는 시작시킬 수 없다. 지난 회차의 판이 남아 있거나
-   * 조회가 다른 상태를 물고 있을 수 있어서, 정원이 찬 것도 같이 본다 — 상대가
-   * 없는데 대결이 시작되면 혼자 걷다 끝난다.
+   * 이미 시작된 대결이다. 판이 있다는 것만으로는 판단하지 않는다 — 지난 회차의
+   * 판이 남아 있을 수 있어서 정원이 찬 것도 같이 본다.
    */
-  const canStart = isFull && isBoardReady;
+  const isBattleReady = isFull && isBoardReady;
+
+  /**
+   * 진행 중인 대결에 다시 들어왔으면 대기방에 머무를 이유가 없다. 카운트다운을
+   * 기다리는 중이 아니면 곧바로 판으로 보낸다 — 예전에는 여기서 '대결 시작'을
+   * 눌러야 했는데, 그 버튼은 누를 일이 이것뿐이라 화면만 한 번 더 거치게 했다.
+   */
+  useEffect(() => {
+    if (isBattleReady && remainingSeconds === null) {
+      onEnterBoard();
+    }
+    // onEnterBoard는 매 렌더 새로 만들어질 수 있어 넣지 않는다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBattleReady, remainingSeconds]);
 
   return (
     <View style={styles.container}>
@@ -149,25 +161,25 @@ export function BattleWaitingRoom({
           <Slot member={opponent ?? null} fallbackLabel="대기 중" />
         </View>
 
-        {/* 상대가 지금 접속해 있는지는 알 수 없다 — 서버가 접속 상태를 들고
-            있지 않다. 그래서 "들어왔다"가 아니라 우리가 실제로 아는 것(초대를
-            수락해 정원이 찼고 빙고판이 만들어졌다)만 말한다. */}
-        <AppText style={styles.status}>
-          {isCountingDown
-            ? `${remainingSeconds}초 후 시작해요`
-            : canStart
-            ? '빙고판이 준비됐어요. 언제든 시작할 수 있어요.'
-            : isFull
-            ? '대결을 준비하고 있어요...'
-            : '상대가 초대를 수락하기를 기다리고 있어요'}
-        </AppText>
+        {/* 카운트다운은 3초뿐이라 문구로는 존재감이 없다. 큰 숫자로 세서
+            "이제 시작한다"가 눈에 박히게 한다. */}
+        {isCountingDown ? (
+          <View style={styles.countdownWrap}>
+            <AppText style={styles.countdownNumber}>{remainingSeconds}</AppText>
+            <AppText style={styles.countdownHint}>곧 시작해요!</AppText>
+          </View>
+        ) : (
+          // 상대가 지금 접속해 있는지는 알 수 없다 — 서버가 접속 상태를 들고
+          // 있지 않다. 그래서 "들어왔다"가 아니라 우리가 실제로 아는 것만 말한다.
+          <AppText style={styles.status}>
+            {isBattleReady
+              ? '대결로 이동하고 있어요...'
+              : isFull
+              ? '대결을 준비하고 있어요...'
+              : '상대가 초대를 수락하기를 기다리고 있어요'}
+          </AppText>
+        )}
       </Card>
-
-      <Button
-        label={isCountingDown ? `${remainingSeconds}` : '대결 시작'}
-        disabled={!canStart || isCountingDown}
-        onPress={onEnterBoard}
-      />
 
       {/* 카운트다운 중에는 접는 문을 숨긴다 — 3초 뒤면 어차피 판이 열린다. */}
       {isCountingDown ? null : isBoardReady ? (
@@ -289,5 +301,23 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     textAlign: 'center',
     marginTop: spacing.lg,
+  },
+  countdownWrap: {
+    alignItems: 'center',
+    marginTop: spacing.lg,
+  },
+  countdownNumber: {
+    fontFamily: fontFamily.bold,
+    // 카운트다운 숫자는 이 화면에서 가장 큰 글자다. lineHeights 표에 없는
+    // 크기라 행간을 직접 준다.
+    fontSize: 64,
+    lineHeight: 72,
+    color: colors.primary,
+  },
+  countdownHint: {
+    fontFamily: fontFamily.bold,
+    fontSize: 14,
+    lineHeight: lineHeights[14],
+    color: colors.primaryDark,
   },
 });

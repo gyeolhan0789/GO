@@ -31,6 +31,8 @@ const COPY: Record<
     title: string;
     subtitle: string;
     rewardPoint: number;
+    /** 승리는 노란 도장으로 축하하고, 패배는 차분한 면으로 물러선다. */
+    stampColor: string;
   }
 > = {
   WIN_BY_FORFEIT: {
@@ -38,12 +40,14 @@ const COPY: Record<
     title: '상대가 기권했어요',
     subtitle: '대결이 나의 승리로 끝났어요!',
     rewardPoint: BATTLE_WINNER_REWARD_POINT,
+    stampColor: colors.highlightBg,
   },
   FORFEITED: {
     icon: 'flag-outline',
     title: '기권했어요',
     subtitle: '상대의 승리로 대결이 끝났어요',
     rewardPoint: BATTLE_LOSER_REWARD_POINT,
+    stampColor: colors.neutralBg,
   },
 };
 
@@ -69,7 +73,9 @@ export function BattleResultModal({ result, onConfirm }: BattleResultModalProps)
             <AppText style={styles.cardTitle}>대결 결과</AppText>
             <View style={styles.stampWrapper}>
               <View style={styles.stampShadow} />
-              <View style={styles.stamp}>
+              <View
+                style={[styles.stamp, { backgroundColor: copy.stampColor }]}
+              >
                 <Ionicons name={copy.icon} size={36} color={colors.ink} />
               </View>
             </View>
@@ -143,7 +149,7 @@ const styles = StyleSheet.create({
   stamp: {
     width: '100%',
     height: '100%',
-    backgroundColor: colors.highlightBg,
+    // 면 색은 승패에 따라 호출부에서 준다.
     borderWidth: 2,
     borderColor: colors.ink,
     alignItems: 'center',

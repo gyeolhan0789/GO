@@ -137,22 +137,15 @@ function texts(root: ReactTestInstance): string {
       const children = node.props.children;
       return Array.isArray(children) ? children : [children];
     })
-    .filter((child): child is string => typeof child === 'string')
+    // 카운트다운 숫자는 문자열이 아니라 number로 렌더된다.
+    .filter(
+      (child): child is string | number =>
+        typeof child === 'string' || typeof child === 'number',
+    )
+    .map(String)
     .join(' | ');
 }
 
-/** Button은 disabled를 그대로 Pressable에 넘긴다. 그 쌍으로 찾는다. */
-function startButton(root: ReactTestInstance) {
-  const [button] = root.findAll(
-    node =>
-      typeof node.props.onPress === 'function' &&
-      typeof node.props.disabled === 'boolean',
-  );
-  if (!button) {
-    throw new Error('시작 버튼을 찾지 못했다.');
-  }
-  return button;
-}
 
 beforeEach(() => {
   jest.useFakeTimers();
@@ -189,19 +182,21 @@ describe('BattleWaitingRoom', () => {
     expect(texts(root)).toContain('상대가 초대를 수락하기를 기다리고');
   });
 
-  test('빙고판이 준비되기 전에는 시작할 수 없다', () => {
-    const root = render();
+  test('상대를 기다리는 동안에는 판으로 보내지 않는다', () => {
+    render();
 
-    expect(startButton(root).props.disabled).toBe(true);
+    expect(handlers.onEnterBoard).not.toHaveBeenCalled();
   });
 
-  test('카운트다운 이벤트를 받으면 남은 초를 보여준다', () => {
+  test('카운트다운 이벤트를 받으면 남은 초를 크게 보여준다', () => {
     const root = render();
     const socket = completeHandshake();
 
     emitMatching(socket, countdownStarted());
 
-    expect(texts(root)).toContain('3초 후 시작해요');
+    // 3초뿐이라 문구가 아니라 숫자로 센다.
+    expect(texts(root)).toContain('3');
+    expect(texts(root)).toContain('곧 시작해요');
   });
 
   test('카운트다운이 끝나면 자동으로 판에 들어간다', () => {
@@ -250,7 +245,7 @@ describe('BattleWaitingRoom', () => {
       );
     });
 
-    expect(texts(renderer!.root)).toContain('3초 후 시작해요');
+    expect(texts(renderer!.root)).toContain('곧 시작해요');
 
     for (let tick = 0; tick < 3; tick += 1) {
       act(() => {
@@ -260,30 +255,45 @@ describe('BattleWaitingRoom', () => {
     expect(handlers.onEnterBoard).toHaveBeenCalled();
   });
 
-  test('카운트다운 중에는 시작 버튼을 막는다', () => {
-    const root = render({ memberIds: [ME, OPPONENT], isBoardReady: true });
+  test('카운트다운 중에는 판으로 먼저 보내지 않는다', () => {
+    // 실제 순서: 상대가 수락하기 전이라 판이 없다가, 카운트다운 이벤트가 오고
+    // 그 뒤 방을 다시 읽어 정원이 차고 판이 준비된다. 그 사이 카운트다운을
+    // 건너뛰고 들어가면 양쪽이 같은 순간에 시작하지 못한다.
+    render({ memberIds: [ME] });
     const socket = completeHandshake();
-
     emitMatching(socket, countdownStarted());
 
-    expect(startButton(root).props.disabled).toBe(true);
-  });
-
-  test('상대가 없으면 빙고판이 있어도 시작할 수 없다', () => {
-    // 이 회귀가 실제로 났다. 판만 보고 열어주면 혼자 걷다 끝난다.
-    const root = render({ memberIds: [ME], isBoardReady: true });
-
-    expect(startButton(root).props.disabled).toBe(true);
-  });
-
-  test('빙고판이 준비되면 시작 버튼이 열린다', () => {
-    const root = render({ memberIds: [ME, OPPONENT], isBoardReady: true });
-
-    expect(startButton(root).props.disabled).toBe(false);
-
     act(() => {
-      startButton(root).props.onPress();
+      renderer!.update(
+        <BattleWaitingRoom
+          room={buildRoom([ME, OPPONENT])}
+          myMemberId={ME}
+          isHost
+          isBoardReady
+          onEnterBoard={handlers.onEnterBoard}
+          onOpponentJoined={handlers.onOpponentJoined}
+          onCancelBattle={handlers.onCancelBattle}
+          onForfeit={handlers.onForfeit}
+          onMatchingCancelled={handlers.onMatchingCancelled}
+        />,
+      );
     });
+
+    expect(handlers.onEnterBoard).not.toHaveBeenCalled();
+  });
+
+  test('상대가 없으면 빙고판이 있어도 판으로 보내지 않는다', () => {
+    // 이 회귀가 실제로 났다. 판만 보고 열어주면 혼자 걷다 끝난다.
+    render({ memberIds: [ME], isBoardReady: true });
+
+    expect(handlers.onEnterBoard).not.toHaveBeenCalled();
+  });
+
+  test('이미 시작된 대결에 다시 들어오면 곧바로 판으로 보낸다', () => {
+    // 예전에는 여기서 '대결 시작'을 눌러야 했다 — 누를 일이 이것뿐인 버튼이라
+    // 화면을 한 번 더 거치게만 했다.
+    render({ memberIds: [ME, OPPONENT], isBoardReady: true });
+
     expect(handlers.onEnterBoard).toHaveBeenCalled();
   });
 
@@ -353,7 +363,7 @@ describe('BattleWaitingRoom', () => {
       );
     });
 
-    expect(texts(root)).toContain('3초 후 시작해요');
+    expect(texts(root)).toContain('곧 시작해요');
   });
 
   test('시작 전에는 방장에게 대결 취소가 보인다', () => {
