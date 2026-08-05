@@ -1,6 +1,5 @@
 import logging
 
-
 from app.domain.ai_result import AIResult
 from app.domain.mission_result import ReasonCode
 
@@ -10,35 +9,19 @@ logger = logging.getLogger(__name__)
 
 class ObjectVerifierService:
     """
-    OBJECT Real Object Verification Layer
-
+    OBJECT Real Object Verification
 
     Flow
 
     SigLIP2 Candidate
-
           ↓
-
     Local Verification
-
           ↓
-
-    REAL
-        PASS
-
-
-    NON_REAL
-        FAIL
-
-
-    UNCERTAIN
-
+    Gemini fallback(optional)
           ↓
-
-    Gemini fallback
+    AIResult
 
     """
-
 
 
     # ==========================
@@ -46,28 +29,20 @@ class ObjectVerifierService:
     # ==========================
 
 
-    # 실제 객체 후보
+    # REAL 기준
+    # SigLIP prompt 변경 후 scale 기준
 
-    REAL_CONFIDENCE_THRESHOLD = 0.85
+    REAL_MARGIN_THRESHOLD = 0.0005
 
-    REAL_MARGIN_THRESHOLD = 0.01
-
-    REAL_MIN_POSITIVE_SCORE = 0.01
-
-
-
-    # 너무 낮은 score는 객체 아님
-
-    NON_REAL_CONFIDENCE_THRESHOLD = 0.20
-
-    NON_REAL_MARGIN_THRESHOLD = -0.002
+    REAL_MIN_POSITIVE_SCORE = 0.0008
 
 
 
-    # 강한 positive score라도
-    # screen / poster 가능성 존재
+    # 명확한 실패 기준
 
-    HIGH_SCORE_GEMINI_THRESHOLD = 0.015
+    NON_REAL_MARGIN_THRESHOLD = -0.001
+
+    NON_REAL_MAX_POSITIVE_SCORE = 0.0005
 
 
 
@@ -88,35 +63,40 @@ class ObjectVerifierService:
     ) -> AIResult:
 
 
-
-        local_result = (
-            self._local_verify(
-                object_result
-            )
+        local_result = self._local_verify(
+            object_result
         )
 
 
         logger.info(
-            "[ObjectVerifier] local_result=%s",
+            "[ObjectVerifier] result=%s",
             local_result
         )
 
 
 
         # ==========================
-        # REAL
+        # LOCAL REAL
         # ==========================
 
         if local_result == "REAL":
+
+
+            confidence = (
+                self._calculate_final_confidence(
+                    object_result
+                )
+            )
+
 
             return AIResult(
 
                 success=True,
 
-                confidence=object_result.confidence,
+                confidence=confidence,
 
                 reason=(
-                    f"real {target} detected"
+                    f"{target} 객체가 실제 이미지에서 확인되었습니다."
                 ),
 
                 reason_code=ReasonCode.PASS,
@@ -128,10 +108,13 @@ class ObjectVerifierService:
                 metadata={
 
                     "decision_source":
-                        "OBJECT_VERIFIER_LOCAL",
+                        "SIGLIP_LOCAL_VERIFIER",
 
                     "verification":
                         "REAL",
+
+                    "final_confidence":
+                        confidence,
 
                     "siglip_candidate":
                         self._candidate_metadata(
@@ -145,33 +128,44 @@ class ObjectVerifierService:
 
 
         # ==========================
-        # NON REAL
+        # LOCAL NON REAL
         # ==========================
 
         if local_result == "NON_REAL":
+
+
+            confidence = (
+                self._calculate_final_confidence(
+                    object_result
+                )
+            )
+
 
             return AIResult(
 
                 success=False,
 
-                confidence=object_result.confidence,
+                confidence=confidence,
 
                 reason=(
-                    f"{target} is not real object"
+                    f"{target} 객체가 확인되지 않았습니다."
                 ),
 
-                reason_code=
-                    ReasonCode.OBJECT_NOT_FOUND,
+                reason_code=ReasonCode.OBJECT_NOT_FOUND,
 
                 detected_objects=[],
+
 
                 metadata={
 
                     "decision_source":
-                        "OBJECT_VERIFIER_LOCAL",
+                        "SIGLIP_LOCAL_VERIFIER",
 
                     "verification":
                         "NON_REAL",
+
+                    "final_confidence":
+                        confidence,
 
                     "siglip_candidate":
                         self._candidate_metadata(
@@ -194,13 +188,9 @@ class ObjectVerifierService:
 
 
         return self._gemini_verify(
-
             image_bytes,
-
             target,
-
             object_result
-
         )
 
 
@@ -210,25 +200,20 @@ class ObjectVerifierService:
     def _local_verify(
         self,
         object_result
-    ) -> str:
+    ):
 
-
-
-        confidence = object_result.confidence
-
-        margin = object_result.margin
 
         positive = object_result.positive_score
 
         negative = object_result.negative_score
 
+        margin = object_result.margin
+
 
 
         logger.info(
             """
-[ObjectVerifier Local]
-
-confidence=%.3f
+[Local Verification]
 
 positive=%.6f
 
@@ -237,29 +222,25 @@ negative=%.6f
 margin=%.6f
 
 """,
-            confidence,
             positive,
             negative,
             margin
-
         )
 
 
 
         # ==========================
-        # NON REAL
+        # FAIL
         # ==========================
 
         if (
 
-            confidence
-            <=
-            self.NON_REAL_CONFIDENCE_THRESHOLD
+            positive <=
+            self.NON_REAL_MAX_POSITIVE_SCORE
 
             or
 
-            margin
-            <=
+            margin <=
             self.NON_REAL_MARGIN_THRESHOLD
 
         ):
@@ -270,53 +251,22 @@ margin=%.6f
 
 
         # ==========================
-        # High score ambiguity
-        #
-        # screen / poster / sticker
-        #
-        # Gemini 검증
+        # PASS
         # ==========================
 
         if (
 
-            positive
-            >=
-            self.HIGH_SCORE_GEMINI_THRESHOLD
-
-        ):
-
-            return "UNCERTAIN"
-
-
-
-
-        # ==========================
-        # REAL
-        # ==========================
-
-        if (
-
-            confidence
-            >=
-            self.REAL_CONFIDENCE_THRESHOLD
-
-            and
-
-            margin
-            >=
-            self.REAL_MARGIN_THRESHOLD
-
-            and
-
-            positive
-            >=
+            positive >=
             self.REAL_MIN_POSITIVE_SCORE
 
             and
 
-            positive
-            >
-            negative
+            margin >=
+            self.REAL_MARGIN_THRESHOLD
+
+            and
+
+            positive > negative
 
         ):
 
@@ -325,6 +275,82 @@ margin=%.6f
 
 
         return "UNCERTAIN"
+
+
+
+
+
+
+
+    def _calculate_final_confidence(
+        self,
+        object_result
+    ):
+
+        """
+        Backend 전달용 confidence
+
+        SigLIP raw confidence 사용 X
+
+        positive score + margin 기반 보정
+
+        """
+
+
+        positive = object_result.positive_score
+
+        margin = object_result.margin
+
+
+
+        score_factor = min(
+            positive / 0.0015,
+            1.0
+        )
+
+
+        margin_factor = min(
+            margin / 0.001,
+            1.0
+        )
+
+
+
+        confidence = (
+
+            0.50
+
+            +
+
+            (
+                score_factor * 0.35
+            )
+
+            +
+
+            (
+                margin_factor * 0.15
+            )
+
+        )
+
+
+
+        return round(
+
+            min(
+                max(
+                    confidence,
+                    0.0
+                ),
+                0.95
+            ),
+
+            3
+
+        )
+
+
 
 
 
@@ -356,6 +382,8 @@ margin=%.6f
 
 
 
+
+
     def _gemini_verify(
         self,
         image_bytes,
@@ -364,82 +392,100 @@ margin=%.6f
     ):
 
 
-
         prompt = f"""
-You are a real physical object verification system.
 
-Your task is NOT only object recognition.
-
-You must determine whether the target is a REAL physical object captured by a camera.
+당신은 실제 객체 검증 AI입니다.
 
 
-Target object:
+이전 모델(SigLIP)은 "{target}" 객체 후보를 발견했습니다.
+
+
+당신의 역할은 객체 탐지가 아닙니다.
+
+이미지 안에 해당 객체가 실제 물리적으로 존재하는지 판단하세요.
+
+
+
+판정 대상 객체:
 
 {target}
 
 
-PASS only when:
 
-- The object exists physically in the real world.
-- The image is a real photograph.
-- Natural texture, lighting, shadows, depth, and material details are visible.
+PASS 조건:
 
-
-FAIL when the target is:
-
-- drawing
-- painting
-- illustration
-- cartoon
-- sticker
-- poster
-- printed image
-- image displayed on a screen
-- toy
-- miniature model
-- artificial representation instead of the real object
+- 실제 카메라로 촬영된 사진
+- 대상 객체가 실제 물리 객체
+- 자연스러운 질감 존재
+- 실제 빛과 그림자 존재
+- 공간적 깊이 정보 존재
 
 
-Important rules:
 
-- Do not judge only by object appearance.
-- A flower image on a phone screen is NOT a real flower.
-- A flower printed on paper, clothes, bag, or poster is NOT a real flower.
-- Judge whether the physical object itself exists in the scene.
+FAIL 조건:
+
+- 그림
+- 일러스트
+- 만화
+- 사진 인쇄물
+- 화면 속 이미지
+- 포스터
+- 스티커
+- 장난감
+- 모형
 
 
-Return JSON only.
 
-Format:
+중요:
+
+- 반드시 "{target}" 객체만 판단하세요.
+- 비슷하게 보이는 다른 객체를 대상 객체로 판단하지 마세요.
+- 대상 객체가 명확하지 않으면 FAIL 처리하세요.
+- 확신이 부족하면 confidence를 낮게 반환하세요.
+
+- 객체가 부분적으로만 노출된 경우에도 명확한 특징으로 식별 가능하면 성공 처리합니다.
+- 단순한 일부 특징(털, 발, 꼬리, 일부분 등)만 보이고 전체 객체를 확인할 수 없는 경우 추측하지 않습니다.
+- 객체 종류를 명확히 판단할 수 없는 경우 success=false로 반환합니다.
+
+
+
+반드시 JSON 형식으로만 반환하세요.
+
+
+형식:
 
 {{
     "success": true,
     "confidence": 0.95,
-    "reason": "brief explanation"
+    "reason": "한국어 판단 이유"
 }}
 
 """
 
 
-        result = (
-            self.gemini_service.verify_mission(
-                image_bytes=image_bytes,
-                prompt=prompt
-            )
+
+        result = self.gemini_service.verify_mission(
+            image_bytes=image_bytes,
+            prompt=prompt
         )
+
+
+
+        # Backend PASS 기준
+
+        if result.confidence < 0.7:
+
+            result.success = False
 
 
 
         if result.success:
 
-            result.reason_code = (
-                ReasonCode.PASS
-            )
+            result.reason_code = ReasonCode.PASS
 
             result.detected_objects = [
                 target
             ]
-
 
         else:
 
@@ -457,21 +503,17 @@ Format:
 
 
 
-        result.metadata.update(
+        result.metadata.update({
 
-            {
+            "decision_source":
+                "GEMINI_FALLBACK",
 
-                "decision_source":
-                    "GEMINI_FALLBACK",
+            "siglip_candidate":
+                self._candidate_metadata(
+                    object_result
+                )
 
-                "siglip_candidate":
-                    self._candidate_metadata(
-                        object_result
-                    )
-
-            }
-
-        )
+        })
 
 
         return result
