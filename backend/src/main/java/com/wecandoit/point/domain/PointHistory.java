@@ -8,6 +8,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
@@ -22,6 +23,10 @@ import lombok.NoArgsConstructor;
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_point_histories_member_type_reference",
                 columnNames = {"member_id", "transaction_type", "reference_id"}
+        ),
+        indexes = @Index(
+                name = "idx_point_histories_member_room_created",
+                columnList = "member_id, room_id, created_at"
         )
 )
 public class PointHistory extends BaseEntity {

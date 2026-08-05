@@ -60,4 +60,11 @@ grep -Fq "proxy_read_timeout 3600s;" <<<"$nginx_dump"
 grep -Fq "proxy_set_header Upgrade \$http_upgrade;" <<<"$nginx_dump"
 grep -Fq "proxy_set_header Connection \$connection_upgrade;" <<<"$nginx_dump"
 
+dev_location="$(sed -n '/location \/dev\/ {/,/^[[:space:]]*}/p' <<<"$nginx_dump")"
+grep -Fq "proxy_http_version 1.1;" <<<"$dev_location"
+grep -Fq "proxy_read_timeout 3600s;" <<<"$dev_location"
+grep -Fq "proxy_send_timeout 3600s;" <<<"$dev_location"
+grep -Fq "proxy_set_header Upgrade \$http_upgrade;" <<<"$dev_location"
+grep -Fq "proxy_set_header Connection \$connection_upgrade;" <<<"$dev_location"
+
 echo "Nginx image validation succeeded: $NGINX_IMAGE"

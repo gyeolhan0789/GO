@@ -459,7 +459,8 @@ class RoomControllerTest {
                 .body("created", equalTo(true))
                 .apply(document("game-request-create",
                         pathParameters(
-                                parameterWithName("roomId").description("초대할 게임방 ID")
+                                parameterWithName("roomId")
+                                        .description("초대할 게임방 ID. BATTLE 방 초대도 WebSocket 접속 여부와 무관하게 생성된다.")
                         ),
                         requestFields(
                                 fieldWithPath("inviteeId").description("초대받을 친구 회원 ID")
@@ -467,7 +468,8 @@ class RoomControllerTest {
                         responseFields(
                                 fieldWithPath("requestId").description("게임방 초대 요청 ID"),
                                 fieldWithPath("status").description("게임방 초대 요청 상태"),
-                                fieldWithPath("created").description("신규 생성 여부")
+                                fieldWithPath("created")
+                                        .description("신규 생성 여부. true이면 초대 알림이 발행되며, BATTLE 초대도 WebSocket 초대 수신 이벤트는 발행하지 않는다.")
                         )
                 ));
         then(gameRequestCommandService).should().createGameRequest(1L, 10L, request);
@@ -498,7 +500,8 @@ class RoomControllerTest {
                 .body("created", equalTo(false))
                 .apply(document("game-request-existing",
                         pathParameters(
-                                parameterWithName("roomId").description("초대할 게임방 ID")
+                                parameterWithName("roomId")
+                                        .description("초대할 게임방 ID. 같은 방과 같은 invitee의 PENDING 요청이 있으면 기존 요청을 반환한다.")
                         ),
                         requestFields(
                                 fieldWithPath("inviteeId").description("초대받을 친구 회원 ID")
@@ -506,7 +509,8 @@ class RoomControllerTest {
                         responseFields(
                                 fieldWithPath("requestId").description("기존 게임방 초대 요청 ID"),
                                 fieldWithPath("status").description("게임방 초대 요청 상태"),
-                                fieldWithPath("created").description("신규 생성 여부")
+                                fieldWithPath("created")
+                                        .description("신규 생성 여부. false이면 새 row와 초대 알림을 만들지 않는다.")
                         )
                 ));
         then(gameRequestCommandService).should().createGameRequest(1L, 10L, request);
@@ -591,8 +595,10 @@ class RoomControllerTest {
                 .statusCode(HttpStatus.NO_CONTENT.value())
                 .apply(document("game-request-accept",
                         pathParameters(
-                                parameterWithName("roomId").description("초대를 수락할 게임방 ID"),
-                                parameterWithName("requestId").description("수락할 게임방 초대 요청 ID")
+                                parameterWithName("roomId")
+                                        .description("초대를 수락할 게임방 ID. BATTLE 방은 수락 전에 `/ws` 연결과 `/user/queue/battle` 구독을 완료해야 한다."),
+                                parameterWithName("requestId")
+                                        .description("수락할 게임방 초대 요청 ID. BATTLE 수락 성공 후 양쪽 개인 큐로 `BATTLE_COUNTDOWN_STARTED`가 전송된다.")
                         )
                 ));
         then(gameRequestCommandService).should().acceptGameRequest(1L, 10L, 20L);
@@ -609,7 +615,8 @@ class RoomControllerTest {
                 .statusCode(HttpStatus.NO_CONTENT.value())
                 .apply(document("game-request-reject",
                         pathParameters(
-                                parameterWithName("roomId").description("초대를 거절할 게임방 ID"),
+                                parameterWithName("roomId")
+                                        .description("초대를 거절할 게임방 ID. BATTLE 방이면 초대한 회원에게 `INVITATION_REJECTED`가 전송된다."),
                                 parameterWithName("requestId").description("거절할 게임방 초대 요청 ID")
                         )
                 ));
@@ -627,7 +634,8 @@ class RoomControllerTest {
                 .statusCode(HttpStatus.NO_CONTENT.value())
                 .apply(document("game-request-cancel",
                         pathParameters(
-                                parameterWithName("roomId").description("초대를 취소할 게임방 ID"),
+                                parameterWithName("roomId")
+                                        .description("초대를 취소할 게임방 ID. BATTLE 방이면 초대 대상에게 `INVITATION_CANCELLED`가 전송된다."),
                                 parameterWithName("requestId").description("취소할 게임방 초대 요청 ID")
                         )
                 ));

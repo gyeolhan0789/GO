@@ -41,16 +41,3 @@ export function getHistories({ period, date }: GetHistoriesParams) {
   );
 }
 
-export type SaveHistoryRequest = {
-  /** 'yyyy-MM-dd'. */
-  historyDate: string;
-  step: number;
-  /** 미터. */
-  distance: number;
-  /** kcal. */
-  calories: number;
-};
-
-export function saveHistory(body: SaveHistoryRequest) {
-  return apiClient.post<void>('/histories', body);
-}

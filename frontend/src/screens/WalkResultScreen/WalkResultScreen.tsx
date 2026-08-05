@@ -2,19 +2,29 @@ import { StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
-import { GAME_MODE_LABEL } from '../../features/history/model/gameResult';
+import { formatThousands } from '../../features/history/model/format';
+import { GAME_MODE_LABEL } from '../../features/room/model/gameMode';
 import { AppText } from '../../shared/components/AppText/AppText';
 import { Button } from '../../shared/components/Button/Button';
 import { Card } from '../../shared/components/Card/Card';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { colors } from '../../shared/constants/colors';
+import { radius } from '../../shared/constants/radius';
 import { spacing } from '../../shared/constants/spacing';
 import { fontFamily, lineHeights } from '../../shared/constants/typography';
+import { formatPoints } from '../../shared/lib/formatPoints';
 
 type WalkResultScreenProps = NativeStackScreenProps<
   RootStackParamList,
   'WalkResult'
 >;
+
+/** 결과 화면에 한 줄로 서는 성과. key는 색을 고르는 데도 쓴다. */
+type Achievement = {
+  key: 'stepGoal' | 'mission' | 'reward';
+  title: string;
+  detail: string;
+};
 
 function formatElapsed(totalSeconds: number) {
   const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
@@ -23,8 +33,43 @@ function formatElapsed(totalSeconds: number) {
 }
 
 export function WalkResultScreen({ route, navigation }: WalkResultScreenProps) {
-  const { roomName, mode, steps, distanceKm, calories, elapsedSeconds } =
-    route.params;
+  const {
+    roomName,
+    mode,
+    steps,
+    distanceKm,
+    calories,
+    elapsedSeconds,
+    achievedMissionCount,
+    earnedPoint,
+    targetStepCount,
+  } = route.params;
+
+  // 이번 산책에서 이룬 것들. 해당 없는 줄은 아예 그리지 않는다 — 0을 적으면
+  // 못 받은 걸 받은 것처럼 읽힌다.
+  const achievements: Achievement[] = [];
+  // 걸음 목표 보상은 목표를 채웠을 때만 나가므로, 포인트가 곧 달성 신호다.
+  if (earnedPoint > 0 && targetStepCount !== null) {
+    achievements.push({
+      key: 'stepGoal',
+      title: '목표 걸음 달성!',
+      detail: `${formatThousands(targetStepCount)} 걸음`,
+    });
+  }
+  if (achievedMissionCount > 0) {
+    achievements.push({
+      key: 'mission',
+      title: `미션 ${achievedMissionCount}개 성공!`,
+      detail: '이번 산책에서 깬 칸',
+    });
+  }
+  if (earnedPoint > 0) {
+    achievements.push({
+      key: 'reward',
+      title: '보상 획득!',
+      detail: `+ ${formatPoints(earnedPoint)}`,
+    });
+  }
 
   return (
     <Screen edges={['top', 'bottom']}>
@@ -70,6 +115,35 @@ export function WalkResultScreen({ route, navigation }: WalkResultScreenProps) {
             </View>
           </View>
         </Card>
+        {achievements.length > 0 ? (
+          <View style={styles.achievements}>
+            {achievements.map(achievement => (
+              <View
+                key={achievement.key}
+                style={styles.achievementRow}
+                accessibilityRole="text"
+                accessibilityLabel={`${achievement.title} ${achievement.detail}`}
+              >
+                <View
+                  style={[
+                    styles.dot,
+                    achievement.key === 'reward'
+                      ? styles.rewardDot
+                      : styles.goalDot,
+                  ]}
+                />
+                <View style={styles.achievementText}>
+                  <AppText style={styles.achievementTitle}>
+                    {achievement.title}
+                  </AppText>
+                  <AppText style={styles.achievementDetail}>
+                    {achievement.detail}
+                  </AppText>
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         <Button
           label="확인"
@@ -88,6 +162,52 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
     gap: spacing.xl,
+  },
+  achievements: {
+    alignSelf: 'stretch',
+    gap: spacing.md,
+  },
+  achievementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+  },
+  dot: {
+    width: 12,
+    height: 12,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+  },
+  goalDot: {
+    backgroundColor: colors.primarySoft,
+  },
+  rewardDot: {
+    backgroundColor: colors.highlightBg,
+  },
+  achievementText: {
+    // 긴 제목이 점을 밀어내지 않게.
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  achievementTitle: {
+    fontFamily: fontFamily.bold,
+    fontSize: 15,
+    lineHeight: lineHeights[15],
+    color: colors.ink,
+  },
+  achievementDetail: {
+    fontFamily: fontFamily.regular,
+    fontSize: 13,
+    lineHeight: lineHeights[13],
+    color: colors.ink,
+    opacity: 0.6,
   },
   header: {
     alignItems: 'center',
@@ -141,7 +261,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderStyle: 'dotted',
     borderColor: colors.border,
-    marginVertical: spacing.lg,
+    marginVertical: spacing.md,
   },
   statsRow: {
     flexDirection: 'row',

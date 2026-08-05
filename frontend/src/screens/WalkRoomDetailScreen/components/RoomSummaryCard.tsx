@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-import { GAME_MODE_LABEL } from '../../../features/history/model/gameResult';
+import { GAME_MODE_LABEL } from '../../../features/room/model/gameMode';
 import type {
   GameRoomStatus,
   RoomDetailResponse,
