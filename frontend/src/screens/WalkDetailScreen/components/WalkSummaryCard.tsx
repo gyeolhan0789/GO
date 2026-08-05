@@ -51,7 +51,9 @@ export function WalkSummaryCard({ walk }: WalkSummaryCardProps) {
             {formatWalkTime(walk.startedAt)}
           </AppText>
         </View>
-        <View style={styles.timeArrow} />
+        <View>
+          <AppText>~</AppText>
+        </View>
         <View style={styles.timePoint}>
           <AppText style={styles.timeLabel}>종료</AppText>
           <AppText style={styles.timeValue}>
@@ -111,7 +113,6 @@ const styles = StyleSheet.create({
   },
   timeRow: {
     flexDirection: 'row',
-    // 라벨 줄 높이가 서로 달라도 시각끼리는 같은 줄에 서게 아래를 맞춘다.
     alignItems: 'flex-end',
     gap: spacing.sm,
     marginTop: spacing.sm,
@@ -131,15 +132,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: lineHeights[16],
     color: colors.ink,
-  },
-  timeArrow: {
-    // 화살표 글리프 대신 선으로 둔다 — 픽셀 폰트에서 글리프가 흐릿해진다.
-    width: 16,
-    height: 2,
-    backgroundColor: colors.ink,
-    opacity: 0.3,
-    // 시각 글씨(lineHeight 24)의 한가운데에 오도록 아래에서 띄운다.
-    marginBottom: 11,
   },
   totalDuration: {
     fontFamily: bodyFont.regular,

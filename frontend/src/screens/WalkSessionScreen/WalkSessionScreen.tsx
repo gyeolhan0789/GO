@@ -237,9 +237,8 @@ export function WalkSessionScreen() {
       return;
     }
 
-    // 네이티브 세션을 종료해 서비스·알림·GPS를 정지시키고 확정된
-    // 최종 수치를 받아온다. 여기서부터는 되돌릴 수 없으므로 이 수치를
-    // 끝까지 들고 간다.
+    // 네이티브 세션을 종료해 서비스·알림·GPS를 정지시키고 확정된 최종 수치를
+    // 받아온다. 여기서부터는 되돌릴 수 없다.
     const final = await stopWalkSession();
     const finalSteps = Math.round(final.steps);
     const finalDistanceMeters = Math.round(final.distanceMeters);

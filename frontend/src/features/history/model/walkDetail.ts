@@ -1,10 +1,5 @@
 import type { WalkBingoCell } from '../types';
 
-/** '빙고판 2/9'의 앞 숫자. 지난 산책에서 깬 칸은 이번 몫이 아니라 빼고 센다. */
-export function countAchievedCells(cells: WalkBingoCell[]): number {
-  return selectAchievedCells(cells).length;
-}
-
 /**
  * 이번 산책에 깬 칸만, 깬 순서대로. 시각을 모르는 칸은 순서를 정할 수 없어
  * 뒤로 보낸다 — 판 위 자리(index)와 깬 순서는 서로 상관이 없다.
