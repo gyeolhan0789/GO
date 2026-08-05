@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,7 +21,7 @@ import type {
   MyRoomResponse,
   ReceivedRoomInvite,
 } from '../../features/room/api/roomApi';
-import { useAcceptRoomInviteMutation } from '../../features/room/hooks/useAcceptRoomInviteMutation';
+import { useRoomInviteAccept } from '../../features/room/hooks/useRoomInviteAccept';
 import { useMyRoomsQuery } from '../../features/room/hooks/useMyRoomsQuery';
 import { useReceivedRoomInvitesQuery } from '../../features/room/hooks/useReceivedRoomInvitesQuery';
 import { useRejectRoomInviteMutation } from '../../features/room/hooks/useRejectRoomInviteMutation';
@@ -73,9 +73,12 @@ export function CompanionScreen() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const myRoomsQuery = useMyRoomsQuery();
   // 혼자 방을 항상 위로 올린다. 같은 mode끼리는 서버가 내려준 순서(참여일시 최신순)를 유지한다.
-  const myWalkRooms = (myRoomsQuery.data?.map(toMyWalkRoom) ?? []).sort(
-    (a, b) => Number(b.mode === 'solo') - Number(a.mode === 'solo'),
-  );
+  const myWalkRooms = (myRoomsQuery.data ?? [])
+    // 대결방은 한 판짜리라 산책방 목록에 두지 않는다. 진행 중인 대결로는
+    // 홈의 '대결 이어가기' 버튼으로 돌아간다.
+    .filter(room => room.mode !== 'BATTLE')
+    .map(toMyWalkRoom)
+    .sort((a, b) => Number(b.mode === 'solo') - Number(a.mode === 'solo'));
   const friendsQuery = useInfiniteFriendsQuery();
   const friends = useMemo(
     () => friendsQuery.data?.pages.flatMap(page => page.content) ?? [],
@@ -89,8 +92,33 @@ export function CompanionScreen() {
   const deleteFriendMutation = useDeleteFriendMutation();
   const receivedInvitesQuery = useReceivedRoomInvitesQuery();
   const receivedInvites = receivedInvitesQuery.data ?? [];
-  const acceptInviteMutation = useAcceptRoomInviteMutation();
   const rejectInviteMutation = useRejectRoomInviteMutation();
+
+  // 대결 초대는 수락하는 순간 서버가 카운트다운을 쏜다. 구독을 먼저 붙여두지
+  // 않으면 그 이벤트를 놓쳐서 대결이 시작된 걸 모른 채 남는다.
+  //
+  // 초대 응답에 mode가 없어서(백엔드에 추가 요청 중) 대결 초대만 골라낼 수
+  // 없다. 그래서 어떤 초대든 대기 중이면 큐를 열어둔다 — 협동뿐이면 이벤트가
+  // 안 올 뿐이고, 안 열어두면 대결 수락이 방에 못 들어간다.
+  const hasPendingInvite = receivedInvites.some(
+    invite => invite.status === 'PENDING',
+  );
+  // 카운트다운 이벤트가 수락 응답보다 먼저 도착할 수 있다. 그 경우 수락 쪽
+  // 이동이 파라미터 없는 route로 덮어써 카운트다운이 사라지므로, 이벤트가
+  // 먼저 이동했으면 수락 쪽은 이동을 건너뛴다.
+  const battleNavigatedRef = useRef(false);
+  const { acceptInvite } = useRoomInviteAccept({
+    enabled: hasPendingInvite,
+    onBattleStarted: event => {
+      // 빙고판으로 직행하지 않는다 — 대기방에서 상대와 같은 카운트다운을 보고
+      // 함께 들어간다. 이벤트가 대기방 도착보다 먼저 와서 값을 실어 보낸다.
+      battleNavigatedRef.current = true;
+      navigation.navigate('WalkRoomDetail', {
+        roomId: event.roomId,
+        battleCountdownSeconds: event.countdownSeconds ?? undefined,
+      });
+    },
+  });
 
   const handleDeleteFriend = (friend: FriendResponse) => {
     Alert.alert(
@@ -126,22 +154,26 @@ export function CompanionScreen() {
     }
   };
 
-  const handleAcceptInvite = (invite: ReceivedRoomInvite) => {
+  const handleAcceptInvite = async (invite: ReceivedRoomInvite) => {
     setPendingInviteRequestId(invite.requestId);
-    acceptInviteMutation.mutate(
-      { roomId: invite.roomId, requestId: invite.requestId },
-      {
-        onSuccess: () => setToastMessage('산책방 초대를 수락했어요.'),
-        onError: error => {
-          Alert.alert(
-            '초대 수락 실패',
-            error instanceof Error ? error.message : '잠시 후 다시 시도해주세요.',
-          );
-          receivedInvitesQuery.refetch();
-        },
-        onSettled: () => setPendingInviteRequestId(null),
-      },
-    );
+    try {
+      battleNavigatedRef.current = false;
+      await acceptInvite(invite);
+      // 수락했으면 그 방을 바로 보여준다. 대결이면 mode === 'BATTLE'이라
+      // 대기방이 그려지고, 곧 도착하는 카운트다운 이벤트가 값을 얹어준다.
+      // 이벤트가 이미 이동시켰다면 여기서 또 이동하면 그 값을 지운다.
+      if (!battleNavigatedRef.current) {
+        navigation.navigate('WalkRoomDetail', { roomId: invite.roomId });
+      }
+    } catch (error) {
+      Alert.alert(
+        '초대 수락 실패',
+        error instanceof Error ? error.message : '잠시 후 다시 시도해주세요.',
+      );
+      receivedInvitesQuery.refetch();
+    } finally {
+      setPendingInviteRequestId(null);
+    }
   };
 
   const handleRejectInvite = (invite: ReceivedRoomInvite) => {

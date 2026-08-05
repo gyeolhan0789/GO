@@ -103,6 +103,12 @@ export type ReceivedRoomInvite = {
   inviterNickname: string;
   status: RoomInviteStatus;
   createdAt: string;
+  /**
+   * 대결 초대는 수락하는 순간 서버가 카운트다운을 쏘기 때문에 협동과 수락 절차가
+   * 다르다. 지금 서버는 이 값을 안 내려준다 — 백엔드에 추가를 요청해 둔 자리이고,
+   * 없으면 협동으로 취급한다(소켓을 기다리지 않고 바로 수락).
+   */
+  mode?: GameMode;
 };
 
 export function getReceivedRoomInvites() {
