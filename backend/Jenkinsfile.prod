@@ -377,14 +377,10 @@ pipeline {
 
                         if ! HEALTH_CHECK_CONTAINER="$CANARY_CONTAINER" \
                           bash ../infra/deploy/check-backend-health.sh "$CANARY_HEALTH_URL"; then
-                          docker compose -f "$COMPOSE_FILE" stop backend-canary
-                          docker compose -f "$COMPOSE_FILE" rm -f backend-canary
                           exit 1
                         fi
 
                         if ! bash ../infra/deploy/check-flyway-history.sh wecandoit-mysql-prod wecandoit src/main/resources/db/migration; then
-                          docker compose -f "$COMPOSE_FILE" stop backend-canary
-                          docker compose -f "$COMPOSE_FILE" rm -f backend-canary
                           exit 1
                         fi
                         '''
@@ -860,6 +856,8 @@ If the next stage fails, immediately run `sudo systemctl start nginx`.''',
 
                       cleanup_canary() {
                         if docker inspect "$CANARY_CONTAINER" >/dev/null 2>&1; then
+                          docker logs --tail 300 "$CANARY_CONTAINER" 2>&1 || true
+                          docker inspect "$CANARY_CONTAINER" || true
                           docker compose -f "$COMPOSE_FILE" stop backend-canary
                           docker compose -f "$COMPOSE_FILE" rm -f backend-canary
                         else
