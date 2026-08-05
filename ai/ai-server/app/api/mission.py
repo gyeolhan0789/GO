@@ -10,9 +10,7 @@ from fastapi import (
 )
 
 
-from app.services.vision.vision_router import (
-    VisionRouter
-)
+from app.services.vision.vision_router import VisionRouter
 
 from app.services.vision.image_quality_service import (
     ImageQualityService
@@ -48,6 +46,13 @@ ALLOWED_EXTENSIONS = {
 }
 
 
+SUPPORTED_MISSION_TYPES = {
+    "OBJECT",
+    "ATTRIBUTE",
+    "RELATION"
+}
+
+
 
 @router.get("/test")
 def test():
@@ -68,6 +73,22 @@ async def verify_mission(
     decision_condition: str = Form(...)
 
 ):
+
+
+    # ==========================
+    # Mission Type Normalize
+    # ==========================
+
+    mission_type = mission_type.upper()
+
+
+    if mission_type not in SUPPORTED_MISSION_TYPES:
+
+        raise HTTPException(
+            status_code=400,
+            detail="지원하지 않는 mission_type입니다."
+        )
+
 
 
     # ==========================
@@ -127,28 +148,6 @@ async def verify_mission(
 
 
     # ==========================
-    # Mission Type Validation
-    # ==========================
-
-    mission_type = mission_type.upper()
-
-
-    if mission_type not in {
-
-        "OBJECT",
-        "ATTRIBUTE",
-        "RELATION"
-
-    }:
-
-        raise HTTPException(
-            status_code=400,
-            detail="지원하지 않는 mission_type입니다."
-        )
-
-
-
-    # ==========================
     # Decision Condition Parse
     # ==========================
 
@@ -170,6 +169,20 @@ async def verify_mission(
 
     # ==========================
     # Vision Pipeline
+    #
+    # OBJECT:
+    #   SigLIP2
+    #       ↓
+    #   RuleEngine
+    #       ↓
+    #   ObjectVerifier
+    #
+    # ATTRIBUTE:
+    #   Gemini
+    #
+    # RELATION:
+    #   Gemini
+    #
     # ==========================
 
     try:
