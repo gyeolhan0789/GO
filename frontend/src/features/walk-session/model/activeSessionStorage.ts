@@ -23,6 +23,11 @@ export type ActiveWalkSessionRecord = {
   startedAt?: string;
   /** 이 산책이 시작한 빙고판. 판을 못 읽고 시작했으면 없다. */
   bingoBoardId?: number | null;
+  /**
+   * 이 세션이 속한 방 이름. 다른 방 산책이 남아 새 산책이 막혔을 때 사용자에게
+   * "어느 방"인지 말해주려고 남긴다 — 방 번호만으로는 찾아갈 수가 없다.
+   */
+  roomName?: string;
 };
 
 function isRecord(value: unknown): value is ActiveWalkSessionRecord {

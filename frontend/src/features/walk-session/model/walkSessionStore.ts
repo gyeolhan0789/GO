@@ -137,6 +137,26 @@ async function issueWalkSessionKey(roomId: number): Promise<string | null> {
     // 돌려준다. 그 키로 이번 산책을 기록하면 엉뚱한 방의 기록이 되므로 쓰지
     // 않는다 — 세션을 버리는 API가 없어 24시간 만료를 기다리는 수밖에 없다.
     if (response.roomId !== roomId) {
+      // 서버는 회원당 활성 세션을 하나만 두고, 이미 있으면 요청한 방을 무시하고
+      // 그걸 돌려준다. 이 키로 지금 산책을 기록하면 엉뚱한 방 기록이 되므로 쓰지
+      // 않는다.
+      //
+      // 그렇다고 버리면 안 된다. 서버는 키를 알고 우리는 모르는 상태가 되어,
+      // 남은 세션을 끝낼 방법이 사라지고 24시간 만료까지 새 산책이 전부 막힌다.
+      // 받은 키는 그 방 것으로 보관해 둔다 — 그 방 산책을 종료하면 세션이 비고
+      // 다시 풀린다.
+      console.log(
+        `[walk] 다른 방 세션이 남아 있어 키를 못 씀 — 요청 ${roomId}, ` +
+          `서버가 준 방 ${response.roomId}(${response.roomName}, ${response.mode})`,
+      );
+      await writeActiveWalkSession({
+        walkSessionKey: response.walkSessionKey,
+        roomId: response.roomId,
+        expiresAt: response.expiresAt,
+        startedAt: response.startedAt,
+        bingoBoardId: response.initialBingoBoardId,
+        roomName: response.roomName,
+      });
       return null;
     }
     // 발급을 기다리는 사이 사용자가 산책을 접고 다른 방으로 갔을 수 있다.
@@ -152,6 +172,7 @@ async function issueWalkSessionKey(roomId: number): Promise<string | null> {
       // 기기 시계로 다시 만들면 서버 기록과 어긋난다.
       startedAt: response.startedAt,
       bingoBoardId: response.initialBingoBoardId,
+      roomName: response.roomName,
     });
     state = { ...state, walkSessionKey: response.walkSessionKey };
     notify();

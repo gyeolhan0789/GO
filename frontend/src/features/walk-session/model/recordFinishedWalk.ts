@@ -60,10 +60,24 @@ export async function recordFinishedWalk(
   const stored = await readActiveWalkSession();
   // 저장된 키가 다른 방 것이면 쓰지 않는다. 그 키로 종료하면 이번 산책의
   // 수치가 엉뚱한 방의 기록이 된다.
-  if (stored === null || stored.roomId !== walk.roomId) {
+  //
+  // 원인을 갈라 말한다. 서버는 회원당 활성 세션을 하나만 두고 이미 있으면
+  // 요청한 방을 무시하고 그걸 돌려주므로, 다른 방 산책을 끝내지 않은 채
+  // 새 산책을 시작하면 키를 못 받는다 — 흔한 경로인데 "연결 실패"로 뭉개면
+  // 사용자가 네트워크를 의심하며 계속 재시도한다.
+  if (stored === null) {
     return {
       status: 'failed',
-      message: '산책을 시작할 때 서버와 연결하지 못했어요.',
+      message:
+        '다른 산책이 아직 끝나지 않아 이 산책을 기록하지 못했어요. 진행 중인 산책을 먼저 종료해주세요.',
+    };
+  }
+  if (stored.roomId !== walk.roomId) {
+    // 방 번호만으로는 찾아갈 수 없으니 이름으로 말한다.
+    const blockingRoom = stored.roomName ?? '다른 산책방';
+    return {
+      status: 'failed',
+      message: `'${blockingRoom}'의 산책이 아직 진행 중이에요. 그 산책을 먼저 종료한 뒤 다시 시도해주세요.`,
     };
   }
   const walkSessionKey = stored.walkSessionKey;
