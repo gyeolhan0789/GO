@@ -30,11 +30,11 @@ Jenkins는 다음 두 가지 배포 모드를 제공한다.
 | `validation` | `127.0.0.1:18080`, `127.0.0.1:18443` | Stable-only Nginx와 Canary 직접 검증까지만 수행하며 운영 트래픽은 분배하지 않음 |
 | `production` | `0.0.0.0:80`, `0.0.0.0:443` | 90:10 전환, Canary-only 전환, Stable 승격 수행 |
 
-항상 `validation`을 먼저 실행한다. `production`을 선택하기 전에는 Host Nginx를
-수동으로 중지하고 80/443 포트가 비어 있는지 확인한다. Jenkins는 Host Nginx나
-systemd를 제어하지 않는다. Docker Nginx가 80/443을 사용하기 시작한 이후의 배포는
-`production` 모드를 사용해야 한다. 실행 중인 운영 Nginx를 임시 포트로 되돌리지
-않도록 validation 모드에서는 이를 차단한다.
+`production` 실행에서도 후보 Docker Nginx를 먼저 `18080/18443`에서 검증하고 Canary와
+Flyway를 확인한다. 최초 전환이면 Jenkins가 승인을 기다리는 동안 Host Nginx에서
+`sudo nginx -t && sudo systemctl stop nginx`를 실행하고 80/443이 비었는지 확인한 뒤
+진행한다. Docker Nginx 시작에 실패하면 즉시 `sudo systemctl start nginx`로 복구한다.
+Docker Nginx가 80/443을 사용하기 시작한 이후에는 계속 `production` 모드를 사용한다.
 
 validation 배포에서는 Host Nginx와 충돌하지 않도록 Docker Nginx를 loopback 전용
 임시 포트에 바인딩한다.
@@ -137,17 +137,21 @@ prune하지 않는다.
 
 ### Production 모드
 
-1. validation 성공, Host Nginx 중지, 80/443 포트 미사용 상태를 확인한다.
-2. 네트워크, 이미지 보존, 빌드, 후보 이미지 검증을 다시 수행한다.
-3. Stable을 시작한 다음 Docker Nginx를 80/443에서 `stable-only`로 시작한다.
-4. Canary를 시작하고 컨테이너 포트 9091의 Actuator를 검증한다.
-5. `canary-10`을 적용하고 서비스 Smoke API와 로그를 확인한다.
-6. 수동 승인 후 `canary-only`를 적용한다.
-7. Stable 승격을 승인하고 Stable을 재생성한 뒤 Actuator와 Smoke API를 검증한다.
-8. `stable-only`로 복귀하고 Canary를 제거한다.
+1. 네트워크와 포트를 점검하고 현재 Stable 및 Docker Nginx 이미지를 보존한다.
+2. 이미지를 빌드하고 후보 Docker Nginx를 `18080/18443`에서 선검증한다.
+3. Legacy Stable은 중지하지 않고 edge 네트워크의 `backend-stable` 별칭으로 보존한 뒤
+   Canary의 9091 Actuator와 Flyway 이력을 검증한다.
+4. 최초 전환이면 Jenkins 승인 단계에서 Host Nginx를 중지하고 80/443을 비운다.
+5. Docker Nginx를 80/443에서 `stable-only`로 시작한다.
+6. `canary-10`을 적용하고 서비스 Smoke API와 로그를 확인한다.
+7. 수동 승인 후 `canary-only`를 적용한다.
+8. Stable 승격을 승인한 뒤 Canary 100% 상태에서 Legacy Stable을 신규 Stable로 교체하고
+   Actuator와 Smoke API를 검증한다.
+9. `stable-only`로 복귀하고 Canary를 제거한다.
 
 기존 `wecandoit-backend-prod` 컨테이너를 `wecandoit-backend-stable`로 처음 이전할 때는
-두 컨테이너가 모두 Host 포트 8080을 사용하므로 기존 컨테이너를 중지해야 한다.
+두 컨테이너가 모두 Host 포트 8080을 사용하므로 Canary-only 전환 이후 Stable 승격
+단계에서만 기존 컨테이너를 중지한다.
 보존한 이미지를 그대로 사용하지만 최초 이름 변경 과정에서 짧은 중단이 발생할 수 있다.
 
 ## Health Check
