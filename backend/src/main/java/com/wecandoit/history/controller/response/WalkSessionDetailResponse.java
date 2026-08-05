@@ -20,6 +20,10 @@ public record WalkSessionDetailResponse(
         int calories,
         Long initialBingoBoardId,
         int achievedMissionCount,
+        long missionEarnedPoint,
+        long stepGoalEarnedPoint,
+        long gameEarnedPoint,
+        long earnedPoint,
         List<WalkSessionBingoBoardResponse> bingoBoards
 ) {
 
@@ -43,6 +47,10 @@ public record WalkSessionDetailResponse(
                 walkSession.getCalories(),
                 walkSession.getInitialBingoBoardId(),
                 achievedMissionCount,
+                walkSession.getMissionEarnedPoint(),
+                walkSession.getStepGoalEarnedPoint(),
+                walkSession.getGameEarnedPoint(),
+                walkSession.getEarnedPoint(),
                 bingoBoards
         );
     }

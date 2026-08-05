@@ -144,7 +144,7 @@ class WalkSessionControllerTest {
     @DisplayName("산책 세션이 새로 완료되면 201과 세션 요약을 반환한다")
     void completeWalkSessionReturnsCreatedSession() {
         // given
-        willReturn(new CompletionResult(completeSummary(100L), true))
+        willReturn(new CompletionResult(completeSummary(50L, 100L, 300L), true))
                 .given(walkSessionCommandService)
                 .completeSession(eq(1L), any());
 
@@ -169,7 +169,10 @@ class WalkSessionControllerTest {
                 .body("durationSeconds", equalTo(2_535))
                 .body("activeDurationSeconds", equalTo(2_400))
                 .body("achievedMissionCount", equalTo(1))
-                .body("earnedPoint", equalTo(100))
+                .body("missionEarnedPoint", equalTo(50))
+                .body("stepGoalEarnedPoint", equalTo(100))
+                .body("gameEarnedPoint", equalTo(300))
+                .body("earnedPoint", equalTo(450))
                 .apply(document("walk-session-complete",
                         requestFields(
                                 fieldWithPath("walkSessionKey").description("Backend-issued walk session UUID"),
@@ -189,7 +192,7 @@ class WalkSessionControllerTest {
     @DisplayName("이미 완료된 산책 세션을 다시 완료하면 200과 기존 세션을 반환한다")
     void completeWalkSessionReturnsExistingSession() {
         // given
-        willReturn(new CompletionResult(completeSummary(0L), false))
+        willReturn(new CompletionResult(completeSummary(50L, 100L, 300L), false))
                 .given(walkSessionCommandService)
                 .completeSession(eq(1L), any());
 
@@ -211,7 +214,7 @@ class WalkSessionControllerTest {
                 .then()
                 .statusCode(HttpStatus.OK.value())
                 .body("walkSessionId", equalTo(50))
-                .body("earnedPoint", equalTo(0));
+                .body("earnedPoint", equalTo(450));
     }
 
     @Test
@@ -333,11 +336,19 @@ class WalkSessionControllerTest {
                 3_382,
                 214,
                 30L,
-                1
+                1,
+                50L,
+                100L,
+                300L,
+                450L
         );
     }
 
-    private WalkSessionCompleteResponse completeSummary(long earnedPoint) {
+    private WalkSessionCompleteResponse completeSummary(
+            long missionEarnedPoint,
+            long stepGoalEarnedPoint,
+            long gameEarnedPoint
+    ) {
         return new WalkSessionCompleteResponse(
                 50L,
                 10L,
@@ -352,7 +363,10 @@ class WalkSessionControllerTest {
                 214,
                 30L,
                 1,
-                earnedPoint
+                missionEarnedPoint,
+                stepGoalEarnedPoint,
+                gameEarnedPoint,
+                missionEarnedPoint + stepGoalEarnedPoint + gameEarnedPoint
         );
     }
 
@@ -405,6 +419,10 @@ class WalkSessionControllerTest {
                 summary.calories(),
                 summary.initialBingoBoardId(),
                 summary.achievedMissionCount(),
+                summary.missionEarnedPoint(),
+                summary.stepGoalEarnedPoint(),
+                summary.gameEarnedPoint(),
+                summary.earnedPoint(),
                 List.of(board)
         );
     }
@@ -424,14 +442,16 @@ class WalkSessionControllerTest {
                 fieldWithPath("distance").description("Distance"),
                 fieldWithPath("calories").description("Calories"),
                 fieldWithPath("initialBingoBoardId").description("Initial bingo board ID").optional(),
-                fieldWithPath("achievedMissionCount").description("Approved missions achieved in this session")
+                fieldWithPath("achievedMissionCount").description("Approved missions achieved in this session"),
+                fieldWithPath("missionEarnedPoint").description("Mission verification points earned in this session"),
+                fieldWithPath("stepGoalEarnedPoint").description("Step goal points earned in this session"),
+                fieldWithPath("gameEarnedPoint").description("Game result points earned in this session"),
+                fieldWithPath("earnedPoint").description("Total points earned in this session")
         };
     }
 
     private FieldDescriptor[] completeSummaryFields() {
-        List<FieldDescriptor> fields = new ArrayList<>(List.of(summaryFields()));
-        fields.add(fieldWithPath("earnedPoint").description("Point earned by this walk completion"));
-        return fields.toArray(FieldDescriptor[]::new);
+        return summaryFields();
     }
 
     private FieldDescriptor[] detailFields() {
