@@ -29,7 +29,10 @@ export class FakeWebSocket {
   }
 
   readyState = CONNECTING;
-  /** 클라이언트가 보낸 원문. 프레임 단위로 쌓인다. */
+  /**
+   * 클라이언트가 보낸 원문. 프레임 단위로 쌓인다. 실제 클라이언트는 브리지의
+   * NUL 잘림을 피해 바이트로 보내므로, 검증하기 쉽게 문자열로 되돌려 담는다.
+   */
   sent: string[] = [];
   closeCallCount = 0;
 
@@ -42,8 +45,16 @@ export class FakeWebSocket {
     FakeWebSocket.instances.push(this);
   }
 
-  send(payload: string) {
-    this.sent.push(payload);
+  send(payload: string | Uint8Array | ArrayBuffer) {
+    if (typeof payload === 'string') {
+      this.sent.push(payload);
+      return;
+    }
+    const bytes =
+      payload instanceof Uint8Array ? payload : new Uint8Array(payload);
+    // 테스트 프레임은 ASCII뿐이라 코드포인트 복원으로 충분하다. Buffer는
+    // 앱 tsconfig에 node 타입이 없어 여기서 못 쓴다.
+    this.sent.push(String.fromCharCode(...bytes));
   }
 
   close() {

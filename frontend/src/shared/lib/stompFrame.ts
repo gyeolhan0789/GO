@@ -62,6 +62,59 @@ export function encodeFrame(frame: StompFrame): string {
   return `${[frame.command, ...headerLines].join('\n')}\n\n${frame.body}${NULL}`;
 }
 
+/**
+ * 프레임 문자열을 UTF-8 바이트로 바꾼다(표준 UTF-8, U+0000은 0x00 한 바이트).
+ *
+ * 문자열 그대로 socket.send에 주면 안 된다 — RN 안드로이드 브리지가 NUL을
+ * 문자열의 끝으로 보고 종결자를 잘라먹는 걸 전선 검식으로 확인했다(2026-08-05,
+ * okhttp 수신측 tailHex에 0x00 부재). 종결자가 없는 프레임은 서버 디코더가
+ * 끝을 영영 기다리므로 응답이 오지 않는다. 바이트로 보내면 브리지의 문자열
+ * 처리를 우회한다.
+ *
+ * RN 0.86에는 TextEncoder 전역이 없어 직접 쓴다.
+ */
+// UTF-8 인코딩은 비트 연산 없이 쓸 수 없다. 이 함수에만 허용한다.
+/* eslint-disable no-bitwise */
+export function encodeFrameBytes(frame: StompFrame): Uint8Array {
+  const text = encodeFrame(frame);
+  const bytes: number[] = [];
+
+  for (let index = 0; index < text.length; index += 1) {
+    let code = text.charCodeAt(index);
+
+    // 서로게이트 쌍(이모지 등)은 하나의 코드포인트로 합쳐 4바이트로 나간다.
+    if (code >= 0xd800 && code <= 0xdbff && index + 1 < text.length) {
+      const low = text.charCodeAt(index + 1);
+      if (low >= 0xdc00 && low <= 0xdfff) {
+        code = 0x10000 + ((code - 0xd800) << 10) + (low - 0xdc00);
+        index += 1;
+      }
+    }
+
+    if (code < 0x80) {
+      bytes.push(code);
+    } else if (code < 0x800) {
+      bytes.push(0xc0 | (code >> 6), 0x80 | (code & 0x3f));
+    } else if (code < 0x10000) {
+      bytes.push(
+        0xe0 | (code >> 12),
+        0x80 | ((code >> 6) & 0x3f),
+        0x80 | (code & 0x3f),
+      );
+    } else {
+      bytes.push(
+        0xf0 | (code >> 18),
+        0x80 | ((code >> 12) & 0x3f),
+        0x80 | ((code >> 6) & 0x3f),
+        0x80 | (code & 0x3f),
+      );
+    }
+  }
+
+  return Uint8Array.from(bytes);
+}
+/* eslint-enable no-bitwise */
+
 type DecodeResult = {
   frames: StompFrame[];
   /** 아직 NULL을 못 만난 나머지. 다음 청크 앞에 이어 붙인다. */
