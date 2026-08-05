@@ -78,6 +78,10 @@ class WalkSessionReadServiceTest {
         assertThat(response.content().getFirst().durationSeconds()).isEqualTo(2_535L);
         assertThat(response.content().getFirst().activeDurationSeconds()).isEqualTo(2_400L);
         assertThat(response.content().getFirst().achievedMissionCount()).isEqualTo(1);
+        assertThat(response.content().getFirst().missionEarnedPoint()).isEqualTo(50L);
+        assertThat(response.content().getFirst().stepGoalEarnedPoint()).isEqualTo(100L);
+        assertThat(response.content().getFirst().gameEarnedPoint()).isEqualTo(300L);
+        assertThat(response.content().getFirst().earnedPoint()).isEqualTo(450L);
     }
 
     @Test
@@ -124,6 +128,7 @@ class WalkSessionReadServiceTest {
         assertThat(response.bingoBoards().getFirst().cells().getFirst().achievedInSession()).isTrue();
         assertThat(response.bingoBoards().getFirst().cells().getFirst().achievedAt())
                 .isEqualTo(Instant.parse("2026-08-03T01:20:00Z"));
+        assertThat(response.earnedPoint()).isEqualTo(450L);
     }
 
     @Test
@@ -152,6 +157,7 @@ class WalkSessionReadServiceTest {
                 3_382,
                 214
         );
+        walkSession.recordEarnedPoints(50L, 100L, 300L);
         ReflectionTestUtils.setField(walkSession, "id", 50L);
         return walkSession;
     }

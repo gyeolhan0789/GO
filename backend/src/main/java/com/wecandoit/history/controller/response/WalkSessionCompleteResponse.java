@@ -19,14 +19,16 @@ public record WalkSessionCompleteResponse(
         int calories,
         Long initialBingoBoardId,
         int achievedMissionCount,
+        long missionEarnedPoint,
+        long stepGoalEarnedPoint,
+        long gameEarnedPoint,
         long earnedPoint
 ) {
 
     public static WalkSessionCompleteResponse of(
             WalkSession walkSession,
             Room room,
-            int achievedMissionCount,
-            long earnedPoint
+            int achievedMissionCount
     ) {
         return new WalkSessionCompleteResponse(
                 walkSession.getId(),
@@ -42,7 +44,10 @@ public record WalkSessionCompleteResponse(
                 walkSession.getCalories(),
                 walkSession.getInitialBingoBoardId(),
                 achievedMissionCount,
-                earnedPoint
+                walkSession.getMissionEarnedPoint(),
+                walkSession.getStepGoalEarnedPoint(),
+                walkSession.getGameEarnedPoint(),
+                walkSession.getEarnedPoint()
         );
     }
 }

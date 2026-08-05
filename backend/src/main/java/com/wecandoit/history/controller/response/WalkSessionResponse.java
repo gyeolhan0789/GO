@@ -18,7 +18,11 @@ public record WalkSessionResponse(
         int distance,
         int calories,
         Long initialBingoBoardId,
-        int achievedMissionCount
+        int achievedMissionCount,
+        long missionEarnedPoint,
+        long stepGoalEarnedPoint,
+        long gameEarnedPoint,
+        long earnedPoint
 ) {
 
     public static WalkSessionResponse of(
@@ -39,7 +43,11 @@ public record WalkSessionResponse(
                 walkSession.getDistance(),
                 walkSession.getCalories(),
                 walkSession.getInitialBingoBoardId(),
-                achievedMissionCount
+                achievedMissionCount,
+                walkSession.getMissionEarnedPoint(),
+                walkSession.getStepGoalEarnedPoint(),
+                walkSession.getGameEarnedPoint(),
+                walkSession.getEarnedPoint()
         );
     }
 }
