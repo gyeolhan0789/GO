@@ -80,10 +80,16 @@ export type MissionPhoto = {
   fileName?: string;
 };
 
+/**
+ * walkSessionKey는 이 인증을 어느 산책에 귀속시킬지 정한다. 넘기지 않으면 칸은
+ * 승인되지만 어떤 산책 기록에도 잡히지 않으므로, 산책 중 제출이라면 반드시
+ * 실어야 한다(산책 밖에서 빙고판만 열어 제출하면 null이 맞다).
+ */
 export function submitBingoCellPhoto(
   roomId: number,
   cellId: number,
   photo: MissionPhoto,
+  walkSessionKey: string | null,
 ): Promise<VerificationResult> {
   const form = new FormData();
   form.append('image', {
@@ -92,9 +98,13 @@ export function submitBingoCellPhoto(
     name: photo.fileName ?? 'mission.jpg',
   });
 
+  // 서버가 쿼리 파라미터로 받는다(멀티파트 본문이 아니다).
+  const query =
+    walkSessionKey === null ? '' : `?walkSessionKey=${walkSessionKey}`;
+
   return apiClient
     .postForm<BingoCellSubmitResponse>(
-      `/rooms/${roomId}/bingo-boards/cells/${cellId}/submit`,
+      `/rooms/${roomId}/bingo-boards/cells/${cellId}/submit${query}`,
       form,
     )
     .then(response =>
