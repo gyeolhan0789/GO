@@ -7,7 +7,7 @@ import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.friend.repository.FriendRepository;
 import com.wecandoit.friend.domain.FriendRequest;
 import com.wecandoit.friend.repository.FriendRequestRepository;
-import com.wecandoit.item.controller.response.AvatarResponse;
+import com.wecandoit.avatar.dto.AvatarDto;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.controller.response.MemberSearchResponse;
 import com.wecandoit.member.controller.response.MyPageResponse;
@@ -65,12 +65,12 @@ public class MemberReadService {
                 friendRepository.findFriendMemberIds(memberId, candidateIds)
         );
         Map<Long, MemberRelationshipStatus> requestStatuses = getRequestStatuses(memberId, candidateIds);
-        Map<Long, AvatarResponse> avatarsByMemberId =
+        Map<Long, AvatarDto> avatarsByMemberId =
                 avatarReadService.getAvatars(members.getContent());
 
         Slice<MemberSearchResponse> responses = members
                 .map(member -> {
-                    AvatarResponse avatar = avatarsByMemberId.get(member.getId());
+                    AvatarDto avatar = avatarsByMemberId.get(member.getId());
                     return MemberSearchResponse.of(
                             member,
                             getRelationshipStatus(member.getId(), friendIds, requestStatuses),
@@ -92,7 +92,7 @@ public class MemberReadService {
                 .collect(Collectors.toMap(Member::getId, Member::getNickname));
     }
 
-    public Map<Long, AvatarResponse> getAvatarsByIds(Collection<Long> memberIds) {
+    public Map<Long, AvatarDto> getAvatarsByIds(Collection<Long> memberIds) {
         List<Member> members = getMembersByIds(memberIds);
         if (members.isEmpty()) {
             return Map.of();

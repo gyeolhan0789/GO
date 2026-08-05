@@ -1,6 +1,6 @@
 package com.wecandoit.member.controller.response;
 
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.domain.MemberRelationshipStatus;
@@ -12,14 +12,14 @@ public record MemberSearchResponse(
         MemberRelationshipStatus relationshipStatus,
         Gender gender,
         String defaultImageUrl,
-        List<EquippedItemResponse> equippedItems
+        List<EquippedItemDto> equippedItems
 ) {
 
     public static MemberSearchResponse of(
             Member member,
             MemberRelationshipStatus relationshipStatus,
             String defaultImageUrl,
-            List<EquippedItemResponse> equippedItems
+            List<EquippedItemDto> equippedItems
     ) {
         return new MemberSearchResponse(
                 member.getId(),

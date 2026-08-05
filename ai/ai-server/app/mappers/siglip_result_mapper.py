@@ -39,35 +39,23 @@ class SigLIPResultMapper:
     ) -> str:
         """
         SigLIP candidate label 정제
-
-        예:
-        a photo of a flower
-        ->
-        flower
-
-        not a flower
-        ->
-        not flower
         """
 
-        if label.startswith(
-            "a photo of a "
-        ):
 
-            return label.replace(
-                "a photo of a ",
-                ""
-            )
+        prefixes = [
+            "a photo of a ",
+            "a photo of an "
+        ]
 
 
-        if label.startswith(
-            "not a "
-        ):
+        for prefix in prefixes:
 
-            return label.replace(
-                "not a ",
-                "not "
-            )
+            if label.startswith(prefix):
+
+                return label.replace(
+                    prefix,
+                    ""
+                )
 
 
         return label
@@ -86,21 +74,25 @@ class SigLIPResultMapper:
         )
 
 
-        confidence = siglip_result.get(
-            "confidence",
-            0.0
+        confidence = float(
+            siglip_result.get(
+                "confidence",
+                0.0
+            )
         )
 
 
         scores = siglip_result.get(
-            "scores",
+            "similarity_scores",
             {}
         )
 
 
-        latency_ms = siglip_result.get(
-            "latency_ms",
-            0.0
+        latency_ms = float(
+            siglip_result.get(
+                "latency_ms",
+                0.0
+            )
         )
 
 
@@ -114,37 +106,19 @@ class SigLIPResultMapper:
 
         return AIResult(
 
-            # ======================
-            # Model Tracking
-            # ======================
+            model_name=self.MODEL_NAME,
 
-            model_name=(
-                self.MODEL_NAME
-            ),
+            model_type=ModelType.VISION,
 
-            model_type=(
-                ModelType.VISION
-            ),
-
-            latency_ms=float(
-                latency_ms
-            ),
+            latency_ms=latency_ms,
 
 
-
-            # ======================
-            # AI Result
-            # ======================
-
-            confidence=float(
-                confidence
-            ),
+            confidence=confidence,
 
 
             reason=(
                 "SigLIP2 object matching completed"
             ),
-
 
 
             detected_objects=[
@@ -153,25 +127,28 @@ class SigLIPResultMapper:
 
                     name=normalized_label,
 
-                    confidence=float(
-                        confidence
-                    )
+                    confidence=confidence
 
                 )
 
             ],
 
 
-
             metadata={
 
-                # 원본 추적용
+                "model": self.MODEL_NAME,
+
                 "top_label": top_label,
 
-                # 화면/판정용
                 "normalized_label": normalized_label,
 
-                "similarity_scores": scores
+                "similarity_scores": scores,
+
+                "candidate_count": len(scores),
+
+                "confidence": confidence,
+
+                "latency_ms": latency_ms
 
             }
 

@@ -11,8 +11,8 @@ import static org.mockito.Mockito.never;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
-import com.wecandoit.item.controller.response.AvatarResponse;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.AvatarDto;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.item.controller.response.MemberItemResponse;
 import com.wecandoit.item.domain.Item;
 import com.wecandoit.item.domain.ItemCategory;
@@ -201,20 +201,20 @@ class AvatarItemReadServiceTest {
         given(memberRepository.findById(1L)).willReturn(Optional.of(member));
         given(avatarReadService.getAvatars(List.of(member))).willReturn(Map.of(
                 1L,
-                new AvatarResponse(
+                new AvatarDto(
                         1L,
                         "테스터",
                         Gender.MALE,
                         "/uploads/test/avatars/male/default.png",
                         List.of(
-                                new EquippedItemResponse(
+                                new EquippedItemDto(
                                         10L,
                                         100L,
                                         "빨간 모자",
                                         ItemCategory.HAT,
                                         "https://example.com/hat.png"
                                 ),
-                                new EquippedItemResponse(
+                                new EquippedItemDto(
                                         20L,
                                         200L,
                                         "파란 상의",
@@ -226,7 +226,7 @@ class AvatarItemReadServiceTest {
         ));
 
         // when
-        AvatarResponse response = avatarItemReadService.getMyAvatar(1L);
+        AvatarDto response = avatarItemReadService.getMyAvatar(1L);
 
         // then
         assertThat(response.memberId()).isEqualTo(1L);
@@ -262,7 +262,7 @@ class AvatarItemReadServiceTest {
         given(memberRepository.findById(1L)).willReturn(Optional.of(member));
         given(avatarReadService.getAvatars(List.of(member))).willReturn(Map.of(
                 1L,
-                new AvatarResponse(
+                new AvatarDto(
                         1L,
                         "테스터",
                         Gender.MALE,
@@ -272,7 +272,7 @@ class AvatarItemReadServiceTest {
         ));
 
         // when
-        AvatarResponse response = avatarItemReadService.getMyAvatar(1L);
+        AvatarDto response = avatarItemReadService.getMyAvatar(1L);
 
         // then
         assertThat(response.equippedItems()).isEmpty();
@@ -301,7 +301,7 @@ class AvatarItemReadServiceTest {
         given(memberRepository.findById(1L)).willReturn(Optional.of(member));
         given(avatarReadService.getAvatars(List.of(member))).willReturn(Map.of(
                 1L,
-                new AvatarResponse(
+                new AvatarDto(
                         1L,
                         "테스터",
                         Gender.MALE,
@@ -311,7 +311,7 @@ class AvatarItemReadServiceTest {
         ));
 
         // when
-        AvatarResponse response = avatarItemReadService.getMyAvatar(1L);
+        AvatarDto response = avatarItemReadService.getMyAvatar(1L);
 
         // then
         assertThat(response.defaultImageUrl()).isNull();
