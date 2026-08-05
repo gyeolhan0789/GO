@@ -31,6 +31,8 @@ export function WalkRoomSelectSheet({
   onStart,
   onNeedsRenewal,
 }: WalkRoomSelectSheetProps) {
+  // 대결은 한 판으로 끝나서 골라 들어가는 산책방이 아니다(홈의 '대결 신청하기'가
+  // 맡는다). 여기는 협동만 보여준다.
   const roomsQuery = useMyRoomsQuery('COOPERATE');
   const rooms: WalkRoomOption[] = (roomsQuery.data ?? []).map(room => ({
     id: String(room.roomId),

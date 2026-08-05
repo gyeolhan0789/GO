@@ -35,6 +35,7 @@ import { CreateSoloWalkSheet } from './components/CreateSoloWalkSheet';
 import { HomeHeader } from './components/HomeHeader';
 import { HomeCarousel } from './components/HomeCarousel';
 import { MissionInfoModal } from './components/MissionInfoModal';
+import { BattleMatchScreen } from './components/BattleMatchScreen';
 import { WalkRoomSelectSheet } from './components/WalkRoomSelectSheet';
 
 type HomeNavigation = NativeStackNavigationProp<RootStackParamList, 'Main'>;
@@ -61,6 +62,7 @@ export function HomeScreen() {
   const navigation = useNavigation<HomeNavigation>();
   const [isRoomSheetVisible, setRoomSheetVisible] = useState(false);
   const [isSoloSheetVisible, setSoloSheetVisible] = useState(false);
+  const [isBattleSheetVisible, setBattleSheetVisible] = useState(false);
   const [selectedMission, setSelectedMission] =
     useState<BingoMissionResponse | null>(null);
   // 협동 방을 고른 뒤 빙고판 갱신이 필요하고 내가 방장일 때만 채워진다.
@@ -89,6 +91,16 @@ export function HomeScreen() {
   // 바로 이어서 들어간다.
   const mySoloRoomsQuery = useMyRoomsQuery('SINGLE');
   const activeSoloRoom = mySoloRoomsQuery.data?.[0] ?? null;
+
+  // 대결방은 동행 탭 목록에서 숨기므로, 진행 중인 대결로 돌아가는 문은 홈의
+  // 이 버튼뿐이다. 있으면 새 신청 대신 그 대결을 이어간다.
+  const myBattleRoomsQuery = useMyRoomsQuery('BATTLE');
+  const activeBattleRoom = myBattleRoomsQuery.data?.[0] ?? null;
+  // 판이 이미 있으면 대결은 시작된 것 — 대기방을 거치지 않고 판으로 직행한다.
+  // 아직 상대가 수락 전이면 이 조회가 409로 비고, 그때만 대기방으로 간다.
+  const battleBoardQuery = useActiveBingoBoardQuery(
+    activeBattleRoom?.roomId ?? null,
+  );
 
   // 진행 중인 세션이 있어도 그게 지금 누른 버튼과 다른 모드면(예: 솔로 산책
   // 중에 "같이하기"를 누름) 그 세션으로 그냥 이어가면 안 되고 막아야 한다.
@@ -246,7 +258,60 @@ export function HomeScreen() {
             style={styles.startButton}
           />
         </View>
+
+        {/* 대결은 한 판으로 끝나서 산책방처럼 남기지 않는다. 그래서 방 고르기가
+            아니라 여기서 바로 상대를 골라 신청하고, 진행 중인 대결이 있으면
+            새로 만드는 대신 그 방으로 돌아간다. */}
+        <Button
+          label={activeBattleRoom ? '대결 이어가기' : '대결 신청하기'}
+          size="lg"
+          variant="secondary"
+          icon="flash"
+          onPress={() => {
+            if (activeBattleRoom) {
+              // 그 대결을 걷는 중이었다면 산책 화면으로 곧장 돌아간다.
+              if (
+                walkSession.isActive &&
+                walkSession.roomId === activeBattleRoom.roomId
+              ) {
+                navigation.navigate('WalkSession');
+                return;
+              }
+              // 판이 있으면 이미 시작된 대결 — 빙고판으로 직행. 수락 대기
+              // 중일 때만 대기방에서 카운트다운을 기다린다.
+              if (battleBoardQuery.data) {
+                navigation.navigate('BingoBoard', {
+                  roomId: activeBattleRoom.roomId,
+                });
+                return;
+              }
+              navigation.navigate('WalkRoomDetail', {
+                roomId: activeBattleRoom.roomId,
+              });
+              return;
+            }
+            if (isWalkSessionActive()) {
+              Alert.alert(
+                '진행 중인 산책이 있어요',
+                '진행 중인 산책을 먼저 종료한 뒤 대결을 신청해주세요.',
+              );
+              return;
+            }
+            setBattleSheetVisible(true);
+          }}
+          style={styles.battleButton}
+        />
       </View>
+
+      <BattleMatchScreen
+        visible={isBattleSheetVisible}
+        onClose={() => setBattleSheetVisible(false)}
+        onInvited={roomId => {
+          setBattleSheetVisible(false);
+          // 대기방에서 구독을 붙들고 상대의 수락을 기다린다.
+          navigation.navigate('WalkRoomDetail', { roomId });
+        }}
+      />
 
       <WalkRoomSelectSheet
         visible={isRoomSheetVisible}
@@ -335,6 +400,9 @@ const styles = StyleSheet.create({
   },
   startButton: {
     flex: 1,
+  },
+  battleButton: {
+    marginTop: spacing.md,
   },
   missionThumbnail: {
     width: 20,
