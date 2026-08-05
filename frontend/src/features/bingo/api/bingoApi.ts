@@ -157,3 +157,11 @@ export function completeBingoCell(
     )
     .then(response => ({ rewardPoint: response.rewardPoint }));
 }
+
+/**
+ * 같은 방에서 한 판 더 시작한다. 방장만 부를 수 있고, 진행 중인 게임이 있으면
+ * 409로 막힌다. 판 크기와 목표 줄 수는 직전 판을 그대로 물려받는다.
+ */
+export function rematchBattle(roomId: number) {
+  return apiClient.post<void>(`/rooms/${roomId}/battles/rematch`);
+}

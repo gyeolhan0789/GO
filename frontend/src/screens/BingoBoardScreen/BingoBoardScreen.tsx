@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import type { LayoutChangeEvent } from 'react-native';
 import { launchCamera } from 'react-native-image-picker';
@@ -18,8 +18,13 @@ import type {
 } from '../../features/bingo/components/BingoBoard/BingoBoard';
 import { BingoBoard } from '../../features/bingo/components/BingoBoard/BingoBoard';
 import { useActiveBingoBoardQuery } from '../../features/bingo/hooks/useActiveBingoBoardQuery';
-import { useBattleProgressSubscription } from '../../features/bingo/hooks/useBattleProgressSubscription';
+import {
+  BattleResultModal,
+  type BattleForfeitResult,
+} from '../../features/bingo/components/BattleResultModal/BattleResultModal';
+import { isForfeitEnd } from '../../features/bingo/model/battleOutcome';
 import { BattleProgressCard } from './components/BattleProgressCard';
+import { BattleRematchCard } from './components/BattleRematchCard';
 import { MissionVerificationModal } from '../../features/bingo/components/MissionVerificationModal/MissionVerificationModal';
 import {
   MISSION_TYPE_ICONS,
@@ -27,9 +32,13 @@ import {
   isPhotoMission,
 } from '../../features/bingo/model/missionType';
 import { useMyMemberIdQuery } from '../../features/member/hooks/useMyMemberIdQuery';
+import { useBattleRematch } from '../../features/room/hooks/useBattleRematch';
+import { useLeaveRoomMutation } from '../../features/room/hooks/useLeaveRoomMutation';
 import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
 import { awaitWalkSessionKey } from '../../features/walk-session/model/walkSessionStore';
+import { ApiError } from '../../shared/api/ApiError';
 import { AppText } from '../../shared/components/AppText/AppText';
+import { Button } from '../../shared/components/Button/Button';
 import { MemberProgressBar } from '../../shared/components/MemberProgressBar/MemberProgressBar';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { controlHeight } from '../../shared/constants/sizing';
@@ -39,6 +48,12 @@ import { radius } from '../../shared/constants/radius';
 import { spacing } from '../../shared/constants/spacing';
 import { fontFamily, lineHeights } from '../../shared/constants/typography';
 import { useMeasuredWidth } from '../../shared/hooks/useMeasuredWidth';
+
+/**
+ * 상대의 기권을 알아채는 폴링 간격. 서버가 몰수 때 아무 이벤트도 안 쏴서
+ * 조회로만 알 수 있다 — 백엔드에 push 이벤트를 요청해 두었고, 오면 걷어낸다.
+ */
+const FORFEIT_POLL_INTERVAL_MS = 15_000;
 
 type BingoBoardScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -57,8 +72,86 @@ export function BingoBoardScreen({
   const members = room?.members ?? [];
   const myMemberIdQuery = useMyMemberIdQuery();
   const battleProgress = board?.battleProgress ?? null;
-  // 상대 판은 조회로 못 받는다. 이 토픽이 상대 진행률을 아는 유일한 경로다.
-  useBattleProgressSubscription(roomId, room?.mode === 'BATTLE');
+  // 실시간 구독은 이 화면이 아니라 산책 세션에 묶여 있다(useWalkSessionRealtime).
+  // 화면을 벗어나도 끊기지 않아야 해서 네비게이터에서 한 번만 잡는다.
+
+  // 상대의 기권은 어느 채널로도 밀려오지 않는다(서버가 몰수 때 소켓 이벤트를
+  // 안 쏜다). 대결이 진행 중인 동안만 판을 주기적으로 다시 읽어 알아챈다.
+  const isBattleOngoing =
+    room?.mode === 'BATTLE' && battleProgress?.gameStatus === 'ACTIVE';
+  const refetchBoardRef = useRef(boardQuery.refetch);
+  refetchBoardRef.current = boardQuery.refetch;
+  useEffect(() => {
+    if (!isBattleOngoing) {
+      return;
+    }
+    const timer = setInterval(
+      () => refetchBoardRef.current(),
+      FORFEIT_POLL_INTERVAL_MS,
+    );
+    return () => clearInterval(timer);
+  }, [isBattleOngoing]);
+
+  // 몰수 종료(기권/몰수승)와 보상을 알리는 모달. null이면 닫힘.
+  const [forfeitResult, setForfeitResult] =
+    useState<BattleForfeitResult | null>(null);
+
+  const isHost = room !== null && room.hostId === myMemberIdQuery.data;
+  /**
+   * 재대결을 제안할 수 있는 상태. 정상 종료(누군가 목표에 닿음)에만 열어준다 —
+   * 몰수로 끝나면 나간 사람이 방 멤버에서 빠져서 서버가 재대결을 거절한다.
+   */
+  const canOfferRematch =
+    room?.mode === 'BATTLE' &&
+    battleProgress !== null &&
+    battleProgress.gameStatus === 'ENDED' &&
+    !isForfeitEnd(battleProgress);
+
+  const rematch = useBattleRematch({
+    roomId,
+    myMemberId: myMemberIdQuery.data ?? null,
+    isHost,
+    enabled: canOfferRematch === true,
+    onRematchStarted: () => {
+      boardQuery.refetch();
+      roomQuery.refetch();
+    },
+  });
+
+  // 몰수 종료를 한 번만 알린다 — 폴링마다 모달이 다시 열리면 안 된다.
+  const forfeitNotifiedRef = useRef(false);
+  useEffect(() => {
+    if (forfeitNotifiedRef.current || room?.mode !== 'BATTLE') {
+      return;
+    }
+
+    // 몰수를 알아채는 길은 둘이다. 서버가 게임을 닫으면 활성 판 조회가
+    // 409로 떨어지므로 (1) 조회가 "서버가 응답한" 에러로 바뀌었고 캐시에
+    // 남은 마지막 진행률에서 아무도 목표에 닿지 않았다면 몰수다 — 정상
+    // 승부라면 targetReached 이벤트가 먼저 캐시에 얹혔을 것이다. (2) 혹시
+    // 서버가 ENDED를 그대로 내려주는 경우도 같은 결론으로 처리한다.
+    // 네트워크 실패(ApiError 아님)로는 절대 승리를 선언하지 않는다.
+    const forfeitByError =
+      boardQuery.isError &&
+      boardQuery.error instanceof ApiError &&
+      battleProgress !== null &&
+      !battleProgress.me.targetReached &&
+      !battleProgress.opponent.targetReached;
+    const forfeitByData =
+      battleProgress !== null && isForfeitEnd(battleProgress);
+
+    if (!forfeitByError && !forfeitByData) {
+      return;
+    }
+    forfeitNotifiedRef.current = true;
+    setForfeitResult('WIN_BY_FORFEIT');
+  }, [
+    boardQuery.isError,
+    boardQuery.error,
+    battleProgress,
+    room?.mode,
+    navigation,
+  ]);
 
   const [selectedCellId, setSelectedCellId] = useState<number | null>(null);
   const [capturedPhoto, setCapturedPhoto] = useState<MissionPhoto | null>(null);
@@ -78,6 +171,20 @@ export function BingoBoardScreen({
     cell.verificationStatus === 'APPROVED';
   const selectedCell =
     sortedCells.find(cell => cell.cellId === selectedCellId) ?? null;
+
+  /**
+   * 팀원이 사진을 올려 검증을 기다리는 칸. 협동은 판을 공유하고 서버가 PENDING인
+   * 칸의 제출을 거절하므로, 지금 열어주면 사진까지 찍고 나서 거절당한다.
+   *
+   * 내가 올린 건 잠그지 않는다 — 내 결과를 내가 못 보게 되면 안 된다.
+   */
+  const isLockedByTeammate = (cell: BingoCellResponse) =>
+    cell.verificationStatus === 'PENDING' &&
+    cell.submittedByMemberId !== null &&
+    cell.submittedByMemberId !== myMemberIdQuery.data;
+
+  const nicknameOf = (memberId: number | null) =>
+    members.find(member => member.memberId === memberId)?.nickname ?? '팀원';
 
   const memberColor = (memberId: number) =>
     getParticipantColor(memberId, myMemberIdQuery.data ?? null, members);
@@ -101,6 +208,7 @@ export function BingoBoardScreen({
         cell.verificationStatus === 'APPROVED' && cell.submittedByMemberId !== null
           ? memberColor(cell.submittedByMemberId)
           : undefined,
+      pending: isLockedByTeammate(cell),
       icon: cell.mission.missionImageUrl ? (
         <Image
           source={{ uri: cell.mission.missionImageUrl }}
@@ -130,6 +238,36 @@ export function BingoBoardScreen({
   const handleDetailLayout = (event: LayoutChangeEvent) => {
     detailY.current = event.nativeEvent.layout.y;
   };
+
+  const leaveMutation = useLeaveRoomMutation();
+  const handleForfeit = useCallback(() => {
+    Alert.alert(
+      '기권하기',
+      '기권하면 상대의 승리로 대결이 끝나요. 계속할까요?',
+      [
+        { text: '아니요', style: 'cancel' },
+        {
+          text: '기권',
+          style: 'destructive',
+          onPress: () => {
+            leaveMutation.mutate(roomId, {
+              // 몰수 처리 후에는 나는 이 방의 멤버가 아니라 뒤로 가면 못 읽는다.
+              onSuccess: () => setForfeitResult('FORFEITED'),
+              onError: error => {
+                // 검증 중인 칸이 있으면 서버가 나가기를 막는다.
+                Alert.alert(
+                  '기권 실패',
+                  error instanceof Error
+                    ? error.message
+                    : '잠시 후 다시 시도해주세요.',
+                );
+              },
+            });
+          },
+        },
+      ],
+    );
+  }, [leaveMutation, roomId]);
 
   const handleCapturePhoto = useCallback(async () => {
     // 백엔드 업로드 제한(application.yml, 5MB)을 넘지 않도록 촬영 단계에서
@@ -195,6 +333,20 @@ export function BingoBoardScreen({
     setVerificationResult(null);
   }, []);
 
+  // 몰수로 게임이 닫히면 판 조회가 409로 떨어져 아래 에러 분기로 빠진다.
+  // 모달을 본문에만 두면 그 분기에서 안 그려져서, 감지해 놓고도 "빙고판을
+  // 불러오지 못했어요"만 보인다 — 어느 분기로 빠지든 모달은 떠야 한다.
+  const battleResultModal = (
+    <BattleResultModal
+      result={forfeitResult}
+      onConfirm={() => {
+        setForfeitResult(null);
+        // 게임이 끝났으니 이 화면은 볼 게 없다 — 홈으로 돌아간다.
+        navigation.popToTop();
+      }}
+    />
+  );
+
   if (boardQuery.isLoading) {
     return (
       <Screen edges={['top', 'bottom']}>
@@ -207,6 +359,7 @@ export function BingoBoardScreen({
     return (
       <Screen edges={['top', 'bottom']}>
         <AppText style={styles.statusText}>빙고판을 불러오지 못했어요.</AppText>
+        {battleResultModal}
       </Screen>
     );
   }
@@ -252,6 +405,22 @@ export function BingoBoardScreen({
                 member => member.memberId === battleProgress.opponent.memberId,
               )?.nickname ?? '상대'
             }
+            members={members}
+            myMemberId={myMemberIdQuery.data ?? null}
+          />
+        ) : null}
+
+        {/* 정상 종료(누군가 목표에 닿음)에만 재대결을 붙인다. 몰수로 끝나면
+            나간 사람이 멤버에서 빠져서 서버가 재대결을 거절한다. */}
+        {canOfferRematch ? (
+          <BattleRematchCard
+            isHost={isHost}
+            isOffering={rematch.isOffering}
+            hasIncomingOffer={rematch.hasIncomingOffer}
+            isStarting={rematch.isStarting}
+            onOffer={rematch.offerRematch}
+            onAccept={rematch.acceptRematch}
+            onDecline={rematch.declineRematch}
           />
         ) : null}
 
@@ -324,6 +493,15 @@ export function BingoBoardScreen({
                 />
                 <AppText style={styles.completedText}>인증 완료</AppText>
               </View>
+            ) : isLockedByTeammate(selectedCell) ? (
+              // 칸을 열어둔 사이 팀원이 사진을 올렸다. 여기서 인증을 열어주면
+              // 서버가 거절하므로 안내만 한다.
+              <View style={styles.pendingRow}>
+                <Ionicons name="hourglass-outline" size={20} color={colors.ink} />
+                <AppText style={styles.pendingText}>
+                  {`${nicknameOf(selectedCell.submittedByMemberId)}님이 인증 중이에요.`}
+                </AppText>
+              </View>
             ) : isPhotoMission(selectedCell.mission.type) ? (
               <>
                 <AppText style={styles.captureHint}>
@@ -347,7 +525,22 @@ export function BingoBoardScreen({
             )}
           </View>
         ) : null}
+
+        {/* 기권은 진행 중인 대결에서만 보인다. 끝난 판에서는 무의미하고,
+            협동·솔로에는 기권 개념이 없다. */}
+        {room?.mode === 'BATTLE' &&
+        battleProgress?.gameStatus === 'ACTIVE' ? (
+          <Button
+            label="기권하기"
+            variant="danger"
+            onPress={handleForfeit}
+            accessibilityLabel="기권하기"
+            style={styles.forfeitButton}
+          />
+        ) : null}
       </ScrollView>
+
+      {battleResultModal}
 
       <MissionVerificationModal
         visible={capturedPhoto !== null}
@@ -404,6 +597,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     marginBottom: spacing.md,
     textAlign: 'center',
+  },
+  forfeitButton: {
+    marginTop: spacing.lg,
   },
   progressCard: {
     borderWidth: 2,
@@ -523,6 +719,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: lineHeights[16],
     color: colors.successText,
+  },
+  pendingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+  },
+  pendingText: {
+    fontFamily: fontFamily.bold,
+    fontSize: 15,
+    lineHeight: lineHeights[15],
+    color: colors.ink,
   },
   autoHintRow: {
     flexDirection: 'row',
