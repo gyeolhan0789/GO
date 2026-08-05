@@ -118,6 +118,11 @@ export function CompanionScreen() {
         battleCountdownSeconds: event.countdownSeconds ?? undefined,
       });
     },
+    onInviteCancelled: () => {
+      // 방장이 거둔 초대가 목록에 남아 있으면 눌러도 실패한다.
+      setToastMessage('상대가 대결 신청을 취소했어요.');
+      receivedInvitesQuery.refetch();
+    },
   });
 
   const handleDeleteFriend = (friend: FriendResponse) => {

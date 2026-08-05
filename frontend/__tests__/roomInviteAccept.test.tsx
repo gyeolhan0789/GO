@@ -41,11 +41,13 @@ function buildInvite(
 
 let accept: ((invite: ReceivedRoomInvite) => Promise<unknown>) | null = null;
 const onBattleStarted = jest.fn();
+const onInviteCancelled = jest.fn();
 
 function Probe({ enabled }: { enabled: boolean }) {
   const { acceptInvite } = useRoomInviteAccept({
     enabled,
     onBattleStarted,
+    onInviteCancelled,
   });
   accept = acceptInvite;
   return null;
@@ -72,6 +74,7 @@ beforeEach(() => {
   acceptedUrls = [];
   accept = null;
   onBattleStarted.mockClear();
+  onInviteCancelled.mockClear();
   restoreWebSocket = installWebSocketMock();
   fetchMock = installFetchMock();
   fetchMock.mockImplementation(async url => {
@@ -121,6 +124,42 @@ describe('받은 초대 수락', () => {
     await pending;
 
     expect(acceptedUrls.some(url => url.includes('/accept'))).toBe(true);
+  });
+
+  test('방장이 초대를 거두면 목록에 알린다', () => {
+    // 서버는 취소를 초대받은 사람의 개인 큐로 이미 쏜다. 흘려버리면 무효가 된
+    // 초대가 목록에 남아 눌러도 실패한다.
+    render(true);
+    const socket = FakeWebSocket.last;
+    act(() => {
+      socket.open();
+      socket.emit(serverFrame('CONNECTED', { version: '1.2' }));
+    });
+
+    const frame = socket.sentFrames('SUBSCRIBE')[0] ?? '';
+    const subscriptionId = /(?:^|\n)id:(.*)\n/.exec(frame)?.[1] ?? '';
+    act(() => {
+      socket.emit(
+        serverFrame(
+          'MESSAGE',
+          { subscription: subscriptionId, destination: '/user/queue/battle' },
+          JSON.stringify({
+            type: 'INVITATION_CANCELLED',
+            roomId: ROOM_ID,
+            requestId: REQUEST_ID,
+            hostId: 1,
+            inviteeId: 2,
+            countdownSeconds: null,
+          }),
+        ),
+      );
+    });
+
+    expect(onInviteCancelled).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'INVITATION_CANCELLED' }),
+    );
+    // 취소는 대결 시작이 아니다.
+    expect(onBattleStarted).not.toHaveBeenCalled();
   });
 
   test('대결 초대가 없으면 소켓을 열지 않는다', () => {

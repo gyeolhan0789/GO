@@ -12,6 +12,11 @@ type UseRoomInviteAcceptOptions = {
   enabled: boolean;
   /** 대결이 성립해 카운트다운이 시작됐을 때. 방으로 보내는 건 호출부가 한다. */
   onBattleStarted: (event: BattleMatchingEvent) => void;
+  /**
+   * 방장이 초대를 거둬 이 초대가 무효가 됐을 때(INVITATION_CANCELLED).
+   * 목록에 남아 있으면 눌러도 실패하므로 다시 읽어야 한다.
+   */
+  onInviteCancelled: (event: BattleMatchingEvent) => void;
 };
 
 /**
@@ -38,11 +43,14 @@ const COUNTDOWN_GRACE_MS = 10_000;
 export function useRoomInviteAccept({
   enabled,
   onBattleStarted,
+  onInviteCancelled,
 }: UseRoomInviteAcceptOptions) {
   const acceptMutation = useAcceptRoomInviteMutation();
 
   const handlerRef = useRef(onBattleStarted);
   handlerRef.current = onBattleStarted;
+  const cancelledRef = useRef(onInviteCancelled);
+  cancelledRef.current = onInviteCancelled;
 
   // 방금 수락해서 카운트다운을 기다리는 중인가. 이 동안은 초대 목록이 비어도
   // 구독을 유지한다.
@@ -62,6 +70,12 @@ export function useRoomInviteAccept({
     roomId: null,
     enabled: enabled || awaitingCountdown,
     onEvent: event => {
+      // 방장이 초대를 거뒀다. 목록에 남겨두면 눌러도 실패하니 알려준다.
+      if (event.type === 'INVITATION_CANCELLED') {
+        cancelledRef.current(event);
+        return;
+      }
+      // 내가 거절한 건 내가 이미 아는 일이라 흘린다(이 이벤트는 방장이 받는다).
       if (event.type !== 'BATTLE_COUNTDOWN_STARTED') {
         return;
       }
