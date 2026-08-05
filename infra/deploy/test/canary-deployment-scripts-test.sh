@@ -48,6 +48,20 @@ EOF
 
 chmod +x "$MOCK_BIN/docker" "$MOCK_BIN/curl"
 
+JENKINSFILE="$PROJECT_ROOT/backend/Jenkinsfile.prod"
+grep -Fq "'{{range .Containers}}{{println .Name}}{{end}}'" "$JENKINSFILE"
+grep -Fq "'{{range .Containers}}{{println .Name .IPv4Address}}{{end}}'" "$JENKINSFILE"
+grep -Fq 'docker network disconnect' "$JENKINSFILE"
+grep -Fq 'for dependency in wecandoit-mysql-prod wecandoit-redis-prod; do' "$JENKINSFILE"
+if grep -Fq 'up -d mysql redis' "$JENKINSFILE"; then
+  echo "CD-prod must not recreate production database dependencies." >&2
+  exit 1
+fi
+if grep -Fq 'index .NetworkSettings.Networks' "$JENKINSFILE"; then
+  echo "Dynamic Docker network index syntax must not be used." >&2
+  exit 1
+fi
+
 PATH="$MOCK_BIN:$PATH" DOCKER_LOG="$DOCKER_LOG" \
   bash "$PROJECT_ROOT/infra/deploy/validate-nginx-image.sh" \
     wecandoit-nginx-prod:test 18080 18443
