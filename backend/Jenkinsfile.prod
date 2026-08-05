@@ -34,6 +34,8 @@ pipeline {
         CANARY_HOST_PORT = '8082'
         BACKEND_SERVICE_PORT = '8080'
         NGINX_SMOKE_PORT = '8088'
+        NGINX_VALIDATION_HTTP_PORT = '18080'
+        NGINX_VALIDATION_HTTPS_PORT = '18443'
         MANAGEMENT_PORT = '9091'
         PRODUCTION_DOMAIN = 'i15a506.p.ssafy.io'
         CANARY_OBSERVATION_SECONDS = '60'
@@ -42,6 +44,8 @@ pipeline {
         CANARY_MAX_AVG_RESPONSE_TIME = '1.0'
         CANARY_MAX_RESPONSE_TIME = '3.0'
         DEPLOYMENT_PHASE = 'preflight'
+        HOST_NGINX_CUTOVER_REQUIRED = 'false'
+        HOST_NGINX_STOP_CONFIRMED = 'false'
     }
 
     stages {
@@ -99,6 +103,7 @@ pipeline {
                             env.NGINX_BIND_ADDRESS = '0.0.0.0'
                             env.NGINX_HTTP_PORT = '80'
                             env.NGINX_HTTPS_PORT = '443'
+                            env.HOST_NGINX_CUTOVER_REQUIRED = 'true'
                         } else {
                             env.NGINX_BIND_ADDRESS = '127.0.0.1'
                             env.NGINX_HTTP_PORT = '18080'
@@ -140,6 +145,20 @@ pipeline {
                               exit 1
                             fi
 
+                            for published_port in \
+                              "$NGINX_VALIDATION_HTTP_PORT" "$NGINX_VALIDATION_HTTPS_PORT"; do
+                              port_owner=$(docker ps \
+                                --filter "publish=$published_port" \
+                                --format '{{.Names}}' \
+                                | head -n 1 || true)
+                              if [ -n "$port_owner" ] \
+                                && { [ "$DEPLOYMENT_MODE" != 'production' ] \
+                                  || [ "$port_owner" != "$NGINX_CONTAINER" ]; }; then
+                                echo "Temporary Nginx validation port $published_port is already published by $port_owner." >&2
+                                exit 1
+                              fi
+                            done
+
                             for published_port in "$NGINX_HTTP_PORT" "$NGINX_HTTPS_PORT"; do
                               port_owner=$(docker ps \
                                 --filter "publish=$published_port" \
@@ -147,7 +166,7 @@ pipeline {
                                 | grep -vx "$NGINX_CONTAINER" \
                                 | head -n 1 || true)
                               if [ -n "$port_owner" ]; then
-                                echo "Nginx port $published_port is already published by $port_owner." >&2
+                                echo "Nginx target port $published_port is already published by $port_owner." >&2
                                 exit 1
                               fi
                             done
@@ -196,12 +215,12 @@ pipeline {
 
                             case "$revision" in
                               ""|"<no value>"|"unknown")
-                                if ! printf '%s' "$CURRENT_STABLE_REVISION" \
+                                if ! printf '%s' "${CURRENT_STABLE_REVISION:-}" \
                                   | grep -Eq '^[0-9a-fA-F]{7,40}$'; then
                                   echo "CURRENT_STABLE_REVISION must contain the deployed Git SHA." >&2
                                   exit 1
                                 fi
-                                preserve_tag="$CURRENT_STABLE_REVISION"
+                                preserve_tag="${CURRENT_STABLE_REVISION:-}"
                                 ;;
                               *)
                                 preserve_tag="$revision"
@@ -253,6 +272,7 @@ pipeline {
                     chmod +x gradlew
                     ./gradlew clean test bootJar
                     bash ../infra/deploy/test/check-flyway-history-test.sh
+                    bash ../infra/deploy/test/canary-deployment-scripts-test.sh
                     docker build \
                       --build-arg GIT_COMMIT="$GIT_SHA" \
                       --tag "$IMAGE_REPOSITORY:$GIT_SHA" \
@@ -261,30 +281,21 @@ pipeline {
                     docker build \
                       --tag "$NGINX_CANDIDATE_IMAGE" \
                       ../infra/nginx
-                    bash ../infra/deploy/validate-nginx-image.sh "$NGINX_CANDIDATE_IMAGE"
 
-                    expected_http_mapping="$NGINX_BIND_ADDRESS:$NGINX_HTTP_PORT"
-                    expected_https_mapping="$NGINX_BIND_ADDRESS:$NGINX_HTTPS_PORT"
-                    if [ "$(docker inspect --format '{{.State.Running}}' \
-                      "$NGINX_CONTAINER" 2>/dev/null)" != 'true' ] \
-                      || ! docker port "$NGINX_CONTAINER" 80/tcp 2>/dev/null \
-                        | grep -qx "$expected_http_mapping" \
-                      || ! docker port "$NGINX_CONTAINER" 443/tcp 2>/dev/null \
-                        | grep -qx "$expected_https_mapping"; then
-                      port_probe="wecandoit-nginx-port-check-$GIT_SHA"
-                      docker rm -f "$port_probe" >/dev/null 2>&1 || true
-                      trap 'docker rm -f "$port_probe" >/dev/null 2>&1 || true' EXIT
-                      docker run --detach \
-                        --name "$port_probe" \
-                        --publish "$NGINX_BIND_ADDRESS:$NGINX_HTTP_PORT:80" \
-                        --publish "$NGINX_BIND_ADDRESS:$NGINX_HTTPS_PORT:443" \
-                        --entrypoint /bin/sh \
-                        "$NGINX_CANDIDATE_IMAGE" -c 'sleep 30' >/dev/null
-                      [ "$(docker inspect --format '{{.State.Running}}' \
-                        "$port_probe")" = 'true' ]
-                      docker rm -f "$port_probe" >/dev/null
-                      trap - EXIT
+                    if [ "$DEPLOYMENT_MODE" = 'production' ] \
+                      && [ "$(docker inspect --format '{{.State.Running}}' \
+                        "$NGINX_CONTAINER" 2>/dev/null)" = 'true' ] \
+                      && docker port "$NGINX_CONTAINER" 80/tcp \
+                        | grep -qx "127.0.0.1:$NGINX_VALIDATION_HTTP_PORT" \
+                      && docker port "$NGINX_CONTAINER" 443/tcp \
+                        | grep -qx "127.0.0.1:$NGINX_VALIDATION_HTTPS_PORT"; then
+                      docker rm -f "$NGINX_CONTAINER"
                     fi
+
+                    bash ../infra/deploy/validate-nginx-image.sh \
+                      "$NGINX_CANDIDATE_IMAGE" \
+                      "$NGINX_VALIDATION_HTTP_PORT" \
+                      "$NGINX_VALIDATION_HTTPS_PORT"
                     '''
                 }
             }
@@ -311,61 +322,37 @@ pipeline {
 
                         docker compose -f "$COMPOSE_FILE" up -d mysql redis
 
-                        if docker inspect "$LEGACY_STABLE_CONTAINER" >/dev/null 2>&1; then
-                          docker stop "$LEGACY_STABLE_CONTAINER"
-                          docker rm "$LEGACY_STABLE_CONTAINER"
-                        fi
+                        if [ "$(docker inspect --format '{{.State.Running}}' \
+                          "$LEGACY_STABLE_CONTAINER" 2>/dev/null)" = 'true' ]; then
+                          if ! docker network inspect --format \
+                            "{{range .Containers}}{{if eq .Name \"$LEGACY_STABLE_CONTAINER\"}}{{json .IPv4Address}}{{end}}{{end}}" \
+                            "$EDGE_NETWORK" | grep -q '"'; then
+                            docker network connect \
+                              --alias backend-stable \
+                              "$EDGE_NETWORK" "$LEGACY_STABLE_CONTAINER"
+                          fi
 
-                        STABLE_IMAGE="$ROLLBACK_IMAGE" \
-                          docker compose -f "$COMPOSE_FILE" up -d --no-deps backend-stable
-                        HEALTH_CHECK_CONTAINER="$STABLE_CONTAINER" \
-                          bash ../infra/deploy/check-backend-health.sh \
-                            "$STABLE_HEALTH_URL" 30 2 "$LEGACY_STABLE_HEALTH_URL"
+                          if ! docker inspect --format \
+                            "{{with index .NetworkSettings.Networks \"$EDGE_NETWORK\"}}{{range .Aliases}}{{println .}}{{end}}{{end}}" \
+                            "$LEGACY_STABLE_CONTAINER" | grep -qx 'backend-stable'; then
+                            echo "Legacy Stable is connected to $EDGE_NETWORK without the backend-stable alias." >&2
+                            exit 1
+                          fi
+                          HEALTH_CHECK_CONTAINER="$LEGACY_STABLE_CONTAINER" \
+                            bash ../infra/deploy/check-backend-health.sh \
+                              "$STABLE_HEALTH_URL" 30 2 "$LEGACY_STABLE_HEALTH_URL"
+                        else
+                          STABLE_IMAGE="$ROLLBACK_IMAGE" \
+                            docker compose -f "$COMPOSE_FILE" up -d --no-deps backend-stable
+                          HEALTH_CHECK_CONTAINER="$STABLE_CONTAINER" \
+                            bash ../infra/deploy/check-backend-health.sh \
+                              "$STABLE_HEALTH_URL" 30 2 "$LEGACY_STABLE_HEALTH_URL"
+                        fi
                         '''
                     }
                 }
                 script {
                     env.DEPLOYMENT_PHASE = 'stable-ready'
-                }
-            }
-        }
-
-        stage('Start Nginx') {
-            when { expression { env.HAS_BACKEND_CHANGES == 'true' } }
-            steps {
-                dir('backend') {
-                    withCredentials([
-                        string(credentialsId: 'prod-db-password', variable: 'DB_PASSWORD'),
-                        string(credentialsId: 'prod-db-root-password', variable: 'DB_ROOT_PASSWORD'),
-                        string(credentialsId: 'prod-jwt-secret', variable: 'JWT_SECRET')
-                    ]) {
-                        sh '''
-                        set -eu
-                        NGINX_IMAGE="$NGINX_CANDIDATE_IMAGE" \
-                        NGINX_BIND_ADDRESS="$NGINX_BIND_ADDRESS" \
-                        NGINX_HTTP_PORT="$NGINX_HTTP_PORT" \
-                        NGINX_HTTPS_PORT="$NGINX_HTTPS_PORT" \
-                          docker compose -f "$COMPOSE_FILE" up -d --no-deps nginx
-
-                        running_nginx_image_id=$(docker inspect \
-                          --format '{{.Image}}' "$NGINX_CONTAINER")
-                        candidate_nginx_image_id=$(docker image inspect \
-                          --format '{{.Id}}' "$NGINX_CANDIDATE_IMAGE")
-                        if [ "$running_nginx_image_id" != "$candidate_nginx_image_id" ]; then
-                          echo "Running Nginx does not use the validated candidate image." >&2
-                          exit 1
-                        fi
-
-                        docker port "$NGINX_CONTAINER" 80/tcp \
-                          | grep -qx "$NGINX_BIND_ADDRESS:$NGINX_HTTP_PORT"
-                        docker port "$NGINX_CONTAINER" 443/tcp \
-                          | grep -qx "$NGINX_BIND_ADDRESS:$NGINX_HTTPS_PORT"
-                        docker exec "$NGINX_CONTAINER" nginx -t
-                        bash ../infra/deploy/apply-backend-route.sh stable-only
-                        docker image tag "$NGINX_CANDIDATE_IMAGE" \
-                          "$NGINX_IMAGE_REPOSITORY:latest"
-                        '''
-                    }
                 }
             }
         }
@@ -401,6 +388,115 @@ pipeline {
                 }
                 script {
                     env.DEPLOYMENT_PHASE = 'canary-ready'
+                }
+            }
+        }
+
+        stage('Approve Host Nginx Cutover') {
+            when {
+                allOf {
+                    expression { params.DEPLOYMENT_MODE == 'production' }
+                    expression { env.HAS_BACKEND_CHANGES == 'true' }
+                }
+            }
+            steps {
+                script {
+                    def dockerNginxOwnsProductionPorts = sh(
+                        script: '''
+                        [ "$(docker inspect --format '{{.State.Running}}' \
+                          "$NGINX_CONTAINER" 2>/dev/null)" = 'true' ] \
+                          && docker port "$NGINX_CONTAINER" 80/tcp \
+                            | grep -qx "$NGINX_BIND_ADDRESS:$NGINX_HTTP_PORT" \
+                          && docker port "$NGINX_CONTAINER" 443/tcp \
+                            | grep -qx "$NGINX_BIND_ADDRESS:$NGINX_HTTPS_PORT"
+                        ''',
+                        returnStatus: true
+                    ) == 0
+
+                    if (dockerNginxOwnsProductionPorts) {
+                        env.HOST_NGINX_CUTOVER_REQUIRED = 'false'
+                        echo 'Docker Nginx already owns production ports. Host Nginx cutover is not required.'
+                    } else {
+                        env.HOST_NGINX_CUTOVER_REQUIRED = 'true'
+                        input(
+                            message: '''Nginx candidate and Canary validation succeeded.
+On EC2, run `sudo nginx -t && sudo systemctl stop nginx`, then verify that ports 80/443 are free.
+If the next stage fails, immediately run `sudo systemctl start nginx`.''',
+                            ok: 'Host Nginx 중지 확인'
+                        )
+                        env.HOST_NGINX_STOP_CONFIRMED = 'true'
+                    }
+                }
+            }
+        }
+
+        stage('Start Nginx') {
+            when { expression { env.HAS_BACKEND_CHANGES == 'true' } }
+            steps {
+                dir('backend') {
+                    withCredentials([
+                        string(credentialsId: 'prod-db-password', variable: 'DB_PASSWORD'),
+                        string(credentialsId: 'prod-db-root-password', variable: 'DB_ROOT_PASSWORD'),
+                        string(credentialsId: 'prod-jwt-secret', variable: 'JWT_SECRET')
+                    ]) {
+                        sh '''
+                        set -eu
+                        port_probe="wecandoit-nginx-cutover-check-$GIT_SHA"
+
+                        cleanup_start_failure() {
+                          status=$?
+                          trap - EXIT
+                          docker rm -f "$port_probe" >/dev/null 2>&1 || true
+                          if [ "$status" -ne 0 ] \
+                            && [ "$HOST_NGINX_CUTOVER_REQUIRED" = 'true' ]; then
+                            docker rm -f "$NGINX_CONTAINER" >/dev/null 2>&1 || true
+                            echo "Docker Nginx could not take over ports 80/443." >&2
+                            echo "Run on EC2 immediately: sudo systemctl start nginx" >&2
+                          fi
+                          exit "$status"
+                        }
+                        trap cleanup_start_failure EXIT
+
+                        if [ "$HOST_NGINX_CUTOVER_REQUIRED" = 'true' ]; then
+                          docker rm -f "$port_probe" >/dev/null 2>&1 || true
+                          docker run --detach \
+                            --name "$port_probe" \
+                            --publish "$NGINX_BIND_ADDRESS:$NGINX_HTTP_PORT:80" \
+                            --publish "$NGINX_BIND_ADDRESS:$NGINX_HTTPS_PORT:443" \
+                            --entrypoint /bin/sh \
+                            "$NGINX_CANDIDATE_IMAGE" -c 'sleep 30' >/dev/null
+                          docker rm -f "$port_probe" >/dev/null
+                        fi
+
+                        NGINX_IMAGE="$NGINX_CANDIDATE_IMAGE" \
+                        NGINX_BIND_ADDRESS="$NGINX_BIND_ADDRESS" \
+                        NGINX_HTTP_PORT="$NGINX_HTTP_PORT" \
+                        NGINX_HTTPS_PORT="$NGINX_HTTPS_PORT" \
+                          docker compose -f "$COMPOSE_FILE" up -d --no-deps nginx
+
+                        running_nginx_image_id=$(docker inspect \
+                          --format '{{.Image}}' "$NGINX_CONTAINER")
+                        candidate_nginx_image_id=$(docker image inspect \
+                          --format '{{.Id}}' "$NGINX_CANDIDATE_IMAGE")
+                        if [ "$running_nginx_image_id" != "$candidate_nginx_image_id" ]; then
+                          echo "Running Nginx does not use the validated candidate image." >&2
+                          exit 1
+                        fi
+
+                        docker port "$NGINX_CONTAINER" 80/tcp \
+                          | grep -qx "$NGINX_BIND_ADDRESS:$NGINX_HTTP_PORT"
+                        docker port "$NGINX_CONTAINER" 443/tcp \
+                          | grep -qx "$NGINX_BIND_ADDRESS:$NGINX_HTTPS_PORT"
+                        docker exec "$NGINX_CONTAINER" nginx -t
+                        bash ../infra/deploy/apply-backend-route.sh stable-only
+                        docker image tag "$NGINX_CANDIDATE_IMAGE" \
+                          "$NGINX_IMAGE_REPOSITORY:latest"
+                        trap - EXIT
+                        '''
+                    }
+                }
+                script {
+                    env.DEPLOYMENT_PHASE = 'nginx-ready'
                 }
             }
         }
@@ -613,6 +709,12 @@ pipeline {
                         sh '''
                         set -eu
                         docker image tag "$IMAGE_REPOSITORY:$GIT_SHA" "$IMAGE_REPOSITORY:stable"
+
+                        if docker inspect "$LEGACY_STABLE_CONTAINER" >/dev/null 2>&1; then
+                          docker stop "$LEGACY_STABLE_CONTAINER"
+                          docker rm "$LEGACY_STABLE_CONTAINER"
+                        fi
+
                         STABLE_IMAGE="$IMAGE_REPOSITORY:stable" \
                           docker compose -f "$COMPOSE_FILE" up \
                             -d --no-deps --force-recreate backend-stable
@@ -749,6 +851,15 @@ pipeline {
                           && bash ../infra/deploy/apply-backend-route.sh stable-only
                       }
 
+                      cleanup_canary() {
+                        if docker inspect "$CANARY_CONTAINER" >/dev/null 2>&1; then
+                          docker compose -f "$COMPOSE_FILE" stop backend-canary
+                          docker compose -f "$COMPOSE_FILE" rm -f backend-canary
+                        else
+                          echo "No Canary container exists to clean up."
+                        fi
+                      }
+
                       rollback_image_id=$(docker image inspect \
                         --format '{{.Id}}' "$ROLLBACK_IMAGE" 2>/dev/null)
                       stable_ready=false
@@ -802,11 +913,32 @@ pipeline {
                       fi
 
                       if [ "$stable_ready" = true ]; then
-                        if route_stable_with_nginx; then
-                          docker compose -f "$COMPOSE_FILE" stop backend-canary
-                          docker compose -f "$COMPOSE_FILE" rm -f backend-canary
+                        if is_nginx_running \
+                          || [ -n "${NGINX_ROLLBACK_IMAGE:-}" ]; then
+                          if route_stable_with_nginx; then
+                            cleanup_canary
+                          elif [ -z "${NGINX_ROLLBACK_IMAGE:-}" ] \
+                            && [ "${HOST_NGINX_STOP_CONFIRMED:-false}" = 'true' ]; then
+                            docker rm -f "$NGINX_CONTAINER" >/dev/null 2>&1 || true
+                            cleanup_canary
+                            echo "First Docker Nginx cutover rollback requires Host Nginx." >&2
+                            echo "Run on EC2 immediately: sudo systemctl start nginx" >&2
+                          elif docker inspect "$CANARY_CONTAINER" >/dev/null 2>&1; then
+                            echo "Nginx rollback failed. Running Canary was left unchanged." >&2
+                          else
+                            echo "Nginx rollback failed, but no Canary container was running." >&2
+                          fi
                         else
-                          echo "Nginx rollback failed. Canary was left running."
+                          cleanup_canary
+                          if [ "${HOST_NGINX_STOP_CONFIRMED:-false}" = 'true' ]; then
+                            echo "Docker Nginx is unavailable after the first cutover." >&2
+                            echo "Run on EC2 immediately: sudo systemctl start nginx" >&2
+                          elif [ "${HOST_NGINX_CUTOVER_REQUIRED:-false}" = 'true' ]; then
+                            echo "Host Nginx cutover was not confirmed." >&2
+                            echo "If Host Nginx was stopped manually, run: sudo systemctl start nginx" >&2
+                          else
+                            echo "Docker Nginx cutover did not occur. Host Nginx remains the active proxy."
+                          fi
                         fi
                       else
                         echo "Stable rollback is unavailable. Canary and Nginx routing were left unchanged."

@@ -97,7 +97,7 @@ export function RecordScreen() {
 
         <FlatList
           data={recentWalks}
-          keyExtractor={walk => String(walk.gameId)}
+          keyExtractor={walk => String(walk.walkSessionId)}
           ListHeaderComponent={
             <View style={styles.listHeader}>
               <View style={styles.periodRow}>
@@ -154,7 +154,9 @@ export function RecordScreen() {
             <WalkCard
               walk={item}
               onPress={() =>
-                navigation.navigate('WalkDetail', { gameId: item.gameId })
+                navigation.navigate('WalkDetail', {
+                  walkSessionId: item.walkSessionId,
+                })
               }
             />
           )}

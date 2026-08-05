@@ -11,6 +11,8 @@ import com.wecandoit.game.domain.GameRequest;
 import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomMember;
 import com.wecandoit.game.domain.RoomStatus;
+import com.wecandoit.game.event.BattleMatchingMessage;
+import com.wecandoit.game.event.BattleMatchingMessageRequestedEvent;
 import com.wecandoit.game.repository.GameRequestRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
@@ -75,23 +77,53 @@ public class GameRequestCommandService {
         if (room.getMode() == GameMode.BATTLE
                 && roomMembers.size() == GameMode.BATTLE.getMaximumParticipants()) {
             gameCycleCommandService.startInitialBattleCycle(room, roomMembers);
+            BattleMatchingMessage countdownStartedMessage = BattleMatchingMessage.battleCountdownStarted(
+                    roomId,
+                    requestId,
+                    gameRequest.getInviterId(),
+                    gameRequest.getInviteeId()
+            );
+            publishBattleMessage(gameRequest.getInviterId(), countdownStartedMessage);
+            publishBattleMessage(gameRequest.getInviteeId(), countdownStartedMessage);
             return;
         }
         gameCycleCommandService.registerCurrentCycleParticipant(room, memberId);
     }
 
     public void rejectGameRequest(Long memberId, Long roomId, Long requestId) {
-        findActiveRoomForUpdate(roomId);
+        Room room = findActiveRoomForUpdate(roomId);
         GameRequest gameRequest = findRequestForUpdate(roomId, requestId);
         validateRequestInviteeAndPending(gameRequest, memberId);
         gameRequest.reject();
+        if (room.getMode() == GameMode.BATTLE) {
+            publishBattleMessage(
+                    gameRequest.getInviterId(),
+                    BattleMatchingMessage.invitationRejected(
+                            roomId,
+                            requestId,
+                            gameRequest.getInviterId(),
+                            gameRequest.getInviteeId()
+                    )
+            );
+        }
     }
 
     public void cancelGameRequest(Long memberId, Long roomId, Long requestId) {
-        findActiveRoomForUpdate(roomId);
+        Room room = findActiveRoomForUpdate(roomId);
         GameRequest gameRequest = findRequestForUpdate(roomId, requestId);
         validateRequestInviterAndPending(gameRequest, memberId);
         gameRequest.cancel();
+        if (room.getMode() == GameMode.BATTLE) {
+            publishBattleMessage(
+                    gameRequest.getInviteeId(),
+                    BattleMatchingMessage.invitationCancelled(
+                            roomId,
+                            requestId,
+                            gameRequest.getInviterId(),
+                            gameRequest.getInviteeId()
+                    )
+            );
+        }
     }
 
     private Room findActiveRoomForUpdate(Long roomId) {
@@ -144,6 +176,10 @@ public class GameRequestCommandService {
         eventPublisher.publishEvent(notificationMessageFactory.friendInvite(inviteeId));
         // TODO: 초대 만료 정책이 확정되면 연동한다.
         return GameRequestCreateResponse.from(gameRequest, true);
+    }
+
+    private void publishBattleMessage(Long recipientMemberId, BattleMatchingMessage message) {
+        eventPublisher.publishEvent(new BattleMatchingMessageRequestedEvent(recipientMemberId, message));
     }
 
     private GameRequest findRequestForUpdate(Long roomId, Long requestId) {

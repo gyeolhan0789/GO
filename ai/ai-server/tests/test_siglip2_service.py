@@ -1,57 +1,73 @@
 import time
+
 from pathlib import Path
 
 from PIL import Image
 
-from app.services.vision.siglip2_service import SigLIP2Service
+from app.services.vision.siglip2_service import (
+    SigLIP2Service
+)
 
 
 
-def test_siglip2_predict():
-
-    # ==========================
-    # Service 초기화
-    # (모델 로딩 시간 측정 제외)
-    # ==========================
-
-    service = SigLIP2Service()
+def run_siglip_test(
+    service,
+    image_name: str,
+    target: str
+):
 
 
     image_path = (
         Path(__file__)
         .parent
-        .parent
         / "test_images"
-        / "02_yellowflower_pass.jpg"
+        / image_name
     )
 
 
-    image = Image.open(
-        image_path
+    image = (
+        Image.open(image_path)
+        .convert("RGB")
     )
 
+
+
+    # ==========================
+    # Positive / Negative Prompt
+    # ==========================
+
+    positive_prompt = (
+        f"a photo of a {target}"
+    )
+
+
+    negative_prompt = (
+        f"a photo without a {target}"
+    )
 
     candidates = [
-        "a flower",
-        "a tree",
-        "a dog",
-        "a person"
+
+        positive_prompt,
+
+        negative_prompt
+
     ]
+
 
 
     # ==========================
     # Warm-up
-    # 첫 inference 제외
     # ==========================
 
     service.predict(
-        image,
-        candidates
+        image=image,
+        candidates=candidates
     )
 
 
+
     # ==========================
-    # 실제 inference latency 측정
+    # Latency Test
     # ==========================
 
     inference_times = []
@@ -62,14 +78,15 @@ def test_siglip2_predict():
     TEST_COUNT = 5
 
 
+
     for _ in range(TEST_COUNT):
 
         start = time.perf_counter()
 
 
         result = service.predict(
-            image,
-            candidates
+            image=image,
+            candidates=candidates
         )
 
 
@@ -86,6 +103,7 @@ def test_siglip2_predict():
         )
 
 
+
     avg_latency = (
         sum(inference_times)
         /
@@ -93,66 +111,244 @@ def test_siglip2_predict():
     )
 
 
+
     # ==========================
-    # 결과 출력
+    # Score Extract
     # ==========================
 
-    print("\n===== SigLIP2 Result =====")
-
-
-    print(
-        "Top Label:",
-        result["top_label"]
-    )
-
-
-    print(
-        "Confidence:",
-        result["confidence"]
-    )
-
-
-    print(
-        "\nScores:"
-    )
-
-
-    for label, score in (
+    positive_score = (
         result["scores"]
-        .items()
-    ):
-        print(
-            f"{label}: {score:.4f}"
+        [positive_prompt]
+    )
+
+
+    negative_score = (
+        result["scores"]
+        [negative_prompt]
+    )
+
+
+    margin = (
+        positive_score
+        -
+        negative_score
+    )
+
+
+
+    ratio = (
+        positive_score
+        /
+        max(
+            negative_score,
+            1e-6
         )
+    )
 
 
-    print("\n===== Latency =====")
+
+    # ==========================
+    # Result Output
+    # ==========================
+
+    print(
+        f"\n===== {target.upper()} Result ====="
+    )
+
+
+    print(
+        "Image:",
+        image_name
+    )
+
+
+    print(
+        "\nPositive Prompt:"
+    )
+
+
+    print(
+        f"{positive_prompt}: {positive_score:.6f}"
+    )
+
+
+    print(
+        "\nNegative Prompt:"
+    )
+
+
+    print(
+        f"{negative_prompt}: {negative_score:.6f}"
+    )
+
+
+    print(
+        "\nMargin:"
+    )
+
+
+    print(
+        f"{margin:.6f}"
+    )
+
+
+    print(
+        "\nPositive / Negative Ratio:"
+    )
+
+
+    print(
+        f"{ratio:.2f}"
+    )
+
+
+
+    print(
+        "\nLatency:"
+    )
 
 
     for idx, latency in enumerate(
         inference_times,
         start=1
     ):
+
         print(
             f"{idx}회: {latency:.2f}ms"
         )
 
 
+
     print(
-        f"\nAverage: {avg_latency:.2f}ms"
+        f"Average: {avg_latency:.2f}ms"
     )
 
 
+
     # ==========================
-    # 기본 검증
+    # Validation
     # ==========================
 
     assert (
-        result["top_label"]
-        in candidates
+        "scores"
+        in result
     )
 
 
     assert (
-        0 <= result["confidence"] <= 1
+        positive_prompt
+        in result["scores"]
+    )
+
+
+    assert (
+        negative_prompt
+        in result["scores"]
+    )
+
+
+    assert (
+        0
+        <=
+        positive_score
+        <=
+        1
+    )
+
+
+    assert (
+        0
+        <=
+        negative_score
+        <=
+        1
+    )
+
+
+    assert (
+        margin
+        ==
+        positive_score - negative_score
+    )
+
+
+    assert (
+        result["latency_ms"]
+        >
+        0
+    )
+
+
+    return {
+
+        "positive_score": positive_score,
+
+        "negative_score": negative_score,
+
+        "margin": margin,
+
+        "ratio": ratio,
+
+        "raw": result
+
+    }
+
+
+
+
+def test_siglip2_predict():
+
+
+    # ==========================
+    # Service Initialize
+    # ==========================
+
+    service = SigLIP2Service()
+
+
+
+    # ==========================
+    # Flower Case
+    # ==========================
+
+    flower_result = run_siglip_test(
+
+        service=service,
+
+        image_name="yellow_flower.jpg",
+
+        target="flower"
+
+    )
+
+
+
+    assert (
+        flower_result["positive_score"]
+        >
+        flower_result["negative_score"]
+    )
+
+
+
+    # ==========================
+    # Dog Case
+    # ==========================
+
+    dog_result = run_siglip_test(
+
+        service=service,
+
+        image_name="dog.jpg",
+
+        target="dog"
+
+    )
+
+
+
+    assert (
+        dog_result["positive_score"]
+        >
+        dog_result["negative_score"]
     )
