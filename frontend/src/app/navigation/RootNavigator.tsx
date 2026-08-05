@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { SocialProvider } from '../../features/auth/constants/socialProviders';
 import { useAuth } from '../../features/auth/model/AuthContext';
 import type { GameMode } from '../../features/room/api/roomApi';
+import { useWalkSessionRealtime } from '../../features/walk-session/hooks/useWalkSessionRealtime';
 import {
   hydrateWalkSessionFromNative,
   isWalkSessionActive,
@@ -50,7 +51,15 @@ export type RootStackParamList = {
   WalkList: undefined;
   // 방이 아니라 끝난 판 하나를 가리킨다. 같은 방에서 여러 판이 나온다.
   WalkDetail: { walkSessionId: number };
-  WalkRoomDetail: { roomId: number };
+  WalkRoomDetail: {
+    roomId: number;
+    /**
+     * 초대를 수락한 쪽이 대기방에 도착하기 전에 카운트다운 이벤트가 먼저
+     * 도착한다(수락 응답과 거의 동시). 대기방 구독이 그 이벤트를 놓치므로
+     * 값을 파라미터로 실어 보내 대기방이 이어받는다.
+     */
+    battleCountdownSeconds?: number;
+  };
   // roomId는 화면 파라미터가 아니라 walkSessionStore(전역 진행 중인 세션
   // 상태)로 전달된다.
   WalkSession: undefined;
@@ -105,6 +114,10 @@ export function RootNavigator() {
   }, []);
 
   const isAuthenticated = status === 'authenticated';
+
+  // 실시간 구독은 화면이 아니라 산책 세션의 수명에 맞춘다. 산책 중 어느 화면에
+  // 있어도 남이 채운 칸이 그대로 들어온다.
+  useWalkSessionRealtime();
 
   // 하이드레이션 결과 진행 중인 세션이 있으면 산책 화면으로 바로 이동한다.
   // 사용자가 끝내고 싶으면 그 화면의 기존 "산책 종료" 버튼을 쓰면 된다.
