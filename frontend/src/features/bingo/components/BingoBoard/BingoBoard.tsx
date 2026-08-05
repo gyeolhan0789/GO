@@ -13,6 +13,8 @@ export type BingoBoardCell = {
   /** Color of whoever completed this cell (see BingoCell). */
   color?: string;
   icon?: ReactNode;
+  /** 남이 검증을 기다리는 칸. 표시만 바꾸는 게 아니라 눌리지도 않는다. */
+  pending?: boolean;
 };
 
 type BingoBoardProps = {
@@ -33,10 +35,14 @@ export function BingoBoard({ size, cells, onCellPress }: BingoBoardProps) {
         <Pressable
           key={cell.id}
           style={{ width: cellSize, height: cellSize }}
-          disabled={!onCellPress}
+          disabled={!onCellPress || cell.pending === true}
           onPress={() => onCellPress?.(cell)}
         >
-          <BingoCell completed={cell.completed} color={cell.color}>
+          <BingoCell
+            completed={cell.completed}
+            color={cell.color}
+            pending={cell.pending}
+          >
             {cell.icon}
           </BingoCell>
         </Pressable>
