@@ -81,7 +81,11 @@ async function request<T>(
   }
 
   if (!response.ok) {
-    throw new ApiError(response.status, await readErrorMessage(response));
+    const message = await readErrorMessage(response);
+    // 실패한 요청은 어디서 왜 막혔는지가 화면 문구만으로는 안 드러난다.
+    // 상태·경로·서버 메시지를 한 줄로 남긴다(응답 본문은 남기지 않는다).
+    console.log(`[api] ${response.status} ${path} — ${message}`);
+    throw new ApiError(response.status, message);
   }
 
   // 204뿐 아니라 201 등 다른 성공 상태도 본문 없이 응답할 수 있어(예: 친구 요청
