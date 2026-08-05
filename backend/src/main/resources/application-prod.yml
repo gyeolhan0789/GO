@@ -26,7 +26,6 @@ jwt:
 
 cors:
   allowed-origins:
-    - https://admin.i15a506.p.ssafy.io
     - http://localhost:3000
     - http://localhost:5173
 

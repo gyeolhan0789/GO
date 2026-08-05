@@ -26,8 +26,9 @@ docker run --rm \
         /etc/nginx/runtime/backend-upstream.conf
       nginx -t
     done
-    nginx -T 2>&1 | grep -Fq "server_name admin.i15a506.p.ssafy.io;"
-    nginx -T 2>&1 | grep -Fq "/etc/letsencrypt/live/admin.i15a506.p.ssafy.io/fullchain.pem"
+    nginx -T 2>&1 | grep -Fq "server_name i15a506.p.ssafy.io;"
+    nginx -T 2>&1 | grep -Fq "/etc/letsencrypt/live/i15a506.p.ssafy.io/fullchain.pem"
+    nginx -T 2>&1 | grep -Fq "location = /admin-ui/ {"
     nginx -T 2>&1 | grep -Fq "client_max_body_size 6m;"
     nginx -T 2>&1 | grep -Fq "location /ws {"
     nginx -T 2>&1 | grep -Fq "proxy_http_version 1.1;"
