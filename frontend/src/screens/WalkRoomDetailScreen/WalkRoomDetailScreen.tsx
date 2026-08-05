@@ -187,7 +187,6 @@ export function WalkRoomDetailScreen({
             board={boardQuery.data}
             members={room.members}
             myMemberId={myMemberId}
-            onPress={() => navigation.navigate('BingoBoard', { roomId })}
           />
         ) : (
           <Card>
