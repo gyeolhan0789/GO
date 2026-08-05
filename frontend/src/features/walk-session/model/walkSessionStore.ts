@@ -148,6 +148,10 @@ async function issueWalkSessionKey(roomId: number): Promise<string | null> {
       walkSessionKey: response.walkSessionKey,
       roomId: response.roomId,
       expiresAt: response.expiresAt,
+      // 종료 요청에 함께 실으려고 남긴다. 시작 시각은 서버가 찍은 값이라
+      // 기기 시계로 다시 만들면 서버 기록과 어긋난다.
+      startedAt: response.startedAt,
+      bingoBoardId: response.initialBingoBoardId,
     });
     state = { ...state, walkSessionKey: response.walkSessionKey };
     notify();

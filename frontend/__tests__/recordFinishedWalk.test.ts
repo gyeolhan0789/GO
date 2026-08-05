@@ -68,11 +68,16 @@ function bodyOf(call: [string, RequestInit?]) {
   return JSON.parse(String(call[1]?.body));
 }
 
+const STARTED_AT = '2026-08-04T11:00:00Z';
+const BINGO_BOARD_ID = 900;
+
 async function storeKey(roomId = ROOM_ID) {
   await writeActiveWalkSession({
     walkSessionKey: WALK_SESSION_KEY,
     roomId,
     expiresAt: '2026-08-05T11:00:00Z',
+    startedAt: STARTED_AT,
+    bingoBoardId: BINGO_BOARD_ID,
   });
 }
 
@@ -110,6 +115,10 @@ describe('recordFinishedWalk — 기록으로 남을 때', () => {
 
     expect(bodyOf(completeCalls()[0])).toEqual({
       walkSessionKey: WALK_SESSION_KEY,
+      clientSessionKey: WALK_SESSION_KEY,
+      roomId: ROOM_ID,
+      bingoBoardId: BINGO_BOARD_ID,
+      startedAt: STARTED_AT,
       endedAt: ENDED_AT.toISOString(),
       activeDurationSeconds: 1_680,
       step: 3_240,

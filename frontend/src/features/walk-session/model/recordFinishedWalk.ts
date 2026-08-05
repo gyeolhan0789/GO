@@ -60,21 +60,21 @@ export async function recordFinishedWalk(
   const stored = await readActiveWalkSession();
   // 저장된 키가 다른 방 것이면 쓰지 않는다. 그 키로 종료하면 이번 산책의
   // 수치가 엉뚱한 방의 기록이 된다.
-  const walkSessionKey =
-    stored !== null && stored.roomId === walk.roomId
-      ? stored.walkSessionKey
-      : null;
-
-  if (walkSessionKey === null) {
+  if (stored === null || stored.roomId !== walk.roomId) {
     return {
       status: 'failed',
       message: '산책을 시작할 때 서버와 연결하지 못했어요.',
     };
   }
+  const walkSessionKey = stored.walkSessionKey;
 
   try {
     const walkSession = await completeWithRetry({
       walkSessionKey,
+      clientSessionKey: walkSessionKey,
+      roomId: walk.roomId,
+      bingoBoardId: stored.bingoBoardId,
+      startedAt: stored.startedAt,
       endedAt: walk.endedAt.toISOString(),
       activeDurationSeconds: walk.activeDurationSeconds,
       step: walk.step,

@@ -19,6 +19,10 @@ export type ActiveWalkSessionRecord = {
   roomId: number;
   /** ISO-8601. 이 시각이 지나면 서버가 종료 요청을 받지 않는다(24시간). */
   expiresAt: string;
+  /** 서버가 세션을 연 시각(ISO-8601). 종료 요청에 그대로 실어 보낸다. */
+  startedAt?: string;
+  /** 이 산책이 시작한 빙고판. 판을 못 읽고 시작했으면 없다. */
+  bingoBoardId?: number | null;
 };
 
 function isRecord(value: unknown): value is ActiveWalkSessionRecord {

@@ -142,10 +142,13 @@ describe('산책 세션 키 발급', () => {
     confirmWalkSessionStart(null);
     await awaitWalkSessionKey(ROOM_ID);
 
+    // startedAt과 bingoBoardId도 남긴다 — 종료 요청에 그대로 실어 보낸다.
     expect(await readActiveWalkSession()).toEqual({
       walkSessionKey: WALK_SESSION_KEY,
       roomId: ROOM_ID,
       expiresAt: '2026-08-05T11:00:00Z',
+      startedAt: '2026-08-04T11:00:00Z',
+      bingoBoardId: BINGO_BOARD_ID,
     });
   });
 
