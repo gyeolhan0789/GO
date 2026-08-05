@@ -48,3 +48,11 @@ check_service_smoke "$ROUTED_SMOKE_URL" "$NGINX_CONTAINER"
 if [ -n "$EXTERNAL_SMOKE_URL" ]; then
   check_service_smoke "$EXTERNAL_SMOKE_URL"
 fi
+
+if [ "$ROUTE_MODE" = "canary-10" ]; then
+  warmup_request=1
+  while [ "$warmup_request" -le 50 ]; do
+    check_service_smoke "$ROUTED_SMOKE_URL" "$NGINX_CONTAINER"
+    warmup_request=$((warmup_request + 1))
+  done
+fi
