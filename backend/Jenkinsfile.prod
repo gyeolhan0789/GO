@@ -133,6 +133,16 @@ pipeline {
                               exit 1
                             fi
 
+                            for dependency in wecandoit-mysql-prod wecandoit-redis-prod; do
+                              dependency_state=$(docker inspect --format \
+                                '{{.State.Running}} {{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' \
+                                "$dependency" 2>/dev/null || true)
+                              if [ "$dependency_state" != 'true healthy' ]; then
+                                echo "$dependency must already be running and healthy: ${dependency_state:-not found}" >&2
+                                exit 1
+                              fi
+                            done
+
                             if [ "$DEPLOYMENT_MODE" = 'validation' ] \
                               && [ "$(docker inspect --format '{{.State.Running}}' \
                                 "$NGINX_CONTAINER" 2>/dev/null)" = 'true' ] \
@@ -320,24 +330,18 @@ pipeline {
                         NGINX_HTTPS_PORT="$NGINX_HTTPS_PORT" \
                           docker compose -f "$COMPOSE_FILE" config --quiet
 
-                        docker compose -f "$COMPOSE_FILE" up -d mysql redis
-
                         if [ "$(docker inspect --format '{{.State.Running}}' \
                           "$LEGACY_STABLE_CONTAINER" 2>/dev/null)" = 'true' ]; then
-                          if ! docker network inspect --format \
-                            "{{range .Containers}}{{if eq .Name \"$LEGACY_STABLE_CONTAINER\"}}{{json .IPv4Address}}{{end}}{{end}}" \
-                            "$EDGE_NETWORK" | grep -q '"'; then
-                            docker network connect \
-                              --alias backend-stable \
+                          if docker network inspect --format \
+                            '{{range .Containers}}{{println .Name}}{{end}}' \
+                            "$EDGE_NETWORK" | grep -Fxq "$LEGACY_STABLE_CONTAINER"; then
+                            docker network disconnect \
                               "$EDGE_NETWORK" "$LEGACY_STABLE_CONTAINER"
                           fi
 
-                          if ! docker inspect --format \
-                            "{{with index .NetworkSettings.Networks \"$EDGE_NETWORK\"}}{{range .Aliases}}{{println .}}{{end}}{{end}}" \
-                            "$LEGACY_STABLE_CONTAINER" | grep -qx 'backend-stable'; then
-                            echo "Legacy Stable is connected to $EDGE_NETWORK without the backend-stable alias." >&2
-                            exit 1
-                          fi
+                          docker network connect \
+                            --alias backend-stable \
+                            "$EDGE_NETWORK" "$LEGACY_STABLE_CONTAINER"
                           HEALTH_CHECK_CONTAINER="$LEGACY_STABLE_CONTAINER" \
                             bash ../infra/deploy/check-backend-health.sh \
                               "$STABLE_HEALTH_URL" 30 2 "$LEGACY_STABLE_HEALTH_URL"
@@ -373,14 +377,10 @@ pipeline {
 
                         if ! HEALTH_CHECK_CONTAINER="$CANARY_CONTAINER" \
                           bash ../infra/deploy/check-backend-health.sh "$CANARY_HEALTH_URL"; then
-                          docker compose -f "$COMPOSE_FILE" stop backend-canary
-                          docker compose -f "$COMPOSE_FILE" rm -f backend-canary
                           exit 1
                         fi
 
                         if ! bash ../infra/deploy/check-flyway-history.sh wecandoit-mysql-prod wecandoit src/main/resources/db/migration; then
-                          docker compose -f "$COMPOSE_FILE" stop backend-canary
-                          docker compose -f "$COMPOSE_FILE" rm -f backend-canary
                           exit 1
                         fi
                         '''
@@ -472,7 +472,8 @@ If the next stage fails, immediately run `sudo systemctl start nginx`.''',
                         NGINX_BIND_ADDRESS="$NGINX_BIND_ADDRESS" \
                         NGINX_HTTP_PORT="$NGINX_HTTP_PORT" \
                         NGINX_HTTPS_PORT="$NGINX_HTTPS_PORT" \
-                          docker compose -f "$COMPOSE_FILE" up -d --no-deps nginx
+                          docker compose -f "$COMPOSE_FILE" up -d --no-deps \
+                            --force-recreate nginx
 
                         running_nginx_image_id=$(docker inspect \
                           --format '{{.Image}}' "$NGINX_CONTAINER")
@@ -487,6 +488,10 @@ If the next stage fails, immediately run `sudo systemctl start nginx`.''',
                           | grep -qx "$NGINX_BIND_ADDRESS:$NGINX_HTTP_PORT"
                         docker port "$NGINX_CONTAINER" 443/tcp \
                           | grep -qx "$NGINX_BIND_ADDRESS:$NGINX_HTTPS_PORT"
+                        docker inspect --format \
+                          '{{range .Mounts}}{{println .Source .Destination .RW}}{{end}}' \
+                          "$NGINX_CONTAINER" \
+                          | grep -Fx '/etc/letsencrypt /etc/letsencrypt false'
                         docker exec "$NGINX_CONTAINER" nginx -t
                         bash ../infra/deploy/apply-backend-route.sh stable-only
                         docker image tag "$NGINX_CANDIDATE_IMAGE" \
@@ -602,9 +607,12 @@ If the next stage fails, immediately run `sudo systemctl start nginx`.''',
                     docker logs --since "$CANARY_MONITOR_STARTED_AT" \
                       "$NGINX_CONTAINER" > "$monitoring_log" 2>&1
 
-                    canary_ip=$(docker inspect --format \
-                      "{{with index .NetworkSettings.Networks \"$EDGE_NETWORK\"}}{{.IPAddress}}{{end}}" \
-                      "$CANARY_CONTAINER")
+                    canary_ip_with_prefix=$(docker network inspect --format \
+                      '{{range .Containers}}{{println .Name .IPv4Address}}{{end}}' \
+                      "$EDGE_NETWORK" \
+                      | awk -v container="$CANARY_CONTAINER" \
+                          '$1 == container { print $2; exit }')
+                    canary_ip="${canary_ip_with_prefix%%/*}"
                     if [ -z "$canary_ip" ]; then
                       echo "Canary is not connected to the $EDGE_NETWORK network." >&2
                       exit 1
@@ -853,6 +861,8 @@ If the next stage fails, immediately run `sudo systemctl start nginx`.''',
 
                       cleanup_canary() {
                         if docker inspect "$CANARY_CONTAINER" >/dev/null 2>&1; then
+                          docker logs --tail 300 "$CANARY_CONTAINER" 2>&1 || true
+                          docker inspect "$CANARY_CONTAINER" || true
                           docker compose -f "$COMPOSE_FILE" stop backend-canary
                           docker compose -f "$COMPOSE_FILE" rm -f backend-canary
                         else

@@ -106,6 +106,7 @@ Host가 배틀 초대를 취소하면 Invitee에게 전송된다.
 }
 ```
 
+
 ## 복구 시나리오
 
 - Invitee가 WebSocket 구독 전에 `accept`를 호출하면 카운트다운 이벤트를 놓칠 수 있다.

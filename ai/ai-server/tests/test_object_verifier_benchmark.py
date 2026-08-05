@@ -114,7 +114,7 @@ def load_images():
     for category, folder in CATEGORIES.items():
 
 
-        if not folder.exists():
+        if not folder.detected():
 
             continue
 

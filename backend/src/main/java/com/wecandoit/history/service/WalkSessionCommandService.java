@@ -26,6 +26,9 @@ import com.wecandoit.history.repository.ActiveWalkSessionRepository;
 import com.wecandoit.history.repository.WalkSessionBingoAchievementRepository;
 import com.wecandoit.history.repository.WalkSessionRepository;
 import com.wecandoit.member.repository.MemberRepository;
+import com.wecandoit.point.domain.PointHistory;
+import com.wecandoit.point.domain.PointHistoryType;
+import com.wecandoit.point.repository.PointHistoryRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -35,6 +38,7 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -50,6 +54,11 @@ public class WalkSessionCommandService {
 
     private static final ZoneId SERVICE_ZONE_ID = ZoneId.of("Asia/Seoul");
     private static final Duration ACTIVE_SESSION_TTL = Duration.ofHours(24);
+    private static final Set<PointHistoryType> SESSION_REWARD_TYPES = Set.of(
+            PointHistoryType.BINGO_CELL_REWARD,
+            PointHistoryType.DAILY_STEP_GOAL_REWARD,
+            PointHistoryType.GAME_GOAL_REWARD
+    );
 
     private final MemberRepository memberRepository;
     private final RoomRepository roomRepository;
@@ -61,6 +70,7 @@ public class WalkSessionCommandService {
     private final ActiveWalkSessionRepository activeWalkSessionRepository;
     private final WalkSessionRepository walkSessionRepository;
     private final WalkSessionBingoAchievementRepository achievementRepository;
+    private final PointHistoryRepository pointHistoryRepository;
     private final HistoryCommandService historyCommandService;
     private final BingoStepGoalRewardCommandService bingoStepGoalRewardCommandService;
 
@@ -126,6 +136,12 @@ public class WalkSessionCommandService {
         BoardContext boardContext = getBoardContext(activeWalkSession.getInitialBingoBoardId(), sessionCells);
         validateBoards(memberId, room.getId(), boardContext);
         long activeDurationSeconds = getActiveDurationSeconds(activeWalkSession, request);
+        SessionEarnedPoints earnedPoints = getEarnedPoints(
+                memberId,
+                room.getId(),
+                activeWalkSession.getStartedAt(),
+                request.endedAt().toInstant()
+        );
 
         WalkSession walkSession = walkSessionRepository.saveAndFlush(WalkSession.create(
                 memberId,
@@ -141,11 +157,17 @@ public class WalkSessionCommandService {
         ));
         List<WalkSessionBingoAchievement> achievements = saveAchievements(walkSession, sessionCells);
         addDailyHistory(memberId, request);
-        long earnedPoint = bingoStepGoalRewardCommandService.evaluate(memberId, room.getId());
+        long newlyEarnedStepGoalPoint = bingoStepGoalRewardCommandService.evaluate(memberId, room.getId());
+        earnedPoints = earnedPoints.addStepGoalPoint(newlyEarnedStepGoalPoint);
+        walkSession.recordEarnedPoints(
+                earnedPoints.missionPoint(),
+                earnedPoints.stepGoalPoint(),
+                earnedPoints.gamePoint()
+        );
         activeWalkSessionRepository.delete(activeWalkSession);
 
         return new CompletionResult(
-                WalkSessionCompleteResponse.of(walkSession, room, achievements.size(), earnedPoint),
+                WalkSessionCompleteResponse.of(walkSession, room, achievements.size()),
                 true
         );
     }
@@ -279,11 +301,44 @@ public class WalkSessionCommandService {
         );
     }
 
+    private SessionEarnedPoints getEarnedPoints(
+            Long memberId,
+            Long roomId,
+            Instant startedAt,
+            Instant endedAt
+    ) {
+        List<PointHistory> pointHistories = pointHistoryRepository
+                .findAllByMemberIdAndRoomIdAndTypeInAndCreatedAtBetween(
+                        memberId,
+                        roomId,
+                        SESSION_REWARD_TYPES,
+                        toLocalDateTime(startedAt),
+                        toLocalDateTime(endedAt)
+                );
+
+        long missionPoint = 0L;
+        long stepGoalPoint = 0L;
+        long gamePoint = 0L;
+        for (PointHistory pointHistory : pointHistories) {
+            if (pointHistory.getAmount() <= 0) {
+                continue;
+            }
+            switch (pointHistory.getType()) {
+                case BINGO_CELL_REWARD -> missionPoint += pointHistory.getAmount();
+                case DAILY_STEP_GOAL_REWARD -> stepGoalPoint += pointHistory.getAmount();
+                case GAME_GOAL_REWARD -> gamePoint += pointHistory.getAmount();
+                case ITEM_PURCHASE -> {
+                }
+            }
+        }
+        return new SessionEarnedPoints(missionPoint, stepGoalPoint, gamePoint);
+    }
+
     private WalkSessionCompleteResponse toResponse(WalkSession walkSession) {
         Room room = roomRepository.findById(walkSession.getRoomId())
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
         int achievedMissionCount = Math.toIntExact(achievementRepository.countByWalkSessionId(walkSession.getId()));
-        return WalkSessionCompleteResponse.of(walkSession, room, achievedMissionCount, 0L);
+        return WalkSessionCompleteResponse.of(walkSession, room, achievedMissionCount);
     }
 
     private Instant toInstant(LocalDateTime localDateTime) {
@@ -291,6 +346,10 @@ public class WalkSessionCommandService {
             throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
         return localDateTime.atZone(SERVICE_ZONE_ID).toInstant();
+    }
+
+    private LocalDateTime toLocalDateTime(Instant instant) {
+        return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
     }
 
     public record CompletionResult(
@@ -312,6 +371,17 @@ public class WalkSessionCommandService {
 
         private static BoardContext empty() {
             return new BoardContext(Map.of(), Map.of());
+        }
+    }
+
+    private record SessionEarnedPoints(
+            long missionPoint,
+            long stepGoalPoint,
+            long gamePoint
+    ) {
+
+        private SessionEarnedPoints addStepGoalPoint(long point) {
+            return new SessionEarnedPoints(missionPoint, stepGoalPoint + point, gamePoint);
         }
     }
 }
