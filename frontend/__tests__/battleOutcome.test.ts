@@ -4,6 +4,7 @@
 
 import type { BattleProgress } from '../src/features/bingo/api/bingoApi';
 import {
+  isForfeitEnd,
   remainingBingoLines,
   resolveBattleOutcome,
 } from '../src/features/bingo/model/battleOutcome';
@@ -74,6 +75,30 @@ describe('resolveBattleOutcome', () => {
     progress.opponent.targetReached = true;
 
     expect(resolveBattleOutcome(progress)).toBe('WIN');
+  });
+});
+
+describe('isForfeitEnd', () => {
+  test('아무도 목표에 닿지 않고 끝났으면 몰수다', () => {
+    expect(isForfeitEnd(buildProgress({ gameStatus: 'ENDED' }))).toBe(true);
+  });
+
+  test('진행 중이면 몰수가 아니다', () => {
+    expect(isForfeitEnd(buildProgress())).toBe(false);
+  });
+
+  test('누군가 목표에 닿아 끝난 것은 정상 승부다', () => {
+    const progress = buildProgress({ gameStatus: 'ENDED' });
+    progress.me.targetReached = true;
+
+    expect(isForfeitEnd(progress)).toBe(false);
+  });
+
+  test('상대가 목표에 닿은 경우도 정상 승부다', () => {
+    const progress = buildProgress({ gameStatus: 'ENDED' });
+    progress.opponent.targetReached = true;
+
+    expect(isForfeitEnd(progress)).toBe(false);
   });
 });
 
