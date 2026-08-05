@@ -8,6 +8,7 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import java.time.LocalDate
 
 private const val PREFS_NAME = "step_sensor_prefs"
@@ -36,6 +37,36 @@ class StepSensorReader(private val context: Context) {
   fun isAvailable(): Boolean = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER) != null
 
   fun readTodaySteps(onResult: (Double) -> Unit, onError: (code: String, message: String) -> Unit) {
+    readCounter(
+      onResult = { raw -> onResult(todayStepsFromRaw(raw)) },
+      onError = onError,
+    )
+  }
+
+  /**
+   * 센서 원시값(마지막 재부팅 이후 누적 걸음)과 부팅 이후 경과시간을 그대로 넘긴다.
+   *
+   * "오늘 걸음"으로 가공하지 않는 이유: 날짜 경계와 재부팅 판정을 JS 쪽 걸음 원장이
+   * 맡는다. 여기서 기준값을 잡아버리면(readTodaySteps) 날짜가 바뀐 첫 읽기가 0을
+   * 반환해 그 사이에 걸은 걸음이 통째로 사라진다.
+   *
+   * elapsedRealtime이 직전 읽기보다 작으면 그 사이에 재부팅한 것이다 — 원시값이 0으로
+   * 리셋됐다는 뜻이라, 원장이 이걸 보고 직전까지의 몫을 확정해 둔다.
+   */
+  fun readRawCounter(
+    onResult: (steps: Double, elapsedRealtimeMs: Double) -> Unit,
+    onError: (code: String, message: String) -> Unit,
+  ) {
+    readCounter(
+      onResult = { raw -> onResult(raw.toDouble(), SystemClock.elapsedRealtime().toDouble()) },
+      onError = onError,
+    )
+  }
+
+  private fun readCounter(
+    onResult: (Float) -> Unit,
+    onError: (code: String, message: String) -> Unit,
+  ) {
     val sensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
     if (sensor == null) {
       onError("STEP_SENSOR_UNAVAILABLE", "이 기기에는 걸음 센서가 없습니다.")
@@ -51,7 +82,7 @@ class StepSensorReader(private val context: Context) {
         resolved = true
         sensorManager.unregisterListener(this)
         handler.removeCallbacksAndMessages(null)
-        onResult(todayStepsFromRaw(event.values[0]))
+        onResult(event.values[0])
       }
 
       override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit

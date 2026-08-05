@@ -1,8 +1,10 @@
 import { NativeModules, Platform } from 'react-native';
 
+import type { StepCounterReading } from './stepLedger';
+
 type StepSensorNativeModule = {
   isAvailable(): Promise<boolean>;
-  readTodaySteps(): Promise<number>;
+  readRawCounter(): Promise<StepCounterReading>;
 };
 
 const native = NativeModules.StepSensor as StepSensorNativeModule | undefined;
@@ -12,9 +14,14 @@ export function isStepSensorAvailable(): boolean {
   return Platform.OS === 'android' && native != null;
 }
 
-/** 오늘 누적 걸음수를 기기 자체 걸음 센서(TYPE_STEP_COUNTER)에서 직접 읽는다.
- * 삼성헬스 미동의/미지원 사용자를 위한 대체 경로다. */
-export async function readStepSensorToday(): Promise<number | null> {
+/**
+ * 센서 원시값(재부팅 이후 누적)과 부팅 이후 경과시간. 센서가 없거나 읽기에 실패하면
+ * null이다.
+ *
+ * 이 값을 그대로 화면에 쓰면 안 된다 — 날짜별 걸음으로 정리하는 건 걸음 원장의 몫이다
+ * ([[stepLedger]]).
+ */
+export async function readStepCounter(): Promise<StepCounterReading | null> {
   if (!native) {
     return null;
   }
@@ -22,7 +29,7 @@ export async function readStepSensorToday(): Promise<number | null> {
     if (!(await native.isAvailable())) {
       return null;
     }
-    return await native.readTodaySteps();
+    return await native.readRawCounter();
   } catch {
     return null;
   }

@@ -1,4 +1,13 @@
+import {
+  parseIsoDate,
+  toIsoDate,
+  todayIso,
+} from '../../../shared/lib/isoDate';
 import type { HistoryPeriod } from '../api/historyApi';
+
+// 걸음 원장(shared)도 같은 변환을 쓰므로 shared/lib/isoDate로 옮겼다. 기록 화면 쪽
+// 호출부가 계속 여기서 가져다 쓸 수 있게 다시 내보낸다.
+export { parseIsoDate, toIsoDate, todayIso };
 
 export type PeriodRange = {
   /** 'yyyy-MM-dd'. */
@@ -9,23 +18,6 @@ export type PeriodRange = {
 
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'] as const;
 const DAYS_PER_WEEK = 7;
-
-/** new Date(iso)는 UTC로 파싱돼 하루가 밀린다. 로컬 자정으로 만든다. */
-export function parseIsoDate(iso: string): Date {
-  const [year, month, day] = iso.split('-').map(Number);
-  return new Date(year, month - 1, day);
-}
-
-/** toISOString은 UTC로 바꿔버려서 직접 조립한다. */
-export function toIsoDate(date: Date): string {
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
-  return `${date.getFullYear()}-${month}-${day}`;
-}
-
-export function todayIso(): string {
-  return toIsoDate(new Date());
-}
 
 function addDays(date: Date, amount: number): Date {
   const next = new Date(date);

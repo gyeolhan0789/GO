@@ -1,5 +1,6 @@
 package com.wecandoit.stepsensor
 
+import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -26,6 +27,25 @@ class StepSensorModule(private val reactContext: ReactApplicationContext) :
   fun readTodaySteps(promise: Promise) {
     reader.readTodaySteps(
       onResult = { steps -> promise.resolve(steps) },
+      onError = { code, message -> promise.reject(code, message) },
+    )
+  }
+
+  /**
+   * 센서 원시값과 부팅 이후 경과시간. 날짜 경계·재부팅 판정은 JS 걸음 원장이 한다
+   * (stepLedger.ts) — 여기서 가공하면 그 판정을 테스트할 수 없다.
+   */
+  @ReactMethod
+  fun readRawCounter(promise: Promise) {
+    reader.readRawCounter(
+      onResult = { steps, elapsedRealtimeMs ->
+        promise.resolve(
+          Arguments.createMap().apply {
+            putDouble("steps", steps)
+            putDouble("elapsedRealtimeMs", elapsedRealtimeMs)
+          },
+        )
+      },
       onError = { code, message -> promise.reject(code, message) },
     )
   }
