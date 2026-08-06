@@ -21,6 +21,7 @@ import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
 import { spacing } from '../../../shared/constants/spacing';
 import { FriendSelectRow } from './FriendSelectRow';
+import { WalkRoomCreatedModal } from './WalkRoomCreatedModal';
 import { lineHeights, MAX_FONT_SCALE } from '../../../shared/constants/typography';
 
 type BoardSizeOption = '3' | '4' | '5';
@@ -31,16 +32,26 @@ const BOARD_SIZE_OPTIONS: { label: string; value: BoardSizeOption }[] = [
   { label: '5 x 5', value: '5' },
 ];
 
+/** 만들기가 끝난 뒤 완료 모달이 가리킬 방. */
+type CreatedRoom = {
+  roomId: number;
+  name: string;
+};
+
 type CreateWalkRoomScreenProps = {
   visible: boolean;
   onClose: () => void;
+  /** 방을 만들고 목록으로 돌아갈 때. */
   onCreated: () => void;
+  /** 방을 만들고 바로 그 방으로 들어갈 때. */
+  onOpenCreatedRoom: (roomId: number) => void;
 };
 
 export function CreateWalkRoomScreen({
   visible,
   onClose,
   onCreated,
+  onOpenCreatedRoom,
 }: CreateWalkRoomScreenProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [roomName, setRoomName] = useState('');
@@ -48,6 +59,8 @@ export function CreateWalkRoomScreen({
   const [boardSize, setBoardSize] = useState<BoardSizeOption>('4');
   const [selectedFriendIds, setSelectedFriendIds] = useState<number[]>([]);
   const [friendSearch, setFriendSearch] = useState('');
+  // 만들어진 방. null이면 완료 모달이 닫혀 있다.
+  const [createdRoom, setCreatedRoom] = useState<CreatedRoom | null>(null);
 
   // 이 화면은 닫혀 있어도 계속 마운트돼 있어 그냥 두면 동행 탭에 처음 들어온
   // 순간의 친구 목록을 계속 보여준다. 상대가 내 친구 요청을 수락해도 내 쪽에는
@@ -78,6 +91,7 @@ export function CreateWalkRoomScreen({
     setBoardSize('4');
     setSelectedFriendIds([]);
     setFriendSearch('');
+    setCreatedRoom(null);
   };
 
   const handleHeaderBackPress = () => {
@@ -132,8 +146,8 @@ export function CreateWalkRoomScreen({
         );
       }
 
-      resetForm();
-      onCreated();
+      // 폼은 완료 모달을 닫을 때 비운다 — 여기서 비우면 모달 뒤로 빈 1단계가 보인다.
+      setCreatedRoom({ roomId: room.roomId, name: room.name });
     } catch (error) {
       Alert.alert(
         '산책방 생성 실패',
@@ -143,6 +157,17 @@ export function CreateWalkRoomScreen({
   };
 
   const isSubmitting = createRoomMutation.isPending;
+
+  // 완료 모달의 두 갈래. 어느 쪽이든 이 화면은 닫히고 폼은 처음 상태로 돌아간다.
+  const handleCloseCreated = () => {
+    resetForm();
+    onCreated();
+  };
+
+  const handleViewCreated = (roomId: number) => {
+    resetForm();
+    onOpenCreatedRoom(roomId);
+  };
 
   return (
     <Modal
@@ -275,6 +300,16 @@ export function CreateWalkRoomScreen({
             </>
           )}
         </View>
+
+        {/* 이 화면 안에 두어 만들기 모달이 닫히는 전환과 겹치지 않게 한다. */}
+        <WalkRoomCreatedModal
+          visible={createdRoom !== null}
+          roomName={createdRoom?.name ?? ''}
+          onClose={handleCloseCreated}
+          onView={() =>
+            createdRoom ? handleViewCreated(createdRoom.roomId) : undefined
+          }
+        />
       </Screen>
     </Modal>
   );
