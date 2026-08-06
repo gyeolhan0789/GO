@@ -5,6 +5,10 @@ import type { BattleProgress } from '../../../features/bingo/api/bingoApi';
 import { resolveBattleOutcome } from '../../../features/bingo/model/battleOutcome';
 import { MemberAvatar } from '../../../features/member/components/MemberAvatar';
 import type { RoomMemberResponse } from '../../../features/room/api/roomApi';
+import {
+  toOnlineMemberIds,
+  type RoomPresenceMember,
+} from '../../../features/room/hooks/useRoomPresenceSubscription';
 import { AppText } from '../../../shared/components/AppText/AppText';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
@@ -19,6 +23,8 @@ type BattleProgressCardProps = {
   /** 아바타를 그리는 데 필요한 방 멤버들. 없으면 기본 흉상이 나온다. */
   members: RoomMemberResponse[];
   myMemberId: number | null;
+  /** 지금 방에 접속해 있는 멤버. null이면 아직 모른다(구독 전). */
+  onlineMembers: RoomPresenceMember[] | null;
 };
 
 const OUTCOME_MESSAGE: Record<string, string> = {
@@ -39,9 +45,11 @@ export function BattleProgressCard({
   opponentNickname,
   members,
   myMemberId,
+  onlineMembers,
 }: BattleProgressCardProps) {
   const outcome = resolveBattleOutcome(progress);
   const message = OUTCOME_MESSAGE[outcome];
+  const onlineMemberIds = toOnlineMemberIds(onlineMembers);
   const findMember = (memberId: number) =>
     members.find(member => member.memberId === memberId) ?? null;
 
@@ -65,6 +73,7 @@ export function BattleProgressCard({
             progress.me.completedBingoCount >
             progress.opponent.completedBingoCount
           }
+          onlineMemberIds={onlineMemberIds}
         />
         <AppText style={styles.versus}>VS</AppText>
         <Side
@@ -77,6 +86,7 @@ export function BattleProgressCard({
             progress.opponent.completedBingoCount >
             progress.me.completedBingoCount
           }
+          onlineMemberIds={onlineMemberIds}
         />
       </View>
 
@@ -94,18 +104,36 @@ type SideProps = {
   approved: number;
   total: number;
   leading: boolean;
+  onlineMemberIds: Set<number> | null;
 };
 
-function Side({ name, member, lines, approved, total, leading }: SideProps) {
+function Side({
+  name,
+  member,
+  lines,
+  approved,
+  total,
+  leading,
+  onlineMemberIds,
+}: SideProps) {
+  const isOnline =
+    member !== null && (onlineMemberIds?.has(member.memberId) ?? false);
+
   return (
-    <View style={styles.side}>
+    <View
+      style={styles.side}
+      // 접속을 테두리 색으로만 알리면 색을 구분하기 어려운 사용자에게는 정보가
+      // 아니다. 이쪽에 말로도 남긴다.
+      accessibilityLabel={`${name} ${isOnline ? '접속 중' : '오프라인'}`}
+    >
       <View style={styles.avatarWrap}>
         {member ? (
           <MemberAvatar
             gender={member.gender}
             defaultImageUrl={member.defaultImageUrl}
             equippedItems={member.equippedItems}
-            style={styles.avatar}
+            // CharacterBust의 기본 회색 링을 덮어쓴다(호출부 style이 뒤에 온다).
+            style={[styles.avatar, isOnline && styles.avatarOnline]}
           />
         ) : (
           <Ionicons name="person" size={20} color={colors.muted} />
@@ -174,6 +202,12 @@ const styles = StyleSheet.create({
   avatar: {
     width: '100%',
     height: '100%',
+  },
+  // 접속 중. 크림 배경에 초록 1px은 잘 안 읽혀 두께도 함께 올린다
+  // (대기방·멤버 목록과 같은 표시).
+  avatarOnline: {
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
   sideName: {
     fontFamily: bodyFont.regular,

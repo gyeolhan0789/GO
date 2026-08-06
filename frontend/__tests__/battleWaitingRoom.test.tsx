@@ -4,10 +4,14 @@
 
 import React from 'react';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import type { ReactTestInstance } from 'react-test-renderer';
 
+import { MemberAvatar } from '../src/features/member/components/MemberAvatar';
+import { colors } from '../src/shared/constants/colors';
+
 import type { RoomDetailResponse } from '../src/features/room/api/roomApi';
+import type { RoomPresenceMember } from '../src/features/room/hooks/useRoomPresenceSubscription';
 import { BattleWaitingRoom } from '../src/screens/WalkRoomDetailScreen/components/BattleWaitingRoom';
 import {
   FakeWebSocket,
@@ -59,6 +63,7 @@ type RenderOptions = {
   memberIds?: number[];
   isBoardReady?: boolean;
   isHost?: boolean;
+  onlineMembers?: RoomPresenceMember[] | null;
 };
 
 const handlers = {
@@ -73,12 +78,14 @@ function render({
   memberIds = [ME],
   isBoardReady = false,
   isHost = true,
+  onlineMembers = null,
 }: RenderOptions = {}) {
   act(() => {
     renderer = ReactTestRenderer.create(
       <BattleWaitingRoom
         room={buildRoom(memberIds)}
         myMemberId={ME}
+        onlineMembers={onlineMembers}
         isHost={isHost}
         isBoardReady={isBoardReady}
         onEnterBoard={handlers.onEnterBoard}
@@ -166,6 +173,64 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
+/**
+ * 아바타에 실제로 얹힌 스타일. MemberAvatar가 배열 style을 그대로 넘기므로
+ * 평평하게 펴서 본다.
+ */
+function avatarBorderColors(root: ReactTestInstance): (string | undefined)[] {
+  return root
+    .findAllByType(MemberAvatar)
+    .map(node => StyleSheet.flatten(node.props.style)?.borderColor);
+}
+
+describe('BattleWaitingRoom — 접속 표시', () => {
+  test('접속 중인 멤버만 초록 테두리를 받는다', () => {
+    const root = render({
+      memberIds: [ME, OPPONENT],
+      // 나만 접속해 있고 상대는 아직 방 화면에 없다.
+      onlineMembers: [{ memberId: ME, nickname: '나' }],
+    });
+
+    // 슬롯 순서는 항상 [나, 상대]다.
+    expect(avatarBorderColors(root)).toEqual([colors.primary, undefined]);
+  });
+
+  test('상대가 들어오면 상대도 초록 테두리를 받는다', () => {
+    const root = render({
+      memberIds: [ME, OPPONENT],
+      onlineMembers: [
+        { memberId: ME, nickname: '나' },
+        { memberId: OPPONENT, nickname: '상대' },
+      ],
+    });
+
+    expect(avatarBorderColors(root)).toEqual([
+      colors.primary,
+      colors.primary,
+    ]);
+  });
+
+  test('아직 모르는 동안(null)에는 아무도 표시하지 않는다', () => {
+    // 구독 전에 전원을 오프라인으로 그리지 않는다.
+    const root = render({
+      memberIds: [ME, OPPONENT],
+      onlineMembers: null,
+    });
+
+    expect(avatarBorderColors(root)).toEqual([undefined, undefined]);
+  });
+
+  test('닉네임이 없어도 접속 표시는 그린다', () => {
+    // 서버가 닉네임을 못 찾으면 null로 온다.
+    const root = render({
+      memberIds: [ME, OPPONENT],
+      onlineMembers: [{ memberId: OPPONENT, nickname: null }],
+    });
+
+    expect(avatarBorderColors(root)).toEqual([undefined, colors.primary]);
+  });
+});
+
 describe('BattleWaitingRoom', () => {
   test('개인 배틀 큐를 구독한다', () => {
     render();
@@ -233,6 +298,7 @@ describe('BattleWaitingRoom', () => {
         <BattleWaitingRoom
           room={buildRoom([ME, OPPONENT])}
           myMemberId={ME}
+          onlineMembers={null}
           isHost={false}
           initialCountdownSeconds={3}
           isBoardReady
@@ -268,6 +334,7 @@ describe('BattleWaitingRoom', () => {
         <BattleWaitingRoom
           room={buildRoom([ME, OPPONENT])}
           myMemberId={ME}
+          onlineMembers={null}
           isHost
           isBoardReady
           onEnterBoard={handlers.onEnterBoard}
@@ -351,6 +418,7 @@ describe('BattleWaitingRoom', () => {
         <BattleWaitingRoom
           room={buildRoom([ME, OPPONENT])}
           myMemberId={ME}
+          onlineMembers={null}
           isHost
           initialCountdownSeconds={3}
           isBoardReady

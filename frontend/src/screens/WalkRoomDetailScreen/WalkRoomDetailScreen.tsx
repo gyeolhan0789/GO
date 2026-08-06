@@ -5,7 +5,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 import {
   BattleResultModal,
-  type BattleForfeitResult,
+  type BattleResult,
 } from '../../features/bingo/components/BattleResultModal/BattleResultModal';
 import { useActiveBingoBoardQuery } from '../../features/bingo/hooks/useActiveBingoBoardQuery';
 import { useMyMemberIdQuery } from '../../features/member/hooks/useMyMemberIdQuery';
@@ -14,6 +14,7 @@ import { useCancelRoomInviteMutation } from '../../features/room/hooks/useCancel
 import { useDeleteRoomMutation } from '../../features/room/hooks/useDeleteRoomMutation';
 import { useLeaveRoomMutation } from '../../features/room/hooks/useLeaveRoomMutation';
 import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
+import { useRoomPresenceSubscription } from '../../features/room/hooks/useRoomPresenceSubscription';
 import { useSentRoomInvitesQuery } from '../../features/room/hooks/useSentRoomInvitesQuery';
 import { ApiError } from '../../shared/api/ApiError';
 import { AppText } from '../../shared/components/AppText/AppText';
@@ -46,6 +47,20 @@ export function WalkRoomDetailScreen({
   const boardQuery = useActiveBingoBoardQuery(roomId);
   const isHost =
     room !== undefined && myMemberId !== null && room.hostId === myMemberId;
+
+  // 이 화면에 머무는 동안이 곧 "방에 접속 중"이다 — 구독이 입장이고 해지가
+  // 퇴장이라 따로 부를 API가 없다.
+  //
+  // 방 멤버가 아니면 서버가 구독을 거절하는데, 그 ERROR 프레임을 우리 클라이언트가
+  // 토큰 문제로 읽어 소켓을 통째로 재연결 루프에 빠뜨린다. 그래서 방 상세로 내가
+  // 멤버임을 확인한 뒤에만 켠다.
+  const isRoomMember =
+    myMemberId !== null &&
+    (room?.members ?? []).some(member => member.memberId === myMemberId);
+  const { onlineMembers } = useRoomPresenceSubscription({
+    roomId,
+    enabled: isRoomMember,
+  });
   // 초대 대기 목록은 방장의 관심사라 방장에게만 조회해서 보여준다.
   // 팀원은 누가 초대됐는지 알 필요가 없다.
   const sentInvitesQuery = useSentRoomInvitesQuery(isHost);
@@ -58,7 +73,7 @@ export function WalkRoomDetailScreen({
   );
   // 대기방에서 기권했을 때의 결과·보상 모달. null이면 닫힘.
   const [forfeitResult, setForfeitResult] =
-    useState<BattleForfeitResult | null>(null);
+    useState<BattleResult | null>(null);
 
   // 네비게이터 제목은 '모임 상세'로 고정돼 있다. 대결은 이 화면이 대기방으로
   // 통째로 바뀌므로 제목도 그에 맞춘다.
@@ -191,6 +206,7 @@ export function WalkRoomDetailScreen({
           <BattleWaitingRoom
             room={room}
             myMemberId={myMemberId}
+            onlineMembers={onlineMembers}
             isHost={isHost}
             initialCountdownSeconds={route.params.battleCountdownSeconds}
             isBoardReady={boardQuery.data !== undefined}
@@ -301,6 +317,7 @@ export function WalkRoomDetailScreen({
         <RoomMemberList
           members={room.members}
           myMemberId={myMemberId}
+          onlineMembers={onlineMembers}
           pendingInvites={pendingInvites}
           onCancelInvite={handleCancelInvite}
           cancelingRequestId={cancelingRequestId}

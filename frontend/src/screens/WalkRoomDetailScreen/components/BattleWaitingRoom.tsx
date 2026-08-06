@@ -7,6 +7,10 @@ import {
   useBattleMatchingSubscription,
   type BattleMatchingEvent,
 } from '../../../features/room/hooks/useBattleMatchingSubscription';
+import {
+  toOnlineMemberIds,
+  type RoomPresenceMember,
+} from '../../../features/room/hooks/useRoomPresenceSubscription';
 import { AppText } from '../../../shared/components/AppText/AppText';
 import { Button } from '../../../shared/components/Button/Button';
 import { Card } from '../../../shared/components/Card/Card';
@@ -23,6 +27,8 @@ const COUNTDOWN_TICK_MS = 1_000;
 type BattleWaitingRoomProps = {
   room: RoomDetailResponse;
   myMemberId: number | null;
+  /** 지금 이 방에 접속해 있는 멤버. null이면 아직 모른다(구독 전). */
+  onlineMembers: RoomPresenceMember[] | null;
   /** 방장만 시작 전 취소(초대 거두기 + 방 삭제)를 할 수 있다. */
   isHost: boolean;
   /** 시작 전, 방장이 대결을 접을 때. */
@@ -56,6 +62,7 @@ type BattleWaitingRoomProps = {
 export function BattleWaitingRoom({
   room,
   myMemberId,
+  onlineMembers,
   isHost,
   initialCountdownSeconds,
   onEnterBoard,
@@ -120,6 +127,7 @@ export function BattleWaitingRoom({
   }, [remainingSeconds]);
 
   const isCountingDown = remainingSeconds !== null && remainingSeconds > 0;
+  const onlineMemberIds = toOnlineMemberIds(onlineMembers);
   const opponent = room.members.find(member => member.memberId !== myMemberId);
   const isFull = room.members.length >= BATTLE_PARTICIPANT_COUNT;
 
@@ -156,9 +164,14 @@ export function BattleWaitingRoom({
           <Slot
             member={room.members.find(m => m.memberId === myMemberId) ?? null}
             fallbackLabel="나"
+            onlineMemberIds={onlineMemberIds}
           />
           <AppText style={styles.versus}>VS</AppText>
-          <Slot member={opponent ?? null} fallbackLabel="대기 중" />
+          <Slot
+            member={opponent ?? null}
+            fallbackLabel="대기 중"
+            onlineMemberIds={onlineMemberIds}
+          />
         </View>
 
         {/* 카운트다운은 3초뿐이라 문구로는 존재감이 없다. 큰 숫자로 세서
@@ -204,18 +217,32 @@ export function BattleWaitingRoom({
 type SlotProps = {
   member: RoomDetailResponse['members'][number] | null;
   fallbackLabel: string;
+  onlineMemberIds: Set<number> | null;
 };
 
-function Slot({ member, fallbackLabel }: SlotProps) {
+function Slot({ member, fallbackLabel, onlineMemberIds }: SlotProps) {
+  const isOnline =
+    member !== null && (onlineMemberIds?.has(member.memberId) ?? false);
+
   return (
-    <View style={styles.slot}>
+    <View
+      style={styles.slot}
+      // 접속을 테두리 색으로만 알리면 색을 구분하기 어려운 사용자에게는 정보가
+      // 아니다. 슬롯에 말로도 남긴다.
+      accessibilityLabel={
+        member === null
+          ? fallbackLabel
+          : `${member.nickname} ${isOnline ? '접속 중' : '오프라인'}`
+      }
+    >
       <View style={styles.avatarWrap}>
         {member ? (
           <MemberAvatar
             gender={member.gender}
             defaultImageUrl={member.defaultImageUrl}
             equippedItems={member.equippedItems}
-            style={styles.avatar}
+            // CharacterBust의 기본 회색 링을 덮어쓴다(호출부 style이 뒤에 온다).
+            style={[styles.avatar, isOnline && styles.avatarOnline]}
           />
         ) : (
           <AppText style={styles.emptyMark}>?</AppText>
@@ -271,6 +298,12 @@ const styles = StyleSheet.create({
   avatar: {
     width: '100%',
     height: '100%',
+  },
+  // 접속 중. 크림 배경에 초록 1px은 잘 안 읽혀 두께도 함께 올린다
+  // (RoomMemberList와 같은 표시).
+  avatarOnline: {
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
   emptyMark: {
     fontFamily: fontFamily.bold,
