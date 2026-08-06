@@ -144,7 +144,6 @@ class VisionRouter:
             )
 
 
-
             ai_result = (
                 self.gemini_service.verify_mission(
                     image_bytes=image_bytes,

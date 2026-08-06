@@ -90,6 +90,8 @@ services:
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - /var/www/wecandoit-admin:/var/www/wecandoit-admin:ro
       - /var/www/certbot:/var/www/certbot:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - edge
     healthcheck:
