@@ -15,17 +15,17 @@ import {
   lineHeights,
 } from '../../../../shared/constants/typography';
 
-/** 몰수로 끝난 대결의 내 입장. 정상 승부는 판 위 대결 현황 카드가 말해준다. */
-export type BattleForfeitResult = 'WIN_BY_FORFEIT' | 'FORFEITED';
+/** 대결이 끝났을 때의 내 입장. 목표 달성 승패와 몰수 계열을 모두 다룬다. */
+export type BattleResult = 'WIN' | 'LOSE' | 'WIN_BY_FORFEIT' | 'FORFEITED';
 
 type BattleResultModalProps = {
   /** null이면 닫힌 상태다. */
-  result: BattleForfeitResult | null;
+  result: BattleResult | null;
   onConfirm: () => void;
 };
 
 const COPY: Record<
-  BattleForfeitResult,
+  BattleResult,
   {
     icon: 'trophy-outline' | 'flag-outline';
     title: string;
@@ -35,6 +35,20 @@ const COPY: Record<
     stampColor: string;
   }
 > = {
+  WIN: {
+    icon: 'trophy-outline',
+    title: '목표 달성!',
+    subtitle: '먼저 목표에 닿아 승리했어요!',
+    rewardPoint: BATTLE_WINNER_REWARD_POINT,
+    stampColor: colors.highlightBg,
+  },
+  LOSE: {
+    icon: 'flag-outline',
+    title: '아깝게 졌어요',
+    subtitle: '상대가 먼저 목표에 닿았어요',
+    rewardPoint: BATTLE_LOSER_REWARD_POINT,
+    stampColor: colors.neutralBg,
+  },
   WIN_BY_FORFEIT: {
     icon: 'trophy-outline',
     title: '상대가 기권했어요',

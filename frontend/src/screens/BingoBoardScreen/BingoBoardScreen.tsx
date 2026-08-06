@@ -17,12 +17,19 @@ import type {
   BingoBoardSize,
 } from '../../features/bingo/components/BingoBoard/BingoBoard';
 import { BingoBoard } from '../../features/bingo/components/BingoBoard/BingoBoard';
-import { useActiveBingoBoardQuery } from '../../features/bingo/hooks/useActiveBingoBoardQuery';
+import {
+  isNoBoardError,
+  useActiveBingoBoardQuery,
+} from '../../features/bingo/hooks/useActiveBingoBoardQuery';
 import {
   BattleResultModal,
-  type BattleForfeitResult,
+  type BattleResult,
 } from '../../features/bingo/components/BattleResultModal/BattleResultModal';
-import { isForfeitEnd } from '../../features/bingo/model/battleOutcome';
+import {
+  isForfeitEnd,
+  resolveBattleOutcome,
+} from '../../features/bingo/model/battleOutcome';
+import { useBattleProgressSubscription } from '../../features/bingo/hooks/useBattleProgressSubscription';
 import { BattleProgressCard } from './components/BattleProgressCard';
 import { MissionVerificationModal } from '../../features/bingo/components/MissionVerificationModal/MissionVerificationModal';
 import {
@@ -33,6 +40,8 @@ import {
 import { useMyMemberIdQuery } from '../../features/member/hooks/useMyMemberIdQuery';
 import { useLeaveRoomMutation } from '../../features/room/hooks/useLeaveRoomMutation';
 import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
+import { useRoomPresenceSubscription } from '../../features/room/hooks/useRoomPresenceSubscription';
+import { useWalkSession } from '../../features/walk-session/hooks/useWalkSession';
 import { awaitWalkSessionKey } from '../../features/walk-session/model/walkSessionStore';
 import { ApiError } from '../../shared/api/ApiError';
 import { AppText } from '../../shared/components/AppText/AppText';
@@ -46,12 +55,6 @@ import { radius } from '../../shared/constants/radius';
 import { spacing } from '../../shared/constants/spacing';
 import { fontFamily, lineHeights } from '../../shared/constants/typography';
 import { useMeasuredWidth } from '../../shared/hooks/useMeasuredWidth';
-
-/**
- * 상대의 기권을 알아채는 폴링 간격. 서버가 몰수 때 아무 이벤트도 안 쏴서
- * 조회로만 알 수 있다 — 백엔드에 push 이벤트를 요청해 두었고, 오면 걷어낸다.
- */
-const FORFEIT_POLL_INTERVAL_MS = 15_000;
 
 type BingoBoardScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -70,46 +73,101 @@ export function BingoBoardScreen({
   const members = room?.members ?? [];
   const myMemberIdQuery = useMyMemberIdQuery();
   const battleProgress = board?.battleProgress ?? null;
+  const walkSession = useWalkSession();
   // 실시간 구독은 이 화면이 아니라 산책 세션에 묶여 있다(useWalkSessionRealtime).
   // 화면을 벗어나도 끊기지 않아야 해서 네비게이터에서 한 번만 잡는다.
 
-  // 상대의 기권은 어느 채널로도 밀려오지 않는다(서버가 몰수 때 소켓 이벤트를
-  // 안 쏜다). 대결이 진행 중인 동안만 판을 주기적으로 다시 읽어 알아챈다.
+  // 상대의 기권은 어느 채널로도 밀려오지 않는다 — 서버가 몰수 때 소켓 이벤트를
+  // 안 쏜다. 대신 방 presence가 상대의 소켓이 방에서 빠진 순간을 알려주므로,
+  // 그때 판을 한 번 다시 읽어 확인한다. 15초마다 두드리던 폴링을 걷어냈다.
+  //
+  // presence의 LEFT 자체를 몰수로 읽지는 않는다. 그건 "소켓이 끊겼다"까지만
+  // 뜻해서 지하철 한 정거장이나 앱 백그라운드로도 뜬다 — 이 브랜치에서 LTE
+  // 유휴 소켓이 18~187초마다 끊기는 걸 실기기로 확인했다. 승패는 서버가
+  // "그 판은 끝났다"고 답할 때만 정한다.
+  //
+  // LEFT는 offline으로 넘어가는 순간에만 온다. 상대 소켓이 이미 끊긴 뒤에
+  // 판이 끝나면 이벤트가 더 오지 않는데, 그건 앱을 다시 열 때 focusManager가
+  // 걸어주는 refetch가 받아낸다(AppProviders).
   const isBattleOngoing =
     room?.mode === 'BATTLE' && battleProgress?.gameStatus === 'ACTIVE';
   const refetchBoardRef = useRef(boardQuery.refetch);
   refetchBoardRef.current = boardQuery.refetch;
+
+  // 방 멤버가 아니면 서버가 presence 구독을 거절하고, 그 ERROR 프레임이 소켓
+  // 전체를 재연결 루프에 빠뜨린다. 방 상세로 내 멤버 여부를 확인한 뒤에 켠다.
+  const myMemberId = myMemberIdQuery.data ?? null;
+  const isRoomMember =
+    myMemberId !== null &&
+    members.some(member => member.memberId === myMemberId);
+  const opponentMemberId = battleProgress?.opponent.memberId ?? null;
+
+  // 구독은 방 멤버이면 켠다 — 대결이 아니어도 이 방에 누가 있는지는 같은
+  // 이야기이고, 계약도 "방 화면에 진입하면 구독"이다. 기권 판정만 대결에
+  // 한정한다(협동방에는 상대가 없어 아래 조건이 그냥 통과되지 않는다).
+  const { onlineMembers } = useRoomPresenceSubscription({
+    roomId,
+    enabled: isRoomMember,
+    onEvent: event => {
+      if (
+        !isBattleOngoing ||
+        event.type !== 'LEFT' ||
+        event.memberId !== opponentMemberId
+      ) {
+        return;
+      }
+      refetchBoardRef.current();
+    },
+  });
+
+  // 대결 진행률 이벤트는 산책 세션에도 묶여 있지만(useWalkSessionRealtime),
+  // 산책 없이 판만 열어 둔 경우가 실제로 있다 — 그때 상대의 targetReached가
+  // 올 채널이 없어서 이긴 줄도 진 줄도 모른 채 화면이 멈춰 있었다. 이 화면이
+  // 떠 있는 동안은 스스로도 구독한다. 산책 중이면 같은 토픽을 두 번 받는데,
+  // 이벤트 반영이 멱등이라 값은 어긋나지 않는다.
+  useBattleProgressSubscription(roomId, isBattleOngoing && isRoomMember);
+
+  // 대결 종료(목표 달성 승패/기권/몰수승)와 보상을 알리는 모달. null이면 닫힘.
+  const [battleResult, setBattleResult] = useState<BattleResult | null>(null);
+
+  // 승부가 이미 갈렸는가. 모달이 뜬 뒤에도 판과 기권 버튼이 살아 있으면
+  // 끝난 대결에 인증이 나가거나 이긴 쪽이 기권할 수 있다 — 캐시의 gameStatus가
+  // ACTIVE로 남은 짧은 틈에도 막아야 해서 이벤트로 아는 결과까지 함께 본다.
+  const isBattleDecided =
+    room?.mode === 'BATTLE' &&
+    (battleResult !== null ||
+      (battleProgress !== null &&
+        resolveBattleOutcome(battleProgress) !== 'IN_PROGRESS'));
+
+  // 종료를 한 번만 알린다 — 갱신마다 모달이 다시 열리면 안 된다.
+  const resultNotifiedRef = useRef(false);
   useEffect(() => {
-    if (!isBattleOngoing) {
+    if (resultNotifiedRef.current || room?.mode !== 'BATTLE') {
       return;
     }
-    const timer = setInterval(
-      () => refetchBoardRef.current(),
-      FORFEIT_POLL_INTERVAL_MS,
-    );
-    return () => clearInterval(timer);
-  }, [isBattleOngoing]);
 
-  // 몰수 종료(기권/몰수승)와 보상을 알리는 모달. null이면 닫힘.
-  const [forfeitResult, setForfeitResult] =
-    useState<BattleForfeitResult | null>(null);
-
-  // 몰수 종료를 한 번만 알린다 — 폴링마다 모달이 다시 열리면 안 된다.
-  const forfeitNotifiedRef = useRef(false);
-  useEffect(() => {
-    if (forfeitNotifiedRef.current || room?.mode !== 'BATTLE') {
+    // 목표 달성 승패. targetReached는 진행률 이벤트나 판 재조회로 캐시에 얹힌다.
+    const outcome =
+      battleProgress === null ? null : resolveBattleOutcome(battleProgress);
+    if (outcome === 'WIN' || outcome === 'LOSE') {
+      resultNotifiedRef.current = true;
+      setBattleResult(outcome);
       return;
     }
 
     // 몰수를 알아채는 길은 둘이다. 서버가 게임을 닫으면 활성 판 조회가
-    // 409로 떨어지므로 (1) 조회가 "서버가 응답한" 에러로 바뀌었고 캐시에
-    // 남은 마지막 진행률에서 아무도 목표에 닿지 않았다면 몰수다 — 정상
-    // 승부라면 targetReached 이벤트가 먼저 캐시에 얹혔을 것이다. (2) 혹시
-    // 서버가 ENDED를 그대로 내려주는 경우도 같은 결론으로 처리한다.
-    // 네트워크 실패(ApiError 아님)로는 절대 승리를 선언하지 않는다.
+    // 404/409로 떨어지므로 (1) 조회가 "판이 없다"로 바뀌었고 캐시에 남은
+    // 마지막 진행률에서 아무도 목표에 닿지 않았다면 몰수다 — 정상 승부라면
+    // targetReached 이벤트가 먼저 캐시에 얹혔을 것이다. (2) 혹시 서버가
+    // ENDED를 그대로 내려주는 경우도 같은 결론으로 처리한다.
+    //
+    // 판정 근거를 404/409로 좁혀 둔다. 여기를 `instanceof ApiError`로 두면
+    // 서버가 죽어 502가 나는 동안에도 "상대가 기권했다"고 선언한다 —
+    // 2026-08-06 dev 백엔드가 내려갔을 때 실기기에서 실제로 오탐이 났다.
+    // 승리 선언은 서버가 "그 판은 끝났다"고 말했을 때만 한다.
     const forfeitByError =
       boardQuery.isError &&
-      boardQuery.error instanceof ApiError &&
+      isNoBoardError(boardQuery.error) &&
       battleProgress !== null &&
       !battleProgress.me.targetReached &&
       !battleProgress.opponent.targetReached;
@@ -119,8 +177,8 @@ export function BingoBoardScreen({
     if (!forfeitByError && !forfeitByData) {
       return;
     }
-    forfeitNotifiedRef.current = true;
-    setForfeitResult('WIN_BY_FORFEIT');
+    resultNotifiedRef.current = true;
+    setBattleResult('WIN_BY_FORFEIT');
   }, [
     boardQuery.isError,
     boardQuery.error,
@@ -200,16 +258,24 @@ export function BingoBoardScreen({
     };
   });
 
-  const handleSelectCell = useCallback((cellId: number) => {
-    setCapturedPhoto(null);
-    setVerificationResult(null);
-    setSelectedCellId(cellId);
-    // 빙고판 아래에 상세가 나타나자마자 바로 보이도록, 레이아웃이 잡힌
-    // 다음 프레임에 그 위치로 스크롤한다.
-    requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({ y: detailY.current, animated: true });
-    });
-  }, []);
+  const handleSelectCell = useCallback(
+    (cellId: number) => {
+      // 승부가 갈린 판은 더 만질 수 없다. 여기서 열어주면 끝난 대결에
+      // 인증 요청이 나간다.
+      if (isBattleDecided) {
+        return;
+      }
+      setCapturedPhoto(null);
+      setVerificationResult(null);
+      setSelectedCellId(cellId);
+      // 빙고판 아래에 상세가 나타나자마자 바로 보이도록, 레이아웃이 잡힌
+      // 다음 프레임에 그 위치로 스크롤한다.
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollTo({ y: detailY.current, animated: true });
+      });
+    },
+    [isBattleDecided],
+  );
 
   const handleDetailLayout = (event: LayoutChangeEvent) => {
     detailY.current = event.nativeEvent.layout.y;
@@ -228,7 +294,7 @@ export function BingoBoardScreen({
           onPress: () => {
             leaveMutation.mutate(roomId, {
               // 몰수 처리 후에는 나는 이 방의 멤버가 아니라 뒤로 가면 못 읽는다.
-              onSuccess: () => setForfeitResult('FORFEITED'),
+              onSuccess: () => setBattleResult('FORFEITED'),
               onError: error => {
                 // 검증 중인 칸이 있으면 서버가 나가기를 막는다.
                 Alert.alert(
@@ -314,9 +380,52 @@ export function BingoBoardScreen({
   // 불러오지 못했어요"만 보인다 — 어느 분기로 빠지든 모달은 떠야 한다.
   const battleResultModal = (
     <BattleResultModal
-      result={forfeitResult}
+      result={battleResult}
       onConfirm={() => {
-        setForfeitResult(null);
+        setBattleResult(null);
+
+        // 대결방은 한 판짜리다. 결과를 확인했으면 방에서도 나간다 — 남겨두면
+        // 게임만 끝나고 방은 ACTIVE로 남아(서버가 방을 닫지 않는다) 홈의
+        // '대결 이어가기'가 죽은 대결을 계속 가리킨다.
+        //
+        // 기권(FORFEITED)은 기권 자체가 나가기라 이미 방에서 빠져 있다.
+        //
+        // 이 방을 걷는 중이면 나가지 않는다 — 방장의 나가기는 방을 닫으면서
+        // 서버의 활성 산책 세션까지 지워서, 아직 안 끝낸 산책이 기록될 길을
+        // 잃는다. 산책 화면으로 보내 산책부터 끝내게 한다.
+        const walkingThisRoom =
+          walkSession.isActive && walkSession.roomId === roomId;
+
+        if (battleResult !== 'FORFEITED' && !walkingThisRoom) {
+          leaveMutation.mutate(roomId, {
+            onError: error => {
+              // 상대(방장)가 먼저 결과를 확인하고 나갔으면 방이 이미 닫혀
+              // ROOM_CLOSED가 온다 — 원하던 결과라 알릴 것이 없다. 같은 409라
+              // 상태 코드로는 못 가르고 메시지로 가른다(응답에 에러 코드
+              // 식별자가 없다 — 백엔드에 추가 요청 예정).
+              if (
+                error instanceof ApiError &&
+                error.message.includes('종료된 게임방')
+              ) {
+                return;
+              }
+              // 그 밖의 거절은 방이 홈에 남는 이유다. 조용히 삼키면
+              // '대결 이어가기'가 왜 계속 뜨는지 알 수 없게 된다 — 실제로
+              // "검증 중인 빙고 칸" 409를 삼켜서 그랬다(2026-08-06).
+              Alert.alert(
+                '대결방을 정리하지 못했어요',
+                error instanceof Error
+                  ? error.message
+                  : '잠시 후 다시 시도해주세요.',
+              );
+            },
+          });
+        }
+
+        if (walkingThisRoom) {
+          navigation.navigate('WalkSession');
+          return;
+        }
         // 게임이 끝났으니 이 화면은 볼 게 없다 — 홈으로 돌아간다.
         navigation.popToTop();
       }}
@@ -383,6 +492,7 @@ export function BingoBoardScreen({
             }
             members={members}
             myMemberId={myMemberIdQuery.data ?? null}
+            onlineMembers={onlineMembers}
           />
         ) : null}
 
@@ -446,7 +556,15 @@ export function BingoBoardScreen({
             </AppText>
             <AppText style={styles.missionDetail}>{selectedCell.mission.detail}</AppText>
 
-            {isCellCompleted(selectedCell) ? (
+            {isBattleDecided ? (
+              // 승부가 갈렸다. 열려 있던 상세에서도 인증이 나가면 안 된다.
+              <View style={styles.pendingRow}>
+                <Ionicons name="flag-outline" size={20} color={colors.ink} />
+                <AppText style={styles.pendingText}>
+                  대결이 끝나 더 인증할 수 없어요.
+                </AppText>
+              </View>
+            ) : isCellCompleted(selectedCell) ? (
               <View style={styles.completedRow}>
                 <Ionicons
                   name="checkmark-circle"
@@ -489,9 +607,11 @@ export function BingoBoardScreen({
         ) : null}
 
         {/* 기권은 진행 중인 대결에서만 보인다. 끝난 판에서는 무의미하고,
-            협동·솔로에는 기권 개념이 없다. */}
+            협동·솔로에는 기권 개념이 없다. gameStatus만 보면 승부가 갈리고
+            캐시가 갱신되기 전의 짧은 틈에 이긴 쪽이 기권할 수 있다. */}
         {room?.mode === 'BATTLE' &&
-        battleProgress?.gameStatus === 'ACTIVE' ? (
+        battleProgress?.gameStatus === 'ACTIVE' &&
+        !isBattleDecided ? (
           <Button
             label="기권하기"
             variant="danger"
