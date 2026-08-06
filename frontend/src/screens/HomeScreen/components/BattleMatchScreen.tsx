@@ -69,9 +69,8 @@ export function BattleMatchScreen({
   onInvited,
 }: BattleMatchScreenProps) {
   const [selectedFriendId, setSelectedFriendId] = useState<number | null>(null);
-  const [boardSize, setBoardSize] = useState<BoardSizeOption>(
-    DEFAULT_BOARD_SIZE,
-  );
+  const [boardSize, setBoardSize] =
+    useState<BoardSizeOption>(DEFAULT_BOARD_SIZE);
   const [bingoGoal, setBingoGoal] = useState(DEFAULT_BINGO_GOAL);
 
   const friendsQuery = useFriendsQuery({ enabled: visible });
@@ -193,7 +192,13 @@ export function BattleMatchScreen({
                     </AppText>
                     <View
                       style={[styles.radio, selected && styles.radioSelected]}
-                    />
+                    >
+                      <Ionicons
+                        name="checkmark"
+                        size={20}
+                        color={colors.surface}
+                      />
+                    </View>
                   </Pressable>
                 );
               })}
@@ -316,8 +321,7 @@ const styles = StyleSheet.create({
     borderColor: colors.neutralBg,
   },
   radioSelected: {
-    backgroundColor: colors.ink,
-    borderColor: colors.ink,
+    backgroundColor: colors.primary,
   },
   input: {
     height: controlHeight.md,
