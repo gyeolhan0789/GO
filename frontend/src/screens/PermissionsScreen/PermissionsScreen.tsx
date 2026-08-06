@@ -17,22 +17,21 @@ import {
   checkPermission,
   openAppSettings,
   PERMISSION_KEYS,
+  REQUIRED_PERMISSION_KEYS,
   requestAllPermissions,
   type PermissionKey,
   type PermissionResult,
 } from '../../shared/lib/permissions';
-import {
-  hasSamsungHealthPermissions,
-  isSamsungHealthAvailable,
-  requestSamsungHealthPermissions,
-} from '../../shared/lib/samsungHealth';
-// 개발 단계: 권한 완료 저장 비활성화로 잠시 미사용.
 import { usePermissionsStatus } from '../../shared/hooks/usePermissionsStatus';
 import { PermissionCard } from './components/PermissionCard';
 import { AppText } from '../../shared/components/AppText/AppText';
 import { controlHeight } from '../../shared/constants/sizing';
 import { colors } from '../../shared/constants/colors';
-import { bodyFont, fontFamily, lineHeights } from '../../shared/constants/typography';
+import {
+  bodyFont,
+  fontFamily,
+  lineHeights,
+} from '../../shared/constants/typography';
 
 type PermissionsNavigation = NativeStackNavigationProp<
   RootStackParamList,
@@ -68,7 +67,7 @@ const PERMISSION_CARDS: PermissionCardData[] = [
   {
     key: 'notifications',
     icon: 'notifications-outline',
-    title: '알림',
+    title: '알림 (선택)',
     description: '미션·빙고 소식과 잠금화면 활동 현황을 알려드려요.',
   },
 ];
@@ -86,16 +85,14 @@ export function PermissionsScreen() {
   // 프레임에 두 번 눌리면 가드를 둘 다 통과하므로, 재진입 판단은 ref로 한다.
   const [isStarting, setIsStarting] = useState(false);
   const isStartingRef = useRef(false);
-  // 삼성헬스(건강 데이터)는 자체 권한 모델이라 상태를 따로 추적한다. 삼성헬스가
-  // 없는 기기에서는 카드도 요청도 없다 — 물어봐도 SDK가 거절해서 영구히 '거부됨'으로
-  // 남고, 그런 기기는 기기 걸음 센서로 대체한다(useStepDataToday).
-  const [healthAvailable, setHealthAvailable] = useState(false);
-  const [healthGranted, setHealthGranted] = useState(false);
 
-  // 진입 게이트는 표준 런타임 권한 기준. 삼성헬스는 갤럭시/개발자모드 의존이라
-  // 게이트에 포함하지 않고(막히지 않게) 요청·표시만 한다.
-  const allGranted = PERMISSION_KEYS.every(key => results[key] === 'granted');
-  const anyBlocked = PERMISSION_KEYS.some(key => results[key] === 'blocked');
+  // 진입 게이트는 필수 런타임 권한 기준. 알림은 선택이라 빠진다.
+  const allGranted = REQUIRED_PERMISSION_KEYS.every(
+    key => results[key] === 'granted',
+  );
+  const anyBlocked = REQUIRED_PERMISSION_KEYS.some(
+    key => results[key] === 'blocked',
+  );
 
   // 이미 허용된 권한을 반영한다(재진입/설정에서 허용 후 복귀 포함).
   const refreshStatuses = useCallback(async () => {
@@ -115,12 +112,6 @@ export function PermissionsScreen() {
       }
       return next;
     });
-
-    const available = await isSamsungHealthAvailable();
-    setHealthAvailable(available);
-    if (available) {
-      setHealthGranted(await hasSamsungHealthPermissions());
-    }
   }, []);
 
   useEffect(() => {
@@ -150,14 +141,7 @@ export function PermissionsScreen() {
   }, [complete, navigation]);
 
   const handleRequest = useCallback(async () => {
-    const next = await requestAllPermissions();
-    setResults(next);
-
-    // 삼성헬스 권한은 자체 UI(삼성헬스 팝업)로 요청한다(삼성헬스가 있을 때만).
-    if (await isSamsungHealthAvailable()) {
-      setHealthGranted(await requestSamsungHealthPermissions());
-    }
-
+    setResults(await requestAllPermissions());
     setRequested(true);
   }, []);
 
@@ -181,16 +165,6 @@ export function PermissionsScreen() {
               status={results[card.key]}
             />
           ))}
-          {healthAvailable ? (
-            <PermissionCard
-              icon="fitness-outline"
-              title="건강 데이터"
-              description="걸음·거리·칼로리를 삼성헬스에서 가져와 표시할 때 사용해요."
-              status={
-                healthGranted ? 'granted' : requested ? 'denied' : undefined
-              }
-            />
-          ) : null}
         </View>
 
         {requested && !allGranted ? (
@@ -199,11 +173,7 @@ export function PermissionsScreen() {
               ? '권한에 동의하지 않으면 서비스를 이용할 수 없어요. 기기 설정에서 권한을 허용해 주세요.'
               : '권한에 동의하지 않으면 서비스를 이용할 수 없어요. 모든 권한을 허용해 주세요.'}
           </AppText>
-        ) : (
-          <AppText style={styles.requiredNote}>
-            * 모든 권한에 동의해야 Go! 서비스를 이용할 수 있어요.
-          </AppText>
-        )}
+        ) : null}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -271,13 +241,6 @@ const styles = StyleSheet.create({
   },
   cards: {
     alignSelf: 'stretch',
-  },
-  requiredNote: {
-    fontFamily: bodyFont.regular,
-    fontSize: 13,
-    lineHeight: lineHeights[13],
-    color: colors.mutedStrong,
-    marginTop: 4,
   },
   blockedNotice: {
     fontFamily: bodyFont.regular,

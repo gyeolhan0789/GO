@@ -35,6 +35,13 @@ const native = NativeModules.SamsungHealth as
   | SamsungHealthNativeModule
   | undefined;
 
+/** JS만 갱신하고 네이티브가 옛 버전이면 호출이 'is not a function'으로 터진다. */
+export function isMissingNativeMethod(error: unknown): boolean {
+  return (
+    error instanceof TypeError && error.message.includes('is not a function')
+  );
+}
+
 /**
  * 삼성헬스 데이터 경로를 쓸 수 있는 기기인지.
  *
@@ -53,19 +60,14 @@ export async function isSamsungHealthAvailable(): Promise<boolean> {
   }
 }
 
-/** 삼성헬스 권한(걸음·활동요약 읽기)을 요청한다. */
-export async function requestSamsungHealthPermissions(): Promise<boolean> {
-  if (!native) {
-    return false;
-  }
-  try {
-    return await native.requestPermissions();
-  } catch {
-    return false;
-  }
-}
-
-/** 삼성헬스 읽기 권한 보유 여부(요청 없이 조회). */
+/**
+ * 삼성헬스 읽기 권한 보유 여부(요청 없이 조회).
+ *
+ * 동의를 요청하는 경로는 없다. SDK가 파트너 등록 없이는 기기마다 삼성헬스 개발자
+ * 모드를 켜야 동의를 받아주는데, 사용자에게 요구할 수 없는 일이라 권한 화면에서
+ * 빼버렸다. 그래서 이 값은 예전에 동의해둔 사용자에게만 참이고, 나머지는 전부 기기
+ * 걸음 센서로 간다([[useStepDataToday]]). 파트너 등록이 되면 요청을 되살리면 된다.
+ */
 export async function hasSamsungHealthPermissions(): Promise<boolean> {
   if (!native) {
     return false;
