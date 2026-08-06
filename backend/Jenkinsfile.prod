@@ -729,7 +729,7 @@ If the next stage fails, immediately run `sudo systemctl start nginx`.''',
                         set -eu
                         docker image tag "$IMAGE_REPOSITORY:$GIT_SHA" "$IMAGE_REPOSITORY:stable"
 
-                        if docker inspect "$LEGACY_STABLE_CONTAINER" >/dev/null 2>&1; then
+                        if docker container inspect "$LEGACY_STABLE_CONTAINER" >/dev/null 2>&1; then
                           docker stop "$LEGACY_STABLE_CONTAINER"
                           docker rm "$LEGACY_STABLE_CONTAINER"
                         fi
