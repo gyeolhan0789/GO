@@ -201,7 +201,7 @@ export function HomeScreen() {
         <View style={styles.startButtons}>
           <Button
             label="혼자하기"
-            size="lg"
+            size="md"
             variant="secondary"
             onPress={() => {
               // 이미 진행 중인 산책이 있으면 시트를 다시 고를 필요 없이
@@ -233,7 +233,7 @@ export function HomeScreen() {
           />
           <Button
             label="같이하기"
-            size="lg"
+            size="md"
             onPress={() => {
               if (isWalkSessionActive()) {
                 if (isActiveSessionSolo) {
@@ -250,50 +250,49 @@ export function HomeScreen() {
             }}
             style={styles.startButton}
           />
-        </View>
-
-        {/* 대결은 한 판으로 끝나서 산책방처럼 남기지 않는다. 그래서 방 고르기가
-            아니라 여기서 바로 상대를 골라 신청하고, 진행 중인 대결이 있으면
-            새로 만드는 대신 그 방으로 돌아간다. */}
-        <Button
-          label={activeBattleRoom ? '대결 이어가기' : '대결 신청하기'}
-          size="lg"
-          variant="secondary"
-          icon="flash"
-          onPress={() => {
-            if (activeBattleRoom) {
-              // 그 대결을 걷는 중이었다면 산책 화면으로 곧장 돌아간다.
-              if (
-                walkSession.isActive &&
-                walkSession.roomId === activeBattleRoom.roomId
-              ) {
-                navigation.navigate('WalkSession');
-                return;
-              }
-              // 판이 있으면 이미 시작된 대결 — 빙고판으로 직행. 수락 대기
-              // 중일 때만 대기방에서 카운트다운을 기다린다.
-              if (battleBoardQuery.data) {
-                navigation.navigate('BingoBoard', {
+          {/* 대결은 한 판으로 끝나서 산책방처럼 남기지 않는다. 그래서 방 고르기가
+              아니라 여기서 바로 상대를 골라 신청하고, 진행 중인 대결이 있으면
+              새로 만드는 대신 그 방으로 돌아간다(라벨은 셋을 나란히 두려고
+              고정 — 이어가기/신청하기 구분은 누른 뒤의 동작이 안다). */}
+          <Button
+            label="배틀하기"
+            size="md"
+            variant="secondary"
+            onPress={() => {
+              if (activeBattleRoom) {
+                // 그 대결을 걷는 중이었다면 산책 화면으로 곧장 돌아간다.
+                if (
+                  walkSession.isActive &&
+                  walkSession.roomId === activeBattleRoom.roomId
+                ) {
+                  navigation.navigate('WalkSession');
+                  return;
+                }
+                // 판이 있으면 이미 시작된 대결 — 빙고판으로 직행. 수락 대기
+                // 중일 때만 대기방에서 카운트다운을 기다린다.
+                if (battleBoardQuery.data) {
+                  navigation.navigate('BingoBoard', {
+                    roomId: activeBattleRoom.roomId,
+                  });
+                  return;
+                }
+                navigation.navigate('WalkRoomDetail', {
                   roomId: activeBattleRoom.roomId,
                 });
                 return;
               }
-              navigation.navigate('WalkRoomDetail', {
-                roomId: activeBattleRoom.roomId,
-              });
-              return;
-            }
-            if (isWalkSessionActive()) {
-              Alert.alert(
-                '진행 중인 산책이 있어요',
-                '진행 중인 산책을 먼저 종료한 뒤 대결을 신청해주세요.',
-              );
-              return;
-            }
-            setBattleSheetVisible(true);
-          }}
-          style={styles.battleButton}
-        />
+              if (isWalkSessionActive()) {
+                Alert.alert(
+                  '진행 중인 산책이 있어요',
+                  '진행 중인 산책을 먼저 종료한 뒤 대결을 신청해주세요.',
+                );
+                return;
+              }
+              setBattleSheetVisible(true);
+            }}
+            style={styles.startButton}
+          />
+        </View>
       </View>
 
       <BattleMatchScreen
@@ -393,9 +392,6 @@ const styles = StyleSheet.create({
   },
   startButton: {
     flex: 1,
-  },
-  battleButton: {
-    marginTop: spacing.md,
   },
   missionThumbnail: {
     width: 20,
