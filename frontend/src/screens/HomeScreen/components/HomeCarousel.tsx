@@ -21,14 +21,12 @@ import { SquarePagination } from './SquarePagination';
 
 type HomeCarouselProps = {
   steps: number;
-  goalSteps: number;
   characterName: string;
   characterBaseImage: ImageSourcePropType | null;
   characterFallbackImage?: ImageSourcePropType | null;
   characterItems: CharacterLayer[];
   distanceKm: number;
   calories: number;
-  rewardHint: string;
   bingoSize: BingoBoardSize;
   bingoCells: BingoBoardCell[];
   bingoHint?: string;
@@ -43,14 +41,12 @@ const PAGE_COUNT = 2;
 
 export function HomeCarousel({
   steps,
-  goalSteps,
   characterName,
   characterBaseImage,
   characterFallbackImage,
   characterItems,
   distanceKm,
   calories,
-  rewardHint,
   bingoSize,
   bingoCells,
   bingoHint,
@@ -95,14 +91,12 @@ export function HomeCarousel({
             <View style={{ width: pageWidth }}>
               <HomeSummaryPage
                 steps={steps}
-                goalSteps={goalSteps}
                 characterName={characterName}
                 characterBaseImage={characterBaseImage}
                 characterFallbackImage={characterFallbackImage}
                 characterItems={characterItems}
                 distanceKm={distanceKm}
                 calories={calories}
-                rewardHint={rewardHint}
                 isWalking={isWalking}
                 walkElapsedLabel={walkElapsedLabel}
                 onPressWalkBadge={onPressWalkBadge}
