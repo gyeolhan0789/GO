@@ -1,5 +1,5 @@
 <resources>
     <!-- 폰 앱(app/src/main/res/values/strings.xml)과 같은 값으로 둔다. 아직
          제품명이 정해지지 않아 양쪽 다 프로젝트 이름을 쓰고 있다. -->
-    <string name="app_name">frontend</string>
+    <string name="app_name">GO!</string>
 </resources>
