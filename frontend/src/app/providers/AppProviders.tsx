@@ -23,8 +23,9 @@ export function AppProviders({ children }: PropsWithChildren) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <FcmNotificationManager />
         {children}
+        {/* 네비게이터 위에 포그라운드 알림 배너가 겹쳐 보여야 하므로 마지막에 둔다. */}
+        <FcmNotificationManager />
       </AuthProvider>
     </QueryClientProvider>
   );

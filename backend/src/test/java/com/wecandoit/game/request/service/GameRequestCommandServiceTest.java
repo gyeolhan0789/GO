@@ -591,30 +591,18 @@ class GameRequestCommandServiceTest {
     }
 
     @Test
-    @DisplayName("게임이 시작된 방의 초대 요청은 수락할 수 없다")
-    void acceptGameRequestRejectsInProgressRoom() {
+    @DisplayName("협동방 초대 수락은 참가자를 등록하고 산책 시작 알림을 발행하지 않는다")
+    void acceptCooperativeGameRequestRegistersParticipantWithoutWalkStartNotification() {
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
         given(gameRequestRepository.findByIdForUpdate(20L)).willReturn(Optional.of(gameRequest));
         Room room = givenAcceptableRoom(RoomStatus.ACTIVE);
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
-        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L))
-                .willReturn(List.of(RoomMember.create(10L, 1L), RoomMember.create(10L, 2L)));
 
         gameRequestCommandService.acceptGameRequest(2L, 10L, 20L);
 
         assertThat(gameRequest.getStatus()).isEqualTo(RequestStatus.ACCEPTED);
         then(gameCycleCommandService).should().registerCurrentCycleParticipant(room, 2L);
-        ArgumentCaptor<NotificationRequestedEvent> walkStartCaptor =
-                ArgumentCaptor.forClass(NotificationRequestedEvent.class);
-        then(eventPublisher).should(times(2)).publishEvent(walkStartCaptor.capture());
-        assertThat(walkStartCaptor.getAllValues())
-                .extracting(NotificationRequestedEvent::recipientMemberId)
-                .containsExactlyInAnyOrder(1L, 2L);
-        assertThat(walkStartCaptor.getAllValues())
-                .allSatisfy(event -> {
-                    assertThat(event.type()).isEqualTo(NotificationType.WALK_START);
-                    assertThat(event.targetId()).isEqualTo(10L);
-                });
+        then(eventPublisher).shouldHaveNoInteractions();
     }
 
     @Test

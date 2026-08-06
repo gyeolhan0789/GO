@@ -20,6 +20,7 @@ import { PermissionsScreen } from '../../screens/PermissionsScreen/PermissionsSc
 import { CharacterCustomizeScreen } from '../../screens/CharacterCustomizeScreen/CharacterCustomizeScreen';
 import { FriendRequestsScreen } from '../../screens/FriendRequestsScreen/FriendRequestsScreen';
 import { MyPageScreen } from '../../screens/MyPageScreen/MyPageScreen';
+import { NotificationsScreen } from '../../screens/NotificationsScreen/NotificationsScreen';
 import { RoomInvitesScreen } from '../../screens/RoomInvitesScreen/RoomInvitesScreen';
 import { SignupScreen } from '../../screens/SignupScreen/SignupScreen';
 import { SocialSignupScreen } from '../../screens/SocialSignupScreen/SocialSignupScreen';
@@ -75,6 +76,7 @@ export type RootStackParamList = {
   };
   BingoBoard: { roomId: number };
   MyPage: undefined;
+  Notifications: undefined;
   CharacterCustomize: undefined;
   // 받은/보낸 친구 요청 내역. 보낸 요청은 서버가 아직 응답받지 않은 요청만 내려준다.
   FriendRequests: undefined;
@@ -184,6 +186,11 @@ export function RootNavigator() {
             name="MyPage"
             component={MyPageScreen}
             options={{ ...DETAIL_HEADER_OPTIONS, title: '프로필 설정' }}
+          />
+          <Stack.Screen
+            name="Notifications"
+            component={NotificationsScreen}
+            options={{ ...DETAIL_HEADER_OPTIONS, title: '알림' }}
           />
           <Stack.Screen
             name="CharacterCustomize"
