@@ -32,6 +32,39 @@ function messageOf(error: unknown): string {
 }
 
 /**
+ * 걸은 시간을 서버가 볼 창(`endedAt - startedAt`) 안으로 깎는다.
+ *
+ * 서버는 `activeDurationSeconds`가 그 창보다 크면 400(INVALID_INPUT)으로 거절해
+ * 산책 기록이 통째로 날아간다. 그런데 두 값의 출처가 다르다 — 걸은 시간은
+ * 네이티브 세션이 시작한 순간부터 재는데, `startedAt`은 그보다 늦게 찍힌다.
+ * `confirmWalkSessionStart`가 네이티브를 먼저 켜고 서버 세션 발급은 기다리지
+ * 않으며, 그 발급은 빙고판 조회까지 거쳐 왕복 두 번 뒤에야 서버에 도달한다.
+ * 그 지연만큼 걸은 시간이 창을 넘어서, 네트워크가 느린 순간에만 기록이 거절됐다.
+ *
+ * 서버가 쓸 계산을 그대로 다시 해서 맞춰 보낸다. 깎이는 건 그 왕복 지연분이다.
+ */
+function clampToServerWindow(
+  activeDurationSeconds: number,
+  startedAt: string | undefined,
+  endedAt: string,
+): number {
+  // 이 변경 전에 시작한 산책은 startedAt이 없다. 그때는 서버가 자기 값으로
+  // 창을 잡으므로 우리가 깎을 근거가 없다.
+  if (startedAt === undefined) {
+    return activeDurationSeconds;
+  }
+
+  const windowMs = Date.parse(endedAt) - Date.parse(startedAt);
+  if (Number.isNaN(windowMs)) {
+    return activeDurationSeconds;
+  }
+
+  // 기기 시계가 서버보다 뒤처져 있으면 창이 음수로 나온다. 음수를 보내면 그것도
+  // 거절당하므로 0으로 막는다.
+  return Math.min(activeDurationSeconds, Math.max(0, Math.floor(windowMs / 1000)));
+}
+
+/**
  * 완료 요청은 같은 walkSessionKey에 멱등이다. 그래서 응답을 못 받은 경우에는
  * 다시 보내도 안전하다 — 서버가 이미 만들어둔 기록을 그대로 돌려준다.
  */
@@ -81,6 +114,7 @@ export async function recordFinishedWalk(
     };
   }
   const walkSessionKey = stored.walkSessionKey;
+  const endedAt = walk.endedAt.toISOString();
 
   try {
     const walkSession = await completeWithRetry({
@@ -89,8 +123,12 @@ export async function recordFinishedWalk(
       roomId: walk.roomId,
       bingoBoardId: stored.bingoBoardId,
       startedAt: stored.startedAt,
-      endedAt: walk.endedAt.toISOString(),
-      activeDurationSeconds: walk.activeDurationSeconds,
+      endedAt,
+      activeDurationSeconds: clampToServerWindow(
+        walk.activeDurationSeconds,
+        stored.startedAt,
+        endedAt,
+      ),
       step: walk.step,
       distance: walk.distance,
       calories: walk.calories,
