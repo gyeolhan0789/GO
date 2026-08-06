@@ -271,7 +271,9 @@ describe('하트비트', () => {
     expect(socket.sent.slice(before)).toEqual(['\n']);
   });
 
-  test('서버가 못 받겠다고 하면 보내지 않는다', () => {
+  test('서버가 하트비트를 안 한다고 해도 유휴 소켓을 만들지 않는다', () => {
+    // 우리 서버가 실제로 주는 응답이다. 규약대로 전송까지 끄면 이벤트가 없는
+    // 동안 한 바이트도 흐르지 않아 통신사 NAT가 연결을 걷어낸다.
     subscribe('/topic/a', () => {});
     const socket = FakeWebSocket.last;
     socket.open();
@@ -280,7 +282,10 @@ describe('하트비트', () => {
 
     jest.advanceTimersByTime(60_000);
 
-    expect(socket.sent.slice(before)).toEqual([]);
+    // 10초 간격으로 여섯 번. 서버가 못 보낸다고 했으니 수신 감시는 돌지 않아
+    // 이 사이에 재연결이 끼어들지 않는다.
+    expect(socket.sent.slice(before)).toEqual(Array(6).fill('\n'));
+    expect(socket.closeCallCount).toBe(0);
   });
 
   test('받는 하트비트가 끊기면 죽은 연결로 보고 다시 붙는다', () => {

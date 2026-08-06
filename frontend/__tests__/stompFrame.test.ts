@@ -178,11 +178,27 @@ describe('negotiateHeartBeat', () => {
     });
   });
 
-  test('상대가 못 받겠다면 보내지 않는다', () => {
-    // 서버가 "받고 싶은 간격 0" = 하트비트를 못 받는다는 뜻이다.
+  test('상대가 안 받겠다고 해도 내 간격으로 보낸다', () => {
+    // 서버가 "받고 싶은 간격 0"이어도 보낸다. 안 보내면 유휴 소켓이 되어
+    // 통신사 NAT가 걷어낸다. 개행은 수신측이 무시하므로 해가 없다.
     expect(negotiateHeartBeat([10_000, 10_000], [10_000, 0])).toEqual({
+      sendEvery: 10_000,
+      expectEvery: 10_000,
+    });
+  });
+
+  test('내가 못 보내겠다면 보내지 않는다', () => {
+    expect(negotiateHeartBeat([0, 10_000], [10_000, 10_000])).toEqual({
       sendEvery: 0,
       expectEvery: 10_000,
+    });
+  });
+
+  test('양쪽 다 0이어도 우리 하트비트는 살아 있다', () => {
+    // 우리 서버가 실제로 주는 응답(`heart-beat: 0,0`). 받기는 끄고 보내기만 남는다.
+    expect(negotiateHeartBeat([10_000, 10_000], [0, 0])).toEqual({
+      sendEvery: 10_000,
+      expectEvery: 0,
     });
   });
 

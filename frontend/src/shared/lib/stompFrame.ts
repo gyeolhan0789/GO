@@ -209,8 +209,18 @@ export function parseHeartBeat(header: string | undefined): [number, number] {
 }
 
 /**
- * 내가 보낼 간격과 받기를 기대할 간격. 한쪽이 0이면 그 방향은 끈다 —
- * 0은 "못 한다"는 뜻이라 상대가 못 하겠다면 강요할 수 없다.
+ * 내가 보낼 간격과 받기를 기대할 간격.
+ *
+ * **받기**는 규약대로 협상한다 — 서버가 "못 보낸다"(0)고 하면 기다리지 않는다.
+ * 없는 하트비트를 기다리다 멀쩡한 연결을 끊으면 안 된다.
+ *
+ * **보내기**는 서버가 "안 받겠다"(0)고 해도 우리 최소 간격으로 보낸다. 규약대로
+ * 끄면 이벤트가 없는 동안 소켓에 한 바이트도 흐르지 않는데, 모바일 통신사 NAT는
+ * 그런 유휴 TCP를 30~120초 사이에 걷어낸다(2026-08-06 실기기 LTE에서 18~187초
+ * 간격으로 `1006 Software caused connection abort` 재현). 재연결이 받쳐줘도
+ * 6~8초의 공백이 생기고, 그 사이에 온 이벤트는 브로커가 재전송하지 않아 사라진다.
+ *
+ * 프레임 사이의 개행은 규약상 수신측이 무시하게 되어 있어 서버에 해가 없다.
  */
 export function negotiateHeartBeat(
   mine: [number, number],
@@ -220,7 +230,7 @@ export function negotiateHeartBeat(
   const [theirSend, theirReceive] = theirs;
 
   return {
-    sendEvery: mySend === 0 || theirReceive === 0 ? 0 : Math.max(mySend, theirReceive),
+    sendEvery: mySend === 0 ? 0 : Math.max(mySend, theirReceive),
     expectEvery:
       myReceive === 0 || theirSend === 0 ? 0 : Math.max(myReceive, theirSend),
   };
