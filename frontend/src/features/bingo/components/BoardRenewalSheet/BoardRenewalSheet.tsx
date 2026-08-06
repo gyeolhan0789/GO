@@ -57,7 +57,7 @@ export function BoardRenewalSheet({
   const handleRenew = async () => {
     const targetStepCount = Number(stepGoal);
     if (!stepGoal || targetStepCount < 1) {
-      Alert.alert('목표 걸음수를 입력해주세요.');
+      Alert.alert('이번 주 목표 걸음 수를 입력해주세요.');
       return;
     }
 
@@ -81,10 +81,10 @@ export function BoardRenewalSheet({
   return (
     <BottomSheet visible={visible} onClose={onClose} title="빙고판 갱신하기">
       <View style={styles.body}>
-        <Text style={styles.label}>목표 걸음수</Text>
+        <Text style={styles.label}>이번 주 목표 걸음 수</Text>
         <TextInput
           style={styles.input}
-          placeholder="예: 10000"
+          placeholder="이번 주 합계 (예: 10000)"
           placeholderTextColor={colors.muted}
           value={stepGoal}
           onChangeText={text => setStepGoal(text.replace(/[^0-9]/g, ''))}

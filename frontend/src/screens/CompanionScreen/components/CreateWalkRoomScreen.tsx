@@ -108,7 +108,7 @@ export function CreateWalkRoomScreen({
       return;
     }
     if (!stepGoal || Number(stepGoal) < 1) {
-      Alert.alert('공동 목표 걸음수를 입력해주세요.');
+      Alert.alert('이번 주 공동 목표 걸음 수를 입력해주세요.');
       return;
     }
     setStep(2);
@@ -212,11 +212,11 @@ export function CreateWalkRoomScreen({
                 onChangeText={setRoomName}
               />
 
-              <AppText style={styles.label}>공동 목표 걸음수</AppText>
+              <AppText style={styles.label}>이번 주 공동 목표 걸음 수</AppText>
               <TextInput
                 maxFontSizeMultiplier={MAX_FONT_SCALE}
                 style={styles.input}
-                placeholder="일주일 기준 목표 걸음수 (예: 10000)"
+                placeholder="이번 주 합계 (예: 10000)"
                 placeholderTextColor={colors.muted}
                 value={stepGoal}
                 onChangeText={text => setStepGoal(text.replace(/[^0-9]/g, ''))}

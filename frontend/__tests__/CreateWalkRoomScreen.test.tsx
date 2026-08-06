@@ -225,7 +225,7 @@ function findFriendRow(root: ReactTestInstance, nickname: string) {
 /** 1단계(방 정보)를 채우고 2단계(친구 선택)로 넘어간다. */
 async function goToFriendStep(root: ReactTestInstance) {
   await typeInto(root, '산책방 이름을 입력하세요', '아침 산책 모임');
-  await typeInto(root, '일주일 기준 목표 걸음수 (예: 10000)', '10000');
+  await typeInto(root, '이번 주 합계 (예: 10000)', '10000');
   await act(async () => {
     findButtonByLabel(root, '다음').props.onPress();
   });
