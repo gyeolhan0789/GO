@@ -139,6 +139,7 @@ PATH="$MOCK_BIN:$PATH" DOCKER_LOG="$DOCKER_LOG" \
 
 grep -Fq -- '--publish 127.0.0.1:18080:80' "$DOCKER_LOG"
 grep -Fq -- '--publish 127.0.0.1:18443:443' "$DOCKER_LOG"
+grep -Fq -- '--add-host host.docker.internal:host-gateway' "$DOCKER_LOG"
 grep -Fq -- '--volume /etc/letsencrypt:/etc/letsencrypt:ro' "$DOCKER_LOG"
 grep -Fq '/usr/local/bin/switch-backend-route stable-only' "$DOCKER_LOG"
 grep -Fq '/usr/local/bin/switch-backend-route canary-10' "$DOCKER_LOG"

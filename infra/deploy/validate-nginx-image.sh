@@ -18,6 +18,7 @@ docker run --detach \
   --name "$VALIDATION_CONTAINER" \
   --publish "$VALIDATION_BIND_ADDRESS:$VALIDATION_HTTP_PORT:80" \
   --publish "$VALIDATION_BIND_ADDRESS:$VALIDATION_HTTPS_PORT:443" \
+  --add-host host.docker.internal:host-gateway \
   --add-host backend-stable:127.0.0.1 \
   --add-host backend-canary:127.0.0.1 \
   --volume /etc/letsencrypt:/etc/letsencrypt:ro \
