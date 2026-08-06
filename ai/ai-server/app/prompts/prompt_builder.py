@@ -173,18 +173,44 @@ class PromptBuilder:
         decision_condition: dict
     ) -> str:
 
+        target = decision_condition["target"]
+        constraints = decision_condition["constraints"]
+
+        subject = target["subject"]
+        object = target["object"]
+
+        relation = constraints["relation"]
+
+
+        # relation 제외 나머지 조건 처리
+        attribute_conditions = []
+
+        for key, value in constraints.items():
+
+            if key == "relation":
+                continue
+
+            attribute_conditions.append(
+                f"- 대상 객체({subject})의 {key}는 {value}이어야 합니다."
+            )
+
+
+        extra_condition = ""
+
+        if attribute_conditions:
+
+            extra_condition = (
+                "\n\n추가 조건:\n"
+                + "\n".join(attribute_conditions)
+            )
+
+
         return RELATION_PROMPT.format(
 
-            subject=decision_condition[
-                "target"
-            ]["subject"],
+            subject=subject,
 
-            object=decision_condition[
-                "target"
-            ]["object"],
+            object=object,
 
-            relation=decision_condition[
-                "constraints"
-            ]["relation"]
+            relation=relation
 
-        )
+        ) + extra_condition
