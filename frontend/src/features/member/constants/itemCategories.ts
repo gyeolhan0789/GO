@@ -1,9 +1,14 @@
 import type { ItemCategory } from '../api/memberApi';
 
-/** 백엔드 `ItemCategory` enum과 1:1로 대응한다. 탭에 보여줄 순서다. */
+/**
+ * 상점·꾸미기 탭에 보여줄 카테고리와 순서.
+ *
+ * 백엔드 `ItemCategory` enum의 부분집합이다 — 파는 아이템이 없는 카테고리는
+ * 빈 탭만 남기므로 빼둔다(안경). 아이템이 생기면 여기에 한 줄 더하면 된다.
+ * 그리는 쪽(CATEGORY_LAYER_ORDER, ItemThumbnail)은 enum 전체를 그대로 다룬다.
+ */
 export const ITEM_CATEGORIES: { value: ItemCategory; label: string }[] = [
   { value: 'HAT', label: '모자' },
-  { value: 'SUNGLASSES', label: '안경' },
   { value: 'TOP', label: '상의' },
   { value: 'BOTTOM', label: '하의' },
   { value: 'SHOES', label: '신발' },
