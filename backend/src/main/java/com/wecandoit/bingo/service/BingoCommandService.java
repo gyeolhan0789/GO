@@ -203,7 +203,7 @@ public class BingoCommandService {
             return;
         }
 
-        eventPublisher.publishEvent(notificationMessageFactory.weeklyBingoRenewal(room.getHostId()));
+        eventPublisher.publishEvent(notificationMessageFactory.weeklyBingoRenewal(room.getHostId(), roomId));
     }
 
     private void validateMember(Long memberId, Long roomId) {

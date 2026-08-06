@@ -66,6 +66,11 @@ class FriendRequestCommandServiceTest {
         invitee = member(2L, "받는사람");
         given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(inviter));
         given(memberRepository.findByIdForUpdate(2L)).willReturn(Optional.of(invitee));
+        given(friendRequestRepository.save(Mockito.any(FriendRequest.class))).willAnswer(invocation -> {
+            FriendRequest saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 30L);
+            return saved;
+        });
     }
 
     @Test
@@ -102,6 +107,7 @@ class FriendRequestCommandServiceTest {
         then(eventPublisher).should().publishEvent(captor.capture());
         assertThat(captor.getValue().recipientMemberId()).isEqualTo(2L);
         assertThat(captor.getValue().type()).isEqualTo(NotificationType.FRIEND_REQUEST);
+        assertThat(captor.getValue().targetId()).isEqualTo(30L);
     }
 
     @Test

@@ -31,13 +31,14 @@ class NotificationEventListenerTest {
     void handleCallsNotificationCommandServiceSend() {
         // given
         NotificationRequestedEvent event =
-                new NotificationRequestedEvent(1L, NotificationType.FRIEND_REQUEST, "제목", "본문");
+                new NotificationRequestedEvent(1L, NotificationType.FRIEND_REQUEST, "제목", "본문", 20L);
 
         // when
         notificationEventListener.handle(event);
 
         // then
-        then(notificationCommandService).should().send(1L, NotificationType.FRIEND_REQUEST, "제목", "본문");
+        then(notificationCommandService).should()
+                .send(1L, NotificationType.FRIEND_REQUEST, "제목", "본문", 20L);
     }
 
     @Test
@@ -45,10 +46,10 @@ class NotificationEventListenerTest {
     void handleSwallowsExceptions() {
         // given
         NotificationRequestedEvent event =
-                new NotificationRequestedEvent(1L, NotificationType.FRIEND_REQUEST, "제목", "본문");
+                new NotificationRequestedEvent(1L, NotificationType.FRIEND_REQUEST, "제목", "본문", 20L);
         willThrow(new RuntimeException("FCM 발송 실패"))
                 .given(notificationCommandService)
-                .send(1L, NotificationType.FRIEND_REQUEST, "제목", "본문");
+                .send(1L, NotificationType.FRIEND_REQUEST, "제목", "본문", 20L);
 
         // when & then
         assertThatCode(() -> notificationEventListener.handle(event)).doesNotThrowAnyException();

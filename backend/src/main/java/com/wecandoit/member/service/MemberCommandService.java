@@ -79,4 +79,15 @@ public class MemberCommandService {
 
         member.updateFcmToken(request.fcmToken());
     }
+
+    public void clearFcmToken(Long memberId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+
+        member.clearFcmToken();
+    }
+
+    public void clearFcmTokenIfPresent(Long memberId) {
+        memberRepository.findById(memberId).ifPresent(Member::clearFcmToken);
+    }
 }

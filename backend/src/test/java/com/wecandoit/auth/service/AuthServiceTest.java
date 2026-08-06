@@ -17,6 +17,7 @@ import com.wecandoit.auth.dto.LoginRequest;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
+import com.wecandoit.member.service.MemberCommandService;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -45,6 +46,8 @@ class AuthServiceTest {
     private MemberRepository memberRepository;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private MemberCommandService memberCommandService;
     private TokenIssuer tokenIssuer;
     private AuthService authService;
 
@@ -56,7 +59,8 @@ class AuthServiceTest {
                 tokenRepository,
                 memberRepository,
                 passwordEncoder,
-                tokenIssuer
+                tokenIssuer,
+                memberCommandService
         );
     }
 
@@ -180,6 +184,7 @@ class AuthServiceTest {
         ArgumentCaptor<JwtClaims> claimsCaptor = ArgumentCaptor.forClass(JwtClaims.class);
         then(tokenRepository).should().blacklistAccessToken(claimsCaptor.capture());
         assertThat(claimsCaptor.getValue().memberId()).isEqualTo(1L);
+        then(memberCommandService).should().clearFcmTokenIfPresent(1L);
     }
 
     @Test
