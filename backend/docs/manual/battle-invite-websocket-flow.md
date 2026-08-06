@@ -113,3 +113,10 @@ Host가 배틀 초대를 취소하면 Invitee에게 전송된다.
 - 이벤트를 놓친 경우 프론트는 `GET /rooms/{roomId}/bingo-boards/active`로 게임 시작 여부와 활성 빙고판을 조회한다.
 - 초대 상태 확인이 필요하면 `GET /rooms/requests/received` 또는 `GET /rooms/requests/sent`를 조회한다.
 - 서버는 방 단위 WebSocket join 상태를 저장하지 않는다. 따라서 "구독 완료 후 accept 호출" 순서는 프론트가 보장해야 한다.
+
+## 방 Presence 연동
+
+- 배틀 방 화면에서 현재 접속 중인 멤버 목록을 보여줘야 하면 `/topic/rooms/{roomId}/presence`를 함께 구독한다.
+- Host와 Invitee 모두 방 화면 진입 시 `/ws` 연결 후 `/user/queue/battle`과 `/topic/rooms/{roomId}/presence`를 구독할 수 있다.
+- Presence 구독은 방 멤버만 가능하다. Invitee는 초대 수락 전에는 방 멤버가 아니므로 room presence 대상이 아니다.
+- Presence payload와 입장/퇴장 처리 방식은 `docs/manual/room-presence-websocket-flow.md`를 따른다.

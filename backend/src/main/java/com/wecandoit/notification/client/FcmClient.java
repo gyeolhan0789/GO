@@ -4,6 +4,7 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.MessagingErrorCode;
+import com.wecandoit.notification.domain.NotificationType;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,19 +20,23 @@ public class FcmClient {
     /**
      * @return true if the token is invalid/unregistered and should be cleared, false otherwise
      */
-    public boolean send(String token, String title, String body) {
+    public boolean send(String token, String title, String body, NotificationType type, Long targetId) {
         if (firebaseMessaging.isEmpty()) {
             log.warn("FCM 자격증명이 설정되지 않아 발송을 건너뜁니다.");
             return false;
         }
 
-        Message message = Message.builder()
+        Message.Builder messageBuilder = Message.builder()
                 .setToken(token)
                 .setNotification(com.google.firebase.messaging.Notification.builder()
                         .setTitle(title)
                         .setBody(body)
                         .build())
-                .build();
+                .putData("type", type.name());
+        if (targetId != null) {
+            messageBuilder.putData("targetId", String.valueOf(targetId));
+        }
+        Message message = messageBuilder.build();
 
         try {
             firebaseMessaging.get().send(message);

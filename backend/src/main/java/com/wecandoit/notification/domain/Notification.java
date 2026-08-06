@@ -27,6 +27,9 @@ public class Notification extends BaseEntity {
     @Column(name = "member_id", nullable = false)
     private Long memberId;
 
+    @Column(name = "target_id")
+    private Long targetId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private NotificationType type;
@@ -41,20 +44,28 @@ public class Notification extends BaseEntity {
     private boolean read;
 
     @Builder
-    private Notification(Long memberId, NotificationType type, String title, String body) {
+    private Notification(Long memberId, NotificationType type, String title, String body, Long targetId) {
         this.memberId = memberId;
         this.type = type;
         this.title = title;
         this.body = body;
+        this.targetId = targetId;
         this.read = false;
     }
 
-    public static Notification create(Long memberId, NotificationType type, String title, String body) {
+    public static Notification create(
+            Long memberId,
+            NotificationType type,
+            String title,
+            String body,
+            Long targetId
+    ) {
         return Notification.builder()
                 .memberId(memberId)
                 .type(type)
                 .title(title)
                 .body(body)
+                .targetId(targetId)
                 .build();
     }
 

@@ -1,6 +1,7 @@
 package com.wecandoit.samsunghealth
 
 import android.app.Activity
+import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
@@ -22,6 +23,8 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.util.concurrent.Executor
 import java.util.function.Consumer
+
+private const val SAMSUNG_HEALTH_PACKAGE = "com.sec.android.app.shealth"
 
 /**
  * Samsung Health Data SDK 네이티브 모듈 (읽기 전용).
@@ -45,6 +48,29 @@ class SamsungHealthModule(private val reactContext: ReactApplicationContext) :
   )
 
   private val reader = SamsungHealthReader(reactContext)
+
+  /**
+   * 삼성헬스 데이터 경로를 쓸 수 있는 기기인지.
+   *
+   * 이 모듈이 로드됐는지로는 판별할 수 없다 — SamsungHealthPackage는 모든 안드로이드
+   * 빌드에 항상 등록되므로 픽셀·LG에서도 모듈은 존재한다. 삼성헬스 앱이 깔려 있는지를
+   * 직접 봐야 한다(AndroidManifest의 <queries>가 있어야 조회된다).
+   *
+   * 깔려 있어도 SDK가 거부하는 경우(구버전 등)까지는 걸러내지 못한다. 그때는 이전처럼
+   * 권한 요청이 실패해 미허용으로 남는다.
+   */
+  @ReactMethod
+  fun isSupported(promise: Promise) {
+    promise.resolve(isSamsungHealthInstalled())
+  }
+
+  private fun isSamsungHealthInstalled(): Boolean =
+    try {
+      reactContext.packageManager.getPackageInfo(SAMSUNG_HEALTH_PACKAGE, 0)
+      true
+    } catch (e: PackageManager.NameNotFoundException) {
+      false
+    }
 
   @ReactMethod
   fun requestPermissions(promise: Promise) {

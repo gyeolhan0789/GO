@@ -51,6 +51,50 @@ data class WalkSessionState(
   var healthSource: HealthSource = HealthSource.NONE,
   var gender: String? = null,
 ) {
+  /**
+   * 새로 읽은 값을 반영한다.
+   *
+   * 걸음 소스는 둘 다 "오늘 누적"이라 자정에 0으로 돌아간다(삼성헬스 readToday, 걸음
+   * 센서의 날짜별 기준값). 재부팅도 같은 모양이다. 값이 직전보다 작아지면 그 리셋이
+   * 일어난 것이므로 기준값을 직전 값만큼 끌어내린다 — 그래야 (lastRaw - baseline)이
+   * 지금까지 센 몫에 이어서 쌓인다.
+   *
+   * 안 하면 lastRaw가 baseline보다 작아진 채로 남아 toSnapshot의 coerceAtLeast(0.0)에
+   * 걸린다. 자정을 넘긴 산책이 끝날 때까지 0으로 기록되는 게 그 증상이었다.
+   */
+  fun withReading(raw: HealthBaseline, source: HealthSource): WalkSessionState =
+    copy(
+      baseline = if (raw.steps >= lastRaw.steps) {
+        baseline
+      } else {
+        HealthBaseline(
+          steps = baseline.steps - lastRaw.steps,
+          distanceMeters = baseline.distanceMeters - lastRaw.distanceMeters,
+          calories = baseline.calories - lastRaw.calories,
+        )
+      },
+      lastRaw = raw,
+      healthSource = source,
+    )
+
+  /**
+   * 재개 시점의 값을 반영한다. 일시정지 중에 늘어난 몫만큼 기준값을 밀어 세션 기록에서
+   * 제외한다.
+   *
+   * 차이를 0으로 자르지 않는다. 일시정지 중에 자정이 지나면 차이가 음수인데, 그게 정확히
+   * 필요한 이동량이다 — 기준값을 그만큼 내려야 지금까지 센 몫이 그대로 유지된다.
+   */
+  fun resumedWith(raw: HealthBaseline, source: HealthSource): WalkSessionState =
+    copy(
+      baseline = HealthBaseline(
+        steps = baseline.steps + (raw.steps - lastRaw.steps),
+        distanceMeters = baseline.distanceMeters + (raw.distanceMeters - lastRaw.distanceMeters),
+        calories = baseline.calories + (raw.calories - lastRaw.calories),
+      ),
+      lastRaw = raw,
+      healthSource = source,
+    )
+
   fun toSnapshot(now: Long): WalkSessionSnapshot {
     val activeElapsedMs = if (startedAt == null) {
       0L

@@ -48,3 +48,6 @@ ai-server:
 logging:
   level:
     com.wecandoit.common.logging: DEBUG
+
+firebase:
+  credentials-path: ./secrets/firebase-service-account.json

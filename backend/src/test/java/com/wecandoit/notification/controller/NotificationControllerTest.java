@@ -81,7 +81,7 @@ class NotificationControllerTest {
                 .willReturn(new SliceResponse<>(
                         List.of(new NotificationResponse(
                                 10L, NotificationType.FRIEND_REQUEST, "친구 요청이 도착했어요",
-                                "누군가 친구 요청을 보냈어요.", false, createdAt
+                                "누군가 친구 요청을 보냈어요.", 20L, false, createdAt
                         )),
                         false
                 ));
@@ -92,6 +92,7 @@ class NotificationControllerTest {
                 .andExpect(jsonPath("$.content[0].id").value(10L))
                 .andExpect(jsonPath("$.content[0].type").value("FRIEND_REQUEST"))
                 .andExpect(jsonPath("$.content[0].title").value("친구 요청이 도착했어요"))
+                .andExpect(jsonPath("$.content[0].targetId").value(20L))
                 .andExpect(jsonPath("$.content[0].read").value(false))
                 .andExpect(jsonPath("$.hasNext").value(false));
     }

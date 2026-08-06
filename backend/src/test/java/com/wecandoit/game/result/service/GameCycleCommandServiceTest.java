@@ -34,7 +34,7 @@ import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.Mission;
 import com.wecandoit.mission.domain.MissionType;
-import com.wecandoit.mission.repository.MissionRepository;
+import com.wecandoit.mission.service.MissionSelectionReadService;
 import com.wecandoit.notification.event.NotificationMessageFactory;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -71,7 +71,7 @@ class GameCycleCommandServiceTest {
     @Mock
     private BingoCellRepository bingoCellRepository;
     @Mock
-    private MissionRepository missionRepository;
+    private MissionSelectionReadService missionSelectionReadService;
     @Mock
     private MemberRepository memberRepository;
     @Mock
@@ -248,7 +248,7 @@ class GameCycleCommandServiceTest {
             ReflectionTestUtils.setField(nextGame, "id", 201L);
             return nextGame;
         });
-        given(missionRepository.findRandomMissions(9)).willReturn(missions(9));
+        given(missionSelectionReadService.selectBoardMissions(9)).willReturn(missions(9));
         given(bingoBoardRepository.save(any(BingoBoard.class))).willAnswer(invocation -> {
             BingoBoard nextBoard = invocation.getArgument(0);
             ReflectionTestUtils.setField(nextBoard, "id", 101L);

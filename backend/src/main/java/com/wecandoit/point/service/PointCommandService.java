@@ -42,7 +42,7 @@ public class PointCommandService {
         long rewardPoint = PointRewardPolicy.getBingoCellRewardPoint(missionDifficulty);
         member.addPoint(rewardPoint);
         pointHistoryRepository.save(PointHistory.bingoCellReward(memberId, cellId, roomId, rewardPoint));
-        eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, rewardPoint));
+        eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, rewardPoint, roomId));
         return rewardPoint;
     }
 
@@ -64,7 +64,7 @@ public class PointCommandService {
                     roomId,
                     rewardPoint
             ));
-            eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, rewardPoint));
+            eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, rewardPoint, roomId));
             rewardPointsByMemberId.put(memberId, rewardPoint);
         });
         return rewardPointsByMemberId;

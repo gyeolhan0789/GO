@@ -32,7 +32,7 @@ import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.Mission;
-import com.wecandoit.mission.repository.MissionRepository;
+import com.wecandoit.mission.service.MissionSelectionReadService;
 import com.wecandoit.notification.event.NotificationMessageFactory;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -59,7 +59,7 @@ public class GameCycleCommandService {
     private final GameResultParticipantRepository gameResultParticipantRepository;
     private final BingoBoardRepository bingoBoardRepository;
     private final BingoCellRepository bingoCellRepository;
-    private final MissionRepository missionRepository;
+    private final MissionSelectionReadService missionSelectionReadService;
     private final MemberRepository memberRepository;
     private final PointHistoryRepository pointHistoryRepository;
     private final ApplicationEventPublisher eventPublisher;
@@ -368,7 +368,7 @@ public class GameCycleCommandService {
                 .toList();
         gameResultParticipantRepository.saveAll(results);
         participants.forEach(participant -> eventPublisher.publishEvent(
-                notificationMessageFactory.battleResult(participant.getMemberId())));
+                notificationMessageFactory.battleResult(participant.getMemberId(), room.getId())));
     }
 
     private GameResultParticipant createBattleResultParticipant(
@@ -491,12 +491,7 @@ public class GameCycleCommandService {
     }
 
     private List<Mission> findMissions(int boardSize) {
-        int cellCount = boardSize * boardSize;
-        List<Mission> missions = missionRepository.findRandomMissions(cellCount);
-        if (missions.size() < cellCount) {
-            throw new CustomException(ErrorCode.MISSION_POOL_INSUFFICIENT);
-        }
-        return missions;
+        return missionSelectionReadService.selectBoardMissions(boardSize * boardSize);
     }
 
     private List<BingoCell> saveCells(BingoBoard board, int boardSize, List<Mission> missions) {
@@ -558,6 +553,6 @@ public class GameCycleCommandService {
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
         member.addPoint(rewardPoint);
         pointHistoryRepository.save(PointHistory.gameGoalReward(memberId, gameId, roomId, rewardPoint));
-        eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, rewardPoint));
+        eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, rewardPoint, roomId));
     }
 }

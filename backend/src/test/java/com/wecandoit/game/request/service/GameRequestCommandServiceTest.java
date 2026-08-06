@@ -147,6 +147,7 @@ class GameRequestCommandServiceTest {
         then(eventPublisher).should().publishEvent(captor.capture());
         assertThat(captor.getValue().recipientMemberId()).isEqualTo(2L);
         assertThat(captor.getValue().type()).isEqualTo(NotificationType.FRIEND_INVITE);
+        assertThat(captor.getValue().targetId()).isEqualTo(10L);
     }
 
     @Test
@@ -603,6 +604,17 @@ class GameRequestCommandServiceTest {
 
         assertThat(gameRequest.getStatus()).isEqualTo(RequestStatus.ACCEPTED);
         then(gameCycleCommandService).should().registerCurrentCycleParticipant(room, 2L);
+        ArgumentCaptor<NotificationRequestedEvent> walkStartCaptor =
+                ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        then(eventPublisher).should(times(2)).publishEvent(walkStartCaptor.capture());
+        assertThat(walkStartCaptor.getAllValues())
+                .extracting(NotificationRequestedEvent::recipientMemberId)
+                .containsExactlyInAnyOrder(1L, 2L);
+        assertThat(walkStartCaptor.getAllValues())
+                .allSatisfy(event -> {
+                    assertThat(event.type()).isEqualTo(NotificationType.WALK_START);
+                    assertThat(event.targetId()).isEqualTo(10L);
+                });
     }
 
     @Test
