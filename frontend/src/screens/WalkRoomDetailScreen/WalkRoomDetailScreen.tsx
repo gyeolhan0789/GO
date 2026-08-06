@@ -47,9 +47,11 @@ export function WalkRoomDetailScreen({
   const boardQuery = useActiveBingoBoardQuery(roomId);
   const isHost =
     room !== undefined && myMemberId !== null && room.hostId === myMemberId;
+  const isBattleRoom = room?.mode === 'BATTLE';
 
-  // 이 화면에 머무는 동안이 곧 "방에 접속 중"이다 — 구독이 입장이고 해지가
-  // 퇴장이라 따로 부를 API가 없다.
+  // 접속 여부는 대결 대기방만 쓴다 — 상대가 방에 들어왔는지가 대결 진행의 정보라서다.
+  // 같이하기 방은 접속 표시를 하지 않으니 구독하지 않는다. 구독 자체가 입장이고
+  // 해지가 퇴장이라, 쓰지 않을 화면에서 붙는 것만으로 서버에 접속으로 잡힌다.
   //
   // 방 멤버가 아니면 서버가 구독을 거절하는데, 그 ERROR 프레임을 우리 클라이언트가
   // 토큰 문제로 읽어 소켓을 통째로 재연결 루프에 빠뜨린다. 그래서 방 상세로 내가
@@ -59,7 +61,7 @@ export function WalkRoomDetailScreen({
     (room?.members ?? []).some(member => member.memberId === myMemberId);
   const { onlineMembers } = useRoomPresenceSubscription({
     roomId,
-    enabled: isRoomMember,
+    enabled: isRoomMember && isBattleRoom,
   });
   // 초대 대기 목록은 방장의 관심사라 방장에게만 조회해서 보여준다.
   // 팀원은 누가 초대됐는지 알 필요가 없다.
@@ -77,7 +79,6 @@ export function WalkRoomDetailScreen({
 
   // 네비게이터 제목은 '모임 상세'로 고정돼 있다. 대결은 이 화면이 대기방으로
   // 통째로 바뀌므로 제목도 그에 맞춘다.
-  const isBattleRoom = room?.mode === 'BATTLE';
   useEffect(() => {
     navigation.setOptions({
       title: isBattleRoom ? '대결 대기방' : '모임 상세',
@@ -317,7 +318,6 @@ export function WalkRoomDetailScreen({
         <RoomMemberList
           members={room.members}
           myMemberId={myMemberId}
-          onlineMembers={onlineMembers}
           pendingInvites={pendingInvites}
           onCancelInvite={handleCancelInvite}
           cancelingRequestId={cancelingRequestId}
