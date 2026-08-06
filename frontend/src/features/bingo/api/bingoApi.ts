@@ -23,8 +23,33 @@ export type BingoCellResponse = {
   rejectionReason: string | null;
 };
 
-// 백엔드 BingoBoardResponse의 일부와 대응한다(BATTLE 전용 필드인
-// battleProgress는 SINGLE/COOPERATE에서 쓰지 않아 뺐다).
+export type BattleParticipantProgress = {
+  memberId: number;
+  bingoBoardId: number;
+  totalCellCount: number;
+  approvedCellCount: number;
+  /** 완성한 빙고 줄 수. 목표에 닿으면 이긴다. */
+  completedBingoCount: number;
+  targetReached: boolean;
+};
+
+/**
+ * 대결방에서만 내려온다. 대결은 판을 사람마다 따로 받아서, 내 판만 봐서는
+ * 이기고 있는지 알 수 없다.
+ */
+export type BattleProgress = {
+  roomStatus: 'ACTIVE' | 'CLOSED';
+  gameStatus: 'ACTIVE' | 'ENDED';
+  me: BattleParticipantProgress;
+  opponent: BattleParticipantProgress;
+  /**
+   * 서버가 아직 항상 null로 준다(BingoReadService에서 하드코딩). 승패는
+   * targetReached로 유추하거나 기록 조회로 따로 확인해야 한다.
+   */
+  result: boolean | null;
+};
+
+// 백엔드 BingoBoardResponse와 대응한다.
 export type BingoBoardResponse = {
   bingoBoardId: number;
   roomId: number;
@@ -38,6 +63,8 @@ export type BingoBoardResponse = {
   canRenew: boolean;
   renewalRequired: boolean;
   renewalMessage: string | null;
+  /** BATTLE에서만 채워진다. 다른 모드에서는 없다. */
+  battleProgress?: BattleProgress | null;
 };
 
 export function getActiveBingoBoard(roomId: number) {
@@ -130,3 +157,4 @@ export function completeBingoCell(
     )
     .then(response => ({ rewardPoint: response.rewardPoint }));
 }
+

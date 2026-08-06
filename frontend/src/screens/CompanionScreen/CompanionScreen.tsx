@@ -65,9 +65,12 @@ export function CompanionScreen() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const myRoomsQuery = useMyRoomsQuery();
   // 혼자 방을 항상 위로 올린다. 같은 mode끼리는 서버가 내려준 순서(참여일시 최신순)를 유지한다.
-  const myWalkRooms = (myRoomsQuery.data?.map(toMyWalkRoom) ?? []).sort(
-    (a, b) => Number(b.mode === 'solo') - Number(a.mode === 'solo'),
-  );
+  const myWalkRooms = (myRoomsQuery.data ?? [])
+    // 대결방은 한 판짜리라 산책방 목록에 두지 않는다. 진행 중인 대결로는
+    // 홈의 '대결 이어가기' 버튼으로 돌아간다.
+    .filter(room => room.mode !== 'BATTLE')
+    .map(toMyWalkRoom)
+    .sort((a, b) => Number(b.mode === 'solo') - Number(a.mode === 'solo'));
   const friendsQuery = useInfiniteFriendsQuery();
   const friends = useMemo(
     () => friendsQuery.data?.pages.flatMap(page => page.content) ?? [],

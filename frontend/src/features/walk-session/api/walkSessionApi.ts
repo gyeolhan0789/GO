@@ -38,6 +38,13 @@ export function startWalkSessionOnServer(body: WalkSessionStartRequest) {
 
 export type WalkSessionCompleteRequest = {
   walkSessionKey: string;
+  /** walkSessionKey와 같은 값. 서버가 walkSessionKey ?? clientSessionKey로 푼다. */
+  clientSessionKey: string;
+  roomId: number;
+  /** 이 산책이 시작한 빙고판. 판을 못 읽고 시작했으면 없다. */
+  bingoBoardId?: number | null;
+  /** 서버가 세션을 열며 찍은 시각. 기기 시계로 다시 만들지 않는다. */
+  startedAt?: string;
   /** 오프셋이 붙은 ISO-8601. Date의 toISOString()이 그대로 맞는다. */
   endedAt: string;
   /**

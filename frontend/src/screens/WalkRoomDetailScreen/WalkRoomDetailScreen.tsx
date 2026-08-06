@@ -1,8 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
+import {
+  BattleResultModal,
+  type BattleResult,
+} from '../../features/bingo/components/BattleResultModal/BattleResultModal';
 import { useActiveBingoBoardQuery } from '../../features/bingo/hooks/useActiveBingoBoardQuery';
 import { useMyMemberIdQuery } from '../../features/member/hooks/useMyMemberIdQuery';
 import type { SentRoomInvite } from '../../features/room/api/roomApi';
@@ -10,6 +14,7 @@ import { useCancelRoomInviteMutation } from '../../features/room/hooks/useCancel
 import { useDeleteRoomMutation } from '../../features/room/hooks/useDeleteRoomMutation';
 import { useLeaveRoomMutation } from '../../features/room/hooks/useLeaveRoomMutation';
 import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
+import { useRoomPresenceSubscription } from '../../features/room/hooks/useRoomPresenceSubscription';
 import { useSentRoomInvitesQuery } from '../../features/room/hooks/useSentRoomInvitesQuery';
 import { ApiError } from '../../shared/api/ApiError';
 import { AppText } from '../../shared/components/AppText/AppText';
@@ -19,6 +24,7 @@ import { Screen } from '../../shared/components/Screen/Screen';
 import { colors } from '../../shared/constants/colors';
 import { spacing } from '../../shared/constants/spacing';
 import { bodyFont, lineHeights } from '../../shared/constants/typography';
+import { BattleWaitingRoom } from './components/BattleWaitingRoom';
 import { RoomBingoCard } from './components/RoomBingoCard';
 import { RoomMemberList } from './components/RoomMemberList';
 import { RoomSummaryCard } from './components/RoomSummaryCard';
@@ -41,6 +47,20 @@ export function WalkRoomDetailScreen({
   const boardQuery = useActiveBingoBoardQuery(roomId);
   const isHost =
     room !== undefined && myMemberId !== null && room.hostId === myMemberId;
+
+  // 이 화면에 머무는 동안이 곧 "방에 접속 중"이다 — 구독이 입장이고 해지가
+  // 퇴장이라 따로 부를 API가 없다.
+  //
+  // 방 멤버가 아니면 서버가 구독을 거절하는데, 그 ERROR 프레임을 우리 클라이언트가
+  // 토큰 문제로 읽어 소켓을 통째로 재연결 루프에 빠뜨린다. 그래서 방 상세로 내가
+  // 멤버임을 확인한 뒤에만 켠다.
+  const isRoomMember =
+    myMemberId !== null &&
+    (room?.members ?? []).some(member => member.memberId === myMemberId);
+  const { onlineMembers } = useRoomPresenceSubscription({
+    roomId,
+    enabled: isRoomMember,
+  });
   // 초대 대기 목록은 방장의 관심사라 방장에게만 조회해서 보여준다.
   // 팀원은 누가 초대됐는지 알 필요가 없다.
   const sentInvitesQuery = useSentRoomInvitesQuery(isHost);
@@ -51,6 +71,18 @@ export function WalkRoomDetailScreen({
   const [cancelingRequestId, setCancelingRequestId] = useState<number | null>(
     null,
   );
+  // 대기방에서 기권했을 때의 결과·보상 모달. null이면 닫힘.
+  const [forfeitResult, setForfeitResult] =
+    useState<BattleResult | null>(null);
+
+  // 네비게이터 제목은 '모임 상세'로 고정돼 있다. 대결은 이 화면이 대기방으로
+  // 통째로 바뀌므로 제목도 그에 맞춘다.
+  const isBattleRoom = room?.mode === 'BATTLE';
+  useEffect(() => {
+    navigation.setOptions({
+      title: isBattleRoom ? '대결 대기방' : '모임 상세',
+    });
+  }, [navigation, isBattleRoom]);
 
   // 서버는 내가 보낸 초대 전체를 주므로 이 방 것만 남긴다.
   const pendingInvites = isHost
@@ -162,6 +194,114 @@ export function WalkRoomDetailScreen({
     );
   }
 
+  // 대결은 상대가 수락해야 서버가 게임을 만든다. 그 전에는 빙고판이 없어서
+  // 산책방 화면을 그려봐야 빈 카드뿐이라, 대기방을 대신 보여준다.
+  if (room.mode === 'BATTLE' && room.status !== 'CLOSED') {
+    return (
+      <Screen edges={SCREEN_EDGES}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
+          <BattleWaitingRoom
+            room={room}
+            myMemberId={myMemberId}
+            onlineMembers={onlineMembers}
+            isHost={isHost}
+            initialCountdownSeconds={route.params.battleCountdownSeconds}
+            isBoardReady={boardQuery.data !== undefined}
+            onCancelBattle={() => {
+              Alert.alert(
+                '대결 취소',
+                '보낸 초대를 거두고 대결방을 없앨까요?',
+                [
+                  { text: '아니요', style: 'cancel' },
+                  {
+                    text: '대결 취소',
+                    style: 'destructive',
+                    onPress: async () => {
+                      try {
+                        // 초대를 먼저 거둬야 상대에게 취소 이벤트가 간다 —
+                        // 방만 지우면 상대의 초대가 닫힌 방을 가리킨 채 남는다.
+                        const pending = pendingInvites[0];
+                        if (pending) {
+                          await cancelInviteMutation.mutateAsync({
+                            roomId,
+                            requestId: pending.requestId,
+                          });
+                        }
+                        await deleteMutation.mutateAsync(roomId);
+                        navigation.goBack();
+                      } catch (error) {
+                        Alert.alert(
+                          '대결 취소 실패',
+                          error instanceof Error
+                            ? error.message
+                            : '잠시 후 다시 시도해주세요.',
+                        );
+                      }
+                    },
+                  },
+                ],
+              );
+            }}
+            onForfeit={() => {
+              Alert.alert(
+                '기권하기',
+                '기권하면 상대의 승리로 대결이 끝나요. 계속할까요?',
+                [
+                  { text: '아니요', style: 'cancel' },
+                  {
+                    text: '기권',
+                    style: 'destructive',
+                    onPress: () => {
+                      leaveMutation.mutate(roomId, {
+                        // 몰수 처리 후에는 나는 멤버가 아니라 이 화면을 못 읽는다.
+                        onSuccess: () => setForfeitResult('FORFEITED'),
+                        onError: error => {
+                          // 검증 중인 칸이 있으면 서버가 나가기를 막는다.
+                          Alert.alert(
+                            '기권 실패',
+                            error instanceof Error
+                              ? error.message
+                              : '잠시 후 다시 시도해주세요.',
+                          );
+                        },
+                      });
+                    },
+                  },
+                ],
+              );
+            }}
+            onOpponentJoined={() => {
+              // 수락 직후라 멤버 목록이 낡았다. 상대 아바타가 바로 보이게 다시 읽는다.
+              roomQuery.refetch();
+              boardQuery.refetch();
+            }}
+            onEnterBoard={() => navigation.navigate('BingoBoard', { roomId })}
+            onMatchingCancelled={event => {
+              Alert.alert(
+                '대결이 취소됐어요',
+                event.type === 'INVITATION_REJECTED'
+                  ? '상대가 초대를 거절했어요.'
+                  : '방장이 초대를 취소했어요.',
+                [{ text: '확인', onPress: () => navigation.goBack() }],
+              );
+            }}
+          />
+        </ScrollView>
+
+        <BattleResultModal
+          result={forfeitResult}
+          onConfirm={() => {
+            setForfeitResult(null);
+            navigation.popToTop();
+          }}
+        />
+      </Screen>
+    );
+  }
+
   // 이미 종료된 방은 나가기가 409로 막히고 삭제도 의미가 없어 버튼을 숨긴다.
   // 방장 여부를 아직 모르는 동안(내 memberId 조회 전)에도 잘못된 버튼을 안 보여준다.
   const showFooter = myMemberId !== null && room.status !== 'CLOSED';
@@ -177,6 +317,7 @@ export function WalkRoomDetailScreen({
         <RoomMemberList
           members={room.members}
           myMemberId={myMemberId}
+          onlineMembers={onlineMembers}
           pendingInvites={pendingInvites}
           onCancelInvite={handleCancelInvite}
           cancelingRequestId={cancelingRequestId}
