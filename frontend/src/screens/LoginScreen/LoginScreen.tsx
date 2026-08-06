@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -94,10 +93,6 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
     mutation.reset();
   }
 
-  function notReady() {
-    Alert.alert('준비 중', '아직 준비 중인 기능이에요.');
-  }
-
   function goToSignup() {
     if (isLeavingToSignupRef.current) {
       return;
@@ -186,14 +181,6 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
               returnKeyType="done"
               onSubmitEditing={submit}
             />
-
-            <Pressable
-              style={styles.forgot}
-              onPress={notReady}
-              accessibilityRole="button"
-            >
-              <AppText style={styles.forgotText}>비밀번호 찾기</AppText>
-            </Pressable>
 
             {mutation.error ? (
               <AppText
@@ -308,17 +295,6 @@ const styles = StyleSheet.create({
     fontFamily: bodyFont.regular,
     fontSize: 15,
     color: SUBTITLE_COLOR,
-  },
-  forgot: {
-    alignSelf: 'flex-end',
-    marginTop: 4,
-    marginBottom: 20,
-  },
-  forgotText: {
-    fontFamily: bodyFont.regular,
-    fontSize: 13,
-    lineHeight: lineHeights[13],
-    color: HINT_COLOR,
   },
   serverError: {
     marginBottom: 12,
