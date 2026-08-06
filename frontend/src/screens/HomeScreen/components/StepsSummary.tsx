@@ -1,12 +1,19 @@
 import { useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { STEP_GOAL_TIER_QUERY_KEY } from '../../../shared/api/deviceQueries';
 import { AppText } from '../../../shared/components/AppText/AppText';
 import { BottomSheet } from '../../../shared/components/BottomSheet/BottomSheet';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
+import {
+  getStepGoalTier,
+  setStepGoalTier,
+  type StepGoalTier,
+} from '../../../shared/lib/stepGoalStorage';
 import { spacing } from '../../../shared/constants/spacing';
 import { fontFamily, lineHeights } from '../../../shared/constants/typography';
 import { StepsProgressBar } from './StepsProgressBar';
@@ -15,13 +22,12 @@ type StepsSummaryProps = {
   steps: number;
 };
 
-type GoalTier = '5000' | '7000' | '10000';
-
 // 산책방에서 정하는 주간 누적 목표(targetStepCount)와는 다른 축이라, 서버
-// 값이 아니라 사용자가 고르는 하루 권장 걸음수다.
+// 값이 아니라 사용자가 고르는 하루 권장 걸음수다. 기기에 저장해서 앱을
+// 다시 열어도 유지된다(shared/lib/stepGoalStorage).
 const GOAL_TIER_OPTIONS: {
   label: string;
-  value: GoalTier;
+  value: StepGoalTier;
   icon: ImageSourcePropType;
 }[] = [
   {
@@ -37,14 +43,25 @@ const GOAL_TIER_OPTIONS: {
   },
 ];
 
-const DEFAULT_GOAL_TIER: GoalTier = '7000';
+const DEFAULT_GOAL_TIER: StepGoalTier = '7000';
 
 function formatWithComma(value: number): string {
   return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
 export function StepsSummary({ steps }: StepsSummaryProps) {
-  const [goalTier, setGoalTier] = useState<GoalTier>(DEFAULT_GOAL_TIER);
+  const queryClient = useQueryClient();
+  const goalTierQuery = useQuery({
+    queryKey: STEP_GOAL_TIER_QUERY_KEY,
+    queryFn: getStepGoalTier,
+  });
+  const setGoalTierMutation = useMutation({
+    mutationFn: setStepGoalTier,
+    onSuccess: (_result, tier) => {
+      queryClient.setQueryData(STEP_GOAL_TIER_QUERY_KEY, tier);
+    },
+  });
+  const goalTier = goalTierQuery.data ?? DEFAULT_GOAL_TIER;
   const [isSheetVisible, setSheetVisible] = useState(false);
   const goalSteps = Number(goalTier);
   const percent = Math.round((steps / goalSteps) * 100);
@@ -91,7 +108,7 @@ export function StepsSummary({ steps }: StepsSummaryProps) {
             <Pressable
               key={option.value}
               style={[styles.tierRow, isSelected && styles.tierRowSelected]}
-              onPress={() => setGoalTier(option.value)}
+              onPress={() => setGoalTierMutation.mutate(option.value)}
               accessibilityRole="radio"
               accessibilityState={{ selected: isSelected }}
             >
