@@ -24,7 +24,6 @@ import {
 } from '../../features/bingo/components/BattleResultModal/BattleResultModal';
 import { isForfeitEnd } from '../../features/bingo/model/battleOutcome';
 import { BattleProgressCard } from './components/BattleProgressCard';
-import { BattleRematchCard } from './components/BattleRematchCard';
 import { MissionVerificationModal } from '../../features/bingo/components/MissionVerificationModal/MissionVerificationModal';
 import {
   MISSION_TYPE_ICONS,
@@ -32,7 +31,6 @@ import {
   isPhotoMission,
 } from '../../features/bingo/model/missionType';
 import { useMyMemberIdQuery } from '../../features/member/hooks/useMyMemberIdQuery';
-import { useBattleRematch } from '../../features/room/hooks/useBattleRematch';
 import { useLeaveRoomMutation } from '../../features/room/hooks/useLeaveRoomMutation';
 import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
 import { awaitWalkSessionKey } from '../../features/walk-session/model/walkSessionStore';
@@ -95,28 +93,6 @@ export function BingoBoardScreen({
   // 몰수 종료(기권/몰수승)와 보상을 알리는 모달. null이면 닫힘.
   const [forfeitResult, setForfeitResult] =
     useState<BattleForfeitResult | null>(null);
-
-  const isHost = room !== null && room.hostId === myMemberIdQuery.data;
-  /**
-   * 재대결을 제안할 수 있는 상태. 정상 종료(누군가 목표에 닿음)에만 열어준다 —
-   * 몰수로 끝나면 나간 사람이 방 멤버에서 빠져서 서버가 재대결을 거절한다.
-   */
-  const canOfferRematch =
-    room?.mode === 'BATTLE' &&
-    battleProgress !== null &&
-    battleProgress.gameStatus === 'ENDED' &&
-    !isForfeitEnd(battleProgress);
-
-  const rematch = useBattleRematch({
-    roomId,
-    myMemberId: myMemberIdQuery.data ?? null,
-    isHost,
-    enabled: canOfferRematch === true,
-    onRematchStarted: () => {
-      boardQuery.refetch();
-      roomQuery.refetch();
-    },
-  });
 
   // 몰수 종료를 한 번만 알린다 — 폴링마다 모달이 다시 열리면 안 된다.
   const forfeitNotifiedRef = useRef(false);
@@ -407,20 +383,6 @@ export function BingoBoardScreen({
             }
             members={members}
             myMemberId={myMemberIdQuery.data ?? null}
-          />
-        ) : null}
-
-        {/* 정상 종료(누군가 목표에 닿음)에만 재대결을 붙인다. 몰수로 끝나면
-            나간 사람이 멤버에서 빠져서 서버가 재대결을 거절한다. */}
-        {canOfferRematch ? (
-          <BattleRematchCard
-            isHost={isHost}
-            isOffering={rematch.isOffering}
-            hasIncomingOffer={rematch.hasIncomingOffer}
-            isStarting={rematch.isStarting}
-            onOffer={rematch.offerRematch}
-            onAccept={rematch.acceptRematch}
-            onDecline={rematch.declineRematch}
           />
         ) : null}
 

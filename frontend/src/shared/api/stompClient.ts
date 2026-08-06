@@ -1,9 +1,10 @@
 // 서버가 쏘는 토픽을 구독하는 STOMP 클라이언트. 소켓 하나를 모든 구독이
 // 나눠 쓰고, 마지막 구독이 해지되면 닫는다.
 //
-// 백엔드는 `enableSimpleBroker("/topic")`만 열어 둔 **구독 전용**이다
-// (setApplicationDestinationPrefixes가 없어 클라이언트가 서버로 보낼 수 있는
-// 목적지가 없다). 그래서 여기에도 send/publish를 두지 않는다.
+// 이 클라이언트는 **구독 전용**이다. 백엔드에 setApplicationDestinationPrefixes가
+// 없어 `@MessageMapping`으로 갈 목적지가 아예 없다. 브로커 목적지(`/topic`)로 SEND를
+// 보내면 SimpleBroker가 구독자에게 중계해 주지만, 그 경로는 서버가 내용을 검증하지
+// 않아 신뢰 경계 밖이라 쓰지 않는다. 서버로 보내는 것은 전부 REST를 거친다.
 
 import {
   decodeFrames,
@@ -172,9 +173,12 @@ function sendFrame(frame: StompFrame) {
 }
 
 /**
- * RN의 WebSocket은 핸드셰이크에 커스텀 헤더를 싣지 못한다. 그래서 인증을
- * HTTP 헤더가 아니라 CONNECT 프레임의 Authorization으로 보낸다 — 백엔드의
- * WebSocketAuthenticationInterceptor도 CONNECT에서만 토큰을 읽는다.
+ * 인증을 HTTP 헤더가 아니라 CONNECT 프레임의 Authorization으로 보낸다. 백엔드의
+ * WebSocketAuthenticationInterceptor가 CONNECT에서만 토큰을 읽기 때문이다.
+ *
+ * (RN은 생성자 세 번째 인자로 핸드셰이크 헤더를 받으므로 그쪽도 가능하긴 하다.
+ * 다만 브라우저 WebSocket API에는 없는 확장이고, 프레임 인증이 STOMP 관례라
+ * 재연결할 때마다 자연스럽게 다시 인증된다.)
  */
 function sendConnectFrame() {
   const accessToken = getAccessToken();
@@ -405,31 +409,6 @@ function disconnect() {
   closeSocket();
   reconnectAttempt = 0;
   didRetryWithNewToken = false;
-}
-
-/**
- * 토픽으로 메시지를 보낸다.
- *
- * SimpleBroker는 브로커 목적지(`/topic`, `/queue`)로 온 SEND를 그 토픽 구독자에게
- * 그대로 중계한다 — `setApplicationDestinationPrefixes`는 `@MessageMapping` 라우팅
- * 에만 쓰이므로 없어도 이 경로는 열려 있다. 서버가 발행하지 않는 신호를
- * 클라이언트끼리 주고받아야 할 때(재대결 제안) 쓴다.
- *
- * 소켓이 아직 안 붙었으면 조용히 버린다 — 이 채널은 신호용이고, 놓친 신호는
- * 재시도나 REST 조회로 복구하는 게 호출부의 책임이다.
- *
- * 서버가 내용을 검증하지 않으니 신뢰 경계 밖이다. 이걸로 상태를 확정하지 말고,
- * 판을 만드는 것 같은 실제 변경은 반드시 REST API를 거쳐야 한다.
- */
-export function publishStompTopic<T>(destination: string, body: T) {
-  if (status !== 'connected') {
-    return;
-  }
-  sendFrame({
-    command: 'SEND',
-    headers: { destination, 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
 }
 
 /**
