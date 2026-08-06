@@ -136,6 +136,24 @@ class WalkSessionCommandServiceTest {
     }
 
     @Test
+    @DisplayName("다른 방의 활성 산책 세션이 있으면 산책 시작을 거부한다")
+    void startSessionRejectsDifferentRoom() {
+        // given
+        WalkSessionStartRequest request = new WalkSessionStartRequest(11L, 30L);
+        given(memberRepository.findByIdForUpdate(1L))
+                .willReturn(Optional.of(Member.create("a@a.com", "pw", "a", null, Gender.MALE)));
+        given(activeWalkSessionRepository.findByMemberIdForUpdate(1L))
+                .willReturn(Optional.of(activeSession()));
+
+        // when & then
+        assertThatThrownBy(() -> walkSessionCommandService.startSession(1L, request))
+                .isInstanceOf(CustomException.class)
+                .extracting(exception -> ((CustomException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.WALK_SESSION_ROOM_MISMATCH);
+        then(activeWalkSessionRepository).should(never()).save(any());
+    }
+
+    @Test
     @DisplayName("산책 세션을 완료하면 승인된 내 빙고 성과와 일별 기록을 저장한다")
     void completeSessionSavesAchievementsAndDailyHistory() {
         // given
