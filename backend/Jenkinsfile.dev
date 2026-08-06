@@ -5,12 +5,20 @@ pipeline {
         COMPOSE_FILE = 'docker-compose.dev.yml'
         SERVICE_NAME = 'backend'
         MONITORING_COMPOSE_FILE = 'docker-compose.dev.yml'
+        JENKINS_CONTAINER_HOME = '/var/jenkins_home'
+        JENKINS_HOST_HOME = '/home/ubuntu/jenkins_home'
     }
 
     stages {
         stage('Check Changes') {
             steps {
                 script {
+                    // Jenkins는 컨테이너로 실행되어 docker compose를 호스트 데몬이 대신 처리한다
+                    // (docker-outside-of-docker). 컨테이너 관점 워크스페이스 경로를 상대경로 볼륨에
+                    // 그대로 쓰면 호스트에는 그 경로가 없어 빈 디렉터리가 새로 생성되므로, secrets
+                    // 볼륨은 호스트 실제 경로로 치환한 절대경로를 docker-compose.dev.yml에 넘긴다.
+                    env.SECRETS_HOST_DIR = env.WORKSPACE.replace(env.JENKINS_CONTAINER_HOME, env.JENKINS_HOST_HOME) + '/backend/secrets'
+
                     def changedFiles = sh(
                         script: '''
                         if git rev-parse HEAD~1 >/dev/null 2>&1; then
