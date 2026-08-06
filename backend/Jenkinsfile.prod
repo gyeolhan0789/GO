@@ -318,10 +318,13 @@ pipeline {
                     withCredentials([
                         string(credentialsId: 'prod-db-password', variable: 'DB_PASSWORD'),
                         string(credentialsId: 'prod-db-root-password', variable: 'DB_ROOT_PASSWORD'),
-                        string(credentialsId: 'prod-jwt-secret', variable: 'JWT_SECRET')
+                        string(credentialsId: 'prod-jwt-secret', variable: 'JWT_SECRET'),
+                        file(credentialsId: 'prod-firebase-credentials', variable: 'FIREBASE_CREDENTIALS_FILE')
                     ]) {
                         sh '''
                         set -eu
+                        mkdir -p secrets
+                        cp "$FIREBASE_CREDENTIALS_FILE" secrets/firebase-service-account.json
                         STABLE_IMAGE="$ROLLBACK_IMAGE" \
                         CANARY_IMAGE="$IMAGE_REPOSITORY:$GIT_SHA" \
                         NGINX_IMAGE="$NGINX_CANDIDATE_IMAGE" \

@@ -73,9 +73,14 @@ pipeline {
                     withCredentials([
                         string(credentialsId: 'dev-db-password', variable: 'DB_PASSWORD'),
                         string(credentialsId: 'dev-db-root-password', variable: 'DB_ROOT_PASSWORD'),
-                        string(credentialsId: 'dev-jwt-secret', variable: 'JWT_SECRET')
+                        string(credentialsId: 'dev-jwt-secret', variable: 'JWT_SECRET'),
+                        file(credentialsId: 'dev-firebase-credentials', variable: 'FIREBASE_CREDENTIALS_FILE')
                     ]) {
-                        sh 'docker compose -f $COMPOSE_FILE up -d --build $SERVICE_NAME'
+                        sh '''
+                        mkdir -p secrets
+                        cp "$FIREBASE_CREDENTIALS_FILE" secrets/firebase-service-account.json
+                        docker compose -f $COMPOSE_FILE up -d --build $SERVICE_NAME
+                        '''
                     }
                 }
             }

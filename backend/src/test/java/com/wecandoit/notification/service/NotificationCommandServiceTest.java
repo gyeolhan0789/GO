@@ -19,6 +19,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -51,14 +52,17 @@ class NotificationCommandServiceTest {
         // given
         Member member = memberWithFcmToken(1L, "token-abc");
         given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(member));
-        given(fcmClient.send("token-abc", "제목", "본문")).willReturn(false);
+        given(fcmClient.send("token-abc", "제목", "본문", NotificationType.FRIEND_REQUEST, 20L))
+                .willReturn(false);
 
         // when
-        notificationCommandService.send(1L, NotificationType.FRIEND_REQUEST, "제목", "본문");
+        notificationCommandService.send(1L, NotificationType.FRIEND_REQUEST, "제목", "본문", 20L);
 
         // then
-        then(notificationRepository).should().save(ArgumentMatchers.any(Notification.class));
-        then(fcmClient).should().send("token-abc", "제목", "본문");
+        ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
+        then(notificationRepository).should().save(notificationCaptor.capture());
+        assertThat(notificationCaptor.getValue().getTargetId()).isEqualTo(20L);
+        then(fcmClient).should().send("token-abc", "제목", "본문", NotificationType.FRIEND_REQUEST, 20L);
         assertThat(member.getFcmToken()).isEqualTo("token-abc");
     }
 
@@ -70,7 +74,7 @@ class NotificationCommandServiceTest {
         given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(member));
 
         // when
-        notificationCommandService.send(1L, NotificationType.FRIEND_REQUEST, "제목", "본문");
+        notificationCommandService.send(1L, NotificationType.FRIEND_REQUEST, "제목", "본문", 20L);
 
         // then
         then(notificationRepository).should().save(ArgumentMatchers.any(Notification.class));
@@ -83,10 +87,11 @@ class NotificationCommandServiceTest {
         // given
         Member member = memberWithFcmToken(1L, "invalid-token");
         given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(member));
-        given(fcmClient.send("invalid-token", "제목", "본문")).willReturn(true);
+        given(fcmClient.send("invalid-token", "제목", "본문", NotificationType.FRIEND_REQUEST, 20L))
+                .willReturn(true);
 
         // when
-        notificationCommandService.send(1L, NotificationType.FRIEND_REQUEST, "제목", "본문");
+        notificationCommandService.send(1L, NotificationType.FRIEND_REQUEST, "제목", "본문", 20L);
 
         // then
         assertThat(member.getFcmToken()).isNull();
@@ -100,7 +105,7 @@ class NotificationCommandServiceTest {
 
         // when & then
         assertThatThrownBy(() ->
-                notificationCommandService.send(1L, NotificationType.FRIEND_REQUEST, "제목", "본문"))
+                notificationCommandService.send(1L, NotificationType.FRIEND_REQUEST, "제목", "본문", 20L))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
@@ -155,7 +160,8 @@ class NotificationCommandServiceTest {
     }
 
     private Notification notification(Long id, Long memberId) {
-        Notification notification = Notification.create(memberId, NotificationType.FRIEND_REQUEST, "제목", "본문");
+        Notification notification =
+                Notification.create(memberId, NotificationType.FRIEND_REQUEST, "제목", "본문", 20L);
         ReflectionTestUtils.setField(notification, "id", id);
         return notification;
     }

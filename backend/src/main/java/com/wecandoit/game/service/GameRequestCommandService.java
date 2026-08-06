@@ -88,6 +88,8 @@ public class GameRequestCommandService {
             return;
         }
         gameCycleCommandService.registerCurrentCycleParticipant(room, memberId);
+        roomMembers.forEach(roomMember -> eventPublisher.publishEvent(
+                notificationMessageFactory.walkStart(roomMember.getMemberId(), roomId)));
     }
 
     public void rejectGameRequest(Long memberId, Long roomId, Long requestId) {
@@ -173,7 +175,7 @@ public class GameRequestCommandService {
         GameRequest gameRequest = gameRequestRepository.save(
                 GameRequest.create(roomId, inviterId, inviteeId)
         );
-        eventPublisher.publishEvent(notificationMessageFactory.friendInvite(inviteeId));
+        eventPublisher.publishEvent(notificationMessageFactory.friendInvite(inviteeId, roomId));
         // TODO: 초대 만료 정책이 확정되면 연동한다.
         return GameRequestCreateResponse.from(gameRequest, true);
     }
