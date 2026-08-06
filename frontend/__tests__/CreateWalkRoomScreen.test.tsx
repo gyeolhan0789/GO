@@ -24,18 +24,23 @@ const FRIEND_MEMBER_ID = 2;
 const FRIEND_NICKNAME = '민서';
 const REQUEST_ID = 7;
 
-const FRIENDS_SLICE = {
-  content: [
-    {
-      memberId: FRIEND_MEMBER_ID,
-      nickname: FRIEND_NICKNAME,
-      weeklySteps: 3000,
-      gender: 'FEMALE',
-      defaultImageUrl: null,
-      equippedItems: [],
-    },
-  ],
-  hasNext: false,
+const FRIEND = {
+  memberId: FRIEND_MEMBER_ID,
+  nickname: FRIEND_NICKNAME,
+  weeklySteps: 3000,
+  gender: 'FEMALE',
+  defaultImageUrl: null,
+  equippedItems: [],
+};
+
+/** 모달이 닫혀 있는 사이에 새로 맺어지는 친구. */
+const NEW_FRIEND = {
+  memberId: 3,
+  nickname: '지호',
+  weeklySteps: 1200,
+  gender: 'MALE',
+  defaultImageUrl: null,
+  equippedItems: [],
 };
 
 const CREATED_ROOM = {
@@ -73,13 +78,16 @@ let queryClient: QueryClient | null = null;
 let fetchMock: FetchMock;
 /** 서버가 들고 있는 내가 보낸 초대. 초대를 보내면 한 건 늘어난다. */
 let sentInvites: (typeof PENDING_INVITE)[];
+/** 서버가 들고 있는 내 친구 목록. 테스트 도중 늘려 갱신 여부를 본다. */
+let friends: (typeof FRIEND)[];
 
 beforeEach(() => {
   sentInvites = [];
+  friends = [FRIEND];
   fetchMock = installFetchMock();
   fetchMock.mockImplementation(async (url, init) => {
     if (url.includes('/friends')) {
-      return jsonResponse(200, FRIENDS_SLICE as never);
+      return jsonResponse(200, { content: friends, hasNext: false } as never);
     }
     if (url.includes('/rooms/requests/sent')) {
       return jsonResponse(200, sentInvites as never);
@@ -159,7 +167,7 @@ async function typeInto(
   });
 }
 
-async function renderScreen() {
+async function renderScreen({ visible = true } = {}) {
   queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -171,19 +179,22 @@ async function renderScreen() {
   const client = queryClient;
   const onCreated = jest.fn();
 
+  // 동행 탭이 그러듯 화면을 언마운트하지 않고 visible만 껐다 켠다.
+  const treeFor = (isVisible: boolean) => (
+    <QueryClientProvider client={client}>
+      <SafeAreaProvider initialMetrics={INITIAL_METRICS}>
+        <SentInvitesProbe />
+        <CreateWalkRoomScreen
+          visible={isVisible}
+          onClose={jest.fn()}
+          onCreated={onCreated}
+        />
+      </SafeAreaProvider>
+    </QueryClientProvider>
+  );
+
   await act(async () => {
-    renderer = ReactTestRenderer.create(
-      <QueryClientProvider client={client}>
-        <SafeAreaProvider initialMetrics={INITIAL_METRICS}>
-          <SentInvitesProbe />
-          <CreateWalkRoomScreen
-            visible
-            onClose={jest.fn()}
-            onCreated={onCreated}
-          />
-        </SafeAreaProvider>
-      </QueryClientProvider>,
-    );
+    renderer = ReactTestRenderer.create(treeFor(visible));
   });
 
   await flushQueries();
@@ -191,16 +202,36 @@ async function renderScreen() {
   if (!renderer) {
     throw new Error('renderer not initialized');
   }
-  return { tree: renderer, onCreated };
+
+  const setVisible = async (isVisible: boolean) => {
+    await act(async () => {
+      renderer?.update(treeFor(isVisible));
+    });
+    await flushQueries();
+  };
+
+  return { tree: renderer, onCreated, setVisible };
 }
 
-/** 1단계(방 정보)를 채우고 2단계(친구 선택)에서 친구 한 명을 고른다. */
-async function fillFormAndSelectFriend(root: ReactTestInstance) {
+/** 초대 목록에 뜬 친구 줄. 안 떴으면 undefined다. */
+function findFriendRow(root: ReactTestInstance, nickname: string) {
+  return root
+    .findAll(node => typeof node.props.onPress === 'function')
+    .find(node => node.props.accessibilityLabel === `${nickname} 초대`);
+}
+
+/** 1단계(방 정보)를 채우고 2단계(친구 선택)로 넘어간다. */
+async function goToFriendStep(root: ReactTestInstance) {
   await typeInto(root, '산책방 이름을 입력하세요', '아침 산책 모임');
   await typeInto(root, '일주일 기준 목표 걸음수 (예: 10000)', '10000');
   await act(async () => {
     findButtonByLabel(root, '다음').props.onPress();
   });
+}
+
+/** 1단계(방 정보)를 채우고 2단계(친구 선택)에서 친구 한 명을 고른다. */
+async function fillFormAndSelectFriend(root: ReactTestInstance) {
+  await goToFriendStep(root);
   await act(async () => {
     findButtonByLabel(root, `${FRIEND_NICKNAME} 초대`).props.onPress();
   });
@@ -240,5 +271,29 @@ describe('CreateWalkRoomScreen', () => {
 
     // 무효화하지 않으면 방장이 방 상세에 들어가도 방금 보낸 초대가 안 보인다.
     expect(collectTexts(tree.root)).toContain('초대 대기 1');
+  });
+
+  test('닫혀 있는 동안에는 친구 목록을 읽지 않는다', async () => {
+    await renderScreen({ visible: false });
+
+    const friendCalls = fetchMock.mock.calls.filter(([url]) =>
+      url.includes('/friends'),
+    );
+    expect(friendCalls).toHaveLength(0);
+  });
+
+  test('다시 열면 친구 목록을 새로 읽는다', async () => {
+    const { tree, setVisible } = await renderScreen();
+
+    await goToFriendStep(tree.root);
+    expect(findFriendRow(tree.root, NEW_FRIEND.nickname)).toBeUndefined();
+
+    // 닫혀 있는 사이 상대가 내 친구 요청을 수락했다. 내 쪽에는 알림이 없다.
+    await setVisible(false);
+    friends = [FRIEND, NEW_FRIEND];
+    await setVisible(true);
+
+    // 다시 읽지 않으면 새로 맺은 친구를 방에 초대할 방법이 없다.
+    expect(findFriendRow(tree.root, NEW_FRIEND.nickname)).toBeDefined();
   });
 });
