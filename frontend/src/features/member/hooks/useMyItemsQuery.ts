@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { getMyItems } from '../api/memberApi';
 import type { CharacterItem } from '../model/character';
-import { toCharacterItem } from '../model/character';
+import { toCharacterItems } from '../model/character';
 
 // 보유 아이템은 상점에서 구매할 때만 늘어난다. 꾸미기 화면을 여닫을 때마다 다시
 // 부르지 않도록 잠깐 캐시를 유지한다.
@@ -11,7 +11,7 @@ const STALE_TIME_MS = 60 * 1000;
 export const MY_ITEMS_QUERY_KEY = ['member', 'items'];
 
 async function fetchMyItems(): Promise<CharacterItem[]> {
-  return (await getMyItems()).map(toCharacterItem);
+  return toCharacterItems(await getMyItems());
 }
 
 /**

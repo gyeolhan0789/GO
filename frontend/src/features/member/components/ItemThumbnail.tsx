@@ -11,21 +11,48 @@ import type { ItemCategory } from '../api/memberApi';
  *
  * CharacterBust와 같은 방식으로 푼다. 카테고리마다 아이템이 그려지는 세로
  * 위치를 알고 있으니, 그 부분만 확대해 창에 담는다. 캔버스에서 캐릭터는
- * 세로 15~81%, 가로 35~69%를 차지한다(CharacterBust의 실측 주석 참고).
+ * 세로 15~81%를 차지한다(CharacterBust의 실측 주석 참고).
  */
-// 창이 캔버스의 2/3(1.5배). 이보다 키우면 챙 넓은 모자류가 창 밖으로 잘린다.
-const ZOOM = 1.5;
-/** 캐릭터 가로 중심. 모든 카테고리가 같다. */
-const CENTER_X = 0.5175;
-/** 카테고리별 아이템 세로 중심(캔버스 비율). */
-const CENTER_Y_BY_CATEGORY: Record<ItemCategory, number> = {
-  // 모자는 머리 위로 솟는 높이가 아이템마다 달라서 창을 캔버스 위 끝까지 올린다.
-  HAT: 0.28,
-  SUNGLASSES: 0.32,
-  TOP: 0.47,
-  ACCESSORY: 0.47,
-  BOTTOM: 0.64,
-  SHOES: 0.76,
+/** 창에 담을 그림 위치와 확대율. 캔버스 비율(0~1) 기준. */
+type AssetFrame = {
+  /** 그림의 가로 중심. */
+  centerX: number;
+  /** 그림의 세로 중심. */
+  centerY: number;
+  /** 창을 캔버스의 1/zoom로 좁혀 그만큼 확대한다. */
+  zoom: number;
+};
+
+/**
+ * 카테고리별 창 규격. 실제 아이템 PNG(512 정사각) 14장의 알파 범위를 재서 넣었다.
+ *
+ * | 카테고리 | 가로 중심 | 세로 중심 | 체감 크기(√넓이) |
+ * |---|---|---|---|
+ * | 모자 | 0.500 | 0.303 | 0.42 |
+ * | 상의 | 0.496 | 0.620 | 0.24 |
+ * | 하의 | 0.494 | 0.746 | 0.16 |
+ *
+ * **가로 중심이 0.5가 아닌 건 에셋 문제를 상쇄하는 값이다.** 상의·하의 그림이
+ * 캔버스 정중앙보다 2~4px 왼쪽에 그려져 있어서, 0.5로 자르면 카드 안에서 그림이
+ * 왼쪽으로 치우쳐 보인다(확대율이 큰 하의가 3px 넘게 두드러진다). 실측값(위 표)에서
+ * 시작해 화면을 보며 조금 더 민 값이 아래 상수다. 에셋이 정중앙으로 고쳐지면 세 값
+ * 모두 0.5로 되돌리면 된다.
+ *
+ * 확대율은 체감 크기가 카테고리마다 캔버스의 0.41 정도로 맞도록 역산한 값이다.
+ * 하나로 쓰면(예전 1.5배) 모자가 하의보다 두 배 넘게 커 보인다. 확대해도 창이
+ * 그림보다 넓어 잘리지 않는다 — 가장 큰 아이템도 창의 63%까지만 찬다.
+ *
+ * 판매 아이템이 없어 못 잰 카테고리는 예전 어림값을 둔다. 아이템이 생기면 같은
+ * 방법으로 재서 고쳐야 한다.
+ */
+const FRAME_BY_CATEGORY: Record<ItemCategory, AssetFrame> = {
+  // 모자는 에셋끼리 크기 차이가 커서(챙만 있는 썬캡 대 크라운 높은 밀짚모자)
+  // 하나의 창으로 전부 같은 크기로 만들 수는 없다. 가운데값을 쓴다.
+  HAT: { centerX: 0.5, centerY: 0.303, zoom: 1.0 },
+  TOP: { centerX: 0.487, centerY: 0.62, zoom: 1.72 },
+  BOTTOM: { centerX: 0.492, centerY: 0.746, zoom: 2.4 },
+  // 이하 미측정(판매 아이템 없음).
+  ACCESSORY: { centerX: 0.5, centerY: 0.47, zoom: 1.5 },
 };
 
 type ItemThumbnailProps = {
@@ -43,7 +70,7 @@ export function ItemThumbnail({
   style,
   onError,
 }: ItemThumbnailProps) {
-  const centerY = CENTER_Y_BY_CATEGORY[category];
+  const { centerX, centerY, zoom } = FRAME_BY_CATEGORY[category];
 
   return (
     <View style={[styles.frame, style]}>
@@ -55,9 +82,11 @@ export function ItemThumbnail({
         style={[
           styles.image,
           {
-            // 확대된 이미지에서 (CENTER_X, centerY)가 창 중앙에 오도록 끌어온다.
-            left: percent((0.5 - ZOOM * CENTER_X) * 100),
-            top: percent((0.5 - ZOOM * centerY) * 100),
+            width: percent(zoom * 100),
+            height: percent(zoom * 100),
+            // 확대된 이미지에서 (centerX, centerY)가 창 중앙에 오도록 끌어온다.
+            left: percent((0.5 - zoom * centerX) * 100),
+            top: percent((0.5 - zoom * centerY) * 100),
           },
         ]}
       />
@@ -71,8 +100,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   image: {
+    // 크기는 카테고리별 확대율에 따라 호출 시점에 정한다.
     position: 'absolute',
-    width: percent(ZOOM * 100),
-    height: percent(ZOOM * 100),
   },
 });

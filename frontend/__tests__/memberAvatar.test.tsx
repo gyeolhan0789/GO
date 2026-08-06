@@ -218,13 +218,6 @@ describe('회원 아바타 기본 캐릭터', () => {
             imageUrl: '/uploads/hat.png',
           },
           {
-            memberItemId: 4,
-            itemId: 204,
-            name: 'White Shoes',
-            category: 'SHOES',
-            imageUrl: '/uploads/shoes.png',
-          },
-          {
             memberItemId: 2,
             itemId: 202,
             name: 'Green Top',
@@ -234,9 +227,9 @@ describe('회원 아바타 기본 캐릭터', () => {
           {
             memberItemId: 5,
             itemId: 205,
-            name: 'Round Glasses',
-            category: 'SUNGLASSES',
-            imageUrl: '/uploads/glasses.png',
+            name: 'Gold Ring',
+            category: 'ACCESSORY',
+            imageUrl: '/uploads/ring.png',
           },
           {
             memberItemId: 3,
@@ -253,16 +246,51 @@ describe('회원 아바타 기본 캐릭터', () => {
       .findAllByType(Image)
       .map(image => image.props.source);
 
-    // 기본 캐릭터 + 아이템 5개.
-    expect(sources).toHaveLength(6);
-    // 상의가 하의 허리선을, 모자가 안경을 덮는 순서여야 한다.
+    // 기본 캐릭터 + 아이템 4개.
+    expect(sources).toHaveLength(5);
+    // 상의가 하의 허리선을, 모자가 그 위를 덮는 순서여야 한다.
     expect(sources.slice(1).map(source => source.uri.split('/').pop())).toEqual([
       'pants.png',
-      'shoes.png',
       'top.png',
-      'glasses.png',
+      'ring.png',
       'hat.png',
     ]);
+  });
+
+  test('앱이 다루지 않는 카테고리는 그리지 않는다', () => {
+    // 서버 enum에는 신발·안경이 남아 있어 응답에 섞여 올 수 있다. 겹쳐 그리는
+    // 순서와 썸네일 규격에 자리가 없으므로 통과시키면 안 된다.
+    const tree = render(
+      <MemberAvatar
+        gender="MALE"
+        defaultImageUrl={null}
+        equippedItems={[
+          {
+            memberItemId: 1,
+            itemId: 201,
+            name: 'Blue Cap',
+            category: 'HAT',
+            imageUrl: '/uploads/hat.png',
+          },
+          {
+            memberItemId: 4,
+            itemId: 204,
+            name: 'White Shoes',
+            // 타입에는 없는 값이 응답으로 오는 상황이다.
+            category: 'SHOES' as never,
+            imageUrl: '/uploads/shoes.png',
+          },
+        ]}
+      />,
+    );
+
+    const sources = tree.root
+      .findAllByType(Image)
+      .map(image => image.props.source);
+
+    // 기본 캐릭터 + 모자만.
+    expect(sources).toHaveLength(2);
+    expect(sources[1].uri).toContain('/uploads/hat.png');
   });
 
   test('같은 카테고리가 겹쳐 오면 하나만 그린다', () => {

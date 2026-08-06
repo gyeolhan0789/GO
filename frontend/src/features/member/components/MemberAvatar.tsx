@@ -5,7 +5,7 @@ import type { StyleProp, ViewStyle } from 'react-native';
 import type { Gender } from '../../auth/constants/genders';
 import type { EquippedItem } from '../api/memberApi';
 import { DEFAULT_CHARACTER_IMAGE_BY_GENDER } from '../constants/characterImages';
-import { toCharacterItem, toImageSource } from '../model/character';
+import { toCharacterItems, toImageSource } from '../model/character';
 import {
   selectLayerItems,
   toEquippedByCategory,
@@ -47,9 +47,7 @@ export function MemberAvatar({
 }: MemberAvatarProps) {
   const layers = useMemo(
     () =>
-      selectLayerItems(
-        toEquippedByCategory((equippedItems ?? []).map(toCharacterItem)),
-      ),
+      selectLayerItems(toEquippedByCategory(toCharacterItems(equippedItems ?? []))),
     [equippedItems],
   );
   const fallbackImage = gender
