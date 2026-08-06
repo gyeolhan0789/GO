@@ -1,7 +1,7 @@
 package com.wecandoit.member.controller;
 
 import com.wecandoit.common.security.LoginMemberId;
-import com.wecandoit.item.controller.response.AvatarResponse;
+import com.wecandoit.avatar.dto.AvatarDto;
 import com.wecandoit.item.service.AvatarItemReadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +17,7 @@ public class MemberAvatarController {
     private final AvatarItemReadService avatarItemReadService;
 
     @GetMapping
-    public ResponseEntity<AvatarResponse> getMyAvatar(@LoginMemberId Long memberId) {
+    public ResponseEntity<AvatarDto> getMyAvatar(@LoginMemberId Long memberId) {
         return ResponseEntity.ok(avatarItemReadService.getMyAvatar(memberId));
     }
 }

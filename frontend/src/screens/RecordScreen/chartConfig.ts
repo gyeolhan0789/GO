@@ -1,4 +1,3 @@
-import { formatThousands } from '../../features/history/model/format';
 import { colors } from '../../shared/constants/colors';
 import { radius } from '../../shared/constants/radius';
 import { bodyFont } from '../../shared/constants/typography';
@@ -20,7 +19,8 @@ export const Y_AXIS_GUTTER_STYLE = {
 };
 
 const CHART_KIT_BAR_BASE = 32;
-const BAR_SLOT_RATIO = 2 / 3;
+/** 막대가 칸에서 차지하는 폭. 칸 오른쪽 끝에 붙는다(resolveBarPercentage 참고). */
+export const BAR_SLOT_RATIO = 2 / 3;
 
 /**
  * chart-kit은 막대 폭을 `32 * barPercentage`로만 계산해서 차트가 넓어져도 굵어지지
@@ -62,8 +62,7 @@ const TRANSPARENT_BACKGROUND = {
   backgroundGradientToOpacity: 0,
 };
 
-// 축 눈금은 보조 정보라 regular. 막대 위에 얹는 값(propsForTopLabels)만 bold로
-// 강조해서 둘 사이에 위계를 준다.
+// 축 눈금은 보조 정보라 regular.
 const LABEL_FONT = {
   fontFamily: bodyFont.regular,
   fontSize: 11,
@@ -100,22 +99,10 @@ const SHARED_CHART_CONFIG = {
   propsForBackgroundLines: DASHED_GRID_LINES,
 };
 
-export const WEEK_BAR_CHART_CONFIG = {
+export const BAR_CHART_CONFIG = {
   ...SHARED_CHART_CONFIG,
   color: barColor,
   barRadius: radius.xs,
-};
-
-export const MONTH_BAR_CHART_CONFIG = {
-  ...SHARED_CHART_CONFIG,
-  color: barColor,
-  barRadius: radius.xs,
-  formatTopBarValue: (value: number) => formatThousands(value),
-  propsForTopLabels: {
-    fontFamily: bodyFont.bold,
-    fontSize: 10,
-    fill: colors.ink,
-  },
 };
 
 export const HOUR_LINE_CHART_CONFIG = {

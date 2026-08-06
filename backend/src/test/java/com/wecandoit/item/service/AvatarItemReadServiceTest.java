@@ -11,8 +11,8 @@ import static org.mockito.Mockito.never;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
-import com.wecandoit.item.controller.response.AvatarResponse;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.AvatarDto;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.item.controller.response.MemberItemResponse;
 import com.wecandoit.item.domain.Item;
 import com.wecandoit.item.domain.ItemCategory;
@@ -65,8 +65,8 @@ class AvatarItemReadServiceTest {
         Member member = member(1L, "테스터");
         MemberItem hat = memberItem(10L, 1L, 100L);
         MemberItem top = memberItem(20L, 1L, 200L);
-        Item hatItem = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
-        Item topItem = item(200L, "파란 상의", "TOP", "https://example.com/top.png");
+        Item hatItem = item(100L, "빨간 모자", ItemCategory.HAT, "https://example.com/hat.png");
+        Item topItem = item(200L, "파란 상의", ItemCategory.TOP, "https://example.com/top.png");
         given(memberRepository.findById(1L)).willReturn(Optional.of(member));
         given(memberItemRepository.findAllByMemberId(1L)).willReturn(List.of(hat, top));
         given(itemRepository.findAllById(List.of(100L, 200L))).willReturn(List.of(hatItem, topItem));
@@ -82,14 +82,14 @@ class AvatarItemReadServiceTest {
                                 10L,
                                 100L,
                                 "빨간 모자",
-                                "HAT",
+                                ItemCategory.HAT,
                                 "https://example.com/hat.png"
                         ),
                         org.assertj.core.groups.Tuple.tuple(
                                 20L,
                                 200L,
                                 "파란 상의",
-                                "TOP",
+                                ItemCategory.TOP,
                                 "https://example.com/top.png"
                         )
                 );
@@ -134,10 +134,10 @@ class AvatarItemReadServiceTest {
         Member member = member(1L, "테스터");
         MemberItem hat = memberItem(10L, 1L, 100L);
         MemberItem top = memberItem(20L, 1L, 200L);
-        Item hatItem = item(100L, "빨간 모자", "HAT", "https://example.com/hat.png");
+        Item hatItem = item(100L, "빨간 모자", ItemCategory.HAT, "https://example.com/hat.png");
         given(memberRepository.findById(1L)).willReturn(Optional.of(member));
         given(memberItemRepository.findAllByMemberId(1L)).willReturn(List.of(hat, top));
-        given(itemRepository.findAllByIdInAndCategory(List.of(100L, 200L), "HAT"))
+        given(itemRepository.findAllByIdInAndCategory(List.of(100L, 200L), ItemCategory.HAT))
                 .willReturn(List.of(hatItem));
 
         // when
@@ -146,8 +146,8 @@ class AvatarItemReadServiceTest {
         // then
         assertThat(responses)
                 .extracting(MemberItemResponse::memberItemId, MemberItemResponse::category)
-                .containsExactly(org.assertj.core.groups.Tuple.tuple(10L, "HAT"));
-        then(itemRepository).should().findAllByIdInAndCategory(List.of(100L, 200L), "HAT");
+                .containsExactly(org.assertj.core.groups.Tuple.tuple(10L, ItemCategory.HAT));
+        then(itemRepository).should().findAllByIdInAndCategory(List.of(100L, 200L), ItemCategory.HAT);
         then(itemRepository).should(never()).findAllById(Mockito.anyIterable());
     }
 
@@ -159,7 +159,7 @@ class AvatarItemReadServiceTest {
         MemberItem hat = memberItem(10L, 1L, 100L);
         given(memberRepository.findById(1L)).willReturn(Optional.of(member));
         given(memberItemRepository.findAllByMemberId(1L)).willReturn(List.of(hat));
-        given(itemRepository.findAllByIdInAndCategory(List.of(100L), "TOP"))
+        given(itemRepository.findAllByIdInAndCategory(List.of(100L), ItemCategory.TOP))
                 .willReturn(List.of());
 
         // when
@@ -201,20 +201,20 @@ class AvatarItemReadServiceTest {
         given(memberRepository.findById(1L)).willReturn(Optional.of(member));
         given(avatarReadService.getAvatars(List.of(member))).willReturn(Map.of(
                 1L,
-                new AvatarResponse(
+                new AvatarDto(
                         1L,
                         "테스터",
                         Gender.MALE,
                         "/uploads/test/avatars/male/default.png",
                         List.of(
-                                new EquippedItemResponse(
+                                new EquippedItemDto(
                                         10L,
                                         100L,
                                         "빨간 모자",
                                         ItemCategory.HAT,
                                         "https://example.com/hat.png"
                                 ),
-                                new EquippedItemResponse(
+                                new EquippedItemDto(
                                         20L,
                                         200L,
                                         "파란 상의",
@@ -226,7 +226,7 @@ class AvatarItemReadServiceTest {
         ));
 
         // when
-        AvatarResponse response = avatarItemReadService.getMyAvatar(1L);
+        AvatarDto response = avatarItemReadService.getMyAvatar(1L);
 
         // then
         assertThat(response.memberId()).isEqualTo(1L);
@@ -262,7 +262,7 @@ class AvatarItemReadServiceTest {
         given(memberRepository.findById(1L)).willReturn(Optional.of(member));
         given(avatarReadService.getAvatars(List.of(member))).willReturn(Map.of(
                 1L,
-                new AvatarResponse(
+                new AvatarDto(
                         1L,
                         "테스터",
                         Gender.MALE,
@@ -272,7 +272,7 @@ class AvatarItemReadServiceTest {
         ));
 
         // when
-        AvatarResponse response = avatarItemReadService.getMyAvatar(1L);
+        AvatarDto response = avatarItemReadService.getMyAvatar(1L);
 
         // then
         assertThat(response.equippedItems()).isEmpty();
@@ -301,7 +301,7 @@ class AvatarItemReadServiceTest {
         given(memberRepository.findById(1L)).willReturn(Optional.of(member));
         given(avatarReadService.getAvatars(List.of(member))).willReturn(Map.of(
                 1L,
-                new AvatarResponse(
+                new AvatarDto(
                         1L,
                         "테스터",
                         Gender.MALE,
@@ -311,7 +311,7 @@ class AvatarItemReadServiceTest {
         ));
 
         // when
-        AvatarResponse response = avatarItemReadService.getMyAvatar(1L);
+        AvatarDto response = avatarItemReadService.getMyAvatar(1L);
 
         // then
         assertThat(response.defaultImageUrl()).isNull();
@@ -319,7 +319,7 @@ class AvatarItemReadServiceTest {
     }
 
     private Member member(Long id, String nickname) {
-        Member member = Member.create("member@example.com", "password", nickname);
+        Member member = Member.create("member@example.com", "password", nickname, null, Gender.MALE);
         ReflectionTestUtils.setField(member, "id", id);
         return member;
     }

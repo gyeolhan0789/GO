@@ -42,6 +42,7 @@ docs {
       "title": "빨간 우산 찾기",
       "detail": "빨간색 우산을 찾아 사진을 찍으세요.",
       "decisionCondition": "사진 속 우산 색상이 빨간색인지 확인",
+      "point": 50,
       "createdAt": "2026-07-24T10:00:00"
     },
     "verificationStatus": "APPROVED",
@@ -58,6 +59,7 @@ docs {
   - AI 검증 서버에는 다운로드 없이 업로드된 이미지 바이트를 그대로 전달한다.
   - 대결 모드는 현재 `Game` 회차에서 요청자의 `RoomMember`가 소유한 개인 빙고판만 조회하고 갱신한다. 상대 참가자의 빙고판과 셀은 변경하지 않는다.
   - `PENDING` 또는 `APPROVED` 상태의 셀은 다시 제출할 수 없고, `REJECTED` 상태만 재제출할 수 있다.
+  - 활동 기반(비사진) 미션 칸은 이 API가 아니라 `POST /rooms/{roomId}/bingo-boards/cells/{cellId}/complete`로 완료한다.
   - AI 서버 호출 자체가 실패하면 진행 중인 게임의 셀은 `REJECTED`로 복구되어 다시 제출할 수 있다.
   - `APPROVED`로 승인된 칸만 `completedAt`이 기록된다. 대결 모드는 빙고 줄(가로/세로/대각선)의 `targetBingoCount` 도달 여부, 싱글·협동 모드는 전체 셀 완료 여부로 게임 종료를 판정한다. 현재 각 칸의 진행 상황은 활성 빙고판 조회(`GET /rooms/{roomId}/bingo-boards/active`) 응답의 `verificationStatus`로 확인한다.
   - 게임이 완료된 뒤 도착한 검증 결과는 모드와 관계없이 무시되며 결과나 보상이 추가 생성되지 않는다.
@@ -141,6 +143,38 @@ docs {
   {
     "status": 409,
     "message": "게임이 시작된 방에서만 빙고판을 생성할 수 있습니다."
+  }
+  ```
+
+  **싱글·협동 빙고판의 갱신 기한(생성 후 7일)이 지남**
+  ```json
+  {
+    "status": 409,
+    "message": "빙고판 갱신이 필요합니다."
+  }
+  ```
+
+  **AI 검증 요청이 올바르지 않음**
+  ```json
+  {
+    "status": 502,
+    "message": "AI 검증 요청이 올바르지 않습니다."
+  }
+  ```
+
+  **AI 검증 서버 오류**
+  ```json
+  {
+    "status": 502,
+    "message": "AI 검증 서버에서 오류가 발생했습니다."
+  }
+  ```
+
+  **AI 검증 서버 호출 실패**
+  ```json
+  {
+    "status": 503,
+    "message": "AI 검증 서버 호출에 실패했습니다."
   }
   ```
 

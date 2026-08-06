@@ -79,7 +79,7 @@ class BingoCellVerificationResultServiceTest {
         assertThat(cell.getCompletedAt()).isNotNull();
         assertThat(rewardPoint).isEqualTo(30L);
         then(pointCommandService).should().grantBingoCellReward(1L, 10L, 1000L, MissionDifficulty.LOW);
-        then(gameCompletionService).should().evaluateAndCompleteIfNeeded(200L, 100L);
+        then(gameCompletionService).should().evaluateAndCompleteIfNeeded(200L);
     }
 
     @Test
@@ -110,7 +110,7 @@ class BingoCellVerificationResultServiceTest {
         assertThat(rewardPoint).isZero();
         then(pointCommandService).shouldHaveNoInteractions();
         then(gameCompletionService).should(never())
-                .evaluateAndCompleteIfNeeded(anyLong(), anyLong());
+                .evaluateAndCompleteIfNeeded(anyLong());
     }
 
     @Test

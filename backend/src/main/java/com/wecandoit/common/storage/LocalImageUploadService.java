@@ -71,7 +71,8 @@ public class LocalImageUploadService implements ImageUploadService {
             throw new CustomException(ErrorCode.IMAGE_TOO_LARGE);
         }
 
-        String extension = ALLOWED_CONTENT_TYPE_EXTENSIONS.get(file.getContentType());
+        String contentType = file.getContentType();
+        String extension = contentType == null ? null : ALLOWED_CONTENT_TYPE_EXTENSIONS.get(contentType);
         if (extension == null) {
             throw new CustomException(ErrorCode.INVALID_IMAGE_TYPE);
         }

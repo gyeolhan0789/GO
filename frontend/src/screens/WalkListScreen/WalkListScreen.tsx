@@ -60,12 +60,14 @@ export function WalkListScreen({ navigation }: WalkListScreenProps) {
             onScroll={handleScroll}
             scrollEventThrottle={SCROLL_THROTTLE_MS}
             data={walks}
-            keyExtractor={walk => String(walk.gameId)}
+            keyExtractor={walk => String(walk.walkSessionId)}
             renderItem={({ item }) => (
               <WalkCard
                 walk={item}
                 onPress={() =>
-                  navigation.navigate('WalkDetail', { gameId: item.gameId })
+                  navigation.navigate('WalkDetail', {
+                    walkSessionId: item.walkSessionId,
+                  })
                 }
               />
             )}

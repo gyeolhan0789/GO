@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import type { FriendResponse } from '../../../features/friend/api/friendApi';
+import { MemberAvatar } from '../../../features/member/components/MemberAvatar';
 import { AppText } from '../../../shared/components/AppText/AppText';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
@@ -27,8 +28,12 @@ export function FriendSelectRow({
       accessibilityState={{ checked: selected }}
       accessibilityLabel={`${friend.nickname} 초대`}
     >
-      {/* TODO: equippedItems로 캐릭터 아바타 구성. 지금은 빈 원으로 대체. */}
-      <View style={styles.avatar} />
+      <MemberAvatar
+        gender={friend.gender}
+        defaultImageUrl={friend.defaultImageUrl}
+        equippedItems={friend.equippedItems}
+        style={styles.avatar}
+      />
 
       <View style={styles.textGroup}>
         <AppText style={styles.name} numberOfLines={1}>
@@ -62,11 +67,10 @@ const styles = StyleSheet.create({
   rowSelected: {
     borderColor: colors.ink,
   },
+  // 원 테두리 디자인은 CharacterBust가 모든 화면 공통으로 그린다.
   avatar: {
     width: 40,
     height: 40,
-    borderRadius: radius.pill,
-    backgroundColor: colors.neutralBg,
   },
   textGroup: {
     flex: 1,

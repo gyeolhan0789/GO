@@ -54,8 +54,20 @@ public enum ErrorCode {
 
     GAME_PARTICIPANT_NOT_FOUND(HttpStatus.NOT_FOUND, "게임 참가자를 찾을 수 없습니다."),
 
+    // Walk Session
+    WALK_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "산책 세션을 찾을 수 없습니다."),
+    WALK_SESSION_FORBIDDEN(HttpStatus.FORBIDDEN, "산책 세션에 접근할 권한이 없습니다."),
+    WALK_SESSION_ROOM_MISMATCH(HttpStatus.CONFLICT, "산책 세션과 산책방 정보가 일치하지 않습니다."),
+    WALK_SESSION_BINGO_VERIFICATION_IN_PROGRESS(HttpStatus.CONFLICT, "빙고 미션을 검증 중이라 산책을 종료할 수 없습니다."),
+    WALK_SESSION_ALREADY_COMPLETED(HttpStatus.CONFLICT, "이미 완료된 산책 세션입니다."),
+
+    WALK_SESSION_EXPIRED(HttpStatus.CONFLICT, "만료된 산책 세션입니다."),
+
     // Mission
-    INVALID_MISSION_TYPE(HttpStatus.BAD_REQUEST, "미션 타입은 OBJECT, ATTRIBUTE, RELATION, ORDINARY 중 하나여야 합니다."),
+    INVALID_MISSION_TYPE(HttpStatus.BAD_REQUEST,
+            "미션 타입은 OBJECT, ATTRIBUTE, RELATION, ORDINARY, STEP_TOTAL, STEP_CONTINUOUS, STEP_UPHILL, STEP_DAILY, "
+                    + "WALKING_TIME_TOTAL, WALKING_TIME_CONTINUOUS, STEADY_PACE, DISTANCE_TOTAL, CALORIES_TOTAL, "
+                    + "AVERAGE_SPEED 중 하나여야 합니다."),
     INVALID_MISSION_DIFFICULTY(HttpStatus.BAD_REQUEST, "미션 난이도는 LOW, MEDIUM, HIGH 중 하나여야 합니다."),
     MISSION_NOT_FOUND(HttpStatus.NOT_FOUND, "미션을 찾을 수 없습니다."),
     INVALID_DECISION_CONDITION(HttpStatus.BAD_REQUEST, "결정 조건은 올바른 JSON이어야 합니다."),
@@ -81,6 +93,8 @@ public enum ErrorCode {
     BINGO_CELL_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 칸을 찾을 수 없습니다."),
     BINGO_CELL_VERIFICATION_IN_PROGRESS(HttpStatus.CONFLICT, "이미 검증 중인 빙고 칸입니다."),
     BINGO_CELL_ALREADY_APPROVED(HttpStatus.CONFLICT, "이미 승인된 빙고 칸입니다."),
+    BINGO_CELL_PHOTO_MISSION_NOT_COMPLETABLE(HttpStatus.BAD_REQUEST,
+            "사진 인증 미션은 인증 사진 제출로만 완료할 수 있습니다."),
 
     BINGO_BOARD_SIZE_INVALID(HttpStatus.BAD_REQUEST, "빙고판 크기는 3 이상 5 이하여야 합니다."),
     BINGO_TARGET_COUNT_INVALID(HttpStatus.BAD_REQUEST, "목표 빙고 수가 빙고판 크기에 맞지 않습니다."),

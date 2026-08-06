@@ -26,9 +26,9 @@ import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.RoomReadService;
-import com.wecandoit.game.service.RoomReadService.StepGoalRewardTarget;
-import com.wecandoit.item.controller.response.AvatarResponse;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.game.service.StepGoalRewardTarget;
+import com.wecandoit.avatar.dto.AvatarDto;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.service.MemberReadService;
@@ -48,9 +48,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 @ExtendWith(MockitoExtension.class)
 @DisplayName("게임방 조회 서비스")
 class RoomReadServiceTest {
-
-    private static final List<BingoBoardStatus> INACTIVE_BOARD_STATUSES =
-            List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED);
 
     @Mock
     private RoomRepository roomRepository;
@@ -343,7 +340,7 @@ class RoomReadServiceTest {
                 .willReturn(List.of(game));
         given(bingoBoardRepository.findAllByGameIdInAndStatusNotInOrderByIdAsc(
                 List.of(100L),
-                INACTIVE_BOARD_STATUSES
+                BingoBoardStatus.inactiveStatuses()
         )).willReturn(List.of(board));
         given(roomMemberRepository.findAllByRoomIdInOrderByJoinedAtAsc(List.of(10L)))
                 .willReturn(List.of(host, guest));
@@ -443,8 +440,8 @@ class RoomReadServiceTest {
         return cell;
     }
 
-    private Map<Long, AvatarResponse> avatars(List<RoomMember> roomMembers) {
-        EquippedItemResponse equippedItem = new EquippedItemResponse(
+    private Map<Long, AvatarDto> avatars(List<RoomMember> roomMembers) {
+        EquippedItemDto equippedItem = new EquippedItemDto(
                 10L,
                 100L,
                 "빨간 모자",
@@ -454,7 +451,7 @@ class RoomReadServiceTest {
         return roomMembers.stream()
                 .collect(Collectors.toMap(
                         RoomMember::getMemberId,
-                        roomMember -> new AvatarResponse(
+                        roomMember -> new AvatarDto(
                                 roomMember.getMemberId(),
                                 "회원" + roomMember.getMemberId(),
                                 roomMember.getMemberId() == 1L ? Gender.MALE : Gender.FEMALE,

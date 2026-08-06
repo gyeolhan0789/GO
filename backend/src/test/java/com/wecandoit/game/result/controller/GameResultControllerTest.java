@@ -33,10 +33,11 @@ import com.wecandoit.game.controller.response.GameResultResponse;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.RoomStatus;
 import com.wecandoit.game.service.GameResultReadService;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.mission.controller.response.MissionResponse;
+import com.wecandoit.mission.domain.MissionType;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -228,6 +229,8 @@ class GameResultControllerTest {
                                 fieldWithPath("bingoBoards[].cells[].mission.detail").description("미션 설명"),
                                 fieldWithPath("bingoBoards[].cells[].mission.decisionCondition")
                                         .description("미션 판단 조건"),
+                                fieldWithPath("bingoBoards[].cells[].mission.point")
+                                        .description("미션 완료 시 지급되는 포인트"),
                                 fieldWithPath("bingoBoards[].cells[].mission.createdAt").description("미션 생성 시각"),
                                 fieldWithPath("bingoBoards[].cells[].verificationStatus")
                                         .optional()
@@ -473,7 +476,7 @@ class GameResultControllerTest {
     }
 
     private List<GameResultParticipantResponse> participantResponses() {
-        EquippedItemResponse equippedItem = new EquippedItemResponse(
+        EquippedItemDto equippedItem = new EquippedItemDto(
                 10L,
                 100L,
                 "빨간 모자",
@@ -508,10 +511,11 @@ class GameResultControllerTest {
         return new MissionResponse(
                 missionId,
                 "https://example.com/mission.png",
-                "OBJECT",
+                MissionType.OBJECT,
                 "미션",
                 "설명",
                 null,
+                50L,
                 LocalDateTime.of(2026, 7, 29, 12, 0)
         );
     }

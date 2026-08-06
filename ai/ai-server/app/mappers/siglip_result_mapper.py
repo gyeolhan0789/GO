@@ -3,6 +3,9 @@ from app.domain.ai_result import (
     DetectedObject
 )
 
+from app.domain.model_info import ModelType
+
+
 
 class SigLIPResultMapper:
     """
@@ -12,14 +15,51 @@ class SigLIPResultMapper:
     -----------------------
     - SigLIP similarity 결과 변환
     - 공통 AIResult 생성
-    - 모델 metadata 저장
+    - 모델 추적 정보 저장
 
     책임 제외
     -----------------------
     - 성공/실패 판단
     - confidence threshold 판단
     - ReasonCode 결정
+
+    판정 책임은 RuleEngine 담당
     """
+
+
+    MODEL_NAME = (
+        "google/siglip2-base-patch16-224"
+    )
+
+
+
+    def _normalize_label(
+        self,
+        label: str
+    ) -> str:
+        """
+        SigLIP candidate label 정제
+        """
+
+
+        prefixes = [
+            "a photo of a ",
+            "a photo of an "
+        ]
+
+
+        for prefix in prefixes:
+
+            if label.startswith(prefix):
+
+                return label.replace(
+                    prefix,
+                    ""
+                )
+
+
+        return label
+
 
 
     def map(
@@ -34,50 +74,82 @@ class SigLIPResultMapper:
         )
 
 
-        confidence = siglip_result.get(
-            "confidence",
-            0.0
+        confidence = float(
+            siglip_result.get(
+                "confidence",
+                0.0
+            )
         )
 
 
         scores = siglip_result.get(
-            "scores",
+            "similarity_scores",
             {}
         )
 
 
+        latency_ms = float(
+            siglip_result.get(
+                "latency_ms",
+                0.0
+            )
+        )
+
+
+        normalized_label = (
+            self._normalize_label(
+                top_label
+            )
+        )
+
+
+
         return AIResult(
 
-            confidence=float(
-                confidence
-            ),
+            model_name=self.MODEL_NAME,
+
+            model_type=ModelType.VISION,
+
+            latency_ms=latency_ms,
+
+
+            confidence=confidence,
 
 
             reason=(
-                f"SigLIP2 matched label: "
-                f"{top_label}"
+                "SigLIP2 object matching completed"
             ),
 
 
             detected_objects=[
+
                 DetectedObject(
-                    name=top_label,
-                    confidence=float(
-                        confidence
-                    )
+
+                    name=normalized_label,
+
+                    confidence=confidence
+
                 )
+
             ],
 
 
             metadata={
 
-                "model": (
-                    "siglip2-base-patch16-224"
-                ),
+                "model": self.MODEL_NAME,
 
                 "top_label": top_label,
 
-                "similarity_scores": scores
+                "normalized_label": normalized_label,
+
+                "similarity_scores": scores,
+
+                "candidate_count": len(scores),
+
+                "confidence": confidence,
+
+                "latency_ms": latency_ms
 
             }
+
         )

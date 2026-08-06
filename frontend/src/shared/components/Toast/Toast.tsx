@@ -19,6 +19,16 @@ type ToastProps = {
    * 높이가 맞는다. 기본값 true는 edges={['bottom']}을 쓰는 전체 화면 기준.
    */
   respectBottomInset?: boolean;
+  /**
+   * 화면 위/아래 중 어디에 띄울지. 기본은 아래(기존 동작 그대로). 화면 하단에
+   * 다른 UI(패널·탭 바 등)가 겹치는 화면에서 'top'을 쓴다 — Screen이
+   * edges={['top']}로 이미 상단 세이프에어리어를 예약해두므로 별도 인셋을
+   * 더하지 않는다.
+   */
+  position?: 'top' | 'bottom';
+  /** position 방향으로 기본 여백(spacing.lg) 위에 더 띄울 값. 화면 자체 헤더가
+   * 있어서 그 아래로 밀어야 할 때 쓴다. */
+  offset?: number;
 };
 
 const DEFAULT_DURATION = 2000;
@@ -29,6 +39,8 @@ export function Toast({
   onHide,
   duration = DEFAULT_DURATION,
   respectBottomInset = true,
+  position = 'bottom',
+  offset = 0,
 }: ToastProps) {
   const insets = useSafeAreaInsets();
   const opacity = useRef(new Animated.Value(0)).current;
@@ -68,10 +80,10 @@ export function Toast({
       pointerEvents="none"
       style={[
         styles.container,
-        {
-          bottom: (respectBottomInset ? insets.bottom : 0) + spacing.lg,
-          opacity,
-        },
+        position === 'top'
+          ? { top: spacing.lg + offset }
+          : { bottom: (respectBottomInset ? insets.bottom : 0) + spacing.lg + offset },
+        { opacity },
       ]}
     >
       <AppText style={styles.text}>{message}</AppText>

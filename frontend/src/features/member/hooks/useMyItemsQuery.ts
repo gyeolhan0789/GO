@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { getMyItems } from '../api/memberApi';
-import { MOCK_OWNED_ITEMS, USE_MOCK_CHARACTER } from '../mocks/characterMocks';
 import type { CharacterItem } from '../model/character';
 import { toCharacterItem } from '../model/character';
 
@@ -12,10 +11,6 @@ const STALE_TIME_MS = 60 * 1000;
 export const MY_ITEMS_QUERY_KEY = ['member', 'items'];
 
 async function fetchMyItems(): Promise<CharacterItem[]> {
-  if (USE_MOCK_CHARACTER) {
-    return MOCK_OWNED_ITEMS;
-  }
-
   return (await getMyItems()).map(toCharacterItem);
 }
 

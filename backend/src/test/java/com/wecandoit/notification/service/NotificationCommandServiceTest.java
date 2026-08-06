@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.then;
 
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.notification.client.FcmClient;
@@ -147,7 +148,7 @@ class NotificationCommandServiceTest {
     }
 
     private Member memberWithFcmToken(Long id, String fcmToken) {
-        Member member = Member.create(id + "@example.com", "password", "닉네임" + id);
+        Member member = Member.create(id + "@example.com", "password", "닉네임" + id, null, Gender.MALE);
         ReflectionTestUtils.setField(member, "id", id);
         member.updateFcmToken(fcmToken);
         return member;

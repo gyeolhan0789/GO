@@ -54,6 +54,7 @@ export function MyRankBar({ rank, weeklySteps, character }: MyRankBarProps) {
 
       <CharacterBust
         baseImage={character?.baseImage ?? null}
+        fallbackImage={character?.baseImageFallback ?? null}
         items={layers}
         style={styles.avatar}
       />
@@ -92,11 +93,10 @@ const styles = StyleSheet.create({
     lineHeight: lineHeights[15],
     color: colors.surface,
   },
+  // 원 테두리 디자인은 CharacterBust가 모든 화면 공통으로 그린다.
   avatar: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface,
   },
   label: {
     flex: 1,

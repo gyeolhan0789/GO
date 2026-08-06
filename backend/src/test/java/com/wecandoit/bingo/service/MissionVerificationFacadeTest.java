@@ -18,6 +18,7 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.mission.domain.Mission;
 import com.wecandoit.mission.domain.MissionDifficulty;
+import com.wecandoit.mission.domain.MissionType;
 import com.wecandoit.mission.repository.MissionRepository;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -59,7 +60,7 @@ class MissionVerificationFacadeTest {
         // given
         stubSubmitAndLookup();
         when(aiVerificationClient.verify(any(), any(), any(), any()))
-                .thenReturn(new AiVerificationResult(true, 0.85, "통과"));
+                .thenReturn(new AiVerificationResult("SUCCESS", 0.85, "PASS", "통과"));
         doReturn(30L).when(verificationResultService)
                 .applyResult(CELL_ID, true, null, MissionDifficulty.LOW);
 
@@ -77,7 +78,7 @@ class MissionVerificationFacadeTest {
         // given
         stubSubmitAndLookup();
         when(aiVerificationClient.verify(any(), any(), any(), any()))
-                .thenReturn(new AiVerificationResult(true, 0.85, "통과"));
+                .thenReturn(new AiVerificationResult("SUCCESS", 0.85, "PASS", "통과"));
 
         // when
         facade.submitAndVerify(MEMBER_ID, ROOM_ID, CELL_ID, image());
@@ -101,7 +102,7 @@ class MissionVerificationFacadeTest {
         // given
         stubSubmitAndLookup();
         when(aiVerificationClient.verify(any(), any(), any(), any()))
-                .thenReturn(new AiVerificationResult(true, 0.5, AI_REASON));
+                .thenReturn(new AiVerificationResult("SUCCESS", 0.5, "PASS", AI_REASON));
 
         // when
         facade.submitAndVerify(MEMBER_ID, ROOM_ID, CELL_ID, image());
@@ -116,7 +117,7 @@ class MissionVerificationFacadeTest {
         );
         assertThat(reasonCaptor.getValue())
                 .isNotEqualTo(AI_REASON)
-                .isEqualTo("AI 검증 신뢰도가 기준(0.7)에 미달했습니다.");
+                .isEqualTo("제출한 사진으로는 미션 완료를 확인할 수 없어요. 사진을 다시 확인하고 재시도해 주세요.");
     }
 
     @Test
@@ -125,7 +126,7 @@ class MissionVerificationFacadeTest {
         // given
         stubSubmitAndLookup();
         when(aiVerificationClient.verify(any(), any(), any(), any()))
-                .thenReturn(new AiVerificationResult(false, 0.9, AI_REASON));
+                .thenReturn(new AiVerificationResult("FAIL", 0.9, "OBJECT_UNCERTAIN", AI_REASON));
 
         // when
         facade.submitAndVerify(MEMBER_ID, ROOM_ID, CELL_ID, image());
@@ -205,11 +206,11 @@ class MissionVerificationFacadeTest {
     private Mission mission() {
         Mission mission = Mission.create(
                 "https://example.com/mission.png",
-                "OBJECT",
+                MissionType.OBJECT,
                 "미션 제목",
                 "미션 설명",
                 "{\"target\":\"cup\"}",
-                "LOW"
+                MissionDifficulty.LOW
         );
         ReflectionTestUtils.setField(mission, "id", MISSION_ID);
         return mission;

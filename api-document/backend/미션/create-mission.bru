@@ -7,11 +7,16 @@ meta {
 post {
   url: {{backendBaseUrl}}/admin/missions
   body: multipartForm
-  auth: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
 }
 
 body:multipart-form {
   type: OBJECT
+  difficulty: LOW
   title: 빨간 우산 찾기
   detail: 빨간색 우산을 찾아 사진을 찍으세요.
   decisionCondition: {"color": "red", "object": "umbrella"}
@@ -21,13 +26,14 @@ body:multipart-form {
 docs {
   ## 미션 생성 (관리자)
 
-  새 미션과 인증 사진을 함께 등록한다. 이미지는 로컬 볼륨에 저장되고 DB에는 경로만 저장된다. 인증이 필요 없는 API다(관리자 도구에서 별도 접근 제어 예정). `type`은 `OBJECT`, `ATTRIBUTE`, `RELATION` 중 하나여야 한다.
+  새 미션과 인증 사진을 함께 등록한다. 이미지는 로컬 볼륨에 저장되고 DB에는 경로만 저장된다. `ADMIN` 권한이 필요하다. `type`은 `MissionType` enum 값 중 하나여야 한다.
 
   ### Request 필드
   | 필드 | 필수 | 제약조건 |
   |---|---|---|
   | image | Y | JPEG 또는 PNG, 최대 5MB |
-  | type | Y | `MissionType` enum 값 중 하나: `OBJECT`, `ATTRIBUTE`, `RELATION` |
+  | type | Y | `MissionType` enum 값 중 하나: `OBJECT`, `ATTRIBUTE`, `RELATION`, `ORDINARY`, `STEP_TOTAL`, `STEP_CONTINUOUS`, `STEP_UPHILL`, `STEP_DAILY`, `WALKING_TIME_TOTAL`, `WALKING_TIME_CONTINUOUS`, `STEADY_PACE`, `DISTANCE_TOTAL`, `CALORIES_TOTAL`, `AVERAGE_SPEED` |
+  | difficulty | Y | `MissionDifficulty` enum 값 중 하나: `LOW`, `MEDIUM`, `HIGH`. 빙고 칸 완료 보상 포인트(30/50/70)를 결정한다 |
   | title | N | 255자 이하 |
   | detail | N | 255자 이하 |
   | decisionCondition | N | 임의의 JSON 문자열. 저장 시 문자열로 직렬화되어 저장된다 (생략 시 null로 저장됨) |
@@ -69,6 +75,14 @@ docs {
   }
   ```
 
+  **difficulty 누락**
+  ```json
+  {
+    "status": 400,
+    "message": "미션 난이도는 필수입니다."
+  }
+  ```
+
   **title이 255자 초과**
   ```json
   {
@@ -85,11 +99,19 @@ docs {
   }
   ```
 
-  **type이 OBJECT/ATTRIBUTE/RELATION 중 하나가 아님**
+  **type이 MissionType enum 값이 아님**
   ```json
   {
     "status": 400,
-    "message": "미션 타입은 OBJECT, ATTRIBUTE, RELATION, ORDINARY 중 하나여야 합니다."
+    "message": "미션 타입은 OBJECT, ATTRIBUTE, RELATION, ORDINARY, STEP_TOTAL, STEP_CONTINUOUS, STEP_UPHILL, STEP_DAILY, WALKING_TIME_TOTAL, WALKING_TIME_CONTINUOUS, STEADY_PACE, DISTANCE_TOTAL, CALORIES_TOTAL, AVERAGE_SPEED 중 하나여야 합니다."
+  }
+  ```
+
+  **difficulty가 LOW/MEDIUM/HIGH 중 하나가 아님**
+  ```json
+  {
+    "status": 400,
+    "message": "미션 난이도는 LOW, MEDIUM, HIGH 중 하나여야 합니다."
   }
   ```
 

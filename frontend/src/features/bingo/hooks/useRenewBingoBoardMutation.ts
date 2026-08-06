@@ -11,10 +11,13 @@ export function useRenewBingoBoardMutation() {
       ...body
     }: RenewBingoBoardRequest & { roomId: number }) =>
       renewBingoBoard(roomId, body),
-    onSuccess: () => {
-      // 혼자·함께 방의 산책 기록은 이 갱신이 직전 판을 닫으면서 생긴다.
-      // 여기서 비워주지 않으면 방금 끝낸 판이 기록 화면에 안 나타난다.
-      queryClient.invalidateQueries({ queryKey: ['game-results'] });
+    onSuccess: (_data, { roomId }) => {
+      // 갱신된 목표 걸음수·빙고 크기가 방 목록(솔로/협동 공통)과 그 방의
+      // 활성 빙고판 조회에 바로 반영되도록 캐시를 무효화한다. 호출부(솔로
+      // 갱신 시트 등)에서 개별적으로 refetch하던 것을 여기서 대신하므로
+      // 앞으로 호출부를 새로 추가해도 빠뜨릴 걱정이 없다.
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['bingoBoards', 'active', roomId] });
     },
   });
 }

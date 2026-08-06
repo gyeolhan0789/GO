@@ -9,7 +9,7 @@ import com.wecandoit.friend.domain.FriendRequestStatus;
 import com.wecandoit.friend.dto.ReceivedFriendRequestResponse;
 import com.wecandoit.friend.dto.SentFriendRequestResponse;
 import com.wecandoit.friend.repository.FriendRequestRepository;
-import com.wecandoit.item.controller.response.AvatarResponse;
+import com.wecandoit.avatar.dto.AvatarDto;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import java.util.List;
@@ -48,10 +48,10 @@ public class FriendRequestReadService {
         List<Member> inviters = requests.stream()
                 .map(FriendRequest::getInviter)
                 .toList();
-        Map<Long, AvatarResponse> avatarsByMemberId =
+        Map<Long, AvatarDto> avatarsByMemberId =
                 avatarReadService.getAvatars(inviters);
         return SliceResponse.from(requests.map(request -> {
-            AvatarResponse avatar = avatarsByMemberId.get(request.getInviter().getId());
+            AvatarDto avatar = avatarsByMemberId.get(request.getInviterId());
             return ReceivedFriendRequestResponse.of(
                     request,
                     avatar.defaultImageUrl(),

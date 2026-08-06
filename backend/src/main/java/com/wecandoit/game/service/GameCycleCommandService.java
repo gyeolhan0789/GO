@@ -65,15 +65,10 @@ public class GameCycleCommandService {
     private final ApplicationEventPublisher eventPublisher;
     private final NotificationMessageFactory notificationMessageFactory;
 
-    public BingoBoardResponse startInitialSharedCycle(Room room, List<RoomMember> roomMembers) {
+    public void startInitialSharedCycle(Room room, List<RoomMember> roomMembers) {
         validateSharedRoom(room);
         Game game = startGame(room, roomMembers);
-        return generateSharedBoard(
-                room.getId(),
-                game.getId(),
-                room.getBoardSize(),
-                room.getTargetStepCount()
-        );
+        createSharedBoard(game.getId(), room.getBoardSize(), room.getTargetStepCount());
     }
 
     public void startInitialBattleCycle(Room room, List<RoomMember> roomMembers) {
@@ -120,7 +115,8 @@ public class GameCycleCommandService {
         List<RoomMember> currentMembers = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId);
         Game nextGame = startGame(room, currentMembers);
         return generateSharedBoard(
-                roomId,
+                room,
+                memberId,
                 nextGame.getId(),
                 boardSize,
                 targetStepCount
@@ -206,7 +202,7 @@ public class GameCycleCommandService {
     private BingoBoard findActiveSharedBoardForUpdate(Long gameId) {
         return bingoBoardRepository.findActiveBoardForUpdate(
                         gameId,
-                        List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED)
+                        BingoBoardStatus.inactiveStatuses()
                 )
                 .filter(BingoBoard::isShared)
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
@@ -440,8 +436,19 @@ public class GameCycleCommandService {
         }
     }
 
+    private void createSharedBoard(Long gameId, int boardSize, int targetStepCount) {
+        List<Mission> missions = findMissions(boardSize);
+        BingoBoard board = bingoBoardRepository.save(BingoBoard.create(
+                gameId,
+                boardSize,
+                targetStepCount
+        ));
+        saveCells(board, boardSize, missions);
+    }
+
     private BingoBoardResponse generateSharedBoard(
-            Long roomId,
+            Room room,
+            Long memberId,
             Long gameId,
             int boardSize,
             int targetStepCount
@@ -452,13 +459,15 @@ public class GameCycleCommandService {
                 boardSize,
                 targetStepCount
         ));
+        List<BingoCell> cells = saveCells(board, boardSize, missions);
         return BingoBoardResponse.of(
                 board,
-                roomId,
-                createCells(board, boardSize, missions),
+                room.getId(),
+                toCellResponses(cells, missions),
                 0,
                 0,
                 false,
+                room.isHost(memberId),
                 false,
                 false
         );
@@ -478,7 +487,7 @@ public class GameCycleCommandService {
                 boardSize,
                 targetBingoCount
         ));
-        createCells(board, boardSize, missions);
+        saveCells(board, boardSize, missions);
     }
 
     private List<Mission> findMissions(int boardSize) {
@@ -490,20 +499,27 @@ public class GameCycleCommandService {
         return missions;
     }
 
-    private List<BingoCellResponse> createCells(BingoBoard board, int boardSize, List<Mission> missions) {
-        List<BingoCellResponse> responses = new ArrayList<>();
+    private List<BingoCell> saveCells(BingoBoard board, int boardSize, List<Mission> missions) {
+        List<BingoCell> cells = new ArrayList<>();
         int index = 0;
         for (int row = 0; row < boardSize; row++) {
             for (int col = 0; col < boardSize; col++) {
                 Mission mission = missions.get(index++);
-                BingoCell cell = bingoCellRepository.save(BingoCell.create(
+                cells.add(bingoCellRepository.save(BingoCell.create(
                         board.getId(),
                         mission.getId(),
                         row,
                         col
-                ));
-                responses.add(BingoCellResponse.of(cell, mission));
+                )));
             }
+        }
+        return cells;
+    }
+
+    private List<BingoCellResponse> toCellResponses(List<BingoCell> cells, List<Mission> missions) {
+        List<BingoCellResponse> responses = new ArrayList<>(cells.size());
+        for (int i = 0; i < cells.size(); i++) {
+            responses.add(BingoCellResponse.of(cells.get(i), missions.get(i)));
         }
         return responses;
     }

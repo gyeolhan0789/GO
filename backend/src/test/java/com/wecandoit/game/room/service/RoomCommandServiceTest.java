@@ -26,6 +26,8 @@ import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.GameCycleCommandService;
 import com.wecandoit.game.service.RoomCommandService;
+import com.wecandoit.history.repository.ActiveWalkSessionRepository;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import java.time.LocalDateTime;
@@ -62,6 +64,9 @@ class RoomCommandServiceTest {
     @Mock
     private MemberRepository memberRepository;
 
+    @Mock
+    private ActiveWalkSessionRepository activeWalkSessionRepository;
+
     private RoomCommandService roomCommandService;
 
     @BeforeEach
@@ -72,7 +77,8 @@ class RoomCommandServiceTest {
                 gameRepository,
                 bingoBoardRepository,
                 gameCycleCommandService,
-                memberRepository
+                memberRepository,
+                activeWalkSessionRepository
         );
     }
 
@@ -138,7 +144,9 @@ class RoomCommandServiceTest {
                 .willReturn(Optional.of(Member.create(
                         "host@example.com",
                         "encoded-password",
-                        "host"
+                        "host",
+                        null,
+                        Gender.MALE
                 )));
         given(roomRepository.findFirstByHostIdAndModeAndStatusOrderByIdDesc(
                 1L, GameMode.SINGLE, RoomStatus.ACTIVE
@@ -167,7 +175,9 @@ class RoomCommandServiceTest {
                 .willReturn(Optional.of(Member.create(
                         "host@example.com",
                         "encoded-password",
-                        "host"
+                        "host",
+                        null,
+                        Gender.MALE
                 )));
         given(roomRepository.findFirstByHostIdAndModeAndStatusOrderByIdDesc(
                 1L, GameMode.SINGLE, RoomStatus.ACTIVE
@@ -197,7 +207,9 @@ class RoomCommandServiceTest {
                 .willReturn(Optional.of(Member.create(
                         "host@example.com",
                         "encoded-password",
-                        "host"
+                        "host",
+                        null,
+                        Gender.MALE
                 )));
         given(roomRepository.findFirstByHostIdAndModeAndStatusOrderByIdDesc(
                 1L, GameMode.SINGLE, RoomStatus.ACTIVE
@@ -284,6 +296,7 @@ class RoomCommandServiceTest {
 
         then(roomMemberRepository).should().delete(guest);
         then(gameCycleCommandService).shouldHaveNoInteractions();
+        then(activeWalkSessionRepository).shouldHaveNoInteractions();
         assertThat(room.getStatus()).isEqualTo(RoomStatus.ACTIVE);
     }
 
@@ -320,6 +333,20 @@ class RoomCommandServiceTest {
         roomCommandService.leaveRoom(1L, 10L);
 
         then(gameCycleCommandService).should().closeActiveCycle(room, 1L);
+        then(roomMemberRepository).should().deleteAllByRoomId(10L);
+        then(activeWalkSessionRepository).should().deleteAllByRoomId(10L);
+        assertThat(room.getStatus()).isEqualTo(RoomStatus.CLOSED);
+    }
+
+    @Test
+    @DisplayName("방장이 방을 삭제하면 해당 방의 모든 활성 산책 세션을 삭제한다")
+    void deleteRoomClearsActiveWalkSessions() {
+        Room room = room(10L, 1L, GameMode.COOPERATE);
+        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
+
+        roomCommandService.deleteRoom(1L, 10L);
+
+        then(activeWalkSessionRepository).should().deleteAllByRoomId(10L);
         then(roomMemberRepository).should().deleteAllByRoomId(10L);
         assertThat(room.getStatus()).isEqualTo(RoomStatus.CLOSED);
     }

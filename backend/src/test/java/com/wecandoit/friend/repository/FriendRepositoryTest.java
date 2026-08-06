@@ -1,24 +1,23 @@
 package com.wecandoit.friend.repository;
 
+import com.wecandoit.common.testcontainers.MySqlDataJpaTest;
 import com.wecandoit.friend.domain.Friend;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
-import org.springframework.test.context.ActiveProfiles;
 
-@DataJpaTest
-@ActiveProfiles("test")
+@MySqlDataJpaTest
 @DisplayName("친구 관계 저장소")
 class FriendRepositoryTest {
 
@@ -93,6 +92,6 @@ class FriendRepositoryTest {
     }
 
     private Member saveMember(String email, String nickname) {
-        return memberRepository.save(Member.create(email, "password", nickname));
+        return memberRepository.save(Member.create(email, "password", nickname, null, Gender.MALE));
     }
 }

@@ -18,6 +18,7 @@ import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.domain.MissionType;
 import com.wecandoit.mission.repository.MissionRepository;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -79,6 +80,7 @@ class BingoReadServiceTest {
         BingoBoardResponse response = bingoReadService.getActiveBoard(1L, 10L);
 
         assertThat(response.renewalRequired()).isTrue();
+        assertThat(response.isHost()).isTrue();
         assertThat(response.canRenew()).isTrue();
     }
 
@@ -93,6 +95,7 @@ class BingoReadServiceTest {
         BingoBoardResponse response = bingoReadService.getActiveBoard(2L, 10L);
 
         assertThat(response.renewalRequired()).isTrue();
+        assertThat(response.isHost()).isFalse();
         assertThat(response.canRenew()).isFalse();
     }
 
@@ -141,7 +144,7 @@ class BingoReadServiceTest {
                 .willReturn(Optional.of(game));
         given(bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(
                 game.getId(),
-                List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED)
+                BingoBoardStatus.inactiveStatuses()
         )).willReturn(Optional.of(board));
         given(bingoCellRepository.findAllByBoardId(board.getId())).willReturn(cells);
         if (!cells.isEmpty()) {
@@ -189,7 +192,7 @@ class BingoReadServiceTest {
                 .map(missionId -> {
                     Mission mission = Mission.create(
                             "https://example.com/mission.png",
-                            "OBJECT",
+                            MissionType.OBJECT,
                             "미션",
                             "설명",
                             null

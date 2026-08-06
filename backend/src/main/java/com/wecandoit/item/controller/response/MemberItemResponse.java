@@ -1,13 +1,14 @@
 package com.wecandoit.item.controller.response;
 
 import com.wecandoit.item.domain.Item;
+import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.item.domain.MemberItem;
 
 public record MemberItemResponse(
         Long memberItemId,
         Long itemId,
         String name,
-        String category,
+        ItemCategory category,
         String imageUrl
 ) {
 

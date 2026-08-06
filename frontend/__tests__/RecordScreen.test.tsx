@@ -15,7 +15,7 @@ import { RECENT_WALK_LIMIT } from '../src/features/history/hooks/useRecentWalksQ
 import { RecordScreen } from '../src/screens/RecordScreen/RecordScreen';
 import { installFetchMock, jsonResponse } from '../jest/fetchMock';
 import type { FetchMock } from '../jest/fetchMock';
-import { buildGameResultSlice } from '../jest/gameResultFixtures';
+import { buildWalkSessionSlice } from '../jest/walkSessionFixtures';
 
 // jest에는 네이티브 모듈이 없어서 권한 통과 + 기록 있는 기기를 흉내낸다.
 jest.mock('../src/shared/lib/samsungHealth', () => ({
@@ -44,15 +44,48 @@ const { navigateMock } = jest.requireMock('@react-navigation/native') as {
 /** 목록에 세울 산책 수. 최근 산책은 첫 페이지만 쓴다. */
 const TOTAL_WALKS = 27;
 
+/** 구간 라벨 기대값이 이 날을 기준으로 적혀 있다. 2026-07-28 (화). */
+const TODAY = new Date(2026, 6, 28);
+
+beforeAll(() => {
+  // 화면은 오늘을 기준으로 구간을 잡아서, 시계를 두면 날이 바뀔 때마다
+  // 기대값이 어긋난다.
+  jest.useFakeTimers({
+    now: TODAY,
+    // Date만 고정한다. setTimeout까지 가짜로 바꾸면 react-query 알림을
+    // 흘려보내는 flushQueries가 영원히 안 끝난다.
+    doNotFake: [
+      'cancelAnimationFrame',
+      'cancelIdleCallback',
+      'clearImmediate',
+      'clearInterval',
+      'clearTimeout',
+      'hrtime',
+      'nextTick',
+      'performance',
+      'queueMicrotask',
+      'requestAnimationFrame',
+      'requestIdleCallback',
+      'setImmediate',
+      'setInterval',
+      'setTimeout',
+    ],
+  });
+});
+
+afterAll(() => {
+  jest.useRealTimers();
+});
+
 let fetchMock: FetchMock;
 
 beforeEach(() => {
   navigateMock.mockClear();
   fetchMock = installFetchMock();
   fetchMock.mockImplementation(async url => {
-    if (url.includes('/game-results')) {
+    if (url.includes('/walk-sessions')) {
       const size = Number(/size=(\d+)/.exec(url)?.[1]);
-      return jsonResponse(200, buildGameResultSlice(0, size, TOTAL_WALKS));
+      return jsonResponse(200, buildWalkSessionSlice(0, size, TOTAL_WALKS));
     }
     throw new Error(`예상하지 못한 요청: ${url}`);
   });
@@ -125,8 +158,8 @@ function findByAccessibilityLabel(root: ReactTestInstance, label: string) {
   return root.find(node => node.props.accessibilityLabel === label);
 }
 
-function gameResultRequestCount() {
-  return fetchMock.mock.calls.filter(([url]) => url.includes('/game-results'))
+function walkSessionRequestCount() {
+  return fetchMock.mock.calls.filter(([url]) => url.includes('/walk-sessions'))
     .length;
 }
 
@@ -180,11 +213,11 @@ describe('RecordScreen', () => {
     expect(texts).toContain('이번 주 걸음');
     expect(texts).toContain('최근 산책');
     expect(texts).toContain('민서와의 산책');
-    // 걸음·거리·칼로리는 산책방 단위로 남는 데가 없어 게임 지표를 보여준다.
-    expect(texts).toContain('혼자 · 미션 4/9');
-    // 카드는 한 줄만 써서 요일·시각 없이 날짜만 남긴다.
-    expect(texts).toContain('2026.07.20');
-    expect(texts).toContain('성공');
+    // 카드 한 장이 산책 한 번이다. 언제 나가서 언제 들어왔는지까지만 싣고,
+    // 걸음·거리·칼로리는 상세 화면에 둔다.
+    expect(texts).toContain('혼자 · 2026.07.20 · 28분');
+    expect(texts).toContain('20:00 ~ 20:32');
+    expect(texts).toContain('미션 2개 달성');
     expect(texts).toContain('전체 기록 보기');
   });
 
@@ -263,8 +296,10 @@ describe('RecordScreen', () => {
       ).props.onPress();
     });
 
-    // 방 번호(4000번대)가 아니라 판 번호로 넘겨야 상세가 열린다.
-    expect(navigateMock).toHaveBeenCalledWith('WalkDetail', { gameId: 1 });
+    // 방 번호(4000번대)가 아니라 산책 번호로 넘겨야 상세가 열린다.
+    expect(navigateMock).toHaveBeenCalledWith('WalkDetail', {
+      walkSessionId: 1,
+    });
   });
 
   test('최근 산책은 3건만 보여준다', async () => {
@@ -290,7 +325,7 @@ describe('RecordScreen', () => {
   // 새로고침이 없으면 앱을 다시 열기 전까지 최근 산책이 그대로 멈춰 있었다.
   test('당겨서 새로고침하면 최근 산책을 다시 부른다', async () => {
     const tree = await renderScreen();
-    const before = gameResultRequestCount();
+    const before = walkSessionRequestCount();
 
     await act(async () => {
       tree.root
@@ -299,7 +334,110 @@ describe('RecordScreen', () => {
     });
     await flushQueries();
 
-    expect(gameResultRequestCount()).toBeGreaterThan(before);
+    expect(walkSessionRequestCount()).toBeGreaterThan(before);
+  });
+});
+
+describe('RecordScreen 차트 구간 기록', () => {
+  /** 주간 막대의 탭 영역. 라벨이 '7.27 (월) 기록 보기' 꼴이다. */
+  function findDaySlots(root: ReactTestInstance) {
+    return root.findAll(
+      node =>
+        typeof node.props.accessibilityLabel === 'string' &&
+        /^\d+\.\d+ \(.\) 기록 보기$/.test(node.props.accessibilityLabel),
+      // Pressable은 안쪽 View까지 같은 라벨을 달고 있어 겉만 센다.
+      { deep: false },
+    );
+  }
+
+  test('폭이 측정되면 막대마다 누를 수 있는 칸이 생긴다', async () => {
+    const tree = await renderScreen();
+
+    // 차트를 그리기 전에는 누를 자리도 없다.
+    expect(findDaySlots(tree.root)).toHaveLength(0);
+
+    await measureChartArea(tree.root, 320);
+
+    // 주간은 월~일 7칸.
+    expect(findDaySlots(tree.root)).toHaveLength(7);
+    // 눌 수 있다는 걸 알려주지 않으면 아무도 누르지 않는다.
+    expect(collectTexts(tree.root)).toContain(
+      '구간을 누르면 그때의 기록을 볼 수 있어요',
+    );
+  });
+
+  test('막대를 누르면 그 구간의 기록이 카드로 뜬다', async () => {
+    const tree = await renderScreen();
+    await measureChartArea(tree.root, 320);
+
+    const [firstSlot] = findDaySlots(tree.root);
+    // '7.27 (월) 기록 보기' -> '7.27 (월)'.
+    const dayLabel = (firstSlot.props.accessibilityLabel as string).replace(
+      ' 기록 보기',
+      '',
+    );
+
+    // 누르기 전에는 카드가 없다.
+    expect(collectTexts(tree.root)).not.toContain('칼로리');
+
+    await act(async () => {
+      firstSlot.props.onPress();
+    });
+    await flushQueries();
+
+    const texts = collectTexts(tree.root);
+    // 누른 구간이 카드 제목으로 그대로 나오고, 그 구간의 활동 수치가 붙는다.
+    expect(texts).toContain(dayLabel);
+    expect(texts).toContain('걸음');
+    expect(texts).toContain('거리');
+    expect(texts).toContain('칼로리');
+    // 누른 막대에 표시가 남아야 어느 구간을 보고 있는지 알 수 있다.
+    expect(firstSlot.props.accessibilityState).toEqual({ selected: true });
+  });
+
+  test('기간을 옮기면 열려 있던 카드가 닫힌다', async () => {
+    const tree = await renderScreen();
+    await measureChartArea(tree.root, 320);
+
+    await act(async () => {
+      findByAccessibilityLabel(tree.root, '7.27 (월) 기록 보기').props.onPress();
+    });
+    await flushQueries();
+    expect(collectTexts(tree.root)).toContain('칼로리');
+
+    // 옮긴 구간에는 그 막대가 없으므로 카드도 남을 수 없다.
+    await act(async () => {
+      findByAccessibilityLabel(tree.root, '이전 구간').props.onPress();
+    });
+    await flushQueries();
+
+    expect(collectTexts(tree.root)).not.toContain('칼로리');
+  });
+
+  test('일간에서는 3시간 묶음으로 누른다', async () => {
+    const tree = await renderScreen();
+
+    await act(async () => {
+      findByAccessibilityLabel(tree.root, '기간 주간').props.onPress();
+    });
+    await pressTextLabel(tree.root, '일간');
+    await measureChartArea(tree.root, 320);
+
+    // 24개 시간대를 그대로 나누면 탭 영역이 손가락보다 좁아진다.
+    await act(async () => {
+      findByAccessibilityLabel(
+        tree.root,
+        '18시 - 21시 기록 보기',
+      ).props.onPress();
+    });
+    await flushQueries();
+
+    const texts = collectTexts(tree.root);
+    expect(texts).toContain('18시 - 21시');
+    // 18시 걸음 1,500이 이 묶음에 든다.
+    expect(texts).toContain('1,500');
+    // 시간대별로는 거리·칼로리를 읽을 수 없다.
+    expect(texts).not.toContain('칼로리');
   });
 });
 

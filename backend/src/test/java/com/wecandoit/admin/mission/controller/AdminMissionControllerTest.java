@@ -11,6 +11,8 @@ import com.wecandoit.admin.mission.controller.response.AdminMissionResponse;
 import com.wecandoit.admin.mission.service.AdminMissionCommandService;
 import com.wecandoit.admin.mission.service.AdminMissionReadService;
 import com.wecandoit.common.exception.CustomExceptionHandler;
+import com.wecandoit.mission.domain.MissionDifficulty;
+import com.wecandoit.mission.domain.MissionType;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -104,8 +106,8 @@ class AdminMissionControllerTest {
         given(adminMissionReadService.getMissions()).willReturn(List.of(new AdminMissionResponse(
                 1L,
                 "https://example.com/flower.png",
-                "OBJECT",
-                "LOW",
+                MissionType.OBJECT,
+                MissionDifficulty.LOW,
                 "Red flower",
                 "Find a red flower",
                 null,
@@ -163,5 +165,17 @@ class AdminMissionControllerTest {
                 .then()
                 .statusCode(HttpStatus.NO_CONTENT.value());
         then(adminMissionCommandService).should().deactivateMission(1L);
+    }
+
+    @Test
+    @DisplayName("미션을 활성화하면 204 상태를 반환한다")
+    void activateMissionReturnsNoContent() {
+        // when & then
+        given()
+                .when()
+                .patch("/admin/missions/1/activate")
+                .then()
+                .statusCode(HttpStatus.NO_CONTENT.value());
+        then(adminMissionCommandService).should().activateMission(1L);
     }
 }

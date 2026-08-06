@@ -13,8 +13,12 @@ import type {
 import { BoardRenewalSheet } from '../../features/bingo/components/BoardRenewalSheet/BoardRenewalSheet';
 import { useActiveBingoBoardQuery } from '../../features/bingo/hooks/useActiveBingoBoardQuery';
 import { MISSION_TYPE_ICONS } from '../../features/bingo/model/missionType';
-import { useMyCashQuery } from '../../features/member/hooks/useMyCashQuery';
+import { useMyPointQuery } from '../../features/member/hooks/useMyPointQuery';
 import { useMyCharacterQuery } from '../../features/member/hooks/useMyCharacterQuery';
+import {
+  selectLayerItems,
+  toEquippedByCategory,
+} from '../../features/member/model/equippedItems';
 import { useMyRoomsQuery } from '../../features/room/hooks/useMyRoomsQuery';
 import { useWalkSession } from '../../features/walk-session/hooks/useWalkSession';
 import {
@@ -32,25 +36,13 @@ import { HomeHeader } from './components/HomeHeader';
 import { HomeCarousel } from './components/HomeCarousel';
 import { MissionInfoModal } from './components/MissionInfoModal';
 import { WalkRoomSelectSheet } from './components/WalkRoomSelectSheet';
-import characterFemale from './assets/character-female.png';
-import characterMale from './assets/character-male.png';
 
 type HomeNavigation = NativeStackNavigationProp<RootStackParamList, 'Main'>;
 
-const CHARACTER_IMAGE_BY_GENDER = {
-  male: characterMale,
-  female: characterFemale,
-} as const;
-
-// TODO: 캐릭터 합성(장착 아이템 반영)과 목표 걸음수 연동 전까지의 임시 목업 데이터.
-// 걸음/거리/칼로리는 useSamsungHealthToday, 포인트·닉네임은 각각
-// useMyCashQuery·useMyCharacterQuery로 실측값을 따로 받아온다.
-const MOCK_HOME_SUMMARY = {
-  goalSteps: 10000,
-  characterGender: 'male' as keyof typeof CHARACTER_IMAGE_BY_GENDER,
-  canRewardHint: '1,000보 더 걸으면 캔 1개를 더 모아요',
-};
-
+// 걸음/거리/칼로리는 useSamsungHealthToday, 포인트·캐릭터는 각각
+// useMyPointQuery·useMyCharacterQuery로 실측값을 따로 받아온다.
+// (하루 목표 걸음수는 서버 개념이 아니라 사용자가 고르는 값이라
+// StepsSummary가 직접 들고 있는다.)
 const DEFAULT_BINGO_SIZE: BingoBoardSize = 5;
 const NO_BINGO_BOARD_HINT = '산책을 시작하고 이번 주 빙고에 도전해보세요!';
 
@@ -61,7 +53,6 @@ function formatElapsed(totalSeconds: number) {
 }
 
 export function HomeScreen() {
-  const summary = MOCK_HOME_SUMMARY;
   const navigation = useNavigation<HomeNavigation>();
   const [isRoomSheetVisible, setRoomSheetVisible] = useState(false);
   const [isSoloSheetVisible, setSoloSheetVisible] = useState(false);
@@ -75,10 +66,14 @@ export function HomeScreen() {
   } | null>(null);
 
   // 로딩/실패 중에는 가짜 숫자·이름 대신 빈 값을 보여준다.
-  const cash = useMyCashQuery();
-  const points = cash.data?.cash ?? 0;
+  const point = useMyPointQuery();
+  const points = point.data?.point ?? 0;
   const character = useMyCharacterQuery();
   const characterName = character.data?.nickname ?? '';
+  // 마이페이지·상점과 같은 순서로 겹쳐야 같은 조합이 화면마다 똑같이 보인다.
+  const characterItems = selectLayerItems(
+    toEquippedByCategory(character.data?.equippedItems ?? []),
+  );
 
   // 홈 화면에서도 진행 중인 산책을 놓치지 않도록, 캐릭터 카드에 뱃지로
   // 살짝 보여준다.
@@ -103,7 +98,7 @@ export function HomeScreen() {
     activeSoloRoom?.roomId ?? null,
   );
   const soloRenewal =
-    activeSoloRoom && activeSoloBoardQuery.data?.renewalRequired
+    activeSoloRoom && activeSoloBoardQuery.data?.canRenew
       ? {
           roomId: activeSoloRoom.roomId,
           currentTargetStepCount: activeSoloBoardQuery.data.targetStepCount,
@@ -171,19 +166,18 @@ export function HomeScreen() {
       <View style={styles.content}>
         <HomeHeader
           points={points}
+          character={character.data}
           onProfilePress={() => navigation.navigate('MyPage')}
         />
         <HomeCarousel
           style={styles.carousel}
           steps={todaySteps}
-          goalSteps={summary.goalSteps}
           characterName={characterName}
-          characterImageSource={
-            CHARACTER_IMAGE_BY_GENDER[summary.characterGender]
-          }
+          characterBaseImage={character.data?.baseImage ?? null}
+          characterFallbackImage={character.data?.baseImageFallback ?? null}
+          characterItems={characterItems}
           distanceKm={todayDistanceKm}
           calories={todayCalories}
-          rewardHint={summary.canRewardHint}
           bingoSize={bingoSize}
           bingoCells={bingoCells}
           bingoHint={showNoBingoBoardHint ? NO_BINGO_BOARD_HINT : undefined}

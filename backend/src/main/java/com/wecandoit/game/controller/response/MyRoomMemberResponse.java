@@ -1,7 +1,7 @@
 package com.wecandoit.game.controller.response;
 
 import com.wecandoit.game.domain.RoomMember;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.member.domain.Gender;
 import java.util.List;
 
@@ -10,7 +10,7 @@ public record MyRoomMemberResponse(
         String nickname,
         Gender gender,
         String defaultImageUrl,
-        List<EquippedItemResponse> equippedItems,
+        List<EquippedItemDto> equippedItems,
         boolean host
 ) {
 
@@ -19,7 +19,7 @@ public record MyRoomMemberResponse(
             String nickname,
             Gender gender,
             String defaultImageUrl,
-            List<EquippedItemResponse> equippedItems,
+            List<EquippedItemDto> equippedItems,
             boolean host
     ) {
         return new MyRoomMemberResponse(

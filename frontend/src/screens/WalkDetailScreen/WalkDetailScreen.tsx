@@ -8,7 +8,6 @@ import { Screen } from '../../shared/components/Screen/Screen';
 import { colors } from '../../shared/constants/colors';
 import { spacing } from '../../shared/constants/spacing';
 import { bodyFont, lineHeights } from '../../shared/constants/typography';
-import { ParticipantList } from './components/ParticipantList';
 import { WalkBingoCard } from './components/WalkBingoCard';
 import { WalkSummaryCard } from './components/WalkSummaryCard';
 
@@ -18,10 +17,10 @@ type WalkDetailScreenProps = NativeStackScreenProps<
 >;
 
 export function WalkDetailScreen({ route }: WalkDetailScreenProps) {
-  const { gameId } = route.params;
+  const { walkSessionId } = route.params;
 
-  const walkQuery = useWalkDetailQuery(gameId);
-  const { walk } = walkQuery;
+  const walkQuery = useWalkDetailQuery(walkSessionId);
+  const walk = walkQuery.data ?? null;
 
   if (walkQuery.isLoading) {
     return (
@@ -47,13 +46,18 @@ export function WalkDetailScreen({ route }: WalkDetailScreenProps) {
       >
         <WalkSummaryCard walk={walk} />
 
-        <ParticipantList participants={walk.participants} />
-
-        <WalkBingoCard
-          size={walk.bingoSize}
-          cells={walk.bingoCells}
-          participants={walk.participants}
-        />
+        {/* 산책 도중 판을 갈면 여러 장이 된다. 시작한 판이 맨 앞이다. */}
+        {walk.bingoBoards.map((board, index) => (
+          <WalkBingoCard
+            key={board.bingoBoardId}
+            board={board}
+            title={
+              walk.bingoBoards.length > 1
+                ? `빙고판 ${index + 1}`
+                : '진행한 빙고판'
+            }
+          />
+        ))}
 
         {/* 카드 오프셋 그림자가 스크롤 끝에서 잘리지 않게. */}
         <View style={styles.bottomSpacer} />

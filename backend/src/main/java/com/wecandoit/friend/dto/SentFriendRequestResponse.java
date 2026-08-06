@@ -13,7 +13,7 @@ public record SentFriendRequestResponse(
     public static SentFriendRequestResponse from(FriendRequest friendRequest) {
         return new SentFriendRequestResponse(
                 friendRequest.getId(),
-                friendRequest.getInvitee().getId(),
+                friendRequest.getInviteeId(),
                 friendRequest.getInvitee().getNickname(),
                 friendRequest.getCreatedAt()
         );

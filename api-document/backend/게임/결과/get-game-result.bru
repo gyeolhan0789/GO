@@ -24,27 +24,95 @@ docs {
   {
     "gameId": 100,
     "roomId": 1,
+    "roomName": "테스트 방",
     "mode": "BATTLE",
+    "roomStatus": "ACTIVE",
     "result": true,
     "boardSize": 3,
     "targetBingoCount": 3,
+    "targetStepCount": null,
     "bingoCount": 3,
     "completedMissionCount": 7,
-    "rewardCash": 500,
+    "rewardPoint": 500,
+    "startedAt": "2026-07-24T10:00:00",
+    "completedAt": "2026-07-24T11:30:00",
+    "totalMissionCount": 9,
+    "myCompletedMissionCount": 7,
+    "myRewardPoint": 500,
+    "myResult": true,
     "participants": [
       {
         "memberId": 1,
         "nickname": "host",
+        "gender": "MALE",
+        "defaultImageUrl": "https://example.com/images/default.png",
+        "equippedItems": [
+          { "memberItemId": 10, "itemId": 5, "name": "기본 모자", "category": "HAT", "imageUrl": "https://example.com/images/hat.png" }
+        ],
         "completedMissionCount": 7,
-        "rewardCash": 500,
+        "rewardPoint": 500,
         "result": true
       },
       {
         "memberId": 2,
         "nickname": "participant",
+        "gender": "FEMALE",
+        "defaultImageUrl": "https://example.com/images/default2.png",
+        "equippedItems": [],
         "completedMissionCount": 4,
-        "rewardCash": 0,
+        "rewardPoint": 0,
         "result": false
+      }
+    ],
+    "bingoBoards": [
+      {
+        "bingoBoardId": 101,
+        "owners": [
+          { "memberId": 1, "nickname": "host" }
+        ],
+        "boardSize": 3,
+        "targetStepCount": null,
+        "startedAt": "2026-07-24T10:00:00",
+        "completedAt": "2026-07-24T11:30:00",
+        "status": "COMPLETED",
+        "completedBingoCount": 3,
+        "totalCellCount": 9,
+        "approvedCellCount": 7,
+        "cells": [
+          {
+            "cellId": 1001,
+            "row": 0,
+            "col": 0,
+            "mission": {
+              "missionId": 10,
+              "missionImageUrl": "https://example.com/images/mission.png",
+              "type": "STEP_TOTAL",
+              "title": "걸음 수 채우기",
+              "detail": "하루 5000보 걷기",
+              "decisionCondition": "{\"steps\":5000}",
+              "point": 50,
+              "createdAt": "2026-01-01T00:00:00"
+            },
+            "verificationStatus": "APPROVED",
+            "submittedByMemberId": 1,
+            "rejectionReason": null
+          }
+        ]
+      },
+      {
+        "bingoBoardId": 102,
+        "owners": [
+          { "memberId": 2, "nickname": "participant" }
+        ],
+        "boardSize": 3,
+        "targetStepCount": null,
+        "startedAt": "2026-07-24T10:00:00",
+        "completedAt": "2026-07-24T11:30:00",
+        "status": "COMPLETED",
+        "completedBingoCount": 1,
+        "totalCellCount": 9,
+        "approvedCellCount": 4,
+        "cells": []
       }
     ]
   }
@@ -54,16 +122,22 @@ docs {
   - 최상위 `result`는 해당 Game 회차가 정상적으로 완료됐음을 나타낸다.
   - 대결 모드의 `participants[].result`는 승자 `true`, 패자 `false`이며 승자에게만 보상이 지급된다.
   - `boardSize`는 N x N 빙고판에서 한 변의 길이 N이다.
+  - `targetBingoCount`는 `BATTLE` 모드에서만 값이 있고 그 외 모드에서는 `null`이다. `targetStepCount`는 `SINGLE`/`COOPERATE`에서만 값이 있고 `BATTLE`에서는 `null`이다.
   - 싱글·협동 모드는 공용 보드의 모든 칸이 승인되면 완료된다.
   - 대결 모드는 개인 보드의 `bingoCount`가 `targetBingoCount` 이상이 되면 완료된다.
   - 싱글 모드의 최상위 `completedMissionCount`는 공용 보드에서 승인된 전체 미션 수다.
   - 협동 모드의 최상위 `completedMissionCount`는 공동 보드에서 모든 참가자가 승인받은 미션 수의 합이다.
   - 대결 모드의 최상위 `completedMissionCount`는 승자 개인 보드의 승인 미션 수다.
   - 모든 모드에서 `participants[].completedMissionCount`는 해당 참가자가 직접 승인받은 미션 수다.
-  - 기존 결과 데이터의 `participants[].result`는 승패 필드 도입 이전 데이터인 경우 `null`일 수 있다.
+  - `myCompletedMissionCount`/`myRewardPoint`/`myResult`는 요청한 로그인 회원 본인의 결과이며, `myResult`는 승패 필드 도입 이전 데이터인 경우 `null`일 수 있다.
+  - 기존 결과 데이터의 `participants[].result`도 같은 이유로 `null`일 수 있다.
   - 싱글·협동 참가자의 `result`는 게임 완료 성공을 의미하는 `true`이며 모든 참가자에게 기존 완료 보상이 지급된다.
-  - Game 완료 후 SINGLE Room은 `COMPLETED`, 참가 인원이 유지된 COOPERATE·BATTLE Room은 `READY`가 되며 결과는 Game 회차 기준으로 조회한다.
+  - `roomStatus`는 조회 시점의 게임방 실제 상태(`ACTIVE`/`CLOSED`)이며, Game 회차가 완료되어도 게임방을 명시적으로 삭제/나가기 하지 않는 한 `ACTIVE`로 유지된다.
   - 목표 빙고 달성 전에는 결과가 생성되지 않으며 `409 GAME_NOT_COMPLETED`를 반환한다.
+  - `bingoBoards`는 해당 Game 회차에 속한 모든 빙고판을 담는다. 싱글·협동 모드는 공용 보드 1개, 대결 모드는 참가자별 개인 보드 각 1개씩이다.
+  - `bingoBoards[].owners`는 대결 모드에서는 해당 보드를 소유한 참가자 1명, 싱글·협동 모드에서는 전체 참가자 목록이다.
+  - `bingoBoards[].cells[].verificationStatus`는 `PENDING`/`APPROVED`/`REJECTED` 중 하나이며, 결과가 생성된 시점에는 `PENDING` 칸이 남아있지 않다.
+  - `bingoBoards[].status`는 `ACTIVE`/`COMPLETED`/`EXPIRED` 중 하나다.
 
   ### 에러 케이스
 

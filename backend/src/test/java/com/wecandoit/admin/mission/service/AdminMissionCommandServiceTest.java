@@ -14,6 +14,7 @@ import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.storage.ImageUploadService;
 import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.domain.MissionType;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -67,7 +68,7 @@ class AdminMissionCommandServiceTest {
         then(adminMissionRepository).should().save(captor.capture());
         Mission mission = captor.getValue();
         assertThat(mission.getMissionImageUrl()).isEqualTo("https://example.com/flower.png");
-        assertThat(mission.getType()).isEqualTo("OBJECT");
+        assertThat(mission.getType()).isEqualTo(MissionType.OBJECT);
         assertThat(mission.getTitle()).isEqualTo("Red flower");
         assertThat(mission.getDetail()).isEqualTo("Find a red flower");
         assertThat(mission.getDecisionCondition())
@@ -89,7 +90,7 @@ class AdminMissionCommandServiceTest {
         // then
         ArgumentCaptor<Mission> captor = ArgumentCaptor.forClass(Mission.class);
         then(adminMissionRepository).should().save(captor.capture());
-        assertThat(captor.getValue().getType()).isEqualTo("ORDINARY");
+        assertThat(captor.getValue().getType()).isEqualTo(MissionType.ORDINARY);
     }
 
     @Test
@@ -125,7 +126,8 @@ class AdminMissionCommandServiceTest {
     @DisplayName("존재하는 미션을 수정한다")
     void updateMissionUpdatesExistingMission() {
         // given
-        Mission mission = Mission.create("https://example.com/flower.png", "OBJECT", "Red flower", "Find it", null);
+        Mission mission = Mission.create(
+                "https://example.com/flower.png", MissionType.OBJECT, "Red flower", "Find it", null);
         given(adminMissionRepository.findById(1L)).willReturn(Optional.of(mission));
         given(image.isEmpty()).willReturn(true);
         UpdateMissionRequest request =
@@ -136,7 +138,7 @@ class AdminMissionCommandServiceTest {
 
         // then
         assertThat(mission.getMissionImageUrl()).isEqualTo("https://example.com/flower.png");
-        assertThat(mission.getType()).isEqualTo("RELATION");
+        assertThat(mission.getType()).isEqualTo(MissionType.RELATION);
         assertThat(mission.getTitle()).isEqualTo("Updated flower");
         assertThat(mission.getDetail()).isEqualTo("Find the updated flower");
         then(imageUploadService).should(never())
@@ -147,7 +149,8 @@ class AdminMissionCommandServiceTest {
     @DisplayName("새 이미지로 수정하면 기존 이미지를 삭제한다")
     void updateMissionReplacesImage() {
         // given
-        Mission mission = Mission.create("https://example.com/old.png", "OBJECT", "Red flower", "Find it", null);
+        Mission mission = Mission.create(
+                "https://example.com/old.png", MissionType.OBJECT, "Red flower", "Find it", null);
         given(adminMissionRepository.findById(1L)).willReturn(Optional.of(mission));
         given(image.isEmpty()).willReturn(false);
         given(imageUploadService.upload(image, "missions", "1")).willReturn("https://example.com/new.png");
@@ -193,7 +196,8 @@ class AdminMissionCommandServiceTest {
     @DisplayName("미션을 비활성화한다")
     void deactivateMissionDeactivatesExistingMission() {
         // given
-        Mission mission = Mission.create("https://example.com/flower.png", "OBJECT", "Red flower", "Find it", null);
+        Mission mission = Mission.create(
+                "https://example.com/flower.png", MissionType.OBJECT, "Red flower", "Find it", null);
         given(adminMissionRepository.findById(1L)).willReturn(Optional.of(mission));
 
         // when
@@ -211,6 +215,35 @@ class AdminMissionCommandServiceTest {
 
         // when & then
         assertThatThrownBy(() -> adminMissionCommandService.deactivateMission(1L))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.MISSION_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("미션을 활성화한다")
+    void activateMissionActivatesExistingMission() {
+        // given
+        Mission mission = Mission.create(
+                "https://example.com/flower.png", MissionType.OBJECT, "Red flower", "Find it", null);
+        mission.deactivate();
+        given(adminMissionRepository.findById(1L)).willReturn(Optional.of(mission));
+
+        // when
+        adminMissionCommandService.activateMission(1L);
+
+        // then
+        assertThat(mission.isActive()).isTrue();
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 미션을 활성화하면 예외가 발생한다")
+    void activateMissionRejectsMissingMission() {
+        // given
+        given(adminMissionRepository.findById(1L)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> adminMissionCommandService.activateMission(1L))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.MISSION_NOT_FOUND);

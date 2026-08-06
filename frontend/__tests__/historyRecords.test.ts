@@ -4,14 +4,17 @@
 
 import {
   formatThousands,
-  formatWalkDateRange,
-  formatWalkDateTime,
-  formatWalkDayRange,
+  formatWalkDate,
+  formatWalkDayLabel,
+  formatWalkDuration,
+  formatWalkTime,
+  formatWalkTimeRange,
 } from '../src/features/history/model/format';
 import {
   maxValue,
   resolveChartCeiling,
 } from '../src/features/history/model/chartScale';
+import { buildChartSegments } from '../src/features/history/model/chartSegments';
 import {
   buildHourlyChartData,
   buildStepChartData,
@@ -30,11 +33,18 @@ import {
   buildHourlySteps,
 } from '../src/features/history/model/samsungHealthHistory';
 import {
-  formatWalkResult,
   toWalkDetail,
   toWalkRecord,
-} from '../src/features/history/model/gameResult';
-import { resolveBarPercentage } from '../src/screens/RecordScreen/chartConfig';
+} from '../src/features/history/model/walkSession';
+import type {
+  WalkSessionBingoCellResponse,
+  WalkSessionDetailResponse,
+  WalkSessionResponse,
+} from '../src/features/walk-session/api/walkSessionApi';
+import {
+  BAR_SLOT_RATIO,
+  resolveBarPercentage,
+} from '../src/screens/RecordScreen/chartConfig';
 
 describe('resolvePeriodRange', () => {
   test('주는 월요일에 시작해 일요일에 끝난다', () => {
@@ -314,76 +324,89 @@ describe('buildHourlyChartData', () => {
   });
 });
 
-describe('formatWalkDateTime', () => {
-  test('연월일과 요일, 시각을 붙인다', () => {
-    expect(formatWalkDateTime('2026-07-20T20:00:00')).toBe(
-      '2026.07.20 (월) 20:00',
-    );
+describe('formatWalkDayLabel', () => {
+  test('연월일과 요일을 붙인다', () => {
+    // 서버는 Instant(UTC)를 준다. 11:00Z는 KST 20:00이라 날짜는 그대로 20일이다.
+    expect(formatWalkDayLabel('2026-07-20T11:00:00Z')).toBe('2026.07.20 (월)');
   });
 
-  test('시각이 없으면 날짜만 보여준다', () => {
-    expect(formatWalkDateTime('2026-07-20')).toBe('2026.07.20 (월)');
+  test('UTC 벽시계가 아니라 기기 시간대로 읽는다', () => {
+    // 문자열을 쪼개면 20일 (월)로 읽혀 하루 어긋난다.
+    expect(formatWalkDayLabel('2026-07-20T15:30:00Z')).toBe('2026.07.21 (화)');
+  });
+
+  test('읽을 수 없는 값이면 빈 자리로 둔다', () => {
+    expect(formatWalkDayLabel('')).toBe('-');
   });
 });
 
-describe('formatWalkDateRange', () => {
-  test('하루 안에 끝났으면 날짜 하나로 줄인다', () => {
-    expect(
-      formatWalkDateRange('2026-07-26T10:00:00', '2026-07-26T11:00:00'),
-    ).toBe('2026.07.26');
+describe('formatWalkTime', () => {
+  test('기기 시간대의 시각만 남긴다', () => {
+    expect(formatWalkTime('2026-07-20T11:00:00Z')).toBe('20:00');
   });
 
-  test('여러 날 열려 있었으면 두 날짜를 잇는다', () => {
-    // 한 방은 최대 일주일까지 간다.
-    expect(
-      formatWalkDateRange('2026-05-14T10:00:00', '2026-05-21T10:00:00'),
-    ).toBe('2026.05.14 - 2026.05.21');
+  test('자정을 넘기면 그 시간대의 시각으로 읽는다', () => {
+    // 문자열을 쪼개면 15:30으로 아홉 시간 어긋난다.
+    expect(formatWalkTime('2026-07-20T15:30:00Z')).toBe('00:30');
   });
 
-  test('요일과 시각은 넣지 않는다', () => {
+  test('읽을 수 없는 값이면 빈 자리로 둔다', () => {
+    expect(formatWalkTime('')).toBe('-');
+  });
+});
+
+describe('formatWalkTimeRange', () => {
+  test('시작과 종료를 한 줄로 잇는다', () => {
+    expect(
+      formatWalkTimeRange('2026-07-20T11:00:00Z', '2026-07-20T11:32:00Z'),
+    ).toBe('20:00 ~ 20:32');
+  });
+
+  test('자정을 넘겨 끝났으면 종료에 다음날을 붙인다', () => {
+    // 안 붙이면 23:50 → 00:12가 시간이 거꾸로 흐르는 것처럼 읽힌다.
+    expect(
+      formatWalkTimeRange('2026-07-20T14:50:00Z', '2026-07-20T15:12:00Z'),
+    ).toBe('23:50 ~ 다음날 00:12');
+  });
+
+  test('한쪽이라도 읽을 수 없으면 빈 자리로 둔다', () => {
+    expect(formatWalkTimeRange('2026-07-20T11:00:00Z', '')).toBe('-');
+  });
+});
+
+describe('formatWalkDate', () => {
+  test('요일과 시각 없이 날짜만 보여준다', () => {
     // 목록 카드가 한 줄만 써서 길어지면 잘린다. 자세한 시각은 상세 화면에 있다.
-    const label = formatWalkDateRange(
-      '2026-05-06T23:50:00',
-      '2026-05-07T00:30:00',
-    );
+    const label = formatWalkDate('2026-07-20T11:00:00Z');
 
-    expect(label).toBe('2026.05.06 - 2026.05.07');
+    expect(label).toBe('2026.07.20');
     expect(label).not.toContain(':');
     expect(label).not.toContain('(');
   });
 
-  test('아직 안 끝난 방은 시작 날짜만 보여준다', () => {
-    expect(formatWalkDateRange('2026-05-14T10:00:00', null)).toBe('2026.05.14');
-  });
-
-  test('시각이 아예 없으면 빈 자리로 둔다', () => {
-    expect(formatWalkDateRange(null, null)).toBe('-');
+  test('시간대를 옮기면서 날짜가 넘어간다', () => {
+    expect(formatWalkDate('2026-07-20T15:30:00Z')).toBe('2026.07.21');
   });
 });
 
-describe('formatWalkDayRange', () => {
-  test('요일은 붙이고 시각은 붙이지 않는다', () => {
-    expect(
-      formatWalkDayRange('2026-05-14T10:00:00', '2026-05-21T18:30:00'),
-    ).toBe('2026.05.14 (목) - 2026.05.21 (목)');
+describe('formatWalkDuration', () => {
+  test('한 시간이 안 되면 분만 적는다', () => {
+    expect(formatWalkDuration(1_920)).toBe('32분');
+    expect(formatWalkDuration(60)).toBe('1분');
   });
 
-  test('하루 안에 끝났으면 날짜 하나로 줄인다', () => {
-    expect(
-      formatWalkDayRange('2026-07-26T10:00:00', '2026-07-26T11:00:00'),
-    ).toBe('2026.07.26 (일)');
+  test('한 시간이 넘으면 시간과 분을 나눠 적는다', () => {
+    expect(formatWalkDuration(4_380)).toBe('1시간 13분');
   });
 
-  test('자정을 넘겼으면 두 날이라 이어 적는다', () => {
-    expect(
-      formatWalkDayRange('2026-05-06T23:50:00', '2026-05-07T00:30:00'),
-    ).toBe('2026.05.06 (수) - 2026.05.07 (목)');
+  test('딱 떨어지면 분을 붙이지 않는다', () => {
+    expect(formatWalkDuration(7_200)).toBe('2시간');
   });
 
-  test('아직 안 끝난 방은 시작 날짜만 보여준다', () => {
-    expect(formatWalkDayRange('2026-05-14T10:00:00', null)).toBe(
-      '2026.05.14 (목)',
-    );
+  test('1분이 안 되는 산책을 0분으로 두지 않는다', () => {
+    // '0분'이면 기록이 비어 보인다.
+    expect(formatWalkDuration(0)).toBe('1분 미만');
+    expect(formatWalkDuration(59)).toBe('1분 미만');
   });
 });
 
@@ -496,232 +519,165 @@ describe('buildHourlySteps (삼성헬스 -> 화면)', () => {
   });
 });
 
-const gameResultResponse = {
-  gameId: 7,
+const walkSessionResponse: WalkSessionResponse = {
+  walkSessionId: 7,
   roomId: 12,
   roomName: '민서와의 산책',
-  mode: 'COOPERATE' as const,
-  roomStatus: 'CLOSED' as const,
-  result: true,
-  boardSize: 3,
-  targetBingoCount: 2,
-  targetStepCount: 5_000,
-  bingoCount: 2,
-  completedMissionCount: 6,
-  rewardCash: 300,
-  startedAt: '2026-07-20T20:00:00',
-  completedAt: '2026-07-20T20:12:31',
-  totalMissionCount: 9,
-  myCompletedMissionCount: 4,
-  myRewardCash: 120,
-  myResult: null,
-  participants: [
-    {
-      memberId: 102,
-      nickname: '민서',
-      completedMissionCount: 2,
-      rewardCash: 90,
-      result: null,
-    },
-    {
-      memberId: 101,
-      nickname: '걷는곰',
-      completedMissionCount: 4,
-      rewardCash: 120,
-      result: null,
-    },
-  ],
+  mode: 'COOPERATE',
+  // 서버는 Instant(UTC)를 준다. KST로는 20:00에 시작해 20:32에 끝난 산책이다.
+  startedAt: '2026-07-20T11:00:00Z',
+  endedAt: '2026-07-20T11:32:00Z',
+  durationSeconds: 1_920,
+  activeDurationSeconds: 1_680,
+  step: 3_240,
+  distance: 2_400,
+  calories: 118,
+  initialBingoBoardId: 900,
+  achievedMissionCount: 2,
 };
 
 function buildCells(
   boardSize: number,
-  approvedBy: Record<number, number | null>,
-) {
+  achieved: number[],
+  approvedBefore: number[] = [],
+): WalkSessionBingoCellResponse[] {
   return Array.from({ length: boardSize * boardSize }, (_, index) => {
-    const submittedByMemberId = approvedBy[index] ?? null;
+    const achievedInSession = achieved.includes(index);
+    const approved = achievedInSession || approvedBefore.includes(index);
 
     return {
       cellId: index + 1,
       row: Math.floor(index / boardSize),
       col: index % boardSize,
       mission: { missionId: index + 1, title: `미션 ${index}` },
-      verificationStatus:
-        submittedByMemberId === null
-          ? ('PENDING' as const)
-          : ('APPROVED' as const),
-      submittedByMemberId,
+      // 아무도 손대지 않은 칸은 서버가 상태를 null로 준다.
+      verificationStatus: approved ? ('APPROVED' as const) : null,
+      submittedByMemberId: approved ? 101 : null,
+      achievedInSession,
+      achievedAt: achievedInSession ? '2026-07-20T11:10:00Z' : null,
     };
   });
 }
 
-const detailResponse = {
-  ...gameResultResponse,
+const detailResponse: WalkSessionDetailResponse = {
+  ...walkSessionResponse,
   bingoBoards: [
     {
-      owners: [
-        { memberId: 101, nickname: '걷는곰' },
-        { memberId: 102, nickname: '민서' },
-      ],
+      bingoBoardId: 900,
+      boardType: 'SHARED',
       boardSize: 3,
-      cells: buildCells(3, { 0: 101, 1: 102, 3: 101, 5: 102, 7: 101, 8: 101 }),
+      cells: buildCells(3, [0, 3], [1, 8]),
     },
   ],
 };
 
-
-describe('formatWalkResult', () => {
-  test('대결만 승패로 읽힌다', () => {
-    expect(formatWalkResult('BATTLE', true)).toBe('승리');
-    expect(formatWalkResult('BATTLE', false)).toBe('패배');
-  });
-
-  test('혼자·협동은 목표 달성 여부다', () => {
-    expect(formatWalkResult('SINGLE', true)).toBe('성공');
-    expect(formatWalkResult('COOPERATE', false)).toBe('실패');
-  });
-});
-
 describe('toWalkRecord', () => {
   test('목록에 필요한 값으로 옮긴다', () => {
-    const record = toWalkRecord(gameResultResponse);
+    const record = toWalkRecord(walkSessionResponse);
 
-    // 상세 조회 키는 방(12)이 아니라 판(7)이다.
-    expect(record.gameId).toBe(7);
+    // 상세 조회 키는 방(12)이 아니라 산책 한 번(7)이다.
+    expect(record.walkSessionId).toBe(7);
     expect(record.title).toBe('민서와의 산책');
     expect(record.mode).toBe('COOPERATE');
-    expect(record.startedAt).toBe('2026-07-20T20:00:00');
-    expect(record.completedAt).toBe('2026-07-20T20:12:31');
-    expect(record.myCompletedMissionCount).toBe(4);
-    expect(record.participants).toEqual([
-      { memberId: 102, nickname: '민서' },
-      { memberId: 101, nickname: '걷는곰' },
-    ]);
+    expect(record.step).toBe(3_240);
+    expect(record.distanceMeters).toBe(2_400);
+    expect(record.calories).toBe(118);
+    expect(record.achievedMissionCount).toBe(2);
   });
 
-  test('미션 분모는 판 하나의 칸 수다', () => {
-    // totalMissionCount는 모든 판을 더한 값이라 대결에서는 내 몫의 분모가 아니다.
-    const record = toWalkRecord({
-      ...gameResultResponse,
-      mode: 'BATTLE',
-      boardSize: 3,
-      totalMissionCount: 18,
-      myResult: true,
-    });
-
-    expect(record.boardCellCount).toBe(9);
-  });
-
-  test('대결은 내 승패를, 그 외에는 게임 결과를 쓴다', () => {
-    expect(toWalkRecord({ ...gameResultResponse, myResult: null }).isWin).toBe(
-      true,
-    );
-    expect(
-      toWalkRecord({
-        ...gameResultResponse,
-        mode: 'BATTLE',
-        result: true,
-        myResult: false,
-      }).isWin,
-    ).toBe(false);
-  });
-
-  test('아직 안 끝난 방은 종료 시각이 없다', () => {
-    const record = toWalkRecord({ ...gameResultResponse, completedAt: null });
-
-    expect(record.completedAt).toBeNull();
+  test('화면에 쓰는 시간은 일시정지를 뺀 쪽이다', () => {
+    // durationSeconds(1920)에는 쉰 시간까지 들어 있어 실제 걸은 시간보다 길다.
+    expect(toWalkRecord(walkSessionResponse).activeDurationSeconds).toBe(1_680);
   });
 });
 
 describe('toWalkDetail', () => {
-  const MY_MEMBER_ID = 101;
+  test('목록과 같은 값에 빙고판이 붙는다', () => {
+    const detail = toWalkDetail(detailResponse);
 
-  test('본인이 참가자 맨 앞에 온다', () => {
-    const detail = toWalkDetail(detailResponse, MY_MEMBER_ID);
-
-    expect(detail.participants.map(participant => participant.memberId)).toEqual(
-      [101, 102],
-    );
-    expect(detail.participants[0].isMe).toBe(true);
-    expect(detail.participants[1].isMe).toBe(false);
+    expect(detail.walkSessionId).toBe(7);
+    expect(detail.step).toBe(3_240);
+    expect(detail.bingoBoards).toHaveLength(1);
+    expect(detail.bingoBoards[0].size).toBe(3);
   });
 
   test('칸 번호는 행·열로 매긴다', () => {
-    const detail = toWalkDetail(detailResponse, MY_MEMBER_ID);
+    const [board] = toWalkDetail(detailResponse).bingoBoards;
 
-    expect(detail.bingoSize).toBe(3);
-    expect(detail.bingoCells).toHaveLength(9);
-    expect(detail.bingoCells.map(cell => cell.index)).toEqual([
+    expect(board.cells).toHaveLength(9);
+    expect(board.cells.map(cell => cell.index)).toEqual([
       0, 1, 2, 3, 4, 5, 6, 7, 8,
     ]);
   });
 
-  test('승인된 칸만 완료로 친다', () => {
-    const detail = toWalkDetail(detailResponse, MY_MEMBER_ID);
+  test('이번 산책에 깬 칸과 지난 산책에 깬 칸을 가른다', () => {
+    const [board] = toWalkDetail(detailResponse).bingoBoards;
 
-    expect(detail.bingoCells[0].completedBy).toBe(101);
-    expect(detail.bingoCells[1].completedBy).toBe(102);
-    // 아무도 손대지 않은 칸.
-    expect(detail.bingoCells[2].completedBy).toBeNull();
+    // 판에는 승인된 칸이 넷이지만 이번 산책의 몫은 둘뿐이다.
+    expect(board.cells.filter(cell => cell.achievedInSession)).toHaveLength(2);
+    expect(board.cells.filter(cell => cell.completedBefore)).toHaveLength(2);
+    expect(board.cells[0].achievedInSession).toBe(true);
+    expect(board.cells[1].completedBefore).toBe(true);
+  });
+
+  test('이번 산책에 깬 칸을 지난 산책 몫으로 겹쳐 세지 않는다', () => {
+    // 둘 다 참이 되면 범례의 칸 수 합이 판보다 커진다.
+    const [board] = toWalkDetail(detailResponse).bingoBoards;
+
+    expect(board.cells[0].completedBefore).toBe(false);
   });
 
   test('사진을 냈어도 승인 전이면 빈 칸이다', () => {
-    const [pending, ...rest] = detailResponse.bingoBoards[0].cells;
-    const detail = toWalkDetail(
-      {
-        ...detailResponse,
-        bingoBoards: [
-          {
-            ...detailResponse.bingoBoards[0],
-            cells: [
-              { ...pending, verificationStatus: 'PENDING' as const },
-              ...rest,
-            ],
-          },
-        ],
-      },
-      MY_MEMBER_ID,
-    );
+    const [board] = detailResponse.bingoBoards;
+    const [submitted, ...rest] = board.cells;
+    const detail = toWalkDetail({
+      ...detailResponse,
+      bingoBoards: [
+        {
+          ...board,
+          cells: [
+            {
+              ...submitted,
+              verificationStatus: 'PENDING' as const,
+              achievedInSession: false,
+              achievedAt: null,
+            },
+            ...rest,
+          ],
+        },
+      ],
+    });
+    const [pending] = detail.bingoBoards[0].cells;
 
-    expect(detail.bingoCells[0].completedBy).toBeNull();
+    expect(pending.achievedInSession).toBe(false);
+    expect(pending.completedBefore).toBe(false);
   });
 
-  test('대결에서는 내가 주인인 판을 고른다', () => {
-    const myBoard = {
-      ...detailResponse.bingoBoards[0],
-      owners: [{ memberId: MY_MEMBER_ID, nickname: '걷는곰' }],
-      cells: buildCells(3, { 4: MY_MEMBER_ID }),
-    };
-    const rivalBoard = {
-      ...detailResponse.bingoBoards[0],
-      owners: [{ memberId: 102, nickname: '민서' }],
-      cells: buildCells(3, { 0: 102, 1: 102 }),
-    };
+  test('산책 도중 판을 갈면 판이 여럿이다', () => {
+    const detail = toWalkDetail({
+      ...detailResponse,
+      bingoBoards: [
+        detailResponse.bingoBoards[0],
+        {
+          bingoBoardId: 901,
+          boardType: 'PERSONAL' as const,
+          boardSize: 4,
+          cells: buildCells(4, [2]),
+        },
+      ],
+    });
 
-    const detail = toWalkDetail(
-      {
-        ...detailResponse,
-        mode: 'BATTLE',
-        myResult: true,
-        bingoBoards: [rivalBoard, myBoard],
-      },
-      MY_MEMBER_ID,
-    );
-
-    expect(
-      detail.bingoCells.filter(cell => cell.completedBy !== null),
-    ).toHaveLength(1);
-    expect(detail.bingoCells[4].completedBy).toBe(MY_MEMBER_ID);
+    expect(detail.bingoBoards.map(board => board.size)).toEqual([3, 4]);
+    // 자리 번호는 판마다 그 판의 한 변을 기준으로 매겨야 한다.
+    expect(detail.bingoBoards[1].cells).toHaveLength(16);
+    expect(detail.bingoBoards[1].cells[7].index).toBe(7);
   });
 
-  test('빙고판이 없으면 칸 없이 그린다', () => {
-    const detail = toWalkDetail(
-      { ...detailResponse, bingoBoards: [] },
-      MY_MEMBER_ID,
-    );
+  test('빙고판이 없으면 빈 배열이다', () => {
+    // 미션을 하나도 못 깼고 시작한 판도 못 남긴 산책.
+    const detail = toWalkDetail({ ...detailResponse, bingoBoards: [] });
 
-    expect(detail.bingoCells).toEqual([]);
-    // 판이 없어도 방의 boardSize로 크기를 잡는다.
-    expect(detail.bingoSize).toBe(3);
+    expect(detail.bingoBoards).toEqual([]);
   });
 });
 
@@ -772,5 +728,162 @@ describe('resolveBarPercentage', () => {
   test('폭이나 개수가 0이면 안전한 기본값을 준다', () => {
     expect(resolveBarPercentage(0, 7)).toBe(1);
     expect(resolveBarPercentage(280, 0)).toBe(1);
+  });
+});
+
+describe('buildChartSegments', () => {
+  const weekHistories = [
+    { historyDate: '2026-07-20', step: 1_000, distance: 700, calories: 40 },
+    { historyDate: '2026-07-21', step: 2_000, distance: 1_400, calories: 80 },
+  ];
+
+  test('주는 막대 하나가 하루를 가리킨다', () => {
+    expect(buildChartSegments('WEEK', weekHistories, [])).toEqual([
+      {
+        index: 0,
+        label: '7.20 (월)',
+        dateRange: { startDate: '2026-07-20', endDate: '2026-07-20' },
+        step: 1_000,
+        distance: 700,
+        calories: 40,
+      },
+      {
+        index: 1,
+        label: '7.21 (화)',
+        dateRange: { startDate: '2026-07-21', endDate: '2026-07-21' },
+        step: 2_000,
+        distance: 1_400,
+        calories: 80,
+      },
+    ]);
+  });
+
+  test('주 구간은 차트 막대와 개수·순서가 같다', () => {
+    const chartData = buildStepChartData('WEEK', weekHistories, '2026-07-21');
+    const segments = buildChartSegments('WEEK', weekHistories, []);
+
+    // 탭 영역을 구간 수로 균등 분할하므로 개수가 어긋나면 누른 자리가 밀린다.
+    expect(segments).toHaveLength(chartData.length);
+    expect(segments.map(segment => segment.step)).toEqual(
+      chartData.map(datum => datum.value),
+    );
+  });
+
+  describe('월간', () => {
+    const monthHistories = [
+      { historyDate: '2026-07-01', step: 100, distance: 70, calories: 4 },
+      { historyDate: '2026-07-07', step: 200, distance: 140, calories: 8 },
+      { historyDate: '2026-07-08', step: 300, distance: 210, calories: 12 },
+      { historyDate: '2026-07-31', step: 400, distance: 280, calories: 16 },
+    ];
+
+    test('막대 하나가 7일 묶음을 가리킨다', () => {
+      const [firstBucket] = buildChartSegments('MONTH', monthHistories, []);
+
+      expect(firstBucket).toEqual({
+        index: 0,
+        label: '7.1 (수) - 7.7 (화)',
+        dateRange: { startDate: '2026-07-01', endDate: '2026-07-07' },
+        // 1일과 7일을 더한 값.
+        step: 300,
+        distance: 210,
+        calories: 12,
+      });
+    });
+
+    test('마지막 묶음은 말일에서 끊는다', () => {
+      const segments = buildChartSegments('MONTH', monthHistories, []);
+      const lastBucket = segments[segments.length - 1];
+
+      // 5번째 묶음은 29일부터라 7일을 채우지 못한다.
+      expect(lastBucket.dateRange).toEqual({
+        startDate: '2026-07-29',
+        endDate: '2026-07-31',
+      });
+      expect(lastBucket.label).toBe('7.29 (수) - 7.31 (금)');
+    });
+
+    test('구간은 차트 막대와 개수·순서가 같다', () => {
+      const chartData = buildStepChartData(
+        'MONTH',
+        monthHistories,
+        '2026-07-08',
+      );
+      const segments = buildChartSegments('MONTH', monthHistories, []);
+
+      expect(segments).toHaveLength(chartData.length);
+      expect(segments.map(segment => segment.step)).toEqual(
+        chartData.map(datum => datum.value),
+      );
+    });
+  });
+
+  describe('일간', () => {
+    const dayHistories = [
+      { historyDate: '2026-07-20', step: 600, distance: 420, calories: 24 },
+    ];
+    const hourlySteps = Array.from({ length: 24 }, (_, hour) => ({
+      hour,
+      step: hour < 6 ? 0 : 100,
+    }));
+
+    test('3시간씩 묶어 여덟 구간으로 나눈다', () => {
+      const segments = buildChartSegments('DAY', dayHistories, hourlySteps);
+
+      // 24개 시간대를 그대로 나누면 탭 영역이 손가락보다 좁아진다.
+      expect(segments).toHaveLength(8);
+      expect(segments.map(segment => segment.label)).toEqual([
+        '00시 - 03시',
+        '03시 - 06시',
+        '06시 - 09시',
+        '09시 - 12시',
+        '12시 - 15시',
+        '15시 - 18시',
+        '18시 - 21시',
+        '21시 - 24시',
+      ]);
+    });
+
+    test('묶음 안 시간대의 걸음을 더한다', () => {
+      const segments = buildChartSegments('DAY', dayHistories, hourlySteps);
+
+      expect(segments[0].step).toBe(0);
+      // 06·07·08시가 100씩.
+      expect(segments[2]).toEqual({
+        index: 2,
+        label: '06시 - 09시',
+        dateRange: { startDate: '2026-07-20', endDate: '2026-07-20' },
+        step: 300,
+        // 시간대별로는 걸음만 읽을 수 있다.
+        distance: null,
+        calories: null,
+      });
+    });
+
+    test('시간대 기록이 없으면 누를 구간도 없다', () => {
+      // 차트를 못 그리는 상태라 탭 영역만 남으면 안 된다.
+      expect(buildChartSegments('DAY', dayHistories, [])).toEqual([]);
+    });
+  });
+
+  test('기록이 비어 있으면 구간이 없다', () => {
+    expect(buildChartSegments('WEEK', [], [])).toEqual([]);
+    expect(buildChartSegments('MONTH', [], [])).toEqual([]);
+  });
+});
+
+describe('눌린 구간 표시 자리', () => {
+  // chart-kit은 막대 폭을 `32 * barPercentage`로 계산한다.
+  const barWidthOf = (percentage: number) => 32 * percentage;
+
+  test('막대는 칸의 오른쪽 BAR_SLOT_RATIO만큼을 차지한다', () => {
+    const plotWidth = 280;
+    const barCount = 7;
+    const slot = plotWidth / barCount;
+    const barWidth = barWidthOf(resolveBarPercentage(plotWidth, barCount));
+
+    // 눌린 표시(ChartSegmentOverlay)를 이 비율로 앉히므로 어긋나면 표시가 밀린다.
+    expect(barWidth / 2).toBeCloseTo(slot * (1 - BAR_SLOT_RATIO));
+    expect(barWidth).toBeCloseTo(slot * BAR_SLOT_RATIO);
   });
 });

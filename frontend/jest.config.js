@@ -1,5 +1,10 @@
+const reactNativePreset = require('@react-native/jest-preset');
+
 module.exports = {
   preset: '@react-native/jest-preset',
+  // 프리셋의 setupFiles를 그대로 두고 뒤에 덧붙인다. 새 배열로 덮어쓰면
+  // React Native 환경 초기화가 통째로 빠진다.
+  setupFiles: [...reactNativePreset.setupFiles, '<rootDir>/jest/setupTimezone.js'],
   transformIgnorePatterns: [
     // react-native-chart-kit은 dist에 ESM + 트랜스파일 안 된 JSX를 그대로 담아
     // 배포한다. Metro는 알아서 변환하지만 Jest는 여기에 넣어줘야 파싱된다.

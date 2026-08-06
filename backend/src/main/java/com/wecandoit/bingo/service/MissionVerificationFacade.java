@@ -11,6 +11,7 @@ import com.wecandoit.mission.domain.Mission;
 import com.wecandoit.mission.domain.MissionDifficulty;
 import com.wecandoit.mission.repository.MissionRepository;
 import java.io.IOException;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -25,7 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class MissionVerificationFacade {
 
     private static final double CONFIDENCE_THRESHOLD = 0.7;
-    private static final String LOW_CONFIDENCE_REASON = "AI 검증 신뢰도가 기준(0.7)에 미달했습니다.";
+    private static final String LOW_CONFIDENCE_REASON = "제출한 사진으로는 미션 완료를 확인할 수 없어요. 사진을 다시 확인하고 재시도해 주세요.";
 
     private final BingoCommandService bingoCommandService;
     private final AiVerificationClient aiVerificationClient;
@@ -34,12 +35,24 @@ public class MissionVerificationFacade {
     private final BingoCellRepository bingoCellRepository;
 
     public BingoCellSubmitResponse submitAndVerify(Long memberId, Long roomId, Long cellId, MultipartFile image) {
+        return submitAndVerify(memberId, roomId, cellId, image, null);
+    }
+
+    public BingoCellSubmitResponse submitAndVerify(
+            Long memberId,
+            Long roomId,
+            Long cellId,
+            MultipartFile image,
+            UUID clientSessionKey
+    ) {
         // 저장 과정의 transferTo가 업로드 스트림을 소비할 수 있으므로 반드시 저장 전에 바이트를 확보한다.
         byte[] imageBytes = readImageBytes(image);
-        BingoCell submittedCell = bingoCommandService.submitCell(memberId, roomId, cellId, image);
+        BingoCell submittedCell = clientSessionKey == null
+                ? bingoCommandService.submitCell(memberId, roomId, cellId, image)
+                : bingoCommandService.submitCell(memberId, roomId, cellId, image, clientSessionKey);
         Mission mission = missionRepository.findById(submittedCell.getMissionId())
                 .orElseThrow(() -> new CustomException(ErrorCode.MISSION_NOT_FOUND));
-        MissionDifficulty missionDifficulty = MissionDifficulty.from(mission.getDifficulty());
+        MissionDifficulty missionDifficulty = mission.getDifficulty();
 
         AiVerificationResult result;
         try {
@@ -76,7 +89,12 @@ public class MissionVerificationFacade {
 
     private AiVerificationResult requestVerification(byte[] imageBytes, String fileName, Mission mission) {
         try {
-            return aiVerificationClient.verify(imageBytes, fileName, mission.getType(), mission.getDecisionCondition());
+            return aiVerificationClient.verify(
+                    imageBytes,
+                    fileName,
+                    mission.getType().name(),
+                    mission.getDecisionCondition()
+            );
         } catch (CustomException e) {
             throw e;
         } catch (RuntimeException e) {

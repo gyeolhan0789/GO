@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
+import com.wecandoit.common.testcontainers.MySqlTestContainer;
+import com.wecandoit.common.testcontainers.RedisTestContainer;
 import com.wecandoit.game.controller.request.CreateRoomRequest;
 import com.wecandoit.game.controller.response.CreateRoomResponse;
 import com.wecandoit.game.domain.GameMode;
@@ -13,9 +15,11 @@ import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.RoomCommandService;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.domain.MissionType;
 import com.wecandoit.mission.repository.MissionRepository;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -23,15 +27,18 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.IntStream;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@ImportTestcontainers({MySqlTestContainer.class, RedisTestContainer.class})
 @DisplayName("SINGLE 게임방 생성 동시성")
 class RoomCommandServiceConcurrencyTest {
 
@@ -58,6 +65,32 @@ class RoomCommandServiceConcurrencyTest {
 
     @BeforeEach
     void setUp() {
+        clearPersistedData();
+
+        memberId = memberRepository.save(Member.create(
+                "single@example.com",
+                "encoded-password",
+                "싱글 사용자",
+                null,
+                Gender.MALE
+        )).getId();
+        missionRepository.saveAll(IntStream.range(0, 9)
+                .mapToObj(index -> Mission.create(
+                        "https://example.com/mission-" + index + ".png",
+                        MissionType.OBJECT,
+                        "미션 " + index,
+                        "설명",
+                        null
+                ))
+                .toList());
+    }
+
+    @AfterEach
+    void tearDown() {
+        clearPersistedData();
+    }
+
+    private void clearPersistedData() {
         bingoCellRepository.deleteAll();
         bingoBoardRepository.deleteAll();
         gameParticipantRepository.deleteAll();
@@ -66,21 +99,6 @@ class RoomCommandServiceConcurrencyTest {
         roomRepository.deleteAll();
         missionRepository.deleteAll();
         memberRepository.deleteAll();
-
-        memberId = memberRepository.save(Member.create(
-                "single@example.com",
-                "encoded-password",
-                "싱글 사용자"
-        )).getId();
-        missionRepository.saveAll(IntStream.range(0, 9)
-                .mapToObj(index -> Mission.create(
-                        "https://example.com/mission-" + index + ".png",
-                        "OBJECT",
-                        "미션 " + index,
-                        "설명",
-                        null
-                ))
-                .toList());
     }
 
     @Test

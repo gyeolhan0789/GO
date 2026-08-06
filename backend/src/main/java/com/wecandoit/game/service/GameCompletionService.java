@@ -53,7 +53,7 @@ public class GameCompletionService {
     private final ApplicationEventPublisher eventPublisher;
     private final NotificationMessageFactory notificationMessageFactory;
 
-    public void evaluateAndCompleteIfNeeded(Long gameId, Long completedBoardId) {
+    public void evaluateAndCompleteIfNeeded(Long gameId) {
         Game game = gameRepository.findByIdForUpdate(gameId)
                 .orElseThrow(() -> new CustomException(ErrorCode.GAME_NOT_FOUND));
         if (game.getStatus() != GameStatus.ACTIVE) {

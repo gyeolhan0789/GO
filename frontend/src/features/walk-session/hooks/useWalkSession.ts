@@ -2,11 +2,15 @@ import { useEffect, useState } from 'react';
 
 import {
   getWalkSessionCalories,
+  getWalkSessionContinuousActiveMs,
+  getWalkSessionContinuousSteps,
   getWalkSessionDistanceMeters,
+  getWalkSessionElapsedMs,
   getWalkSessionElapsedSeconds,
   getWalkSessionRoomId,
   getWalkSessionSteps,
   isWalkSessionActive,
+  isWalkSessionEndRequested,
   isWalkSessionPaused,
   isWalkSessionStarted,
   subscribeWalkSession,
@@ -20,6 +24,9 @@ import {
 export function useWalkSession() {
   const [roomId, setRoomId] = useState(getWalkSessionRoomId);
   const [elapsedSeconds, setElapsedSeconds] = useState(getWalkSessionElapsedSeconds);
+  // 화면은 초만 쓰지만 워치로는 내림하지 않은 값을 보내야 한다(내림이 두 번
+  // 겹치면 폰과 워치가 1초쯤 어긋난다 — getWalkSessionElapsedMs 주석 참고).
+  const [elapsedMs, setElapsedMs] = useState(getWalkSessionElapsedMs);
   const [isPaused, setPaused] = useState(isWalkSessionPaused);
   const [isActive, setActive] = useState(isWalkSessionActive);
   // 시작 카운트다운이 끝나기 전까지는 false다(WalkSessionScreen이 이 값으로
@@ -28,17 +35,28 @@ export function useWalkSession() {
   const [steps, setSteps] = useState(getWalkSessionSteps);
   const [distanceMeters, setDistanceMeters] = useState(getWalkSessionDistanceMeters);
   const [calories, setCalories] = useState(getWalkSessionCalories);
+  const [continuousSteps, setContinuousSteps] = useState(getWalkSessionContinuousSteps);
+  const [continuousActiveMs, setContinuousActiveMs] = useState(
+    getWalkSessionContinuousActiveMs,
+  );
+  // 워치에서 "산책 종료"를 눌렀다는 표시. WalkSessionScreen이 보고 폰의
+  // 종료 흐름(기록 저장 -> 결과 화면)을 그대로 탄다.
+  const [isEndRequested, setEndRequested] = useState(isWalkSessionEndRequested);
 
   useEffect(() => {
     const sync = () => {
       setRoomId(getWalkSessionRoomId());
       setElapsedSeconds(getWalkSessionElapsedSeconds());
+      setElapsedMs(getWalkSessionElapsedMs());
       setPaused(isWalkSessionPaused());
       setActive(isWalkSessionActive());
       setStarted(isWalkSessionStarted());
       setSteps(getWalkSessionSteps());
       setDistanceMeters(getWalkSessionDistanceMeters());
       setCalories(getWalkSessionCalories());
+      setContinuousSteps(getWalkSessionContinuousSteps());
+      setContinuousActiveMs(getWalkSessionContinuousActiveMs());
+      setEndRequested(isWalkSessionEndRequested());
     };
     sync();
     return subscribeWalkSession(sync);
@@ -50,6 +68,8 @@ export function useWalkSession() {
     }
     const timer = setInterval(() => {
       setElapsedSeconds(getWalkSessionElapsedSeconds());
+      setElapsedMs(getWalkSessionElapsedMs());
+      setContinuousActiveMs(getWalkSessionContinuousActiveMs());
     }, 1000);
     return () => clearInterval(timer);
   }, [isPaused, isStarted]);
@@ -57,12 +77,16 @@ export function useWalkSession() {
   return {
     roomId,
     elapsedSeconds,
+    elapsedMs,
     isPaused,
     isActive,
     isStarted,
     steps,
     distanceMeters,
     calories,
+    continuousSteps,
+    continuousActiveMs,
+    isEndRequested,
     togglePause: togglePauseWalkSession,
   };
 }

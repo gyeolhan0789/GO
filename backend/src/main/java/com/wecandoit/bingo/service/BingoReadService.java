@@ -40,9 +40,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class BingoReadService {
 
-    private static final List<BingoBoardStatus> INACTIVE_BOARD_STATUSES =
-            List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED);
-
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
     private final GameRepository gameRepository;
@@ -72,7 +69,8 @@ public class BingoReadService {
                 ? game.getStartedAt().plusDays(GameCycleCommandService.RENEWAL_PERIOD_DAYS)
                 : now;
         boolean completed = isBoardCompleted(board, cells, completionCutoff);
-        boolean canRenew = (completed || renewalRequired) && room.isHost(memberId);
+        boolean isHost = room.isHost(memberId);
+        boolean canRenew = (completed || renewalRequired) && isHost;
 
         return BingoBoardResponse.of(
                 board,
@@ -81,6 +79,7 @@ public class BingoReadService {
                 completedBingoCount,
                 approvedCellCount,
                 completed,
+                isHost,
                 canRenew,
                 renewalRequired
         );
@@ -127,6 +126,7 @@ public class BingoReadService {
                 myProgress.completedBingoCount(),
                 myProgress.approvedCellCount(),
                 myProgress.targetReached(),
+                room.isHost(memberId),
                 new BattleProgressResponse(
                         room.getStatus(),
                         game.getStatus(),
@@ -154,7 +154,7 @@ public class BingoReadService {
     private BingoBoard findActiveBoard(Long gameId) {
         return bingoBoardRepository.findFirstByGameIdAndStatusNotInOrderByIdDesc(
                         gameId,
-                        INACTIVE_BOARD_STATUSES
+                        BingoBoardStatus.inactiveStatuses()
                 )
                 .orElseThrow(() -> new CustomException(ErrorCode.BINGO_BOARD_NOT_FOUND));
     }

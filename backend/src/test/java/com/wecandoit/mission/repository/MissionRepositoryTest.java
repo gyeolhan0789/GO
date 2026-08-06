@@ -2,16 +2,15 @@ package com.wecandoit.mission.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.wecandoit.common.testcontainers.MySqlDataJpaTest;
 import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.domain.MissionType;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.ActiveProfiles;
 
-@DataJpaTest
-@ActiveProfiles("test")
+@MySqlDataJpaTest
 @DisplayName("미션 저장소")
 class MissionRepositoryTest {
 
@@ -51,7 +50,7 @@ class MissionRepositoryTest {
     private Mission saveMission(String title) {
         return missionRepository.save(Mission.create(
                 "https://example.com/mission.png",
-                "OBJECT",
+                MissionType.OBJECT,
                 title,
                 "설명",
                 null

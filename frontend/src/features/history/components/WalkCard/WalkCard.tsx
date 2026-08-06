@@ -1,29 +1,32 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 import { AppText } from '../../../../shared/components/AppText/AppText';
-import { AvatarStack } from '../../../../shared/components/AvatarStack/AvatarStack';
 import { Card } from '../../../../shared/components/Card/Card';
 import { colors } from '../../../../shared/constants/colors';
 import { shadow } from '../../../../shared/constants/shadow';
 import { spacing } from '../../../../shared/constants/spacing';
 import { bodyFont, lineHeights } from '../../../../shared/constants/typography';
-import { formatWalkDateRange } from '../../model/format';
-import { GAME_MODE_LABEL } from '../../model/gameResult';
+import { GAME_MODE_LABEL } from '../../../room/model/gameMode';
+import {
+  formatWalkDate,
+  formatWalkDuration,
+  formatWalkTimeRange,
+} from '../../model/format';
 import type { WalkRecord } from '../../types';
-import { WalkResultBadge } from '../WalkResultBadge/WalkResultBadge';
 
 type WalkCardProps = {
   walk: WalkRecord;
   onPress: () => void;
 };
 
-const AVATAR_SIZE = 40;
-
 /** 기록 화면의 '최근 산책'과 전체 목록 화면이 같이 쓴다. */
 export function WalkCard({ walk, onPress }: WalkCardProps) {
-  const summary = [
+  // 한 번의 산책이라 방이 며칠 열려 있었는지가 아니라 그날 언제 얼마나
+  // 걸었는지가 카드의 내용이다.
+  const meta = [
     GAME_MODE_LABEL[walk.mode],
-    `미션 ${walk.myCompletedMissionCount}/${walk.boardCellCount}`,
+    formatWalkDate(walk.startedAt),
+    formatWalkDuration(walk.activeDurationSeconds),
   ].join(' · ');
 
   return (
@@ -34,29 +37,21 @@ export function WalkCard({ walk, onPress }: WalkCardProps) {
       accessibilityLabel={`${walk.title} 상세 보기`}
     >
       <Card>
-        <View style={styles.row}>
-          <View style={styles.textGroup}>
-            <View style={styles.titleRow}>
-              <AppText style={styles.title} numberOfLines={1}>
-                {walk.title}
-              </AppText>
-              <WalkResultBadge mode={walk.mode} isWin={walk.isWin} />
-            </View>
-            <AppText style={styles.meta} numberOfLines={1}>
-              {formatWalkDateRange(walk.startedAt, walk.completedAt)}
-            </AppText>
-            <AppText style={styles.meta} numberOfLines={1}>
-              {summary}
-            </AppText>
-          </View>
+        <AppText style={styles.title} numberOfLines={1}>
+          {walk.title}
+        </AppText>
+        <AppText style={styles.meta} numberOfLines={1}>
+          {meta}
+        </AppText>
+        <AppText style={styles.timeRange} numberOfLines={1}>
+          {formatWalkTimeRange(walk.startedAt, walk.endedAt)}
+        </AppText>
 
-          <AvatarStack
-            members={walk.participants.map(participant => ({
-              id: String(participant.memberId),
-            }))}
-            size={AVATAR_SIZE}
-          />
-        </View>
+        {walk.achievedMissionCount > 0 ? (
+          <AppText style={styles.missions}>
+            {`미션 ${walk.achievedMissionCount}개 달성`}
+          </AppText>
+        ) : null}
       </Card>
     </Pressable>
   );
@@ -70,25 +65,7 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.85,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  textGroup: {
-    flex: 1,
-    minWidth: 0,
-    gap: spacing.xs,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
   title: {
-    // 배지가 밀려나지 않게 긴 방 이름은 제목 쪽에서 줄인다.
-    flexShrink: 1,
     fontFamily: bodyFont.bold,
     fontSize: 15,
     lineHeight: lineHeights[15],
@@ -100,5 +77,21 @@ const styles = StyleSheet.create({
     lineHeight: lineHeights[12],
     color: colors.ink,
     opacity: 0.6,
+    marginTop: spacing.xs,
+  },
+  timeRange: {
+    fontFamily: bodyFont.bold,
+    fontSize: 12,
+    lineHeight: lineHeights[12],
+    color: colors.primaryDark,
+    marginTop: 2,
+  },
+  missions: {
+    fontFamily: bodyFont.regular,
+    fontSize: 12,
+    lineHeight: lineHeights[12],
+    color: colors.ink,
+    opacity: 0.6,
+    marginTop: spacing.xs,
   },
 });

@@ -1,29 +1,16 @@
 pipeline {
     agent any
 
-    parameters {
-        booleanParam(
-            name: 'RESET_DEV_DB',
-            defaultValue: false,
-            description: 'Recreate the dev database and load scenario seed data.'
-        )
-    }
-
     environment {
         COMPOSE_FILE = 'docker-compose.dev.yml'
         SERVICE_NAME = 'backend'
-        HEALTH_CHECK_URL = 'https://i15a506.p.ssafy.io/dev/actuator/health'
+        MONITORING_COMPOSE_FILE = 'docker-compose.dev.yml'
     }
 
     stages {
-        stage('Check Backend Changes') {
+        stage('Check Changes') {
             steps {
                 script {
-                    if (params.RESET_DEV_DB) {
-                        echo 'RESET_DEV_DB=true. Continue without backend change detection.'
-                        return
-                    }
-
                     def changedFiles = sh(
                         script: '''
                         if git rev-parse HEAD~1 >/dev/null 2>&1; then
@@ -33,23 +20,42 @@ pipeline {
                         fi
                         ''',
                         returnStdout: true
-                    ).trim()
+                    ).trim().split('\\n')
 
-                    echo "Changed files:\n${changedFiles}"
+                    echo "Changed files:\n${changedFiles.join('\n')}"
 
-                    def hasBackendChanges = changedFiles
-                        .split('\\n')
-                        .any { it.startsWith('backend/') }
+                    env.HAS_BACKEND_CHANGES = changedFiles.any { it.startsWith('backend/') }.toString()
+                    env.HAS_MONITORING_CHANGES = changedFiles.any { it.startsWith('infra/monitoring/') }.toString()
 
-                    if (!hasBackendChanges) {
+                    if (env.HAS_BACKEND_CHANGES != 'true' && env.HAS_MONITORING_CHANGES != 'true') {
                         currentBuild.result = 'NOT_BUILT'
-                        error('No backend changes. Skip backend development CD.')
+                        error('No backend or monitoring changes. Skip development CD.')
                     }
                 }
             }
         }
 
+        stage('Test Backend') {
+            when { expression { env.HAS_BACKEND_CHANGES == 'true' } }
+            steps {
+                dir('backend') {
+                    sh '''
+                    chmod +x gradlew
+                    GATEWAY_HEX=$(awk '$2 == "00000000" {print $3; exit}' /proc/net/route)
+                    export TESTCONTAINERS_HOST_OVERRIDE=$(printf '%d.%d.%d.%d' \
+                      0x$(echo $GATEWAY_HEX | cut -c7-8) \
+                      0x$(echo $GATEWAY_HEX | cut -c5-6) \
+                      0x$(echo $GATEWAY_HEX | cut -c3-4) \
+                      0x$(echo $GATEWAY_HEX | cut -c1-2))
+                    echo "TESTCONTAINERS_HOST_OVERRIDE=$TESTCONTAINERS_HOST_OVERRIDE"
+                    ./gradlew test
+                    '''
+                }
+            }
+        }
+
         stage('Build Backend') {
+            when { expression { env.HAS_BACKEND_CHANGES == 'true' } }
             steps {
                 dir('backend') {
                     sh '''
@@ -61,6 +67,7 @@ pipeline {
         }
 
         stage('Deploy Backend') {
+            when { expression { env.HAS_BACKEND_CHANGES == 'true' } }
             steps {
                 dir('backend') {
                     withCredentials([
@@ -68,32 +75,31 @@ pipeline {
                         string(credentialsId: 'dev-db-root-password', variable: 'DB_ROOT_PASSWORD'),
                         string(credentialsId: 'dev-jwt-secret', variable: 'JWT_SECRET')
                     ]) {
-                        script {
-                            if (!params.RESET_DEV_DB) {
-                                deployBackend('update', 'never', false)
-                                return
-                            }
-
-                            try {
-                                sh 'docker compose -f $COMPOSE_FILE up -d mysql redis'
-                                sh 'docker compose -f $COMPOSE_FILE stop $SERVICE_NAME'
-                                sh 'docker exec wecandoit-redis-dev redis-cli FLUSHDB'
-                                deployBackend('create', 'always', true)
-                                waitForHealth('seed initialization')
-                            } finally {
-                                deployBackend('update', 'never', true)
-                                waitForHealth('safe configuration restore')
-                            }
-                        }
+                        sh 'docker compose -f $COMPOSE_FILE up -d --build $SERVICE_NAME'
                     }
                 }
             }
         }
 
         stage('Check Deploy') {
+            when { expression { env.HAS_BACKEND_CHANGES == 'true' } }
             steps {
-                script {
-                    waitForHealth('final deployment')
+                dir('backend') {
+                    script {
+                        waitForHealth('final deployment')
+                    }
+                }
+            }
+        }
+
+        stage('Deploy Monitoring') {
+            when { expression { env.HAS_MONITORING_CHANGES == 'true' } }
+            steps {
+                dir('infra/monitoring') {
+                    sh 'docker compose -f $MONITORING_COMPOSE_FILE up -d'
+                    script {
+                        waitForMonitoringHealth()
+                    }
                 }
             }
         }
@@ -109,31 +115,47 @@ pipeline {
     }
 }
 
-def deployBackend(String ddlAuto, String sqlInitMode, boolean forceRecreate) {
-    withEnv([
-        "DEV_DDL_AUTO=${ddlAuto}",
-        "DEV_SQL_INIT_MODE=${sqlInitMode}"
-    ]) {
-        String recreateOption = forceRecreate ? '--force-recreate' : ''
-        sh "docker compose -f ${env.COMPOSE_FILE} up -d --build ${recreateOption} ${env.SERVICE_NAME}"
-    }
-}
-
 def waitForHealth(String phase) {
+    // Jenkins는 컨테이너로 실행되어 호스트 loopback에 도달하지 못하므로(docker-outside-of-docker),
+    // URL 기반 헬스체크 대신 docker 소켓으로 컨테이너 자체의 헬스 상태를 조회한다. 배포가 컨테이너를
+    // 재생성하므로 이름이 아니라 배포 직후의 ID로 조회해 이전 컨테이너의 stale healthy를 피한다.
     sh """
     docker ps
-    for i in \$(seq 1 30); do
-      STATUS=\$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 ${env.HEALTH_CHECK_URL} || echo "000")
-      echo "${phase} health check attempt \$i/30 status: \$STATUS"
+    CID=\$(docker compose -f \$COMPOSE_FILE ps -q \$SERVICE_NAME)
+    for i in \$(seq 1 24); do
+      STATUS=\$(docker inspect --format '{{.State.Health.Status}}' \$CID 2>/dev/null || echo "unknown")
+      echo "${phase} health check attempt \$i/24 status: \$STATUS"
 
-      if [ "\$STATUS" = "200" ]; then
+      if [ "\$STATUS" = "healthy" ]; then
         exit 0
       fi
 
-      sleep 2
+      sleep 5
     done
 
     echo "${phase} health check failed with status \$STATUS"
+    exit 1
+    """
+}
+
+def waitForMonitoringHealth() {
+    // 모니터링 컨테이너에는 HEALTHCHECK가 없어 backend처럼 Health.Status를 볼 수 없다.
+    // 대신 컴포즈에 정의된 서비스 수와 실제 running 서비스 수를 비교해 크래시루프를 감지한다.
+    sh """
+    TOTAL=\$(docker compose -f \$MONITORING_COMPOSE_FILE config --services | wc -l)
+    for i in \$(seq 1 12); do
+      RUNNING=\$(docker compose -f \$MONITORING_COMPOSE_FILE ps --status running -q | wc -l)
+      echo "Monitoring health check attempt \$i/12: \$RUNNING/\$TOTAL services running"
+
+      if [ "\$RUNNING" = "\$TOTAL" ]; then
+        exit 0
+      fi
+
+      sleep 5
+    done
+
+    echo "Monitoring stack did not become healthy" >&2
+    docker compose -f \$MONITORING_COMPOSE_FILE ps
     exit 1
     """
 }

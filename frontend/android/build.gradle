@@ -6,6 +6,11 @@ buildscript {
         targetSdkVersion = 36
         ndkVersion = "27.1.12297006"
         kotlinVersion = "2.1.20"
+        // :wear(Wear OS 컴패니언)에서만 쓴다. Wear OS 3부터가 대상이라
+        // (갤럭시 워치 4 이상) :app의 minSdk 29보다 한 단계 높다.
+        wearMinSdkVersion = 30
+        wearComposeVersion = "1.4.1"
+        playServicesWearableVersion = "19.0.0"
     }
     repositories {
         google()
@@ -18,6 +23,9 @@ buildscript {
         // Firebase Cloud Messaging이 android/app/google-services.json을 읽어
         // 리소스/매니페스트에 반영하는 데 필요.
         classpath("com.google.gms:google-services:4.5.0")
+        // Kotlin 2.0부터 Compose 컴파일러가 Kotlin 배포판에 붙어 다닌다.
+        // :wear의 Compose for Wear OS UI에만 필요하다.
+        classpath("org.jetbrains.kotlin:compose-compiler-gradle-plugin:$kotlinVersion")
     }
 }
 

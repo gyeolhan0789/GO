@@ -3,7 +3,7 @@ package com.wecandoit.item.service;
 import com.wecandoit.avatar.service.AvatarReadService;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
-import com.wecandoit.item.controller.response.AvatarResponse;
+import com.wecandoit.avatar.dto.AvatarDto;
 import com.wecandoit.item.controller.response.MemberItemResponse;
 import com.wecandoit.item.domain.Item;
 import com.wecandoit.item.domain.ItemCategory;
@@ -30,7 +30,7 @@ public class AvatarItemReadService {
     private final ItemRepository itemRepository;
     private final AvatarReadService avatarReadService;
 
-    public AvatarResponse getMyAvatar(Long memberId) {
+    public AvatarDto getMyAvatar(Long memberId) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
         return avatarReadService.getAvatars(List.of(member)).get(memberId);
@@ -41,7 +41,7 @@ public class AvatarItemReadService {
     }
 
     public List<MemberItemResponse> getMyItems(Long memberId, String category) {
-        ItemCategory itemCategory = parseCategory(category);
+        ItemCategory itemCategory = category == null ? null : ItemCategory.from(category);
         memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
         List<MemberItem> memberItems = memberItemRepository.findAllByMemberId(memberId);
@@ -63,18 +63,7 @@ public class AvatarItemReadService {
         if (category == null) {
             return itemRepository.findAllById(itemIds);
         }
-        return itemRepository.findAllByIdInAndCategory(itemIds, category.name());
-    }
-
-    private ItemCategory parseCategory(String category) {
-        if (category == null) {
-            return null;
-        }
-        try {
-            return ItemCategory.valueOf(category);
-        } catch (IllegalArgumentException e) {
-            throw new CustomException(ErrorCode.INVALID_ITEM_CATEGORY);
-        }
+        return itemRepository.findAllByIdInAndCategory(itemIds, category);
     }
 
     private MemberItemResponse toResponse(MemberItem memberItem, Map<Long, Item> itemsById) {

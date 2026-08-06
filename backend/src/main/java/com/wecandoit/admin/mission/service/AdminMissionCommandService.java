@@ -29,24 +29,24 @@ public class AdminMissionCommandService {
     private final ObjectMapper objectMapper;
 
     public void createMission(CreateMissionRequest request, MultipartFile image) {
-        validateMissionType(request.type());
-        validateMissionDifficulty(request.difficulty());
+        MissionType type = MissionType.from(request.type());
+        MissionDifficulty difficulty = MissionDifficulty.from(request.difficulty());
         String decisionCondition = parseDecisionCondition(request.decisionCondition());
         String resourceId = UUID.randomUUID().toString();
         String imageUrl = imageUploadService.upload(image, MISSION_IMAGE_DOMAIN, resourceId);
         adminMissionRepository.save(Mission.create(
                 imageUrl,
-                request.type(),
+                type,
                 request.title(),
                 request.detail(),
                 decisionCondition,
-                request.difficulty()
+                difficulty
         ));
     }
 
     public void updateMission(Long missionId, UpdateMissionRequest request, MultipartFile image) {
-        validateMissionType(request.type());
-        validateMissionDifficulty(request.difficulty());
+        MissionType type = MissionType.from(request.type());
+        MissionDifficulty difficulty = MissionDifficulty.from(request.difficulty());
         String decisionCondition = parseDecisionCondition(request.decisionCondition());
         Mission mission = findMission(missionId);
         String previousImageUrl = mission.getMissionImageUrl();
@@ -54,7 +54,7 @@ public class AdminMissionCommandService {
         if (image != null && !image.isEmpty()) {
             imageUrl = imageUploadService.upload(image, MISSION_IMAGE_DOMAIN, missionId.toString());
         }
-        mission.update(imageUrl, request.type(), request.title(), request.detail(), decisionCondition, request.difficulty());
+        mission.update(imageUrl, type, request.title(), request.detail(), decisionCondition, difficulty);
         if (imageUrl != null) {
             imageUploadService.delete(previousImageUrl);
         }
@@ -64,21 +64,13 @@ public class AdminMissionCommandService {
         findMission(missionId).deactivate();
     }
 
+    public void activateMission(Long missionId) {
+        findMission(missionId).activate();
+    }
+
     private Mission findMission(Long missionId) {
         return adminMissionRepository.findById(missionId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MISSION_NOT_FOUND));
-    }
-
-    private void validateMissionType(String type) {
-        if (!MissionType.contains(type)) {
-            throw new CustomException(ErrorCode.INVALID_MISSION_TYPE);
-        }
-    }
-
-    private void validateMissionDifficulty(String difficulty) {
-        if (!MissionDifficulty.contains(difficulty)) {
-            throw new CustomException(ErrorCode.INVALID_MISSION_DIFFICULTY);
-        }
     }
 
     private String parseDecisionCondition(String decisionCondition) {

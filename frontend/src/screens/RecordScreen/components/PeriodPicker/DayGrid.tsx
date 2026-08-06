@@ -92,6 +92,8 @@ const styles = StyleSheet.create({
   },
   weekday: {
     // 아래 날짜 칸과 같은 폭이라야 요일이 어긋나지 않는다.
+    // 나눠떨어지지 않지만 shared/lib/percent로 반올림하면 안 된다. 7칸 합이
+    // 100%를 넘어 grid(flexWrap)에서 마지막 칸이 다음 줄로 밀린다.
     width: `${100 / 7}%`,
     textAlign: 'center',
     fontFamily: bodyFont.regular,
@@ -105,6 +107,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   cell: {
+    // 위 weekday와 같은 이유로 반올림하지 않는다.
     width: `${100 / 7}%`,
     aspectRatio: 1,
     padding: 2,

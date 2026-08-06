@@ -10,6 +10,7 @@ export type BingoMissionResponse = {
   title: string;
   detail: string;
   decisionCondition: string;
+  point: number;
 };
 
 export type BingoCellResponse = {
@@ -44,6 +45,7 @@ export function getActiveBingoBoard(roomId: number) {
 }
 
 export type RenewBingoBoardRequest = {
+  boardSize: number;
   targetStepCount: number;
 };
 
@@ -55,7 +57,7 @@ export function renewBingoBoard(roomId: number, body: RenewBingoBoardRequest) {
 }
 
 export type VerificationResult =
-  | { status: 'APPROVED'; rewardCash: number }
+  | { status: 'APPROVED'; rewardPoint: number }
   | { status: 'REJECTED'; rejectionReason: string };
 
 // 백엔드 BingoCellSubmitResponse(backend/.../bingo/controller/response/BingoCellSubmitResponse.java)와
@@ -69,7 +71,7 @@ type BingoCellSubmitResponse = {
   verificationStatus: BingoCellVerificationStatus;
   submittedByMemberId: number | null;
   rejectionReason: string | null;
-  rewardCash: number;
+  rewardPoint: number;
 };
 
 export type MissionPhoto = {
@@ -78,10 +80,16 @@ export type MissionPhoto = {
   fileName?: string;
 };
 
+/**
+ * walkSessionKey는 이 인증을 어느 산책에 귀속시킬지 정한다. 넘기지 않으면 칸은
+ * 승인되지만 어떤 산책 기록에도 잡히지 않으므로, 산책 중 제출이라면 반드시
+ * 실어야 한다(산책 밖에서 빙고판만 열어 제출하면 null이 맞다).
+ */
 export function submitBingoCellPhoto(
   roomId: number,
   cellId: number,
   photo: MissionPhoto,
+  walkSessionKey: string | null,
 ): Promise<VerificationResult> {
   const form = new FormData();
   form.append('image', {
@@ -90,17 +98,35 @@ export function submitBingoCellPhoto(
     name: photo.fileName ?? 'mission.jpg',
   });
 
+  // 서버가 쿼리 파라미터로 받는다(멀티파트 본문이 아니다).
+  const query =
+    walkSessionKey === null ? '' : `?walkSessionKey=${walkSessionKey}`;
+
   return apiClient
     .postForm<BingoCellSubmitResponse>(
-      `/rooms/${roomId}/bingo-boards/cells/${cellId}/submit`,
+      `/rooms/${roomId}/bingo-boards/cells/${cellId}/submit${query}`,
       form,
     )
     .then(response =>
       response.verificationStatus === 'APPROVED'
-        ? { status: 'APPROVED', rewardCash: response.rewardCash }
+        ? { status: 'APPROVED', rewardPoint: response.rewardPoint }
         : {
             status: 'REJECTED',
             rejectionReason: response.rejectionReason ?? '인증에 실패했습니다.',
           },
     );
+}
+
+// 사진이 아닌 활동 기반 미션(걸음 수 등) 칸을 완료 처리한다. 요청 body 없이
+// 호출 자체가 통과를 의미하며, 백엔드는 활동 데이터를 재검증하지 않고 프론트의
+// 판정을 신뢰한다 — 성공 응답은 항상 APPROVED라 REJECTED 분기가 없다.
+export function completeBingoCell(
+  roomId: number,
+  cellId: number,
+): Promise<{ rewardPoint: number }> {
+  return apiClient
+    .post<BingoCellSubmitResponse>(
+      `/rooms/${roomId}/bingo-boards/cells/${cellId}/complete`,
+    )
+    .then(response => ({ rewardPoint: response.rewardPoint }));
 }

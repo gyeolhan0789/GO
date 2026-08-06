@@ -265,14 +265,18 @@ export function deactivateMission(missionId: number) {
   return request<void>(`/admin/missions/${missionId}`, { method: 'DELETE' })
 }
 
+export function activateMission(missionId: number) {
+  return request<void>(`/admin/missions/${missionId}/activate`, { method: 'PATCH' })
+}
+
 export function getCharacterAssets() {
-  return request<CharacterAsset[]>('/admin/character-assets')
+  return request<CharacterAsset[]>('/admin/avatar-assets')
 }
 
 export function updateCharacterAsset(gender: CharacterAsset['gender'], image: File) {
   const form = new FormData()
   form.append('image', image)
-  return request<CharacterAsset>(`/admin/character-assets/${gender}`, { method: 'PUT', body: form })
+  return request<CharacterAsset>(`/admin/avatar-assets/${gender}`, { method: 'PUT', body: form })
 }
 
 export function getItems() {

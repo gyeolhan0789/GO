@@ -14,7 +14,7 @@ export type ItemPurchaseResponse = {
   memberItemId: number;
   itemId: number;
   /** 차감 후 남은 포인트. 다시 조회하지 않아도 되게 서버가 함께 내려준다. */
-  remainingCash: number;
+  remainingPoint: number;
 };
 
 /** category를 생략하면 판매 중인 전체 아이템을 내려준다. */

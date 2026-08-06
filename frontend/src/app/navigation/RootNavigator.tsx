@@ -18,8 +18,9 @@ import { LoginScreen } from '../../screens/LoginScreen/LoginScreen';
 import { OnboardingScreen } from '../../screens/OnboardingScreen/OnboardingScreen';
 import { PermissionsScreen } from '../../screens/PermissionsScreen/PermissionsScreen';
 import { CharacterCustomizeScreen } from '../../screens/CharacterCustomizeScreen/CharacterCustomizeScreen';
+import { FriendRequestsScreen } from '../../screens/FriendRequestsScreen/FriendRequestsScreen';
 import { MyPageScreen } from '../../screens/MyPageScreen/MyPageScreen';
-import { SentFriendRequestsScreen } from '../../screens/SentFriendRequestsScreen/SentFriendRequestsScreen';
+import { RoomInvitesScreen } from '../../screens/RoomInvitesScreen/RoomInvitesScreen';
 import { SignupScreen } from '../../screens/SignupScreen/SignupScreen';
 import { SocialSignupScreen } from '../../screens/SocialSignupScreen/SocialSignupScreen';
 import { WalkDetailScreen } from '../../screens/WalkDetailScreen/WalkDetailScreen';
@@ -49,7 +50,7 @@ export type RootStackParamList = {
   Main: undefined;
   WalkList: undefined;
   // 방이 아니라 끝난 판 하나를 가리킨다. 같은 방에서 여러 판이 나온다.
-  WalkDetail: { gameId: number };
+  WalkDetail: { walkSessionId: number };
   WalkRoomDetail: { roomId: number };
   // roomId는 화면 파라미터가 아니라 walkSessionStore(전역 진행 중인 세션
   // 상태)로 전달된다.
@@ -64,12 +65,21 @@ export type RootStackParamList = {
     distanceKm: number;
     calories: number;
     elapsedSeconds: number;
+    /** 이번 산책 중에 승인받은 미션 수. */
+    achievedMissionCount: number;
+    /** 걸음 목표를 채워 받은 포인트. 미션 인증 포인트는 인증하는 그 자리에서
+     * 이미 지급돼 여기 들어오지 않는다. */
+    earnedPoint: number;
+    /** 방의 걸음 목표. 목표를 채웠을 때 몇 보였는지 적는 데만 쓴다. */
+    targetStepCount: number | null;
   };
   BingoBoard: { roomId: number };
   MyPage: undefined;
   CharacterCustomize: undefined;
-  // 내가 보낸 친구 요청 내역. 서버가 아직 응답받지 않은 요청만 내려준다.
-  SentFriendRequests: undefined;
+  // 받은/보낸 친구 요청 내역. 보낸 요청은 서버가 아직 응답받지 않은 요청만 내려준다.
+  FriendRequests: undefined;
+  // 받은 산책방 초대 내역.
+  RoomInvites: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -181,9 +191,14 @@ export function RootNavigator() {
             options={{ ...DETAIL_HEADER_OPTIONS, title: '캐릭터 꾸미기' }}
           />
           <Stack.Screen
-            name="SentFriendRequests"
-            component={SentFriendRequestsScreen}
-            options={{ ...DETAIL_HEADER_OPTIONS, title: '친구 추가 내역' }}
+            name="FriendRequests"
+            component={FriendRequestsScreen}
+            options={{ ...DETAIL_HEADER_OPTIONS, title: '친구 요청' }}
+          />
+          <Stack.Screen
+            name="RoomInvites"
+            component={RoomInvitesScreen}
+            options={{ ...DETAIL_HEADER_OPTIONS, title: '산책방 초대' }}
           />
         </>
       ) : (

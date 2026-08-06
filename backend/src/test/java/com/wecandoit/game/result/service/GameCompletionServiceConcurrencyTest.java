@@ -8,6 +8,8 @@ import com.wecandoit.bingo.domain.BingoCell;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
 import com.wecandoit.bingo.repository.BingoCellRepository;
 import com.wecandoit.bingo.service.BingoCellVerificationResultService;
+import com.wecandoit.common.testcontainers.MySqlTestContainer;
+import com.wecandoit.common.testcontainers.RedisTestContainer;
 import com.wecandoit.point.repository.PointHistoryRepository;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameParticipant;
@@ -22,6 +24,7 @@ import com.wecandoit.game.domain.Room;
 import com.wecandoit.game.domain.RoomMember;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.MissionDifficulty;
@@ -31,16 +34,19 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@ImportTestcontainers({MySqlTestContainer.class, RedisTestContainer.class})
 @DisplayName("협동 게임 완료 동시성")
 class GameCompletionServiceConcurrencyTest {
 
@@ -79,26 +85,21 @@ class GameCompletionServiceConcurrencyTest {
 
     @BeforeEach
     void setUp() {
-        pointHistoryRepository.deleteAll();
-        gameResultParticipantRepository.deleteAll();
-        gameResultRepository.deleteAll();
-        bingoCellRepository.deleteAll();
-        bingoBoardRepository.deleteAll();
-        gameParticipantRepository.deleteAll();
-        gameRepository.deleteAll();
-        roomMemberRepository.deleteAll();
-        roomRepository.deleteAll();
-        memberRepository.deleteAll();
+        clearPersistedData();
 
         firstMemberId = memberRepository.save(Member.create(
                 "first@example.com",
                 "encoded-password",
-                "first"
+                "first",
+                null,
+                Gender.MALE
         )).getId();
         secondMemberId = memberRepository.save(Member.create(
                 "second@example.com",
                 "encoded-password",
-                "second"
+                "second",
+                null,
+                Gender.MALE
         )).getId();
 
         Room room = Room.create(firstMemberId, "테스트 방", GameMode.COOPERATE, null, 2);
@@ -127,6 +128,24 @@ class GameCompletionServiceConcurrencyTest {
         fourthApprovedCell.submit(secondMemberId, "https://example.com/fourth.png");
         fourthApprovedCell.approve();
         bingoCellRepository.save(fourthApprovedCell);
+    }
+
+    @AfterEach
+    void tearDown() {
+        clearPersistedData();
+    }
+
+    private void clearPersistedData() {
+        pointHistoryRepository.deleteAll();
+        gameResultParticipantRepository.deleteAll();
+        gameResultRepository.deleteAll();
+        bingoCellRepository.deleteAll();
+        bingoBoardRepository.deleteAll();
+        gameParticipantRepository.deleteAll();
+        gameRepository.deleteAll();
+        roomMemberRepository.deleteAll();
+        roomRepository.deleteAll();
+        memberRepository.deleteAll();
     }
 
     @Test

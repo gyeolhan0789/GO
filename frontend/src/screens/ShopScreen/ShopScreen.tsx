@@ -4,7 +4,7 @@ import { FlatList, StyleSheet, View } from 'react-native';
 import type { ItemCategory } from '../../features/member/api/memberApi';
 import { AppText } from '../../shared/components/AppText/AppText';
 import { ITEM_CATEGORIES } from '../../features/member/constants/itemCategories';
-import { useMyCashQuery } from '../../features/member/hooks/useMyCashQuery';
+import { useMyPointQuery } from '../../features/member/hooks/useMyPointQuery';
 import { useMyCharacterQuery } from '../../features/member/hooks/useMyCharacterQuery';
 import { useMyItemsQuery } from '../../features/member/hooks/useMyItemsQuery';
 import type {
@@ -57,7 +57,7 @@ const EMPTY_SHOP_ITEMS: ShopItemResponse[] = [];
 const EMPTY_OWNED_ITEMS: CharacterItem[] = [];
 
 export function ShopScreen() {
-  const cash = useMyCashQuery();
+  const point = useMyPointQuery();
   const character = useMyCharacterQuery();
   const myItems = useMyItemsQuery();
   const shopItems = useShopItemsQuery();
@@ -77,7 +77,7 @@ export function ShopScreen() {
   const { listRef, isScrolledDown, handleScroll, scrollToTop } =
     useScrollTopButton<ShopItem | null>();
 
-  const points = cash.data?.cash ?? 0;
+  const points = point.data?.point ?? 0;
 
   const items = useMemo(
     () =>
@@ -122,8 +122,8 @@ export function ShopScreen() {
     ? resolveApiErrorMessage(character.error)
     : myItems.isError
     ? resolveApiErrorMessage(myItems.error)
-    : cash.isError
-    ? resolveApiErrorMessage(cash.error)
+    : point.isError
+    ? resolveApiErrorMessage(point.error)
     : null;
 
   // 구매하지 않은 아이템도 미리 입어볼 수 있다. 구매는 가격 버튼에서만 일어난다.
@@ -190,6 +190,7 @@ export function ShopScreen() {
             />
             <CharacterStage
               baseImage={character.data?.baseImage ?? null}
+              fallbackImage={character.data?.baseImageFallback ?? null}
               items={selectLayerItems(equipped)}
             />
             <EquipResetButton

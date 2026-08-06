@@ -27,13 +27,14 @@ import com.wecandoit.game.repository.GameResultParticipantRepository;
 import com.wecandoit.game.repository.GameResultRepository;
 import com.wecandoit.game.repository.RoomRepository;
 import com.wecandoit.game.service.GameResultReadService;
-import com.wecandoit.item.controller.response.AvatarResponse;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.AvatarDto;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.domain.MissionType;
 import com.wecandoit.mission.repository.MissionRepository;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -342,8 +343,8 @@ class GameResultReadServiceTest {
         return member;
     }
 
-    private Map<Long, AvatarResponse> avatars(List<Member> members) {
-        EquippedItemResponse equippedItem = new EquippedItemResponse(
+    private Map<Long, AvatarDto> avatars(List<Member> members) {
+        EquippedItemDto equippedItem = new EquippedItemDto(
                 10L,
                 100L,
                 "빨간 모자",
@@ -354,13 +355,13 @@ class GameResultReadServiceTest {
         Member secondMember = members.get(1);
         return Map.of(
                 firstMember.getId(),
-                AvatarResponse.of(
+                AvatarDto.of(
                         firstMember,
                         "https://example.com/male.png",
                         List.of(equippedItem)
                 ),
                 secondMember.getId(),
-                AvatarResponse.of(
+                AvatarDto.of(
                         secondMember,
                         "https://example.com/female.png",
                         List.of()
@@ -375,7 +376,7 @@ class GameResultReadServiceTest {
     private Mission mission(Long id) {
         Mission mission = Mission.create(
                 "https://example.com/mission.png",
-                "OBJECT",
+                MissionType.OBJECT,
                 "미션 " + id,
                 "설명",
                 null

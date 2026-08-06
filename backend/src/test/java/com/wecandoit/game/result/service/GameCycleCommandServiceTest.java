@@ -33,6 +33,7 @@ import com.wecandoit.game.service.GameCycleCommandService;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.domain.MissionType;
 import com.wecandoit.mission.repository.MissionRepository;
 import com.wecandoit.notification.event.NotificationMessageFactory;
 import java.time.LocalDateTime;
@@ -52,9 +53,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 @DisplayName("게임 회차 서비스")
 @ExtendWith(MockitoExtension.class)
 class GameCycleCommandServiceTest {
-
-    private static final List<BingoBoardStatus> INACTIVE_BOARD_STATUSES =
-            List.of(BingoBoardStatus.COMPLETED, BingoBoardStatus.EXPIRED);
 
     @Mock
     private RoomRepository roomRepository;
@@ -116,6 +114,7 @@ class GameCycleCommandServiceTest {
         assertThat(response.gameId()).isEqualTo(201L);
         assertThat(response.targetBingoCount()).isNull();
         assertThat(response.targetStepCount()).isEqualTo(12_000);
+        assertThat(response.isHost()).isTrue();
     }
 
     @Test
@@ -185,7 +184,7 @@ class GameCycleCommandServiceTest {
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
         given(gameRepository.findActiveGameForUpdate(10L, GameStatus.ACTIVE)).willReturn(Optional.of(game));
         given(gameResultRepository.existsByGameId(200L)).willReturn(false);
-        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, BingoBoardStatus.inactiveStatuses()))
                 .willReturn(Optional.of(board));
         given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
 
@@ -206,7 +205,7 @@ class GameCycleCommandServiceTest {
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
         given(gameRepository.findActiveGameForUpdate(10L, GameStatus.ACTIVE)).willReturn(Optional.of(game));
         given(gameResultRepository.existsByGameId(200L)).willReturn(false);
-        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, BingoBoardStatus.inactiveStatuses()))
                 .willReturn(Optional.of(board));
         given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
 
@@ -234,7 +233,7 @@ class GameCycleCommandServiceTest {
         given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
         given(gameRepository.findActiveGameForUpdate(10L, GameStatus.ACTIVE)).willReturn(Optional.of(game));
         given(gameResultRepository.existsByGameId(200L)).willReturn(false);
-        given(bingoBoardRepository.findActiveBoardForUpdate(200L, INACTIVE_BOARD_STATUSES))
+        given(bingoBoardRepository.findActiveBoardForUpdate(200L, BingoBoardStatus.inactiveStatuses()))
                 .willReturn(Optional.of(board));
         given(bingoCellRepository.findAllByBoardId(100L)).willReturn(cells);
         given(gameParticipantRepository.findAllByGameIdOrderByJoinedAtAsc(200L))
@@ -331,7 +330,7 @@ class GameCycleCommandServiceTest {
                 .mapToObj(index -> {
                     Mission mission = Mission.create(
                             "https://example.com/mission.png",
-                            "OBJECT",
+                            MissionType.OBJECT,
                             "미션",
                             "설명",
                             null

@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 30s
+
+scrape_configs:
+  # 계획 문서는 컨테이너명을 "wecandoit-backend-prod" 단수로 가정했으나 실제 docker-compose.prod.yml은
+  # blue-green 배포(backend-stable/backend-canary) 2개 컨테이너를 갖는다. 둘 다 스크레이프하고
+  # slot 라벨로 구분한다.
+  - job_name: backend
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["wecandoit-backend-stable:9091"]
+        labels:
+          slot: stable
+      - targets: ["wecandoit-backend-canary:9091"]
+        labels:
+          slot: canary

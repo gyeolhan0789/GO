@@ -13,8 +13,6 @@ import org.springframework.data.repository.query.Param;
 
 public interface RoomRepository extends JpaRepository<Room, Long> {
 
-    List<Room> findAllByStatus(RoomStatus status);
-
     List<Room> findAllByModeAndStatus(GameMode mode, RoomStatus status);
 
     Optional<Room> findFirstByHostIdAndModeAndStatusOrderByIdDesc(

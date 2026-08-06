@@ -14,12 +14,14 @@ export const PERMISSIONS_GRANTED_QUERY_KEY = [
   'granted',
 ] as const;
 export const LOGIN_HISTORY_QUERY_KEY = ['login', 'hasLoggedInBefore'] as const;
+export const STEP_GOAL_TIER_QUERY_KEY = ['stepGoal', 'tier'] as const;
 
 const DEVICE_QUERY_KEYS: readonly QueryKey[] = [
   ONBOARDING_QUERY_KEY,
   PERMISSIONS_QUERY_KEY,
   PERMISSIONS_GRANTED_QUERY_KEY,
   LOGIN_HISTORY_QUERY_KEY,
+  STEP_GOAL_TIER_QUERY_KEY,
 ];
 
 export function isDeviceQuery(queryKey: QueryKey): boolean {

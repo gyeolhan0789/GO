@@ -17,6 +17,7 @@ import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
 import com.wecandoit.item.controller.response.ItemPurchaseResponse;
 import com.wecandoit.item.controller.response.ShopItemResponse;
+import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.item.service.ShopItemCommandService;
 import com.wecandoit.item.service.ShopItemReadService;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
@@ -75,14 +76,14 @@ class ShopItemControllerTest {
                 new ShopItemResponse(
                         100L,
                         "빨간 모자",
-                        "HAT",
+                        ItemCategory.HAT,
                         1_000L,
                         "https://example.com/hat.png"
                 ),
                 new ShopItemResponse(
                         200L,
                         "파란 상의",
-                        "TOP",
+                        ItemCategory.TOP,
                         2_000L,
                         "https://example.com/top.png"
                 )
@@ -144,7 +145,7 @@ class ShopItemControllerTest {
                 new ShopItemResponse(
                         100L,
                         "빨간 모자",
-                        "HAT",
+                        ItemCategory.HAT,
                         1_000L,
                         "https://example.com/hat.png"
                 )

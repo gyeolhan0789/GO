@@ -2,16 +2,15 @@ package com.wecandoit.admin.mission.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.wecandoit.common.testcontainers.MySqlDataJpaTest;
 import com.wecandoit.mission.domain.Mission;
+import com.wecandoit.mission.domain.MissionType;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.ActiveProfiles;
 
-@DataJpaTest
-@ActiveProfiles("test")
+@MySqlDataJpaTest
 @DisplayName("어드민 미션 레포지토리")
 class AdminMissionRepositoryTest {
 
@@ -23,9 +22,9 @@ class AdminMissionRepositoryTest {
     void findAllByOrderByCreatedAtDescIdDescReturnsNewestFirst() {
         // given
         Mission first = adminMissionRepository.save(Mission.create(
-                "https://example.com/first.png", "OBJECT", "first", null, null));
+                "https://example.com/first.png", MissionType.OBJECT, "first", null, null));
         Mission second = adminMissionRepository.save(Mission.create(
-                "https://example.com/second.png", "OBJECT", "second", null, null));
+                "https://example.com/second.png", MissionType.OBJECT, "second", null, null));
 
         // when
         List<Mission> missions = adminMissionRepository.findAllByOrderByCreatedAtDescIdDesc();

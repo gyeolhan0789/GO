@@ -45,6 +45,10 @@ class WalkNotificationHelper(private val context: Context) {
       .setPriority(NotificationCompat.PRIORITY_LOW)
       .setContentIntent(buildContentIntent())
       .setCategory(NotificationCompat.CATEGORY_STATUS)
+      // 기본값(PRIVATE)이면 기기의 "민감한 알림 내용 숨기기" 설정에 따라
+      // 잠금화면에서 축소되거나 아예 안 보일 수 있다 — 민감한 내용이 없으니
+      // 항상 전체 내용을 보여준다.
+      .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
     if (isRunning && snapshot.startedAt != null) {
       // pausedMs를 반영한 기준 시각으로 setWhen을 세팅해야 chronometer가 지금까지의

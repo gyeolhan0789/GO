@@ -13,14 +13,6 @@ import { CharacterCustomizeScreen } from '../src/screens/CharacterCustomizeScree
 import { installFetchMock, jsonResponse } from '../jest/fetchMock';
 import type { FetchMock } from '../jest/fetchMock';
 
-// 이 파일은 서버와 주고받는 계약을 확인한다. 앱은 지금 목업 모드로 돌고 있어
-// (characterMocks.USE_MOCK_CHARACTER) 요청이 나가지 않으므로 그 스위치를 끈다.
-// 목업 모드의 동작은 characterMockMode.test.tsx가 맡는다.
-jest.mock('../src/features/member/mocks/characterMocks', () => ({
-  ...jest.requireActual('../src/features/member/mocks/characterMocks'),
-  USE_MOCK_CHARACTER: false,
-}));
-
 const INITIAL_METRICS = {
   frame: { x: 0, y: 0, width: 400, height: 800 },
   insets: { top: 0, left: 0, right: 0, bottom: 0 },
@@ -51,6 +43,7 @@ const TOP = {
 const CHARACTER = {
   memberId: 1,
   nickname: '산책이 좋아',
+  gender: 'MALE',
   defaultImageUrl: '/uploads/characters/male.png',
   equippedItems: [HAT],
 };
@@ -62,13 +55,13 @@ let fetchMock: FetchMock;
 beforeEach(() => {
   fetchMock = installFetchMock();
   fetchMock.mockImplementation(async url => {
-    if (url.includes('/members/character')) {
+    if (url.includes('/members/avatar')) {
       return jsonResponse(200, CHARACTER);
     }
     if (url.includes('/members/items')) {
       return jsonResponse(200, [HAT, OTHER_HAT, TOP] as never);
     }
-    if (url.includes('/character-items')) {
+    if (url.includes('/avatar-items')) {
       return jsonResponse(204);
     }
     throw new Error(`unexpected request: ${url}`);
@@ -204,7 +197,7 @@ function hasScrollToTopButton(root: ReactTestInstance): boolean {
 
 function savedMemberItemIds() {
   const [, options] =
-    fetchMock.mock.calls.find(([url]) => url.includes('/character-items')) ?? [];
+    fetchMock.mock.calls.find(([url]) => url.includes('/avatar-items')) ?? [];
 
   return JSON.parse(String(options?.body)).memberItemIds;
 }

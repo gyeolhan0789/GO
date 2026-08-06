@@ -34,23 +34,50 @@ docs {
   |---|---|---|---|
   | name | string | Y | 게임방 이름, 1~20자 |
   | mode | string | Y | `GameMode` enum 값 중 하나: `SINGLE`, `COOPERATE`, `BATTLE` |
-  | targetBingoCount | Integer | Y | 목표 빙고 수, 1 이상 |
-  | targetStepCount | Integer | N | 싱글·협동 모드에서 필수, 1 이상. 대결 모드에서는 사용하지 않음 |
+  | targetBingoCount | Integer | BATTLE만 Y | `BATTLE`: 1 이상 `2 * boardSize + 2` 이하 필수. `SINGLE`/`COOPERATE`에서는 값을 보내도 무시되며 저장되지 않는다 |
+  | targetStepCount | Integer | SINGLE·COOPERATE Y | `SINGLE`/`COOPERATE`: 1 이상 필수. `BATTLE`에서는 값을 보내면 안 된다(설정 시 에러) |
   | boardSize | Integer | Y | 3 이상 5 이하 |
 
-  ### 성공 응답 (201 Created)
+  ### 성공 응답 (200 OK)
   ```json
   {
     "roomId": 1,
-    "status": "CREATED"
+    "name": "테스트 방",
+    "mode": "SINGLE",
+    "status": "ACTIVE",
+    "boardSize": 4,
+    "targetBingoCount": null,
+    "targetStepCount": 10000,
+    "totalMissionCount": 16,
+    "completedMissionCount": 0,
+    "hostId": 1,
+    "startedAt": "2026-07-24T10:00:00",
+    "members": [
+      {
+        "memberId": 1,
+        "nickname": "host_nick",
+        "gender": "MALE",
+        "defaultImageUrl": "https://example.com/images/default.png",
+        "equippedItems": [
+          { "memberItemId": 10, "itemId": 5, "name": "기본 모자", "category": "HAT", "imageUrl": "https://example.com/images/hat.png" }
+        ],
+        "host": true,
+        "completedMissionCount": 0,
+        "joinedAt": "2026-07-24T10:00:00",
+        "bingoBoardId": null
+      }
+    ]
   }
   ```
+  응답은 게임방 상세 조회와 동일한 `RoomDetailResponse` 형태이다.
 
   ### 비즈니스 규칙
-  - `status`는 생성 직후 항상 `CREATED`이다. 이후 게임방은 `GameRoomStatus` 값을 순서대로 거친다: `CREATED` | `WAITING` | `READY` | `IN_PROGRESS` | `COMPLETED` | `CLOSED`.
-  - `targetBingoCount`는 모든 모드에서 저장한다.
-  - `BATTLE`은 정확히 2명이 참여해야 시작할 수 있다.
-  - `SINGLE`과 `COOPERATE`는 `targetStepCount`가 필수다.
+  - `status`는 생성 직후 항상 `ACTIVE`이다. `RoomStatus`는 `ACTIVE`/`CLOSED` 두 값만 존재한다.
+  - `targetBingoCount`는 `BATTLE` 모드에서만 저장되며, `SINGLE`/`COOPERATE`에서는 항상 `null`로 응답된다.
+  - `targetStepCount`는 `SINGLE`/`COOPERATE`에서만 저장되며, `BATTLE`에서는 항상 `null`로 응답된다.
+  - `SINGLE` 모드는 새 게임방을 만드는 대신, 호출한 회원이 호스트인 기존 `ACTIVE` 상태 `SINGLE` 게임방이 있으면 그 방을 그대로 재사용해서 반환한다(재생성하지 않음).
+  - `SINGLE`/`COOPERATE`는 생성 즉시 초기 게임 회차와 공용 빙고판이 함께 생성되어 `startedAt`이 채워진다.
+  - `BATTLE`은 정확히 2명이 참여해야 하며, 생성 시점에는 호스트 1명만 있어 게임이 아직 시작되지 않는다(초대 수락으로 2명이 채워지는 시점에 자동으로 시작된다).
 
   ### 에러 케이스
 
@@ -62,19 +89,43 @@ docs {
   }
   ```
 
-  **targetBingoCount 누락 또는 1 미만**
-  ```json
-  {
-    "status": 400,
-    "message": "목표 빙고 수는 1 이상이어야 합니다."
-  }
-  ```
-
   **boardSize 누락 또는 3~5 범위 밖**
   ```json
   {
     "status": 400,
     "message": "빙고판 크기는 3 이상 5 이하여야 합니다."
+  }
+  ```
+
+  **BATTLE 모드에서 targetBingoCount 누락 또는 범위 밖(1 미만 또는 `2 * boardSize + 2` 초과)**
+  ```json
+  {
+    "status": 400,
+    "message": "목표 빙고 수가 빙고판 크기에 맞지 않습니다."
+  }
+  ```
+
+  **SINGLE·COOPERATE 모드에서 targetStepCount 누락 또는 1 미만**
+  ```json
+  {
+    "status": 400,
+    "message": "싱글 및 협동 모드에서는 1 이상의 목표 걸음 수가 필수입니다."
+  }
+  ```
+
+  **BATTLE 모드에서 targetStepCount를 함께 보낸 경우**
+  ```json
+  {
+    "status": 400,
+    "message": "대결 모드에서는 목표 걸음 수를 설정할 수 없습니다."
+  }
+  ```
+
+  **SINGLE 방 재사용 대상의 회차 상태가 올바르지 않음(활성 게임 또는 활성 빙고판 누락)**
+  ```json
+  {
+    "status": 409,
+    "message": "활성 게임방의 회차 상태가 올바르지 않습니다."
   }
   ```
 

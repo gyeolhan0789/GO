@@ -15,15 +15,18 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
+import { useActivityMetrics } from '../../features/bingo/hooks/useActivityMetrics';
+import { useActivityMissionAutoComplete } from '../../features/bingo/hooks/useActivityMissionAutoComplete';
 import { useFriendsQuery } from '../../features/friend/hooks/useFriendsQuery';
 import { todayIso } from '../../features/history/model/period';
 import { useHistoriesQuery } from '../../features/history/hooks/useHistoriesQuery';
-import { useSaveHistoryMutation } from '../../features/history/hooks/useSaveHistoryMutation';
 import { useMyMemberIdQuery } from '../../features/member/hooks/useMyMemberIdQuery';
 import { useMyPageQuery } from '../../features/member/hooks/useMyPageQuery';
 import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
 import { useWalkSession } from '../../features/walk-session/hooks/useWalkSession';
+import { recordFinishedWalk } from '../../features/walk-session/model/recordFinishedWalk';
 import {
+  clearWalkSessionEndRequest,
   confirmWalkSessionStart,
   endWalkSession,
   stopWalkSession,
@@ -32,6 +35,7 @@ import { AppText } from '../../shared/components/AppText/AppText';
 import { Button } from '../../shared/components/Button/Button';
 import { MemberProgressBar } from '../../shared/components/MemberProgressBar/MemberProgressBar';
 import { Screen } from '../../shared/components/Screen/Screen';
+import { Toast } from '../../shared/components/Toast/Toast';
 import { controlHeight } from '../../shared/constants/sizing';
 import { colors } from '../../shared/constants/colors';
 import { getParticipantColor } from '../../shared/lib/participantColor';
@@ -80,6 +84,7 @@ export function WalkSessionScreen() {
     steps,
     distanceMeters,
     calories,
+    isEndRequested,
     togglePause,
   } = useWalkSession();
   // 종료 처리 중(stopWalkSession이 네이티브 세션을 끝내면 isStarted가 먼저
@@ -92,6 +97,10 @@ export function WalkSessionScreen() {
   // 파라미터가 필요 없다.
   const { route, initialCoords } = useRouteTracking();
   const myPageQuery = useMyPageQuery();
+  // 걷는 동안 활동 기반(비사진) 미션 칸을 자동으로 판정·완료 처리한다.
+  const activityMetrics = useActivityMetrics();
+  const { toastMessage: missionToastMessage, hideToast: hideMissionToast } =
+    useActivityMissionAutoComplete(roomId, activityMetrics);
 
   const roomQuery = useRoomDetailQuery(roomId);
   const room = roomQuery.data ?? null;
@@ -206,79 +215,97 @@ export function WalkSessionScreen() {
     }),
   ).current;
 
-  const saveHistoryMutation = useSaveHistoryMutation();
   const queryClient = useQueryClient();
+
+  /** 확인을 마친 뒤의 실제 종료. 워치에서 종료를 눌렀을 때도 여기로 온다
+   * (확인은 워치 화면에서 이미 받는다). */
+  const finishWalk = useCallback(async () => {
+    // stopWalkSession이 네이티브 세션을 끝내면 isStarted가 곧바로 false가
+    // 되는데, 그 뒤로도 기록 저장 등 비동기 작업이 남아있어 이 화면이 한동안
+    // 더 떠있는다 — 그 사이 카운트다운이 다시 뜨지 않도록 미리 표시해둔다.
+    isEndingRef.current = true;
+
+    // 방은 파괴하지 않는 한 계속 유지된다. 빙고판 갱신은 다 채웠거나
+    // 일주일이 지났을 때 방장이 직접 트리거해야 한다(자동 초기화 없음).
+    // 여기서는 이 화면의 로컬 세션(경과 시간 타이머)만 끝낸다.
+    // TODO: 홈 화면의 빙고판 쿼리(useActiveBingoBoardQuery)도 함께
+    // 무효화/refetch해서 산책 중 인증한 미션이 홈 화면 미리보기에 바로
+    // 반영되게 한다.
+    if (roomId === null) {
+      endWalkSession();
+      navigation.goBack();
+      return;
+    }
+
+    // 네이티브 세션을 종료해 서비스·알림·GPS를 정지시키고 확정된 최종 수치를
+    // 받아온다. 여기서부터는 되돌릴 수 없다.
+    const final = await stopWalkSession();
+    const finalSteps = Math.round(final.steps);
+    const finalDistanceMeters = Math.round(final.distanceMeters);
+    const finalCalories = Math.round(final.calories);
+    // 서버는 이 값이 (종료 - 시작)보다 크면 요청을 거절한다. 올리지 않는다.
+    const finalElapsedSeconds = Math.floor(final.activeElapsedMs / 1000);
+
+    // 종료 시각은 여기서 한 번만 찍는다. 재시도할 때마다 새로 찍으면 산책
+    // 시간이 그만큼 늘어난다.
+    const outcome = await recordFinishedWalk({
+      roomId,
+      endedAt: new Date(),
+      activeDurationSeconds: finalElapsedSeconds,
+      step: finalSteps,
+      distance: finalDistanceMeters,
+      calories: finalCalories,
+    });
+
+    // 올리지 못해도 이 산책을 못 끝내게 막을 이유는 없다 — 수치는 이미 기기에서
+    // 확정됐고 결과 화면은 그대로 보여줄 수 있다.
+    if (outcome.status === 'failed') {
+      Alert.alert('산책 기록을 남기지 못했어요', outcome.message);
+    }
+
+    // 기록 화면은 탭에 계속 살아 있어 다시 마운트되지 않는다. 여기서
+    // 비워주지 않으면 방금 끝낸 산책이 최근 산책·전체 기록에 앱을 다시
+    // 열기 전까지 안 보인다. 걸음 합계도 같이 움직이므로 함께 비운다.
+    queryClient.invalidateQueries({ queryKey: ['walk-sessions'] });
+    queryClient.invalidateQueries({ queryKey: ['histories'] });
+
+    navigation.replace('WalkResult', {
+      roomId,
+      roomName: room?.name ?? '',
+      mode: room?.mode ?? ('SINGLE' as const),
+      steps: finalSteps,
+      distanceKm: Math.round(finalDistanceMeters / 100) / 10,
+      calories: finalCalories,
+      elapsedSeconds: finalElapsedSeconds,
+      // 기록으로 남지 못했으면 이번 산책의 성과도 서버가 세어주지 못한다.
+      achievedMissionCount:
+        outcome.status === 'recorded'
+          ? outcome.walkSession.achievedMissionCount
+          : 0,
+      // 재전송으로 기존 기록이 돌아온 경우에는 서버가 0을 준다.
+      earnedPoint:
+        outcome.status === 'recorded' ? outcome.walkSession.earnedPoint : 0,
+      targetStepCount,
+    });
+  }, [navigation, roomId, room, targetStepCount, queryClient]);
 
   const handleEndWalk = useCallback(() => {
     Alert.alert('산책 종료', '지금 산책을 종료할까요?', [
       { text: '취소', style: 'cancel' },
-      {
-        text: '종료',
-        style: 'destructive',
-        onPress: async () => {
-          // stopWalkSession이 네이티브 세션을 끝내면 isStarted가 곧바로
-          // false가 되는데, 그 뒤로도 기록 저장 등 비동기 작업이 남아있어
-          // 이 화면이 한동안 더 떠있는다 — 그 사이 카운트다운이 다시 뜨지
-          // 않도록 지금 미리 표시해둔다.
-          isEndingRef.current = true;
-
-          // 방은 파괴하지 않는 한 계속 유지된다. 빙고판 갱신은 다 채웠거나
-          // 일주일이 지났을 때 방장이 직접 트리거해야 한다(자동 초기화 없음).
-          // 여기서는 이 화면의 로컬 세션(경과 시간 타이머)만 끝낸다.
-          // TODO: 홈 화면의 빙고판 쿼리(useActiveBingoBoardQuery)도 함께
-          // 무효화/refetch해서 산책 중 인증한 미션이 홈 화면 미리보기에 바로
-          // 반영되게 한다.
-          if (roomId === null) {
-            endWalkSession();
-            navigation.goBack();
-            return;
-          }
-
-          // 네이티브 세션을 종료해 서비스·알림·GPS를 정지시키고 확정된
-          // 최종 수치를 받아온다.
-          const final = await stopWalkSession();
-          const finalSteps = Math.round(final.steps);
-          const finalDistanceKm = Math.round(final.distanceMeters / 100) / 10;
-          const finalCalories = Math.round(final.calories);
-          const finalElapsedSeconds = Math.floor(final.activeElapsedMs / 1000);
-
-          // 오늘 걸음/거리/칼로리를 서버에 올린다. 실패해도 이 세션 자체를
-          // 못 끝내게 막을 이유는 없어서(내 기기에서 이미 다 계산해둔
-          // 값이라 결과 화면은 그대로 보여줄 수 있다), 실패는 알림만 띄우고
-          // 계속 진행한다.
-          try {
-            await saveHistoryMutation.mutateAsync({
-              historyDate: todayIso(),
-              step: finalSteps,
-              distance: Math.round(finalDistanceKm * 1000),
-              calories: finalCalories,
-            });
-          } catch (error) {
-            Alert.alert(
-              '기록 저장에 실패했어요',
-              error instanceof Error ? error.message : '잠시 후 다시 시도해주세요.',
-            );
-          }
-
-          // 기록 화면은 탭에 계속 살아 있어 다시 마운트되지 않는다. 여기서
-          // 비워주지 않으면 방금 끝낸 산책이 최근 산책·전체 기록에 앱을 다시
-          // 열기 전까지 안 보인다.
-          queryClient.invalidateQueries({ queryKey: ['game-results'] });
-
-          const resultParams = {
-            roomId,
-            roomName: room?.name ?? '',
-            mode: room?.mode ?? ('SINGLE' as const),
-            steps: finalSteps,
-            distanceKm: finalDistanceKm,
-            calories: finalCalories,
-            elapsedSeconds: finalElapsedSeconds,
-          };
-          navigation.replace('WalkResult', resultParams);
-        },
-      },
+      { text: '종료', style: 'destructive', onPress: finishWalk },
     ]);
-  }, [navigation, roomId, room, saveHistoryMutation, queryClient]);
+  }, [finishWalk]);
+
+  // 워치에서 종료를 눌렀을 때. 기록 저장과 결과 화면은 이 화면만 할 수 있어서
+  // (저장할 수치와 방 정보를 여기서 들고 있다) 워치 쪽은 요청만 남기고,
+  // 화면이 뜬 뒤 여기서 이어받는다. 요청은 먼저 비워서 두 번 타지 않게 한다.
+  useEffect(() => {
+    if (!isEndRequested) {
+      return;
+    }
+    clearWalkSessionEndRequest();
+    finishWalk();
+  }, [isEndRequested, finishWalk]);
 
   // 카운트다운이 끝나기 전까지는 지도를 아예 안 띄운다(지도가 살짝
   // 비치는 오버레이보다 완전히 가려진 화면이 낫다는 판단).
@@ -468,6 +495,15 @@ export function WalkSessionScreen() {
           </View>
         </View>
       </Animated.View>
+
+      <Toast
+        message={missionToastMessage}
+        onHide={hideMissionToast}
+        position="top"
+        // 상단 바(뒤로가기·방 이름·빙고 버튼, ~48px)와 경과시간 배지(~34px) 아래로
+        // 밀어서 겹치지 않게 한다.
+        offset={72}
+      />
     </Screen>
   );
 }

@@ -31,6 +31,7 @@ import {
 } from '../../features/auth/model/validation';
 import type { SignupErrors } from '../../features/auth/model/validation';
 import { Screen } from '../../shared/components/Screen/Screen';
+import { useFocusedFieldScroll } from '../../shared/hooks/useFocusedFieldScroll';
 import { colors } from '../../shared/constants/colors';
 import { bodyFont, fontFamily, lineHeights } from '../../shared/constants/typography';
 import { SignupCompleteModal } from './components/SignupCompleteModal';
@@ -65,9 +66,12 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
   const [errors, setErrors] = useState<SignupErrors>({});
   const [isSignupComplete, setIsSignupComplete] = useState(false);
 
+  const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
   const passwordConfirmRef = useRef<TextInput>(null);
   const nicknameRef = useRef<TextInput>(null);
+  const { scrollRef, scrollEventThrottle, handleScroll, revealField } =
+    useFocusedFieldScroll();
   const mutation = useSignupMutation();
   const {
     status: detectionStatus,
@@ -157,8 +161,11 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
+          onScroll={handleScroll}
+          scrollEventThrottle={scrollEventThrottle}
         >
           <SignupHero />
 
@@ -170,6 +177,7 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
             </AppText>
 
             <AuthTextField
+              ref={emailRef}
               label="이메일 주소"
               leftIcon="person-outline"
               value={email}
@@ -187,6 +195,7 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
               textContentType="emailAddress"
               returnKeyType="next"
               submitBehavior="submit"
+              onFocus={() => revealField(emailRef)}
               onSubmitEditing={() => passwordRef.current?.focus()}
             />
             <AuthTextField
@@ -206,6 +215,7 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
               textContentType="newPassword"
               returnKeyType="next"
               submitBehavior="submit"
+              onFocus={() => revealField(passwordRef)}
               onSubmitEditing={() => passwordConfirmRef.current?.focus()}
             />
             <AuthTextField
@@ -225,6 +235,7 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
               textContentType="newPassword"
               returnKeyType="next"
               submitBehavior="submit"
+              onFocus={() => revealField(passwordConfirmRef)}
               onSubmitEditing={() => nicknameRef.current?.focus()}
             />
             <AuthTextField
@@ -242,6 +253,7 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
               autoCapitalize="none"
               maxLength={NICKNAME_MAX_LENGTH}
               returnKeyType="done"
+              onFocus={() => revealField(nicknameRef)}
               onSubmitEditing={submit}
             />
 

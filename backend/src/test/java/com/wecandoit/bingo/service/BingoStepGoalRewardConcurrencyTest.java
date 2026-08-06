@@ -4,8 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.wecandoit.bingo.domain.BingoBoard;
 import com.wecandoit.bingo.repository.BingoBoardRepository;
-import com.wecandoit.point.domain.PointHistoryType;
-import com.wecandoit.point.repository.PointHistoryRepository;
+import com.wecandoit.common.testcontainers.MySqlTestContainer;
+import com.wecandoit.common.testcontainers.RedisTestContainer;
 import com.wecandoit.game.domain.Game;
 import com.wecandoit.game.domain.GameMode;
 import com.wecandoit.game.domain.Room;
@@ -13,37 +13,39 @@ import com.wecandoit.game.domain.RoomMember;
 import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
-import com.wecandoit.history.controller.request.HistorySaveRequest;
-import com.wecandoit.history.repository.MemberHistoryRepository;
-import com.wecandoit.history.service.HistoryCommandService;
+import com.wecandoit.history.domain.WalkSession;
+import com.wecandoit.history.repository.WalkSessionRepository;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
 import com.wecandoit.notification.service.NotificationCommandService;
-import java.time.LocalDate;
-import java.time.ZoneId;
+import com.wecandoit.point.domain.PointHistoryType;
+import com.wecandoit.point.repository.PointHistoryRepository;
+import java.time.Instant;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@ImportTestcontainers({MySqlTestContainer.class, RedisTestContainer.class})
 @DisplayName("빙고 공동 걸음 목표 보상 동시성")
 class BingoStepGoalRewardConcurrencyTest {
 
-    private static final ZoneId SERVICE_ZONE_ID = ZoneId.of("Asia/Seoul");
-
     @Autowired
-    private HistoryCommandService historyCommandService;
+    private BingoStepGoalRewardCommandService rewardCommandService;
     @Autowired
-    private MemberHistoryRepository memberHistoryRepository;
+    private WalkSessionRepository walkSessionRepository;
     @Autowired
     private PointHistoryRepository pointHistoryRepository;
     @Autowired
@@ -61,50 +63,74 @@ class BingoStepGoalRewardConcurrencyTest {
 
     private Long firstMemberId;
     private Long secondMemberId;
+    private Long roomId;
+    private Long bingoBoardId;
 
     @BeforeEach
     void setUp() {
+        clearPersistedData();
+
+        firstMemberId = memberRepository.save(Member.create(
+                "step-first@example.com",
+                "encoded-password",
+                "step-first",
+                null,
+                Gender.MALE
+        )).getId();
+        secondMemberId = memberRepository.save(Member.create(
+                "step-second@example.com",
+                "encoded-password",
+                "step-second",
+                null,
+                Gender.MALE
+        )).getId();
+
+        Room room = Room.create(firstMemberId, "걸음 테스트 방", GameMode.COOPERATE, null, 1_000, 3);
+        roomId = roomRepository.saveAndFlush(room).getId();
+        roomMemberRepository.saveAndFlush(RoomMember.create(roomId, firstMemberId));
+        roomMemberRepository.saveAndFlush(RoomMember.create(roomId, secondMemberId));
+        Game game = gameRepository.saveAndFlush(Game.start(roomId));
+        bingoBoardId = bingoBoardRepository.saveAndFlush(BingoBoard.create(game.getId(), 3, 1_000)).getId();
+    }
+
+    @AfterEach
+    void tearDown() {
+        clearPersistedData();
+    }
+
+    private void clearPersistedData() {
         pointHistoryRepository.deleteAll();
-        memberHistoryRepository.deleteAll();
+        walkSessionRepository.deleteAll();
         bingoBoardRepository.deleteAll();
         gameRepository.deleteAll();
         roomMemberRepository.deleteAll();
         roomRepository.deleteAll();
         memberRepository.deleteAll();
-
-        firstMemberId = memberRepository.save(Member.create(
-                "step-first@example.com",
-                "encoded-password",
-                "step-first"
-        )).getId();
-        secondMemberId = memberRepository.save(Member.create(
-                "step-second@example.com",
-                "encoded-password",
-                "step-second"
-        )).getId();
-
-        Room room = Room.create(firstMemberId, "테스트 방", GameMode.COOPERATE, null, 1_000, 3);
-        Long roomId = roomRepository.saveAndFlush(room).getId();
-        roomMemberRepository.saveAndFlush(RoomMember.create(roomId, firstMemberId));
-        roomMemberRepository.saveAndFlush(RoomMember.create(roomId, secondMemberId));
-        Game game = gameRepository.saveAndFlush(Game.start(roomId));
-        bingoBoardRepository.saveAndFlush(BingoBoard.create(game.getId(), 3, 1_000));
     }
 
     @Test
-    @DisplayName("서로 다른 멤버가 동시에 기록을 저장해 목표를 넘겨도 보상은 회원별 한 번만 지급된다")
-    void rewardsEachMemberOnceWhenHistoriesAreSavedConcurrently() throws Exception {
+    @DisplayName("방 워크 세션 평가가 동시에 실행되어도 보상은 회원별 한 번만 지급된다")
+    void rewardsEachMemberOnceWhenRoomWalkSessionsAreEvaluatedConcurrently() throws Exception {
         // given
-        LocalDate historyDate = LocalDate.now(SERVICE_ZONE_ID);
+        walkSessionRepository.saveAndFlush(session(
+                firstMemberId,
+                "11111111-1111-1111-1111-111111111111",
+                600
+        ));
+        walkSessionRepository.saveAndFlush(session(
+                secondMemberId,
+                "22222222-2222-2222-2222-222222222222",
+                600
+        ));
         CountDownLatch readyLatch = new CountDownLatch(2);
         CountDownLatch startLatch = new CountDownLatch(1);
         ExecutorService executor = Executors.newFixedThreadPool(2);
 
         try {
             Future<?> first = executor.submit(() ->
-                    saveHistoryAfterSignal(firstMemberId, historyDate, readyLatch, startLatch));
+                    evaluateRewardAfterSignal(firstMemberId, readyLatch, startLatch));
             Future<?> second = executor.submit(() ->
-                    saveHistoryAfterSignal(secondMemberId, historyDate, readyLatch, startLatch));
+                    evaluateRewardAfterSignal(secondMemberId, readyLatch, startLatch));
             readyLatch.await();
 
             // when
@@ -113,7 +139,6 @@ class BingoStepGoalRewardConcurrencyTest {
             second.get();
 
             // then
-            assertThat(memberHistoryRepository.count()).isEqualTo(2);
             assertThat(pointHistoryRepository.findAll())
                     .filteredOn(history -> history.getType() == PointHistoryType.DAILY_STEP_GOAL_REWARD)
                     .hasSize(2)
@@ -126,22 +151,34 @@ class BingoStepGoalRewardConcurrencyTest {
         }
     }
 
-    private void saveHistoryAfterSignal(
+    private void evaluateRewardAfterSignal(
             Long memberId,
-            LocalDate historyDate,
             CountDownLatch readyLatch,
             CountDownLatch startLatch
     ) {
         readyLatch.countDown();
         try {
             startLatch.await();
-            historyCommandService.saveHistory(
-                    memberId,
-                    new HistorySaveRequest(historyDate, 600, 0, 0)
-            );
+            rewardCommandService.evaluate(memberId, roomId);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException(exception);
         }
+    }
+
+    private WalkSession session(Long memberId, String clientSessionKey, int step) {
+        Instant endedAt = Instant.now();
+        return WalkSession.create(
+                memberId,
+                roomId,
+                clientSessionKey,
+                bingoBoardId,
+                endedAt.minusSeconds(600),
+                endedAt,
+                600L,
+                step,
+                0,
+                0
+        );
     }
 }

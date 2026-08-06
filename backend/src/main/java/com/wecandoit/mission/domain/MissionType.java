@@ -3,6 +3,8 @@ package com.wecandoit.mission.domain;
 import com.wecandoit.common.exception.CustomException;
 import com.wecandoit.common.exception.ErrorCode;
 import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.Set;
 
 public enum MissionType {
     OBJECT,
@@ -20,15 +22,17 @@ public enum MissionType {
     CALORIES_TOTAL,
     AVERAGE_SPEED;
 
-    public static boolean contains(String type) {
-        return Arrays.stream(values())
-                .anyMatch(missionType -> missionType.name().equals(type));
-    }
+    private static final Set<MissionType> PHOTO_VERIFIED_TYPES =
+            EnumSet.of(OBJECT, ATTRIBUTE, RELATION, ORDINARY);
 
     public static MissionType from(String type) {
         return Arrays.stream(values())
                 .filter(missionType -> missionType.name().equals(type))
                 .findFirst()
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_MISSION_TYPE));
+    }
+
+    public boolean isPhotoVerified() {
+        return PHOTO_VERIFIED_TYPES.contains(this);
     }
 }

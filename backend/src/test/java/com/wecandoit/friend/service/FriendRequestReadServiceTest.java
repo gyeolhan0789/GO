@@ -15,8 +15,8 @@ import com.wecandoit.common.exception.ErrorCode;
 import com.wecandoit.common.response.SliceResponse;
 import com.wecandoit.friend.dto.ReceivedFriendRequestResponse;
 import com.wecandoit.friend.dto.SentFriendRequestResponse;
-import com.wecandoit.item.controller.response.AvatarResponse;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.AvatarDto;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
@@ -71,7 +71,7 @@ class FriendRequestReadServiceTest {
                 FriendRequestStatus.PENDING,
                 pageable
         )).willReturn(new SliceImpl<>(List.of(friendRequest), pageable, false));
-        EquippedItemResponse equippedItem = new EquippedItemResponse(
+        EquippedItemDto equippedItem = new EquippedItemDto(
                 11L,
                 101L,
                 "파란 모자",
@@ -79,7 +79,7 @@ class FriendRequestReadServiceTest {
                 "https://example.com/blue-hat.png"
         );
         given(avatarReadService.getAvatars(List.of(inviter)))
-                .willReturn(Map.of(1L, new AvatarResponse(
+                .willReturn(Map.of(1L, new AvatarDto(
                         1L,
                         "보낸사람",
                         Gender.MALE,
@@ -167,7 +167,7 @@ class FriendRequestReadServiceTest {
     }
 
     private Member member(Long id, String nickname) {
-        Member member = Member.create(nickname + "@example.com", "password", nickname);
+        Member member = Member.create(nickname + "@example.com", "password", nickname, null, Gender.MALE);
         ReflectionTestUtils.setField(member, "id", id);
         return member;
     }

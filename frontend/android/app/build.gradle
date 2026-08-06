@@ -115,6 +115,11 @@ android {
         ]
         resValue "string", "kakao_app_key", kakaoNativeAppKey
     }
+    sourceSets {
+        // 워치 앱(:wear)과 공유하는 Data Layer 규약(WearProtocol). 경로·키가
+        // 한쪽만 바뀌어 조용히 안 맞는 걸 막으려고 파일 하나를 같이 컴파일한다.
+        main.java.srcDirs += "../wear-protocol/src/main/java"
+    }
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -150,6 +155,9 @@ dependencies {
 
     // 산책 세션 포그라운드 서비스의 GPS 추적(FusedLocationProviderClient)에 사용.
     implementation("com.google.android.gms:play-services-location:21.3.0")
+
+    // 갤럭시 워치 컴패니언(:wear)과 주고받는 Data Layer.
+    implementation("com.google.android.gms:play-services-wearable:${rootProject.ext.playServicesWearableVersion}")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

@@ -16,7 +16,7 @@ import { BingoCell } from '../src/features/bingo/components/BingoCell/BingoCell'
 import { WalkRoomDetailScreen } from '../src/screens/WalkRoomDetailScreen/WalkRoomDetailScreen';
 import { installFetchMock, jsonResponse } from '../jest/fetchMock';
 import type { FetchMock } from '../jest/fetchMock';
-import { MY_CHARACTER_RESPONSE, MY_MEMBER_ID } from '../jest/gameResultFixtures';
+import { MY_CHARACTER_RESPONSE, MY_MEMBER_ID } from '../jest/walkSessionFixtures';
 
 const INITIAL_METRICS = {
   frame: { x: 0, y: 0, width: 400, height: 800 },
@@ -79,6 +79,7 @@ function buildBoardResponse() {
         title: `미션 ${index + 1}`,
         detail: '',
         decisionCondition: '',
+        point: 30,
       },
       verificationStatus: submittedBy === null ? 'PENDING' : 'APPROVED',
       submittedByMemberId: submittedBy,
@@ -133,7 +134,7 @@ function mockHappyPath({
   roomStatus = 'ACTIVE',
 }: { hostId?: number; roomStatus?: string } = {}) {
   fetchMock.mockImplementation(async (url, init) => {
-    if (url.includes('/members/character')) {
+    if (url.includes('/members/avatar')) {
       return jsonResponse(200, MY_CHARACTER_RESPONSE);
     }
     if (url.includes('/bingo-boards/active')) {
@@ -299,17 +300,17 @@ describe('WalkRoomDetailScreen', () => {
     );
   });
 
-  test('진행 중인 빙고판을 보여주고 누르면 빙고판 화면으로 간다', async () => {
+  test('진행 중인 빙고판을 보여준다 (미션 인증은 산책 중에만 하므로 여기서는 보기만 한다)', async () => {
     const tree = await renderScreen();
 
     expect(collectTexts(tree.root)).toContain('빙고판 3/9');
     expect(tree.root.findAllByType(BingoCell)).toHaveLength(9);
-    expect(findButtonByLabel(tree.root, '빙고판 자세히 보기')).toBeDefined();
+    expect(findButtonByLabel(tree.root, '빙고판 자세히 보기')).toBeUndefined();
   });
 
   test('아직 빙고판이 없으면 안내만 보여준다', async () => {
     fetchMock.mockImplementation(async (url, init) => {
-      if (url.includes('/members/character')) {
+      if (url.includes('/members/avatar')) {
         return jsonResponse(200, MY_CHARACTER_RESPONSE);
       }
       if (url.includes('/bingo-boards/active')) {
@@ -374,7 +375,7 @@ describe('WalkRoomDetailScreen', () => {
 
   test('모임 정보를 불러오지 못하면 오류를 알린다', async () => {
     fetchMock.mockImplementation(async url =>
-      url.includes('/members/character')
+      url.includes('/members/avatar')
         ? jsonResponse(200, MY_CHARACTER_RESPONSE)
         : jsonResponse(500, null),
     );

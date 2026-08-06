@@ -2,11 +2,13 @@ package com.wecandoit.history.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.wecandoit.common.testcontainers.MySqlDataJpaTest;
 import com.wecandoit.friend.domain.Friend;
 import com.wecandoit.friend.domain.FriendRequest;
 import com.wecandoit.friend.repository.FriendRepository;
 import com.wecandoit.friend.repository.FriendRequestRepository;
 import com.wecandoit.history.domain.MemberHistory;
+import com.wecandoit.member.domain.Gender;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.domain.Region;
 import com.wecandoit.member.repository.MemberRepository;
@@ -17,11 +19,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.ActiveProfiles;
 
-@DataJpaTest
-@ActiveProfiles("test")
+@MySqlDataJpaTest
 @DisplayName("주간 친구 랭킹 저장소")
 class WeeklyFriendRankingRepositoryTest {
 
@@ -278,7 +277,7 @@ class WeeklyFriendRankingRepositoryTest {
 
     private Member saveMember(String nickname, Region region) {
         return memberRepository.saveAndFlush(
-                Member.create(nickname + "@example.com", "password", nickname, region)
+                Member.create(nickname + "@example.com", "password", nickname, region, Gender.MALE)
         );
     }
 

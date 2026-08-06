@@ -8,7 +8,6 @@ spring:
     hibernate:
       ddl-auto: create
     defer-datasource-initialization: true
-    show-sql: true
   data:
     redis:
       host: localhost
@@ -43,3 +42,9 @@ oauth:
 # 로컬에서 실행 중인 AI 서버 주소
 ai-server:
   base-url: http://localhost:8000
+
+# 개별 SQL은 DEBUG로 남는다. 제거한 spring.jpa.show-sql 대신 로컬에서만 켠다.
+# dev/prod는 INFO 유지 -> 요청 단위 쿼리 요약만 남기고, 개별 SQL은 필요할 때 DEBUG로 확인한다.
+logging:
+  level:
+    com.wecandoit.common.logging: DEBUG

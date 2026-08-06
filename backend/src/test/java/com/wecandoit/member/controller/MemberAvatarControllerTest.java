@@ -9,8 +9,8 @@ import static org.springframework.restdocs.payload.PayloadDocumentation.response
 
 import com.wecandoit.common.exception.CustomExceptionHandler;
 import com.wecandoit.common.security.LoginMemberIdArgumentResolver;
-import com.wecandoit.item.controller.response.AvatarResponse;
-import com.wecandoit.item.controller.response.EquippedItemResponse;
+import com.wecandoit.avatar.dto.AvatarDto;
+import com.wecandoit.avatar.dto.EquippedItemDto;
 import com.wecandoit.item.domain.ItemCategory;
 import com.wecandoit.item.service.AvatarItemReadService;
 import com.wecandoit.member.domain.Gender;
@@ -64,12 +64,12 @@ class MemberAvatarControllerTest {
     @DisplayName("내 아바타를 조회하면 회원 정보와 장착 아이템을 반환한다")
     void getMyAvatarReturnsAvatar() {
         // given
-        AvatarResponse response = new AvatarResponse(
+        AvatarDto response = new AvatarDto(
                 1L,
                 "테스터",
                 Gender.MALE,
                 "/uploads/test/avatars/male/default.png",
-                List.of(new EquippedItemResponse(
+                List.of(new EquippedItemDto(
                         10L,
                         100L,
                         "빨간 모자",

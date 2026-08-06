@@ -3,7 +3,6 @@ import { Alert, Image, Pressable, ScrollView, StyleSheet, View } from 'react-nat
 import type { LayoutChangeEvent } from 'react-native';
 import { launchCamera } from 'react-native-image-picker';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
@@ -23,10 +22,11 @@ import { MissionVerificationModal } from '../../features/bingo/components/Missio
 import {
   MISSION_TYPE_ICONS,
   MISSION_TYPE_LABELS,
-  MISSION_TYPE_POINTS,
+  isPhotoMission,
 } from '../../features/bingo/model/missionType';
 import { useMyMemberIdQuery } from '../../features/member/hooks/useMyMemberIdQuery';
 import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
+import { awaitWalkSessionKey } from '../../features/walk-session/model/walkSessionStore';
 import { AppText } from '../../shared/components/AppText/AppText';
 import { MemberProgressBar } from '../../shared/components/MemberProgressBar/MemberProgressBar';
 import { Screen } from '../../shared/components/Screen/Screen';
@@ -48,7 +48,6 @@ export function BingoBoardScreen({
   navigation,
 }: BingoBoardScreenProps) {
   const { roomId } = route.params;
-  const queryClient = useQueryClient();
   const boardQuery = useActiveBingoBoardQuery(roomId);
   const board = boardQuery.data ?? null;
   const roomQuery = useRoomDetailQuery(roomId);
@@ -161,18 +160,20 @@ export function BingoBoardScreen({
     }
     setSubmitting(true);
     try {
+      // 이 방을 걷는 중이면 인증을 그 산책에 귀속시킨다. 카운트다운 직후에 바로
+      // 제출하면 아직 발급 중일 수 있어 여기서 한 번 기다린다(산책 밖에서 판을
+      // 열었거나 다른 방 판이면 기다리지 않고 곧바로 null이 온다).
+      const walkSessionKey = await awaitWalkSessionKey(roomId);
       const result = await submitBingoCellPhoto(
         roomId,
         selectedCell.cellId,
         capturedPhoto,
+        walkSessionKey,
       );
       setVerificationResult(result);
       if (result.status === 'APPROVED') {
         // 서버에 반영된 최신 승인 상태(칸 색·진행 카운트)를 다시 받아온다.
         boardQuery.refetch();
-        // 대결 방은 이 승인으로 목표 빙고가 채워지면 서버가 그 자리에서 판을
-        // 끝내고 산책 기록을 만든다. 기록 화면이 그걸 놓치지 않게 비워둔다.
-        queryClient.invalidateQueries({ queryKey: ['game-results'] });
       }
     } catch (error) {
       Alert.alert(
@@ -182,7 +183,7 @@ export function BingoBoardScreen({
     } finally {
       setSubmitting(false);
     }
-  }, [roomId, selectedCell, capturedPhoto, boardQuery, queryClient]);
+  }, [roomId, selectedCell, capturedPhoto, boardQuery]);
 
   const handleCloseVerification = useCallback(() => {
     setCapturedPhoto(null);
@@ -284,7 +285,7 @@ export function BingoBoardScreen({
               <AppText style={styles.detailTitle}>{selectedCell.mission.title}</AppText>
               <View style={styles.pointBadge}>
                 <AppText style={styles.pointBadgeText}>
-                  +{MISSION_TYPE_POINTS[selectedCell.mission.type]}P
+                  +{selectedCell.mission.point}P
                 </AppText>
               </View>
             </View>
@@ -302,16 +303,26 @@ export function BingoBoardScreen({
                 />
                 <AppText style={styles.completedText}>인증 완료</AppText>
               </View>
+            ) : isPhotoMission(selectedCell.mission.type) ? (
+              <>
+                <AppText style={styles.captureHint}>
+                  사물을 너무 가까이 확대해서 찍으면 인식에 실패할 수 있어요.
+                </AppText>
+                <Pressable
+                  style={styles.captureButton}
+                  onPress={handleCapturePhoto}
+                  accessibilityRole="button"
+                  accessibilityLabel="사진으로 인증하기"
+                >
+                  <Ionicons name="camera" size={18} color={colors.surface} />
+                  <AppText style={styles.captureButtonText}>사진으로 인증하기</AppText>
+                </Pressable>
+              </>
             ) : (
-              <Pressable
-                style={styles.captureButton}
-                onPress={handleCapturePhoto}
-                accessibilityRole="button"
-                accessibilityLabel="사진으로 인증하기"
-              >
-                <Ionicons name="camera" size={18} color={colors.surface} />
-                <AppText style={styles.captureButtonText}>사진으로 인증하기</AppText>
-              </Pressable>
+              <View style={styles.autoHintRow}>
+                <Ionicons name="walk-outline" size={20} color={colors.ink} style={styles.autoHintIcon} />
+                <AppText style={styles.autoHintText}>산책하는 동안 자동으로 인증돼요.</AppText>
+              </View>
             )}
           </View>
         ) : null}
@@ -491,6 +502,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: lineHeights[16],
     color: colors.successText,
+  },
+  autoHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+  },
+  autoHintIcon: {
+    opacity: 0.6,
+  },
+  autoHintText: {
+    fontFamily: fontFamily.bold,
+    fontSize: 14,
+    lineHeight: lineHeights[14],
+    color: colors.ink,
+    opacity: 0.7,
+  },
+  captureHint: {
+    fontFamily: fontFamily.regular,
+    fontSize: 12,
+    lineHeight: lineHeights[12],
+    color: colors.ink,
+    opacity: 0.5,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
   captureButton: {
     height: controlHeight.lg,
