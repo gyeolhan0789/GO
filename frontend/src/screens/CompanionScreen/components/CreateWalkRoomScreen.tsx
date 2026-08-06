@@ -49,7 +49,10 @@ export function CreateWalkRoomScreen({
   const [selectedFriendIds, setSelectedFriendIds] = useState<number[]>([]);
   const [friendSearch, setFriendSearch] = useState('');
 
-  const friendsQuery = useFriendsQuery();
+  // 이 화면은 닫혀 있어도 계속 마운트돼 있어 그냥 두면 동행 탭에 처음 들어온
+  // 순간의 친구 목록을 계속 보여준다. 상대가 내 친구 요청을 수락해도 내 쪽에는
+  // 알림이 없으니, 모달을 열 때마다 다시 읽어 새로 맺어진 친구를 놓치지 않는다.
+  const friendsQuery = useFriendsQuery({ enabled: visible });
   const friends = friendsQuery.data?.content ?? [];
   const normalizedSearch = friendSearch.trim().toLowerCase();
   const filteredFriends = normalizedSearch

@@ -40,15 +40,23 @@ export type MyPageResponse = {
   nickname: string;
   gender: Gender;
   region: Region;
-  point: number;
 };
 
 export function getMyAvatar() {
   return apiClient.get<MyAvatarResponse>('/members/avatar');
 }
 
-export function getMyPage() {
-  return apiClient.get<MyPageResponse>('/members/me');
+/**
+ * 서버는 point도 함께 내려주지만 여기서 떼고 넘긴다. 이 응답은 거의 바뀌지 않는
+ * 값이라 캐시를 오래 들고 있는데, 포인트는 구매·보상으로 자주 바뀌어 옛 값이
+ * 남는다. 포인트는 getMyPoint(useMyPointQuery) 한 곳에서만 캐시한다.
+ */
+export async function getMyPage(): Promise<MyPageResponse> {
+  const { id, email, nickname, gender, region } = await apiClient.get<
+    MyPageResponse & { point?: number }
+  >('/members/me');
+
+  return { id, email, nickname, gender, region };
 }
 
 export function getMyPoint() {

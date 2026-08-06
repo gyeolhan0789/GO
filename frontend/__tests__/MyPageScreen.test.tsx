@@ -13,6 +13,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import type { RootStackParamList } from '../src/app/navigation/RootNavigator';
 import { AuthProvider } from '../src/features/auth/model/AuthContext';
+import { MY_PAGE_QUERY_KEY } from '../src/features/member/hooks/useMyPageQuery';
 import { MyPageScreen } from '../src/screens/MyPageScreen/MyPageScreen';
 import { installFetchMock, jsonResponse } from '../jest/fetchMock';
 import type { FetchMock } from '../jest/fetchMock';
@@ -37,13 +38,17 @@ const CHARACTER = {
   equippedItems: [],
 };
 
+const STALE_POINT = 1200;
+
 const MY_PAGE = {
   id: 1,
   email: 'walker@example.com',
   nickname: NICKNAME,
   gender: 'MALE',
   region: 'SEOUL',
-  cash: 0,
+  // 서버가 함께 내려주는 포인트. 이 응답은 오래 캐시되므로 구매 직후엔 이미 옛
+  // 값이다. 캐시에 남아선 안 된다.
+  point: STALE_POINT,
 };
 
 const CUSTOMIZE_MARKER = '꾸미기 화면';
@@ -208,6 +213,20 @@ describe('MyPageScreen', () => {
     await flushQueries();
 
     expect(patchedNickname()).toBe('걷는곰');
+  });
+
+  test('서버가 함께 내려주는 포인트는 마이페이지 캐시에 담지 않는다', async () => {
+    await renderScreen();
+
+    // 포인트는 useMyPointQuery(['member','point']) 한 곳만 갖는다. 여기에도
+    // 남으면 구매로 포인트가 줄어도 이 캐시에는 옛 값이 계속 남는다.
+    expect(queryClient?.getQueryData(MY_PAGE_QUERY_KEY)).toEqual({
+      id: MY_PAGE.id,
+      email: MY_PAGE.email,
+      nickname: NICKNAME,
+      gender: MY_PAGE.gender,
+      region: MY_PAGE.region,
+    });
   });
 
   test('캐릭터 변경하기를 누르면 꾸미기 화면으로 이동한다', async () => {
