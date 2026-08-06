@@ -4,7 +4,6 @@ import { StyleSheet, View } from 'react-native';
 import type { CharacterLayer } from '../../../features/member/model/character';
 import { spacing } from '../../../shared/constants/spacing';
 import { CharacterCard } from './CharacterCard';
-import { StatsBoxes } from './StatsBoxes';
 import { StepsSummary } from './StepsSummary';
 
 type HomeSummaryPageProps = {
@@ -41,11 +40,12 @@ export function HomeSummaryPage({
         baseImage={characterBaseImage}
         fallbackImage={characterFallbackImage}
         items={characterItems}
+        distanceKm={distanceKm}
+        calories={calories}
         isWalking={isWalking}
         walkElapsedLabel={walkElapsedLabel}
         onPressWalkBadge={onPressWalkBadge}
       />
-      <StatsBoxes distanceKm={distanceKm} calories={calories} />
     </View>
   );
 }
