@@ -7,7 +7,12 @@ import { ApiError } from '../../../shared/api/ApiError';
  * "지금 판이 없다"를 뜻하는 상태들. 409는 게임이 아직 시작되지 않았을 때
  * (ROOM_NOT_IN_PROGRESS), 404는 판을 못 찾았을 때(BINGO_BOARD_NOT_FOUND)다.
  */
-const NO_BOARD_STATUSES = [404, 409];
+export const NO_BOARD_STATUSES = [404, 409];
+
+/** 조회 실패가 "판이 없다"는 뜻인지. 서버 장애(5xx)는 여기에 들지 않는다. */
+export function isNoBoardError(error: unknown): boolean {
+  return error instanceof ApiError && NO_BOARD_STATUSES.includes(error.status);
+}
 
 export function useActiveBingoBoardQuery(roomId: number | null) {
   return useQuery({
