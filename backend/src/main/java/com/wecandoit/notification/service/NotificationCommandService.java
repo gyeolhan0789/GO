@@ -21,17 +21,17 @@ public class NotificationCommandService {
     private final MemberRepository memberRepository;
     private final FcmClient fcmClient;
 
-    public void send(Long memberId, NotificationType type, String title, String body) {
+    public void send(Long memberId, NotificationType type, String title, String body, Long targetId) {
         Member member = memberRepository.findByIdForUpdate(memberId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
-        notificationRepository.save(Notification.create(memberId, type, title, body));
+        notificationRepository.save(Notification.create(memberId, type, title, body, targetId));
 
         if (member.getFcmToken() == null) {
             return;
         }
 
-        boolean invalidToken = fcmClient.send(member.getFcmToken(), title, body);
+        boolean invalidToken = fcmClient.send(member.getFcmToken(), title, body, type, targetId);
         if (invalidToken) {
             member.clearFcmToken();
         }

@@ -6,6 +6,7 @@ public record NotificationRequestedEvent(
         Long recipientMemberId,
         NotificationType type,
         String title,
-        String body
+        String body,
+        Long targetId
 ) {
 }
