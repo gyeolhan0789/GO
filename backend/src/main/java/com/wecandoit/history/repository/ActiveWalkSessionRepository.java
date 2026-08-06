@@ -26,6 +26,10 @@ public interface ActiveWalkSessionRepository extends JpaRepository<ActiveWalkSes
     Optional<ActiveWalkSession> findByMemberIdAndWalkSessionKey(Long memberId, String walkSessionKey);
 
     @Modifying
+    @Query("delete from ActiveWalkSession s where s.roomId = :roomId")
+    void deleteAllByRoomId(@Param("roomId") Long roomId);
+
+    @Modifying
     @Query("delete from ActiveWalkSession s where s.expiresAt <= :now")
     void deleteAllExpired(@Param("now") Instant now);
 }

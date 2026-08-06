@@ -16,6 +16,7 @@ import com.wecandoit.game.domain.RoomStatus;
 import com.wecandoit.game.repository.GameRepository;
 import com.wecandoit.game.repository.RoomMemberRepository;
 import com.wecandoit.game.repository.RoomRepository;
+import com.wecandoit.history.repository.ActiveWalkSessionRepository;
 import com.wecandoit.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -38,6 +39,7 @@ public class RoomCommandService {
     private final BingoBoardRepository bingoBoardRepository;
     private final GameCycleCommandService gameCycleCommandService;
     private final MemberRepository memberRepository;
+    private final ActiveWalkSessionRepository activeWalkSessionRepository;
 
     public CreateRoomResponse createRoom(Long memberId, CreateRoomRequest request) {
         validateBoardSettings(request);
@@ -173,6 +175,7 @@ public class RoomCommandService {
         gameCycleCommandService.closeActiveCycle(room, hostId);
         room.close();
         roomMemberRepository.deleteAllByRoomId(roomId);
+        activeWalkSessionRepository.deleteAllByRoomId(roomId);
     }
 
     private Room findRoom(Long roomId) {
