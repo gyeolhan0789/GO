@@ -300,12 +300,12 @@ describe('WalkRoomDetailScreen', () => {
     );
   });
 
-  test('진행 중인 빙고판을 보여주고 누르면 빙고판 화면으로 간다', async () => {
+  test('진행 중인 빙고판을 보여준다 (미션 인증은 산책 중에만 하므로 여기서는 보기만 한다)', async () => {
     const tree = await renderScreen();
 
     expect(collectTexts(tree.root)).toContain('빙고판 3/9');
     expect(tree.root.findAllByType(BingoCell)).toHaveLength(9);
-    expect(findButtonByLabel(tree.root, '빙고판 자세히 보기')).toBeDefined();
+    expect(findButtonByLabel(tree.root, '빙고판 자세히 보기')).toBeUndefined();
   });
 
   test('아직 빙고판이 없으면 안내만 보여준다', async () => {

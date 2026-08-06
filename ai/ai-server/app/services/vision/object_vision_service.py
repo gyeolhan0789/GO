@@ -1,29 +1,15 @@
 import logging
 
 from io import BytesIO
-
 from PIL import Image
-
 
 from app.domain.ai_result import AIResult
 from app.domain.mission_result import ReasonCode
 
-
-from app.services.vision.siglip2_service import (
-    SigLIP2Service
-)
-
-from app.services.rule_engine.siglip_rule_engine import (
-    SigLIPRuleEngine
-)
-
-from app.services.verifier.object_verifier_service import (
-    ObjectVerifierService
-)
-
-from app.services.vision.gemini_service import (
-    GeminiService
-)
+from app.services.vision.siglip2_service import SigLIP2Service
+from app.services.rule_engine.siglip_rule_engine import SigLIPRuleEngine
+from app.services.verifier.object_verifier_service import ObjectVerifierService
+from app.services.vision.gemini_service import GeminiService
 
 
 logger = logging.getLogger(__name__)
@@ -33,76 +19,53 @@ class ObjectVisionService:
     """
     OBJECT Mission Vision Pipeline
 
-
-    Responsibility
-    ----------------------
-
-    OBJECT 검증 전체 흐름 관리
-
-
-    Pipeline:
+    Flow:
 
     Image
-
       ↓
-
-    SigLIP2
-
-    (객체 후보 탐지)
-
+    SigLIP2 Candidate
       ↓
-
-    SigLIPRuleEngine
-
-    (candidate 판단)
-
+    Rule Engine
       ↓
-
-    ObjectExistResult
-
-
+    Candidate Filtering
       ↓
-
-
     ObjectVerifier
-
-    (REAL / NON_REAL 판단)
-
       ↓
-
-
-    Gemini fallback
-
-    (불확실 케이스)
-
-
-      ↓
-
-
     AIResult
 
-
     """
+
+
+    # ==========================
+    # Candidate Filtering Threshold
+    # ==========================
+
+
+    # 거의 객체가 없다고 판단되는 최소 score
+
+    MIN_OBJECT_SCORE = 0.00005
+
+
+    # negative prompt가 우세한 경우
+
+    MIN_MARGIN_FAIL = -0.0001
 
 
 
     def __init__(self):
 
-        self.siglip_service = (
-            SigLIP2Service()
+        self.siglip_service = SigLIP2Service()
+
+        self.rule_engine = SigLIPRuleEngine()
+
+
+        self.object_verifier = ObjectVerifierService(
+
+            gemini_service=GeminiService()
+
         )
 
 
-        self.rule_engine = (
-            SigLIPRuleEngine()
-        )
-
-
-        self.object_verifier = (
-            ObjectVerifierService(
-                gemini_service=GeminiService()
-            )
-        )
 
 
 
@@ -114,27 +77,20 @@ class ObjectVisionService:
 
 
 
-        # ==========================
-        # Image Load
-        # ==========================
-
         image = (
+
             Image.open(
                 BytesIO(image_bytes)
             )
+
             .convert("RGB")
+
         )
 
 
 
-        # ==========================
-        # Target
-        # ==========================
-
-        target = (
-            decision_condition.get(
-                "target"
-            )
+        target = decision_condition.get(
+            "target"
         )
 
 
@@ -157,43 +113,55 @@ class ObjectVisionService:
         # 1. SigLIP2 Candidate Detection
         # ==========================
 
+
         candidates = [
 
-            f"a photo of a real {target}",
 
-            f"a photo without a {target}"
+            f"a photo containing a visible {target}",
+
+
+            f"a photo without any {target}"
 
         ]
 
 
 
         prediction = (
+
             self.siglip_service.predict(
+
                 image=image,
+
                 candidates=candidates
+
             )
+
         )
 
 
 
-        scores = (
-            prediction.get(
-                "scores",
-                {}
-            )
+        scores = prediction.get(
+            "scores",
+            {}
         )
 
 
 
         # ==========================
-        # 2. SigLIP Rule Engine
+        # 2. Rule Engine
         # ==========================
+
 
         object_result = (
+
             self.rule_engine.create_object_result(
+
                 target=target,
+
                 scores=scores
+
             )
+
         )
 
 
@@ -204,21 +172,21 @@ class ObjectVisionService:
 
 target=%s
 
-exists=%s
+detected=%s
 
 confidence=%.3f
 
-positive=%.6f
+positive=%.9f
 
-negative=%.6f
+negative=%.9f
 
-margin=%.6f
+margin=%.9f
 
 """,
 
             target,
 
-            object_result.exists,
+            object_result.detected,
 
             object_result.confidence,
 
@@ -232,81 +200,174 @@ margin=%.6f
 
 
 
+
+
         # ==========================
-        # 3. Candidate Not Found
+        # 3. Clear Object Not Found
         # ==========================
 
-        if not object_result.exists:
+
+        if (
+
+            object_result.positive_score
+            <
+            self.MIN_OBJECT_SCORE
+
+
+            or
+
+
+            object_result.margin
+            <
+            self.MIN_MARGIN_FAIL
+
+        ):
+
+
+            logger.info(
+                "[OBJECT] Candidate clearly not found"
+            )
+
 
 
             return AIResult(
 
+
                 success=False,
 
-                confidence=(
-                    object_result.confidence
+
+                confidence=min(
+
+                    object_result.confidence,
+
+                    0.3
+
                 ),
+
+
 
                 reason=(
-                    f"{target} not found"
+
+                    f"{target} 객체가 확인되지 않았습니다."
+
                 ),
 
+
+
                 reason_code=(
+
                     ReasonCode.OBJECT_NOT_FOUND
+
                 ),
+
+
 
                 detected_objects=[],
 
 
+
                 metadata={
 
+
                     "decision_source":
-                        "SIGLIP2",
+
+                        "SIGLIP2_RULE_ENGINE",
 
 
-                    "object_candidate":
+
+                    "verification":
+
+                        "CLEAR_NOT_FOUND",
+
+
+
+                    "siglip_candidate":
+
                     {
 
+
                         "target":
-                            object_result.target,
+
+                            target,
+
+
+
+                        "detected":
+
+                            object_result.detected,
+
+
 
                         "positive_score":
+
                             object_result.positive_score,
 
+
+
                         "negative_score":
+
                             object_result.negative_score,
 
+
+
                         "margin":
+
                             object_result.margin,
 
+
+
                         "confidence":
+
                             object_result.confidence
+
 
                     }
 
+
                 }
 
+
             )
 
 
 
+
+
+
+
         # ==========================
-        # 4. Real Object Verification
+        # 4. Object Verification
         # ==========================
 
-        verifier_result = (
-            self.object_verifier.verify(
-                image_bytes=image_bytes,
-                target=target,
-                object_result=object_result
-            )
+
+        logger.info(
+            "[OBJECT] Send to ObjectVerifier"
         )
 
 
 
+        verifier_result = (
+
+            self.object_verifier.verify(
+
+                image_bytes=image_bytes,
+
+                target=target,
+
+                object_result=object_result
+
+            )
+
+        )
+
+
+
+
+
         # ==========================
-        # 5. Final Metadata Merge
+        # 5. Metadata Merge
         # ==========================
+
 
         if verifier_result.metadata is None:
 
@@ -316,32 +377,58 @@ margin=%.6f
 
         verifier_result.metadata.update(
 
+
             {
+
 
                 "siglip_candidate":
 
                 {
 
+
                     "target":
+
                         object_result.target,
 
+
+
+                    "detected":
+
+                        object_result.detected,
+
+
+
                     "positive_score":
+
                         object_result.positive_score,
 
+
+
                     "negative_score":
+
                         object_result.negative_score,
 
+
+
                     "margin":
+
                         object_result.margin,
 
+
+
                     "confidence":
+
                         object_result.confidence
+
 
                 }
 
+
             }
 
+
         )
+
 
 
         return verifier_result
