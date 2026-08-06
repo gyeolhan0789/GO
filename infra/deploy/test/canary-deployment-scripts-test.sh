@@ -26,6 +26,9 @@ elif [ "$1" = "inspect" ] && [ "${3:-}" = "{{.Image}}" ]; then
 elif [ "$1" = "inspect" ] \
   && [ "${3:-}" = "{{range .Mounts}}{{println .Source .Destination .RW}}{{end}}" ]; then
   printf '/etc/letsencrypt /etc/letsencrypt false\n'
+elif [ "$1" = "inspect" ] \
+  && [ "${3:-}" = "{{index .Config.Labels \"com.docker.compose.service\"}}" ]; then
+  printf '%s\n' "${NGINX_COMPOSE_SERVICE-nginx}"
 elif [ "$1" = "image" ] && [ "${2:-}" = "inspect" ]; then
   printf 'sha256:nginx-candidate\n'
 elif [ "$1" = "port" ]; then
@@ -107,6 +110,25 @@ grep -Fq 'compose -f docker-compose.prod.yml up -d --no-deps --force-recreate ng
   "$DOCKER_LOG"
 grep -Fq 'inspect --format {{range .Mounts}}{{println .Source .Destination .RW}}{{end}} wecandoit-nginx-prod' \
   "$DOCKER_LOG"
+if grep -Fq 'stop wecandoit-nginx-prod' "$DOCKER_LOG"; then
+  echo "Compose-managed Nginx must not be removed before force-recreate." >&2
+  exit 1
+fi
+
+: > "$DOCKER_LOG"
+(cd "$PROJECT_ROOT/backend" && \
+  PATH="$MOCK_BIN:$PATH" DOCKER_LOG="$DOCKER_LOG" \
+    NGINX_COMPOSE_SERVICE='' HOST_NGINX_CUTOVER_REQUIRED=false \
+    bash "$start_nginx_script")
+unmanaged_stop_line="$(grep -nF 'stop wecandoit-nginx-prod' "$DOCKER_LOG" | cut -d: -f1)"
+unmanaged_rm_line="$(grep -nF 'rm wecandoit-nginx-prod' "$DOCKER_LOG" | cut -d: -f1)"
+compose_up_line="$(grep -nF 'compose -f docker-compose.prod.yml up -d --no-deps --force-recreate nginx' \
+  "$DOCKER_LOG" | cut -d: -f1)"
+if [ "$unmanaged_stop_line" -ge "$unmanaged_rm_line" ] \
+  || [ "$unmanaged_rm_line" -ge "$compose_up_line" ]; then
+  echo "Unmanaged Nginx must be stopped and removed before Compose recreation." >&2
+  exit 1
+fi
 
 : > "$DOCKER_LOG"
 start_failure_log="$TEST_DIR/start-failure.log"

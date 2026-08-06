@@ -468,6 +468,17 @@ If the next stage fails, immediately run `sudo systemctl start nginx`.''',
                           docker rm -f "$port_probe" >/dev/null
                         fi
 
+                        if docker inspect "$NGINX_CONTAINER" >/dev/null 2>&1; then
+                          nginx_compose_service=$(docker inspect --format \
+                            '{{index .Config.Labels "com.docker.compose.service"}}' \
+                            "$NGINX_CONTAINER")
+                          if [ "$nginx_compose_service" != 'nginx' ]; then
+                            echo "Replacing unmanaged Docker Nginx with the Compose service."
+                            docker stop "$NGINX_CONTAINER"
+                            docker rm "$NGINX_CONTAINER"
+                          fi
+                        fi
+
                         NGINX_IMAGE="$NGINX_CANDIDATE_IMAGE" \
                         NGINX_BIND_ADDRESS="$NGINX_BIND_ADDRESS" \
                         NGINX_HTTP_PORT="$NGINX_HTTP_PORT" \
