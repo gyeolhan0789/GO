@@ -294,13 +294,38 @@ describe('StepSummaryCard - 주간/월간', () => {
     expect(highlightFlexes(tree.root)).toEqual([2 / 3]);
   });
 
-  test('기록이 없는 기간에는 차트 대신 안내를 보여준다', async () => {
+  test('걸음이 하나도 없어도 차트를 그린다', async () => {
+    const tree = await renderCard(
+      buildHistory(
+        'WEEK',
+        WEEK_DAYS.map(day => ({ ...day, step: 0 })),
+      ),
+    );
+
+    // 안내 문구만 띄우면 "기록을 못 읽었다"와 "안 걸었다"가 구분되지 않는다.
+    const [barChart] = tree.root.findAllByType(BarChart);
+    expect(barChart.props.data.datasets[0].data).toEqual([0, 0, 0]);
+    // 0이어도 축은 기본 상한으로 잡혀 눈금이 그려진다.
+    expect(barChart.props.fromNumber).toBe(8_000);
+    expect(collectTexts(tree.root)).not.toContain(
+      '이 기간에는 걸음 기록이 없어요.',
+    );
+  });
+
+  test('그릴 칸 자체가 없으면 안내를 보여준다', async () => {
+    // 월간은 날짜가 하나도 없으면 주 막대를 만들 수 없다.
     await act(async () => {
       renderer = ReactTestRenderer.create(
         <StepSummaryCard
-          history={buildHistory('WEEK', [
-            { historyDate: '2026-07-27', step: 0 },
-          ])}
+          history={{
+            period: 'MONTH',
+            startDate: '2026-07-01',
+            endDate: '2026-07-31',
+            totalStep: 0,
+            totalDistance: 0,
+            totalCalories: 0,
+            histories: [],
+          }}
           hourlySteps={[]}
           isCurrentPeriod
           todayIsoDate={TODAY}

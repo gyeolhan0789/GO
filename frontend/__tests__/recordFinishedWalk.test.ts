@@ -10,6 +10,14 @@ import {
 } from '../src/features/walk-session/model/activeSessionStorage';
 import { installFetchMock, jsonResponse } from '../jest/fetchMock';
 import type { FetchMock } from '../jest/fetchMock';
+import {
+  EMPTY_STEP_LEDGER,
+  pendingStepUploads,
+} from '../src/shared/lib/stepLedger';
+import {
+  readStepLedger,
+  saveStepLedger,
+} from '../src/shared/lib/stepLedgerStorage';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest'),
@@ -55,6 +63,7 @@ let fetchMock: FetchMock;
 // 저장소 인스턴스는 그대로 둔다. 실제로 지우려면 저장소 API로 지워야 한다.
 beforeEach(async () => {
   await clearActiveWalkSession();
+  await saveStepLedger(EMPTY_STEP_LEDGER);
   fetchMock = installFetchMock();
 });
 
@@ -100,6 +109,21 @@ describe('recordFinishedWalk — 기록으로 남을 때', () => {
 
     // 남겨두면 다음 산책 시작 때 이미 끝난 세션을 물고 간다.
     expect(await readActiveWalkSession()).toBeNull();
+  });
+
+  test('서버가 그날 합계에 더한 걸음을 걸음 원장에도 적어둔다', async () => {
+    await storeKey();
+    fetchMock.mockResolvedValue(jsonResponse(201, buildCompleteResponse()));
+
+    await recordFinishedWalk(FINISHED_WALK);
+
+    // 안 적으면 일일 기록 전송이 같은 걸음을 한 번 더 올려 그날 기록이 두 배가 된다.
+    // 종료 시각 11:32Z는 서비스 기준시로 8월 4일 저녁이다.
+    const ledger = await readStepLedger();
+    expect(ledger.days).toEqual([
+      { date: '2026-08-04', steps: 0, reportedSteps: 3_240 },
+    ]);
+    expect(pendingStepUploads(ledger, '2026-08-05')).toEqual([]);
   });
 
   test('일시정지를 뺀 시간과 종료 시각을 그대로 싣는다', async () => {

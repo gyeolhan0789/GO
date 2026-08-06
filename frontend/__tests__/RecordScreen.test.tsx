@@ -19,7 +19,7 @@ import { buildWalkSessionSlice } from '../jest/walkSessionFixtures';
 
 // jest에는 네이티브 모듈이 없어서 권한 통과 + 기록 있는 기기를 흉내낸다.
 jest.mock('../src/shared/lib/samsungHealth', () => ({
-  isSamsungHealthAvailable: () => true,
+  isSamsungHealthAvailable: async () => true,
   hasSamsungHealthPermissions: async () => true,
   // 구간 첫 날에만 기록이 있는 상태.
   readSamsungHealthDailySummaries: async (startDate: string) => [

@@ -14,7 +14,7 @@ export type SamsungHealthState =
   | { status: 'ok'; summary: SamsungHealthSummary };
 
 async function fetchSamsungHealthToday(): Promise<SamsungHealthState> {
-  if (!isSamsungHealthAvailable()) {
+  if (!(await isSamsungHealthAvailable())) {
     return { status: 'unavailable' };
   }
   if (!(await hasSamsungHealthPermissions())) {

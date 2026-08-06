@@ -62,7 +62,9 @@ export function StepSummaryCard({
   const chartData = isHourly
     ? buildHourlyChartData(hourlySteps)
     : buildStepChartData(period, history.histories, todayIsoDate);
-  const hasChart = chartData.length > 0 && history.totalStep > 0;
+  // 걸음이 0이어도 그린다. 축과 빈 막대가 보여야 "아직 안 걸었다"를 읽을 수 있고,
+  // 구간을 눌러 그날 기록도 확인할 수 있다. 그릴 칸 자체가 없을 때만 비운다.
+  const hasChart = chartData.length > 0;
   const chartCeiling = resolveChartCeiling(
     period,
     maxValue(chartData.map(datum => datum.value)),
