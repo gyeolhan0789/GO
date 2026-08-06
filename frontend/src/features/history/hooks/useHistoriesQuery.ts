@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { todayIso } from '../../../shared/lib/isoDate';
 import {
   hasSamsungHealthPermissions,
+  isMissingNativeMethod,
   isSamsungHealthAvailable,
   readSamsungHealthDailySummaries,
 } from '../../../shared/lib/samsungHealth';
@@ -25,13 +26,6 @@ const UNAVAILABLE_MESSAGE =
 const STALE_BINARY_MESSAGE =
   '앱을 다시 빌드해야 해요. 걸음 기록 조회 기능이 설치된 앱에 아직 없어요.';
 const READ_FAILED_MESSAGE = '삼성헬스에서 걸음 기록을 읽지 못했어요';
-
-/** JS만 갱신하고 네이티브가 옛 버전이면 호출이 'is not a function'으로 터진다. */
-function isMissingNativeMethod(error: unknown): boolean {
-  return (
-    error instanceof TypeError && error.message.includes('is not a function')
-  );
-}
 
 /**
  * 삼성헬스에서 읽을 수 있는지. `useStepDataToday`의 판단과 같은 기준이라 오늘 걸음수와
