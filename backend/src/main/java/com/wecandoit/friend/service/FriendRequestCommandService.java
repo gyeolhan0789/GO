@@ -41,8 +41,12 @@ public class FriendRequestCommandService {
         friendRequestRepository.findPendingBetween(inviterId, inviteeId)
                 .ifPresent(friendRequest -> throwExistingRequestException(friendRequest, inviterId));
 
-        friendRequestRepository.save(FriendRequest.create(members.inviter(), members.invitee()));
-        eventPublisher.publishEvent(notificationMessageFactory.friendRequest(inviteeId));
+        FriendRequest friendRequest = friendRequestRepository.save(
+                FriendRequest.create(members.inviter(), members.invitee())
+        );
+        eventPublisher.publishEvent(
+                notificationMessageFactory.friendRequest(inviteeId, friendRequest.getId())
+        );
     }
 
     public void acceptRequest(Long inviteeId, Long requestId) {

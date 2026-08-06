@@ -41,3 +41,24 @@ export function getHistories({ period, date }: GetHistoriesParams) {
   );
 }
 
+export type SaveHistoryRequest = {
+  /** 'yyyy-MM-dd'. */
+  historyDate: string;
+  step: number;
+  /** 미터. */
+  distance: number;
+  /** kcal. */
+  calories: number;
+};
+
+/**
+ * 하루치 활동 기록을 서버에 더한다.
+ *
+ * 덮어쓰기가 아니라 **누적**이다(백엔드 MemberHistory.add). 산책 완료 처리도 같은 행에
+ * 더하므로, 보낼 양은 "그날 총합 − 이미 반영된 양"이어야 한다. 그 계산은 걸음 원장이
+ * 맡는다([[stepLedger]]).
+ */
+export function saveHistory(body: SaveHistoryRequest) {
+  return apiClient.post<void>('/histories', body);
+}
+

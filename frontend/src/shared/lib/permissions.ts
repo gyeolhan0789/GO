@@ -14,6 +14,8 @@ type PermissionSpec = {
   androidPermission: Permission;
   // 이 API 레벨 미만에서는 런타임 권한이 없어 자동 허용으로 취급한다.
   minApiLevel?: number;
+  // 없어도 서비스를 쓸 수 있는 권한. 요청은 하되 진입 게이트에서는 뺀다.
+  optional?: boolean;
 };
 
 const PERMISSION_SPECS: readonly PermissionSpec[] = [
@@ -31,12 +33,22 @@ const PERMISSION_SPECS: readonly PermissionSpec[] = [
     key: 'notifications',
     androidPermission: PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
     minApiLevel: 33,
+    optional: true,
   },
 ];
 
 export const PERMISSION_KEYS: readonly PermissionKey[] = PERMISSION_SPECS.map(
   spec => spec.key,
 );
+
+/**
+ * 없으면 서비스를 쓸 수 없는 권한.
+ *
+ * 알림은 빠진다 — 못 받아도 산책·미션·기록은 그대로 돌아가고, 거부했다고 앱 진입을
+ * 막을 이유가 없다. 요청은 여전히 한다(PERMISSION_KEYS).
+ */
+export const REQUIRED_PERMISSION_KEYS: readonly PermissionKey[] =
+  PERMISSION_SPECS.filter(spec => !spec.optional).map(spec => spec.key);
 
 function androidApiLevel(): number {
   return typeof Platform.Version === 'number'
@@ -107,14 +119,15 @@ export async function checkPermission(key: PermissionKey): Promise<boolean> {
 }
 
 /**
- * 정의된 모든 권한이 지금 허용돼 있는지 확인한다(요청 없이 조회만).
+ * 필수 권한이 지금 전부 허용돼 있는지 확인한다(요청 없이 조회만).
  *
  * 진입 게이트용이다. 저장된 "완료" 플래그와 달리 설정에서 나중에 권한을 회수한
- * 경우까지 잡아낸다.
+ * 경우까지 잡아낸다. 선택 권한(알림)은 보지 않는다 — 거부한 사용자가 앱을 열 때마다
+ * 권한 화면으로 되돌아가면 안 된다.
  */
-export async function areAllPermissionsGranted(): Promise<boolean> {
+export async function areRequiredPermissionsGranted(): Promise<boolean> {
   const results = await Promise.all(
-    PERMISSION_KEYS.map(key => checkPermission(key)),
+    REQUIRED_PERMISSION_KEYS.map(key => checkPermission(key)),
   );
   return results.every(Boolean);
 }

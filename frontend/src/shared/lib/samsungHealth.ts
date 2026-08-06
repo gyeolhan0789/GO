@@ -20,6 +20,7 @@ export type SamsungHealthHourlySteps = {
 };
 
 type SamsungHealthNativeModule = {
+  isSupported(): Promise<boolean>;
   requestPermissions(): Promise<boolean>;
   hasPermissions(): Promise<boolean>;
   readToday(): Promise<SamsungHealthSummary>;
@@ -34,24 +35,39 @@ const native = NativeModules.SamsungHealth as
   | SamsungHealthNativeModule
   | undefined;
 
-/** 네이티브 모듈(삼성헬스 SDK) 사용 가능 여부. Android + 모듈 로드 시 true. */
-export function isSamsungHealthAvailable(): boolean {
-  return Platform.OS === 'android' && native != null;
+/** JS만 갱신하고 네이티브가 옛 버전이면 호출이 'is not a function'으로 터진다. */
+export function isMissingNativeMethod(error: unknown): boolean {
+  return (
+    error instanceof TypeError && error.message.includes('is not a function')
+  );
 }
 
-/** 삼성헬스 권한(걸음·활동요약 읽기)을 요청한다. */
-export async function requestSamsungHealthPermissions(): Promise<boolean> {
-  if (!native) {
+/**
+ * 삼성헬스 데이터 경로를 쓸 수 있는 기기인지.
+ *
+ * 모듈 로드 여부로 판단하면 안 된다 — SamsungHealthPackage는 모든 안드로이드 빌드에
+ * 항상 등록되므로 픽셀·LG에서도 모듈이 존재한다. 네이티브가 삼성헬스 앱 설치 여부를
+ * 직접 보고 답한다.
+ */
+export async function isSamsungHealthAvailable(): Promise<boolean> {
+  if (Platform.OS !== 'android' || !native) {
     return false;
   }
   try {
-    return await native.requestPermissions();
+    return await native.isSupported();
   } catch {
     return false;
   }
 }
 
-/** 삼성헬스 읽기 권한 보유 여부(요청 없이 조회). */
+/**
+ * 삼성헬스 읽기 권한 보유 여부(요청 없이 조회).
+ *
+ * 동의를 요청하는 경로는 없다. SDK가 파트너 등록 없이는 기기마다 삼성헬스 개발자
+ * 모드를 켜야 동의를 받아주는데, 사용자에게 요구할 수 없는 일이라 권한 화면에서
+ * 빼버렸다. 그래서 이 값은 예전에 동의해둔 사용자에게만 참이고, 나머지는 전부 기기
+ * 걸음 센서로 간다([[useStepDataToday]]). 파트너 등록이 되면 요청을 되살리면 된다.
+ */
 export async function hasSamsungHealthPermissions(): Promise<boolean> {
   if (!native) {
     return false;

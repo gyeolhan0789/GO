@@ -7,6 +7,7 @@ import { AppProviders } from './src/app/providers/AppProviders';
 import { navigateToWalkSession, navigationRef } from './src/app/navigation/navigationRef';
 import { RootNavigator } from './src/app/navigation/RootNavigator';
 import { WearCompanion } from './src/features/wear/components/WearCompanion';
+import { DailyStepSync } from './src/features/history/components/DailyStepSync';
 import { subscribeWalkTrackingOpenSession } from './src/shared/lib/walkTracking';
 
 function App() {
@@ -26,6 +27,8 @@ function App() {
         {/* 그리는 게 없는 갤럭시 워치 동기화. 화면과 무관하게 계속 돌아야 해서
             네비게이터 밖에 둔다. */}
         <WearCompanion />
+        {/* 걸음 원장 갱신과 지난 날짜 활동 기록 전송. 역시 그리는 게 없다. */}
+        <DailyStepSync />
       </AppProviders>
     </SafeAreaProvider>
   );

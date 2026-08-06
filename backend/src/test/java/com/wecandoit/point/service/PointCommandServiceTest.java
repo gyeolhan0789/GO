@@ -124,18 +124,20 @@ class PointCommandServiceTest {
                 1L,
                 NotificationType.REWARD_EARNED,
                 "title",
-                "message"
+                "message",
+                10L
         );
         NotificationRequestedEvent secondEvent = new NotificationRequestedEvent(
                 2L,
                 NotificationType.REWARD_EARNED,
                 "title",
-                "message"
+                "message",
+                10L
         );
         given(memberRepository.findByIdForUpdate(1L)).willReturn(Optional.of(firstMember));
         given(memberRepository.findByIdForUpdate(2L)).willReturn(Optional.of(secondMember));
-        given(notificationMessageFactory.rewardEarned(1L, 100L)).willReturn(firstEvent);
-        given(notificationMessageFactory.rewardEarned(2L, 100L)).willReturn(secondEvent);
+        given(notificationMessageFactory.rewardEarned(1L, 100L, 10L)).willReturn(firstEvent);
+        given(notificationMessageFactory.rewardEarned(2L, 100L, 10L)).willReturn(secondEvent);
 
         // when
         Map<Long, Long> rewardPointsByMemberId =

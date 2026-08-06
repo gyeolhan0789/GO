@@ -23,7 +23,8 @@ public class NotificationEventListener {
                     event.recipientMemberId(),
                     event.type(),
                     event.title(),
-                    event.body()
+                    event.body(),
+                    event.targetId()
             );
         } catch (Exception e) {
             log.error("알림 발송 실패. memberId={}, type={}", event.recipientMemberId(), event.type(), e);

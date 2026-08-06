@@ -9,6 +9,7 @@ x-backend-environment: &backend-environment
   SPRING_DATA_REDIS_PORT: 6379
   STORAGE_ROOT_PATH: /app/uploads
   JWT_SECRET: ${JWT_SECRET}
+  FIREBASE_CREDENTIALS_PATH: /app/secrets/firebase-service-account.json
 
 x-backend-common: &backend-common
   restart: always
@@ -19,6 +20,7 @@ x-backend-common: &backend-common
       condition: service_healthy
   volumes:
     - ./uploads:/app/uploads
+    - ${SECRETS_HOST_DIR:-./secrets}:/app/secrets:ro
   logging:
     driver: json-file
     options:

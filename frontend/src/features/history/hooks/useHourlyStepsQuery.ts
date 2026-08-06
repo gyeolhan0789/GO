@@ -10,7 +10,7 @@ import type { HourlyStep } from '../types';
 
 async function fetchHourlySteps(date: string): Promise<HourlyStep[]> {
   // useHistoriesQuery가 같은 화면에 이미 오류를 띄우므로 조용히 비운다.
-  if (!isSamsungHealthAvailable()) {
+  if (!(await isSamsungHealthAvailable())) {
     return [];
   }
   if (!(await hasSamsungHealthPermissions())) {

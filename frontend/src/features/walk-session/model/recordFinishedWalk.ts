@@ -1,4 +1,6 @@
 import { ApiError } from '../../../shared/api/ApiError';
+import { toIsoDate } from '../../../shared/lib/isoDate';
+import { reportStepsToLedger } from '../../../shared/lib/stepLedgerSync';
 import {
   completeWalkSession,
   type WalkSessionCompleteRequest,
@@ -134,6 +136,12 @@ export async function recordFinishedWalk(
       calories: walk.calories,
     });
     await clearActiveWalkSession();
+    // 서버가 완료 처리 안에서 그날 걸음 합계에 더한 몫을 걸음 원장에도 적어둔다. 안
+    // 적으면 일일 기록 전송이 같은 걸음을 한 번 더 올려 그날 기록이 두 배가 된다.
+    await reportStepsToLedger(
+      toIsoDate(walk.endedAt),
+      walk.step,
+    ).catch(() => {});
     return { status: 'recorded', walkSession };
   } catch (error) {
     // 서버가 거절했으면 이 키는 더 쓸 수 없다. 응답을 아예 못 받은 경우에는

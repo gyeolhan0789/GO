@@ -49,6 +49,9 @@ services:
       SPRING_PROFILES_ACTIVE: dev
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+      FIREBASE_CREDENTIALS_PATH: /app/secrets/firebase-service-account.json
+    volumes:
+      - ${SECRETS_HOST_DIR:-./secrets}:/app/secrets:ro
     ports:
       - "127.0.0.1:8081:8080"
     networks:

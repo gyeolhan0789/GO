@@ -5,6 +5,7 @@ import com.wecandoit.common.exception.ErrorCode;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public enum MissionType {
     OBJECT,
@@ -24,6 +25,8 @@ public enum MissionType {
 
     private static final Set<MissionType> PHOTO_VERIFIED_TYPES =
             EnumSet.of(OBJECT, ATTRIBUTE, RELATION, ORDINARY);
+    private static final Set<String> PHOTO_VERIFIED_TYPE_NAMES = collectNames(true);
+    private static final Set<String> NON_PHOTO_VERIFIED_TYPE_NAMES = collectNames(false);
 
     public static MissionType from(String type) {
         return Arrays.stream(values())
@@ -32,7 +35,18 @@ public enum MissionType {
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_MISSION_TYPE));
     }
 
+    public static Set<String> namesByPhotoVerified(boolean photoVerified) {
+        return photoVerified ? PHOTO_VERIFIED_TYPE_NAMES : NON_PHOTO_VERIFIED_TYPE_NAMES;
+    }
+
     public boolean isPhotoVerified() {
         return PHOTO_VERIFIED_TYPES.contains(this);
+    }
+
+    private static Set<String> collectNames(boolean photoVerified) {
+        return Arrays.stream(values())
+                .filter(type -> type.isPhotoVerified() == photoVerified)
+                .map(Enum::name)
+                .collect(Collectors.toUnmodifiableSet());
     }
 }
