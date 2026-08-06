@@ -21,7 +21,6 @@ import com.google.android.gms.location.Priority
 import java.util.UUID
 import kotlin.math.asin
 import kotlin.math.cos
-import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sin
@@ -168,7 +167,7 @@ class WalkForegroundService : Service() {
     healthProvider.readNow(state.gender) { raw, _ ->
       // 일시정지 시점의 최신 raw 값을 확정해둔다 — 재개 시 이 값과의 차이만큼
       // baseline을 밀어서 일시정지 중 늘어난 값을 세션 기록에서 제외한다.
-      state = state.copy(lastRaw = raw)
+      state = state.withReading(raw, state.healthSource)
       repository.save(state)
       emitState()
     }
@@ -191,13 +190,7 @@ class WalkForegroundService : Service() {
     updateNotification()
 
     healthProvider.readNow(state.gender) { resumeRaw, source ->
-      val shifted = HealthBaseline(
-        steps = state.baseline.steps + max(0.0, resumeRaw.steps - state.lastRaw.steps),
-        distanceMeters = state.baseline.distanceMeters +
-          max(0.0, resumeRaw.distanceMeters - state.lastRaw.distanceMeters),
-        calories = state.baseline.calories + max(0.0, resumeRaw.calories - state.lastRaw.calories),
-      )
-      state = state.copy(baseline = shifted, lastRaw = resumeRaw, healthSource = source)
+      state = state.resumedWith(resumeRaw, source)
       repository.save(state)
       updateNotification()
       emitState()
@@ -222,7 +215,7 @@ class WalkForegroundService : Service() {
     mainHandler.removeCallbacksAndMessages(null)
 
     healthProvider.readNow(state.gender) { raw, source ->
-      state = state.copy(lastRaw = raw, healthSource = source)
+      state = state.withReading(raw, source)
       val finalSnapshot = state.toSnapshot(System.currentTimeMillis())
       finishStop()
       onResult(finalSnapshot)
@@ -305,7 +298,7 @@ class WalkForegroundService : Service() {
   private fun pollHealth() {
     if (state.status != WalkStatus.RUNNING) return
     healthProvider.readNow(state.gender) { raw, source ->
-      state = state.copy(lastRaw = raw, healthSource = source)
+      state = state.withReading(raw, source)
       repository.save(state)
       updateNotification()
       emitState()
