@@ -40,14 +40,10 @@ import { WalkRoomSelectSheet } from './components/WalkRoomSelectSheet';
 
 type HomeNavigation = NativeStackNavigationProp<RootStackParamList, 'Main'>;
 
-// TODO: 목표 걸음수 연동 전까지의 임시 목업 데이터.
 // 걸음/거리/칼로리는 useSamsungHealthToday, 포인트·캐릭터는 각각
 // useMyPointQuery·useMyCharacterQuery로 실측값을 따로 받아온다.
-const MOCK_HOME_SUMMARY = {
-  goalSteps: 10000,
-  canRewardHint: '1,000보 더 걸으면 캔 1개를 더 모아요',
-};
-
+// (하루 목표 걸음수는 서버 개념이 아니라 사용자가 고르는 값이라
+// StepsSummary가 직접 들고 있는다.)
 const DEFAULT_BINGO_SIZE: BingoBoardSize = 5;
 const NO_BINGO_BOARD_HINT = '산책을 시작하고 이번 주 빙고에 도전해보세요!';
 
@@ -58,7 +54,6 @@ function formatElapsed(totalSeconds: number) {
 }
 
 export function HomeScreen() {
-  const summary = MOCK_HOME_SUMMARY;
   const navigation = useNavigation<HomeNavigation>();
   const [isRoomSheetVisible, setRoomSheetVisible] = useState(false);
   const [isSoloSheetVisible, setSoloSheetVisible] = useState(false);
@@ -189,14 +184,12 @@ export function HomeScreen() {
         <HomeCarousel
           style={styles.carousel}
           steps={todaySteps}
-          goalSteps={summary.goalSteps}
           characterName={characterName}
           characterBaseImage={character.data?.baseImage ?? null}
           characterFallbackImage={character.data?.baseImageFallback ?? null}
           characterItems={characterItems}
           distanceKm={todayDistanceKm}
           calories={todayCalories}
-          rewardHint={summary.canRewardHint}
           bingoSize={bingoSize}
           bingoCells={bingoCells}
           bingoHint={showNoBingoBoardHint ? NO_BINGO_BOARD_HINT : undefined}

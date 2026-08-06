@@ -57,9 +57,9 @@ export function useWearCompanion() {
       steps: healthSummary?.steps ?? 0,
       distanceMeters: Math.round(healthSummary?.distanceMeters ?? 0),
       calories: Math.round(healthSummary?.activeCalories ?? 0),
-      // TODO: 목표 걸음수는 아직 서버에 없다(HomeScreen도 목업 상수를 쓴다).
-      // 0이면 워치가 진행률 링을 그리지 않고 걸음수만 보여준다.
-      goalSteps: 0,
+      // 서버의 주간 누적 목표(targetStepCount)와는 다른 축이라, 홈 화면과
+      // 같은 일반적인 하루 권장 걸음수 상수를 그대로 쓴다(HomeScreen.tsx 참고).
+      goalSteps: 8000,
     },
     rooms,
     session:

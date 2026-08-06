@@ -1,6 +1,7 @@
 package com.wecandoit.common.websocket;
 
 import com.wecandoit.common.security.CorsProperties;
+import com.wecandoit.game.presence.RoomPresenceSubscriptionInterceptor;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
@@ -22,6 +23,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final CorsProperties corsProperties;
     private final WebSocketAuthenticationInterceptor authenticationInterceptor;
+    private final RoomPresenceSubscriptionInterceptor presenceSubscriptionInterceptor;
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
@@ -39,6 +41,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
-        registration.interceptors(authenticationInterceptor);
+        registration.interceptors(authenticationInterceptor, presenceSubscriptionInterceptor);
     }
 }

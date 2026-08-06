@@ -21,11 +21,16 @@ printf '%s\n' "$*" >> "$DOCKER_LOG"
 if [ "${FAIL_COMPOSE_UP:-false}" = "true" ] \
   && [ "$1" = "compose" ] && [ "${2:-}" = "-f" ]; then
   exit 42
+elif [ "$1" = "container" ] && [ "${2:-}" = "inspect" ]; then
+  [ "${LEGACY_CONTAINER_EXISTS:-false}" = "true" ]
 elif [ "$1" = "inspect" ] && [ "${3:-}" = "{{.Image}}" ]; then
   printf 'sha256:nginx-candidate\n'
 elif [ "$1" = "inspect" ] \
   && [ "${3:-}" = "{{range .Mounts}}{{println .Source .Destination .RW}}{{end}}" ]; then
   printf '/etc/letsencrypt /etc/letsencrypt false\n'
+elif [ "$1" = "inspect" ] \
+  && [ "${3:-}" = "{{index .Config.Labels \"com.docker.compose.service\"}}" ]; then
+  printf '%s\n' "${NGINX_COMPOSE_SERVICE-nginx}"
 elif [ "$1" = "image" ] && [ "${2:-}" = "inspect" ]; then
   printf 'sha256:nginx-candidate\n'
 elif [ "$1" = "port" ]; then
@@ -82,6 +87,32 @@ fi
 grep -Fq 'docker logs --tail 300 "$CANARY_CONTAINER" 2>&1 || true' "$JENKINSFILE"
 grep -Fq 'docker inspect "$CANARY_CONTAINER" || true' "$JENKINSFILE"
 
+promote_stable_stage="$(sed -n \
+  "/stage('Promote Stable') {/,/stage('Deploy Monitoring') {/p" \
+  "$JENKINSFILE")"
+legacy_cleanup_script="$TEST_DIR/legacy-stable-cleanup.sh"
+printf '%s\n' "$promote_stable_stage" \
+  | awk '/if docker container inspect/ { capture = 1 }
+      capture { sub(/^[[:space:]]{24}/, ""); print }
+      capture && /^[[:space:]]*fi$/ { exit }' \
+  > "$legacy_cleanup_script"
+
+export LEGACY_STABLE_CONTAINER=wecandoit-backend-prod
+: > "$DOCKER_LOG"
+PATH="$MOCK_BIN:$PATH" DOCKER_LOG="$DOCKER_LOG" \
+  LEGACY_CONTAINER_EXISTS=false bash "$legacy_cleanup_script"
+grep -Fq 'container inspect wecandoit-backend-prod' "$DOCKER_LOG"
+if grep -Eq '^(stop|rm) wecandoit-backend-prod$' "$DOCKER_LOG"; then
+  echo "A same-named image must not be treated as a legacy container." >&2
+  exit 1
+fi
+
+: > "$DOCKER_LOG"
+PATH="$MOCK_BIN:$PATH" DOCKER_LOG="$DOCKER_LOG" \
+  LEGACY_CONTAINER_EXISTS=true bash "$legacy_cleanup_script"
+grep -Fq 'stop wecandoit-backend-prod' "$DOCKER_LOG"
+grep -Fq 'rm wecandoit-backend-prod' "$DOCKER_LOG"
+
 start_nginx_stage="$(sed -n \
   "/stage('Start Nginx') {/,/stage('Complete Temporary Validation') {/p" \
   "$JENKINSFILE")"
@@ -107,6 +138,25 @@ grep -Fq 'compose -f docker-compose.prod.yml up -d --no-deps --force-recreate ng
   "$DOCKER_LOG"
 grep -Fq 'inspect --format {{range .Mounts}}{{println .Source .Destination .RW}}{{end}} wecandoit-nginx-prod' \
   "$DOCKER_LOG"
+if grep -Fq 'stop wecandoit-nginx-prod' "$DOCKER_LOG"; then
+  echo "Compose-managed Nginx must not be removed before force-recreate." >&2
+  exit 1
+fi
+
+: > "$DOCKER_LOG"
+(cd "$PROJECT_ROOT/backend" && \
+  PATH="$MOCK_BIN:$PATH" DOCKER_LOG="$DOCKER_LOG" \
+    NGINX_COMPOSE_SERVICE='' HOST_NGINX_CUTOVER_REQUIRED=false \
+    bash "$start_nginx_script")
+unmanaged_stop_line="$(grep -nF 'stop wecandoit-nginx-prod' "$DOCKER_LOG" | cut -d: -f1)"
+unmanaged_rm_line="$(grep -nF 'rm wecandoit-nginx-prod' "$DOCKER_LOG" | cut -d: -f1)"
+compose_up_line="$(grep -nF 'compose -f docker-compose.prod.yml up -d --no-deps --force-recreate nginx' \
+  "$DOCKER_LOG" | cut -d: -f1)"
+if [ "$unmanaged_stop_line" -ge "$unmanaged_rm_line" ] \
+  || [ "$unmanaged_rm_line" -ge "$compose_up_line" ]; then
+  echo "Unmanaged Nginx must be stopped and removed before Compose recreation." >&2
+  exit 1
+fi
 
 : > "$DOCKER_LOG"
 start_failure_log="$TEST_DIR/start-failure.log"
@@ -139,6 +189,7 @@ PATH="$MOCK_BIN:$PATH" DOCKER_LOG="$DOCKER_LOG" \
 
 grep -Fq -- '--publish 127.0.0.1:18080:80' "$DOCKER_LOG"
 grep -Fq -- '--publish 127.0.0.1:18443:443' "$DOCKER_LOG"
+grep -Fq -- '--add-host host.docker.internal:host-gateway' "$DOCKER_LOG"
 grep -Fq -- '--volume /etc/letsencrypt:/etc/letsencrypt:ro' "$DOCKER_LOG"
 grep -Fq '/usr/local/bin/switch-backend-route stable-only' "$DOCKER_LOG"
 grep -Fq '/usr/local/bin/switch-backend-route canary-10' "$DOCKER_LOG"

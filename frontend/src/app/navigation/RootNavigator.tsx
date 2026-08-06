@@ -21,6 +21,7 @@ import { PermissionsScreen } from '../../screens/PermissionsScreen/PermissionsSc
 import { CharacterCustomizeScreen } from '../../screens/CharacterCustomizeScreen/CharacterCustomizeScreen';
 import { FriendRequestsScreen } from '../../screens/FriendRequestsScreen/FriendRequestsScreen';
 import { MyPageScreen } from '../../screens/MyPageScreen/MyPageScreen';
+import { RoomInvitesScreen } from '../../screens/RoomInvitesScreen/RoomInvitesScreen';
 import { SignupScreen } from '../../screens/SignupScreen/SignupScreen';
 import { SocialSignupScreen } from '../../screens/SocialSignupScreen/SocialSignupScreen';
 import { WalkDetailScreen } from '../../screens/WalkDetailScreen/WalkDetailScreen';
@@ -86,6 +87,8 @@ export type RootStackParamList = {
   CharacterCustomize: undefined;
   // 받은/보낸 친구 요청 내역. 보낸 요청은 서버가 아직 응답받지 않은 요청만 내려준다.
   FriendRequests: undefined;
+  // 받은 산책방 초대 내역.
+  RoomInvites: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -204,6 +207,11 @@ export function RootNavigator() {
             name="FriendRequests"
             component={FriendRequestsScreen}
             options={{ ...DETAIL_HEADER_OPTIONS, title: '친구 요청' }}
+          />
+          <Stack.Screen
+            name="RoomInvites"
+            component={RoomInvitesScreen}
+            options={{ ...DETAIL_HEADER_OPTIONS, title: '산책방 초대' }}
           />
         </>
       ) : (

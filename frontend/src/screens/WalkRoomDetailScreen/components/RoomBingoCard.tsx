@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import type { BingoBoardResponse } from '../../../features/bingo/api/bingoApi';
@@ -16,8 +16,6 @@ type RoomBingoCardProps = {
   board: BingoBoardResponse;
   members: RoomMemberResponse[];
   myMemberId: number | null;
-  /** 빙고판 화면(미션 인증)으로 넘어가는 진입점. */
-  onPress: () => void;
 };
 
 const SWATCH_SIZE = 14;
@@ -39,12 +37,14 @@ function isBoardSize(value: number): value is BingoBoardSize {
   return value === 3 || value === 4 || value === 5;
 }
 
-/** 진행 중인 빙고판 미리보기. 누르면 미션 인증 화면으로 들어간다. */
+/**
+ * 진행 중인 빙고판 미리보기. 미션 인증은 산책 중에만 할 수 있어서 여기서는
+ * 보기만 하고, 인증 화면(BingoBoard)으로는 넘어가지 않는다.
+ */
 export function RoomBingoCard({
   board,
   members,
   myMemberId,
-  onPress,
 }: RoomBingoCardProps) {
   if (!isBoardSize(board.boardSize)) {
     return null;
@@ -105,51 +105,40 @@ export function RoomBingoCard({
   });
 
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel="빙고판 자세히 보기"
-      style={({ pressed }) => pressed && styles.pressed}
-    >
-      <Card>
-        <View style={styles.headingRow}>
-          <AppText style={styles.heading}>
-            {`빙고판 ${board.approvedCellCount}/${board.totalCellCount}`}
-          </AppText>
-          <Ionicons name="chevron-forward" size={20} color={colors.muted} />
-        </View>
+    <Card>
+      <View style={styles.headingRow}>
+        <AppText style={styles.heading}>
+          {`빙고판 ${board.approvedCellCount}/${board.totalCellCount}`}
+        </AppText>
+      </View>
 
-        <View style={styles.legend}>
-          {members.map(member => (
-            <View key={member.memberId} style={styles.legendRow}>
-              <View
-                style={[
-                  styles.legendSwatch,
-                  { backgroundColor: colorByMember.get(member.memberId) },
-                ]}
-              />
-              <AppText style={styles.legendLabel} numberOfLines={1}>
-                {member.memberId === myMemberId ? '나' : member.nickname}
-              </AppText>
-              <AppText style={styles.legendCount}>
-                {`${approvedCountByMember.get(member.memberId) ?? 0}칸`}
-              </AppText>
-            </View>
-          ))}
-        </View>
+      <View style={styles.legend}>
+        {members.map(member => (
+          <View key={member.memberId} style={styles.legendRow}>
+            <View
+              style={[
+                styles.legendSwatch,
+                { backgroundColor: colorByMember.get(member.memberId) },
+              ]}
+            />
+            <AppText style={styles.legendLabel} numberOfLines={1}>
+              {member.memberId === myMemberId ? '나' : member.nickname}
+            </AppText>
+            <AppText style={styles.legendCount}>
+              {`${approvedCountByMember.get(member.memberId) ?? 0}칸`}
+            </AppText>
+          </View>
+        ))}
+      </View>
 
-        <View style={styles.board}>
-          <BingoBoard size={size} cells={boardCells} />
-        </View>
-      </Card>
-    </Pressable>
+      <View style={styles.board}>
+        <BingoBoard size={size} cells={boardCells} />
+      </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  pressed: {
-    opacity: 0.85,
-  },
   headingRow: {
     flexDirection: 'row',
     alignItems: 'center',

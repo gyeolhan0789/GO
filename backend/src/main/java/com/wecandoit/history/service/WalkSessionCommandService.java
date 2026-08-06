@@ -83,6 +83,9 @@ public class WalkSessionCommandService {
         ActiveWalkSession existingSession = activeWalkSessionRepository.findByMemberIdForUpdate(memberId)
                 .orElse(null);
         if (existingSession != null) {
+            if (!existingSession.getRoomId().equals(request.roomId())) {
+                throw new CustomException(ErrorCode.WALK_SESSION_ROOM_MISMATCH);
+            }
             Room existingRoom = roomRepository.findById(existingSession.getRoomId())
                     .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
             return new StartResult(WalkSessionStartResponse.of(existingSession, existingRoom), false);
