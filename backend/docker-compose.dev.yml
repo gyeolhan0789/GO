@@ -51,6 +51,11 @@ services:
       JWT_SECRET: ${JWT_SECRET}
     ports:
       - "127.0.0.1:8081:8080"
+    networks:
+      default:
+      edge:
+        aliases:
+          - wecandoit-backend-dev
     logging:
       driver: json-file
       options:
@@ -70,3 +75,8 @@ services:
 volumes:
   mysql-dev-data:
   redis-dev-data:
+
+networks:
+  edge:
+    name: wecandoit-edge
+    external: true
