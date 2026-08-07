@@ -1,6 +1,9 @@
 package com.wecandoit
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.Application
+import android.os.Build
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
@@ -26,6 +29,25 @@ class MainApplication : Application(), ReactApplication {
 
   override fun onCreate() {
     super.onCreate()
+    createFcmNotificationChannel()
     loadReactNative(this)
+  }
+
+  private fun createFcmNotificationChannel() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+
+    val manager = getSystemService(NotificationManager::class.java)
+    val channelId = getString(R.string.fcm_notification_channel_id)
+    if (manager.getNotificationChannel(channelId) != null) return
+
+    val channel = NotificationChannel(
+      channelId,
+      getString(R.string.fcm_notification_channel_name),
+      NotificationManager.IMPORTANCE_HIGH,
+    ).apply {
+      description = getString(R.string.fcm_notification_channel_description)
+      enableVibration(true)
+    }
+    manager.createNotificationChannel(channel)
   }
 }

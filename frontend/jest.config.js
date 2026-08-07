@@ -18,5 +18,6 @@ module.exports = {
     'assets/OnboardingBg\\d+$': '<rootDir>/jest/svgStringMock.js',
     'assets/SignupHero$': '<rootDir>/jest/svgStringMock.js',
     '^react-native-maps$': '<rootDir>/jest/reactNativeMapsMock.tsx',
+    '^@react-native-firebase/messaging$': '<rootDir>/jest/firebaseMessagingMock.js',
   },
 };

@@ -179,6 +179,7 @@ export function HomeScreen() {
         <HomeHeader
           points={points}
           character={character.data}
+          onNotificationPress={() => navigation.navigate('Notifications')}
           onProfilePress={() => navigation.navigate('MyPage')}
         />
         <HomeCarousel

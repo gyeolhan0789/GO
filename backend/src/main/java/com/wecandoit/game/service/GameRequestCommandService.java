@@ -73,23 +73,22 @@ public class GameRequestCommandService {
         validateRoomCapacity(room, participantCount);
         gameRequest.accept();
         roomMemberRepository.save(RoomMember.create(roomId, memberId));
-        List<RoomMember> roomMembers = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId);
-        if (room.getMode() == GameMode.BATTLE
-                && roomMembers.size() == GameMode.BATTLE.getMaximumParticipants()) {
-            gameCycleCommandService.startInitialBattleCycle(room, roomMembers);
-            BattleMatchingMessage countdownStartedMessage = BattleMatchingMessage.battleCountdownStarted(
-                    roomId,
-                    requestId,
-                    gameRequest.getInviterId(),
-                    gameRequest.getInviteeId()
-            );
-            publishBattleMessage(gameRequest.getInviterId(), countdownStartedMessage);
-            publishBattleMessage(gameRequest.getInviteeId(), countdownStartedMessage);
-            return;
+        if (room.getMode() == GameMode.BATTLE) {
+            List<RoomMember> roomMembers = roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(roomId);
+            if (roomMembers.size() == GameMode.BATTLE.getMaximumParticipants()) {
+                gameCycleCommandService.startInitialBattleCycle(room, roomMembers);
+                BattleMatchingMessage countdownStartedMessage = BattleMatchingMessage.battleCountdownStarted(
+                        roomId,
+                        requestId,
+                        gameRequest.getInviterId(),
+                        gameRequest.getInviteeId()
+                );
+                publishBattleMessage(gameRequest.getInviterId(), countdownStartedMessage);
+                publishBattleMessage(gameRequest.getInviteeId(), countdownStartedMessage);
+                return;
+            }
         }
         gameCycleCommandService.registerCurrentCycleParticipant(room, memberId);
-        roomMembers.forEach(roomMember -> eventPublisher.publishEvent(
-                notificationMessageFactory.walkStart(roomMember.getMemberId(), roomId)));
     }
 
     public void rejectGameRequest(Long memberId, Long roomId, Long requestId) {
