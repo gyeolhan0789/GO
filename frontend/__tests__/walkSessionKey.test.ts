@@ -52,6 +52,7 @@ function runningSnapshot(roomId: number): WalkSessionSnapshot {
     steps: 0,
     distanceMeters: 0,
     calories: 0,
+    pendingAutoComplete: false,
   };
 }
 
@@ -64,6 +65,7 @@ const IDLE_SNAPSHOT: WalkSessionSnapshot = {
   steps: 0,
   distanceMeters: 0,
   calories: 0,
+  pendingAutoComplete: false,
 };
 
 let fetchMock: FetchMock;

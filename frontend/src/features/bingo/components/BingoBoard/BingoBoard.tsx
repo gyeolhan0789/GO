@@ -12,7 +12,12 @@ export type BingoBoardCell = {
   completed: boolean;
   /** Color of whoever completed this cell (see BingoCell). */
   color?: string;
-  icon?: ReactNode;
+  /**
+   * 셀 크기는 보드 폭/칸 수에 따라 달라져서 고정 픽셀로는 칸에 비해 아이콘이
+   * 너무 작아 보인다. cellSize(픽셀)를 받아 그때그때 맞는 크기로 그리는 함수도
+   * 허용한다 — 크기가 고정이어도 되는 자리(텍스트 등)는 ReactNode를 그대로 쓴다.
+   */
+  icon?: ReactNode | ((cellSize: number) => ReactNode);
   /** 남이 검증을 기다리는 칸. 표시만 바꾸는 게 아니라 눌리지도 않는다. */
   pending?: boolean;
 };
@@ -43,7 +48,7 @@ export function BingoBoard({ size, cells, onCellPress }: BingoBoardProps) {
             color={cell.color}
             pending={cell.pending}
           >
-            {cell.icon}
+            {typeof cell.icon === 'function' ? cell.icon(cellSize) : cell.icon}
           </BingoCell>
         </Pressable>
       ))}

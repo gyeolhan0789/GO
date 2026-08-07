@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Alert, Image, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Ionicons from '@react-native-vector-icons/ionicons';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 import type { BingoMissionResponse } from '../../features/bingo/api/bingoApi';
@@ -11,8 +10,8 @@ import type {
   BingoBoardSize,
 } from '../../features/bingo/components/BingoBoard/BingoBoard';
 import { BoardRenewalSheet } from '../../features/bingo/components/BoardRenewalSheet/BoardRenewalSheet';
+import { renderMissionCellIcon } from '../../features/bingo/components/MissionIcon/MissionIcon';
 import { useActiveBingoBoardQuery } from '../../features/bingo/hooks/useActiveBingoBoardQuery';
-import { MISSION_TYPE_ICONS } from '../../features/bingo/model/missionType';
 import { useMyPointQuery } from '../../features/member/hooks/useMyPointQuery';
 import { useMyCharacterQuery } from '../../features/member/hooks/useMyCharacterQuery';
 import {
@@ -27,8 +26,6 @@ import {
 } from '../../features/walk-session/model/walkSessionStore';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { Button } from '../../shared/components/Button/Button';
-import { colors } from '../../shared/constants/colors';
-import { radius } from '../../shared/constants/radius';
 import { spacing } from '../../shared/constants/spacing';
 import { useStepDataToday } from '../../shared/hooks/useStepDataToday';
 import { CreateSoloWalkSheet } from './components/CreateSoloWalkSheet';
@@ -130,18 +127,7 @@ export function HomeScreen() {
       return {
         id: String(cell.cellId),
         completed,
-        icon: cell.mission.missionImageUrl ? (
-          <Image
-            source={{ uri: cell.mission.missionImageUrl }}
-            style={styles.missionThumbnail}
-          />
-        ) : (
-          <Ionicons
-            name={MISSION_TYPE_ICONS[cell.mission.type]}
-            size={20}
-            color={completed ? colors.surface : colors.ink}
-          />
-        ),
+        icon: renderMissionCellIcon(cell.mission.type, cell.mission.decisionCondition, completed),
       };
     });
 
@@ -393,10 +379,5 @@ const styles = StyleSheet.create({
   },
   startButton: {
     flex: 1,
-  },
-  missionThumbnail: {
-    width: 20,
-    height: 20,
-    borderRadius: radius.xs,
   },
 });

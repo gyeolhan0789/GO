@@ -10,6 +10,7 @@ import {
   clearActiveWalkSession,
   readActiveWalkSession,
 } from './activeSessionStorage';
+import { stopWalkSession } from './walkSessionStore';
 
 export type FinishedWalk = {
   roomId: number;
@@ -151,4 +152,46 @@ export async function recordFinishedWalk(
     }
     return { status: 'failed', message: messageOf(error) };
   }
+}
+
+export type FinishActiveWalkSessionResult = {
+  outcome: RecordFinishedWalkResult;
+  /** 반올림까지 끝낸, 서버에 실제로 보낸 최종 수치. 결과 화면 파라미터를
+   * 다시 계산하지 않도록 호출부에 그대로 돌려준다. */
+  finalSteps: number;
+  finalDistanceMeters: number;
+  finalCalories: number;
+  finalElapsedSeconds: number;
+};
+
+/**
+ * 네이티브 세션을 끝내고 그 결과를 서버에 기록한다. WalkSessionScreen의
+ * "종료" 흐름(화면 이동·얼럿 포함)과, 앱을 스와이프해 지웠을 때 RootNavigator가
+ * 화면 없이 조용히 정리하는 흐름이 이 핵심 로직을 공유한다 — UI는 각
+ * 호출부가 알아서 붙인다.
+ */
+export async function finishAndRecordActiveWalkSession(
+  roomId: number,
+): Promise<FinishActiveWalkSessionResult> {
+  // 네이티브 세션을 종료해 서비스·알림·GPS를 정지시키고 확정된 최종 수치를
+  // 받아온다. 여기서부터는 되돌릴 수 없다.
+  const final = await stopWalkSession();
+  const finalSteps = Math.round(final.steps);
+  const finalDistanceMeters = Math.round(final.distanceMeters);
+  const finalCalories = Math.round(final.calories);
+  // 서버는 이 값이 (종료 - 시작)보다 크면 요청을 거절한다. 올리지 않는다.
+  const finalElapsedSeconds = Math.floor(final.activeElapsedMs / 1000);
+
+  // 종료 시각은 여기서 한 번만 찍는다. 재시도할 때마다 새로 찍으면 산책
+  // 시간이 그만큼 늘어난다.
+  const outcome = await recordFinishedWalk({
+    roomId,
+    endedAt: new Date(),
+    activeDurationSeconds: finalElapsedSeconds,
+    step: finalSteps,
+    distance: finalDistanceMeters,
+    calories: finalCalories,
+  });
+
+  return { outcome, finalSteps, finalDistanceMeters, finalCalories, finalElapsedSeconds };
 }

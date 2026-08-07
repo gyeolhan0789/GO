@@ -33,6 +33,10 @@ data class WalkSessionSnapshot(
   val steps: Double,
   val distanceMeters: Double,
   val calories: Double,
+  /** 앱이 최근 목록에서 스와이프돼 지워져서, 이번 산책이 그때까지의 기록으로
+   * 자동 종료돼야 한다는 뜻. JS는 이 값이 true면 다음에 뜰 때 확인 없이 바로
+   * 완료 처리한다(endRequested와 같은 경로). */
+  val pendingAutoComplete: Boolean,
 )
 
 /**
@@ -50,6 +54,9 @@ data class WalkSessionState(
   var lastRaw: HealthBaseline = HealthBaseline(),
   var healthSource: HealthSource = HealthSource.NONE,
   var gender: String? = null,
+  /** onTaskRemoved에서 세웠다가, 정상 종료(stop)로 상태가 새로 만들어지면
+   * 기본값(false)으로 돌아간다 — 별도로 내리는 코드가 없어도 된다. */
+  var pendingAutoComplete: Boolean = false,
 ) {
   /**
    * 새로 읽은 값을 반영한다.
@@ -111,6 +118,7 @@ data class WalkSessionState(
       steps = (lastRaw.steps - baseline.steps).coerceAtLeast(0.0),
       distanceMeters = (lastRaw.distanceMeters - baseline.distanceMeters).coerceAtLeast(0.0),
       calories = (lastRaw.calories - baseline.calories).coerceAtLeast(0.0),
+      pendingAutoComplete = pendingAutoComplete,
     )
   }
 }

@@ -94,6 +94,37 @@ class WalkForegroundService : Service() {
 
   override fun onBind(intent: Intent?): IBinder? = null
 
+  /**
+   * 사용자가 앱을 최근 목록에서 스와이프해 지운 순간. OS가 메모리 부족으로
+   * 죽이는 것과 달리, 이건 "그만 걷겠다"는 분명한 신호라 START_STICKY로
+   * 되살리지 않고 그때까지의 기록으로 종료 처리한다.
+   *
+   * 실제 서버 반영은 JS(인증 토큰을 쥔 쪽)만 할 수 있어서 여기서 API를 직접
+   * 부르진 않는다 — pause()처럼 경과 시간만 그 순간에 얼려서 저장해두고,
+   * pendingAutoComplete만 세워둔다. 앱이 다음에 뜨면(몇 초 뒤든 나중이든)
+   * JS가 하이드레이션에서 이 표시를 보고 확인 없이 바로 완료 처리한다
+   * (WalkSessionScreen의 endRequested 처리와 같은 경로).
+   */
+  override fun onTaskRemoved(rootIntent: Intent?) {
+    super.onTaskRemoved(rootIntent)
+    if (state.status == WalkStatus.IDLE) {
+      return
+    }
+    stopLocationUpdates()
+    mainHandler.removeCallbacksAndMessages(null)
+    // 이미 일시정지 중이었으면 그 pausedAt을 그대로 둔다 — 지금 시각으로
+    // 덮으면 일시정지해둔 동안의 시간까지 활동 시간으로 잡힌다.
+    state = state.copy(
+      status = WalkStatus.PAUSED,
+      pausedAt = state.pausedAt ?: System.currentTimeMillis(),
+      pendingAutoComplete = true,
+    )
+    repository.save(state)
+    notificationHelper.cancel()
+    stopForegroundCompat()
+    stopSelf()
+  }
+
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     when (intent?.action) {
       null -> recoverFromPersistedState()
@@ -208,7 +239,18 @@ class WalkForegroundService : Service() {
    * 한 번 더 읽어서 lastRaw를 최신화한 뒤 스냅샷을 확정한다. */
   fun stop(onResult: (WalkSessionSnapshot) -> Unit) {
     if (state.status == WalkStatus.IDLE) {
-      onResult(state.toSnapshot(System.currentTimeMillis()))
+      // 이 인스턴스의 메모리 상태는 비어 있지만, onCreate 직후라 아직
+      // recoverFromPersistedState를 안 거친 상태일 수 있다 — 디스크에 진짜
+      // 기록(onTaskRemoved가 얼려둔 값 등)이 남아 있으면 그걸 최종값으로 쓴다.
+      val persisted = repository.load()
+      if (persisted.status == WalkStatus.IDLE) {
+        onResult(state.toSnapshot(System.currentTimeMillis()))
+        return
+      }
+      val finalSnapshot = persisted.toSnapshot(System.currentTimeMillis())
+      repository.deleteRoute(persisted.sessionId)
+      repository.clear()
+      onResult(finalSnapshot)
       return
     }
     stopLocationUpdates()
@@ -338,6 +380,22 @@ class WalkForegroundService : Service() {
       return
     }
     state = persisted
+    // onTaskRemoved가 세워둔 표시다 — 이미 끝내기로 한 세션을 여기서 다시
+    // 살리면 안 된다(알림/GPS가 되살아나면서 "닫았는데 왜 다시 걷고 있지"가
+    // 된다). JS가 스냅샷을 읽어 완료 처리할 때까지 조용히 기다린다.
+    //
+    // 그냥 stopSelf()만 부르면 안 된다 — 이 서비스가 startForegroundService()로
+    // 불려온 경우, OS는 몇 초 안에 startForeground()가 불리길 강제하고 안
+    // 지키면 ForegroundServiceDidNotStartInTimeException으로 앱을 통째로
+    // 죽인다(SharedPreferences에 상태가 남아있어 다음 실행마다 똑같이
+    // 죽는 크래시 루프가 됐었다 — 2026-08-07 실기기에서 확인). 계약을
+    // 지키려고 아주 잠깐 foreground로 올렸다가 바로 내린다.
+    if (persisted.pendingAutoComplete) {
+      startForegroundWithNotification()
+      stopForegroundCompat()
+      stopSelf()
+      return
+    }
     lastAcceptedPoint = repository.readRoute(state.sessionId).lastOrNull()
     startForegroundWithNotification()
     if (state.status == WalkStatus.RUNNING) {
@@ -377,6 +435,7 @@ fun snapshotToMap(snapshot: WalkSessionSnapshot): WritableMap = Arguments.create
   putDouble("steps", snapshot.steps)
   putDouble("distanceMeters", snapshot.distanceMeters)
   putDouble("calories", snapshot.calories)
+  putBoolean("pendingAutoComplete", snapshot.pendingAutoComplete)
 }
 
 fun routeToArray(points: List<RoutePoint>) = Arguments.createArray().apply {

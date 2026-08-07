@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useQueryClient } from '@tanstack/react-query';
 
 import type { SocialProvider } from '../../features/auth/constants/socialProviders';
 import { useAuth } from '../../features/auth/model/AuthContext';
 import type { GameMode } from '../../features/room/api/roomApi';
 import { useWalkSessionRealtime } from '../../features/walk-session/hooks/useWalkSessionRealtime';
+import { finishAndRecordActiveWalkSession } from '../../features/walk-session/model/recordFinishedWalk';
 import {
+  getWalkSessionRoomId,
   hydrateWalkSessionFromNative,
   isWalkSessionActive,
+  isWalkSessionPendingAutoComplete,
 } from '../../features/walk-session/model/walkSessionStore';
 import { colors } from '../../shared/constants/colors';
 import { fontFamily } from '../../shared/constants/typography';
@@ -107,6 +111,7 @@ export function RootNavigator() {
   const { status } = useAuth();
   const onboarding = useOnboardingStatus();
   const permissions = usePermissionsStatus();
+  const queryClient = useQueryClient();
 
   // 네이티브 산책 세션(WalkForegroundService)의 현재 상태로 walkSessionStore
   // 캐시를 한 번 맞춘다 — 앱이 강제종료됐다 다시 켜졌을 때도 진행 중이던
@@ -124,11 +129,32 @@ export function RootNavigator() {
 
   // 하이드레이션 결과 진행 중인 세션이 있으면 산책 화면으로 바로 이동한다.
   // 사용자가 끝내고 싶으면 그 화면의 기존 "산책 종료" 버튼을 쓰면 된다.
+  //
+  // 앱을 최근 목록에서 스와이프해서 자동 종료가 예약된 세션이면 다르다 —
+  // 사용자가 산책을 끝낼 의도로 앱을 연 게 아니라 그냥 다른 용도로 열었을
+  // 수 있어서, 산책 화면·결과 화면을 보여주지 않고 화면 전환 없이 조용히
+  // 정리만 한다(2026-08-07).
   useEffect(() => {
-    if (isAuthenticated && isWalkHydrated && isWalkSessionActive()) {
+    if (!isAuthenticated || !isWalkHydrated) {
+      return;
+    }
+    if (isWalkSessionPendingAutoComplete()) {
+      const roomId = getWalkSessionRoomId();
+      if (roomId === null) {
+        return;
+      }
+      finishAndRecordActiveWalkSession(roomId)
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ['walk-sessions'] });
+          queryClient.invalidateQueries({ queryKey: ['histories'] });
+        })
+        .catch(() => {});
+      return;
+    }
+    if (isWalkSessionActive()) {
       navigateToWalkSession();
     }
-  }, [isAuthenticated, isWalkHydrated]);
+  }, [isAuthenticated, isWalkHydrated, queryClient]);
 
   // 세션 복구나 게이트 조회가 끝나기 전에 화면을 고르면, 이미 온보딩을 끝낸
   // 사용자에게 온보딩이 한 프레임 깜빡인다. 다 읽을 때까지 그리지 않는다.

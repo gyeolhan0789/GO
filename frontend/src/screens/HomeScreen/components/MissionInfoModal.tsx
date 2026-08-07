@@ -1,11 +1,8 @@
-import { Image, Modal, Pressable, StyleSheet, View } from 'react-native';
-import Ionicons from '@react-native-vector-icons/ionicons';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import type { BingoMissionResponse } from '../../../features/bingo/api/bingoApi';
-import {
-  MISSION_TYPE_ICONS,
-  MISSION_TYPE_LABELS,
-} from '../../../features/bingo/model/missionType';
+import { MissionIcon } from '../../../features/bingo/components/MissionIcon/MissionIcon';
+import { MISSION_TYPE_LABELS } from '../../../features/bingo/model/missionType';
 import { AppText } from '../../../shared/components/AppText/AppText';
 import { colors } from '../../../shared/constants/colors';
 import { radius } from '../../../shared/constants/radius';
@@ -19,7 +16,7 @@ type MissionInfoModalProps = {
   onClose: () => void;
 };
 
-const ICON_SIZE = 40;
+const ICON_SIZE = 56;
 
 export function MissionInfoModal({ mission, onClose }: MissionInfoModalProps) {
   return (
@@ -40,18 +37,12 @@ export function MissionInfoModal({ mission, onClose }: MissionInfoModalProps) {
           <View style={styles.dialogWrapper}>
             <View style={styles.shadowBox} />
             <View style={styles.dialog}>
-              {mission.missionImageUrl ? (
-                <Image
-                  source={{ uri: mission.missionImageUrl }}
-                  style={styles.missionImage}
-                />
-              ) : (
-                <Ionicons
-                  name={MISSION_TYPE_ICONS[mission.type]}
-                  size={ICON_SIZE}
-                  color={colors.ink}
-                />
-              )}
+              <MissionIcon
+                type={mission.type}
+                decisionCondition={mission.decisionCondition}
+                size={ICON_SIZE}
+                color={colors.ink}
+              />
 
               <AppText style={styles.title}>{mission.title}</AppText>
 
@@ -106,11 +97,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.ink,
     backgroundColor: colors.surface,
-  },
-  missionImage: {
-    width: ICON_SIZE,
-    height: ICON_SIZE,
-    borderRadius: radius.sm,
   },
   title: {
     fontFamily: fontFamily.bold,
