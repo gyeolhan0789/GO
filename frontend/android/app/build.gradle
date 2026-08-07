@@ -1,6 +1,9 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+// google-services.json을 읽어 Firebase(FCM) 리소스를 생성. com.android.application
+// 플러그인이 먼저 적용된 뒤에 적용되어야 한다.
+apply plugin: "com.google.gms.google-services"
 
 // Google Maps API 키는 local.properties(gitignore 대상)에서만 읽는다. 커밋되는
 // 파일에는 절대 실제 키 값을 넣지 않는다.

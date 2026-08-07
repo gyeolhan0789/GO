@@ -26,16 +26,6 @@ public class NotificationMessageFactory {
         );
     }
 
-    public NotificationRequestedEvent walkStart(Long recipientMemberId, Long gameRoomId) {
-        return new NotificationRequestedEvent(
-                recipientMemberId,
-                NotificationType.WALK_START,
-                "협동 산책이 시작됐어요",
-                "함께하는 산책이 시작됐어요. 지금 확인해보세요.",
-                gameRoomId
-        );
-    }
-
     public NotificationRequestedEvent battleResult(Long recipientMemberId, Long gameRoomId) {
         return new NotificationRequestedEvent(
                 recipientMemberId,
