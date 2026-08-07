@@ -24,13 +24,12 @@ import { useMyMemberIdQuery } from '../../features/member/hooks/useMyMemberIdQue
 import { useMyPageQuery } from '../../features/member/hooks/useMyPageQuery';
 import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery';
 import { useWalkSession } from '../../features/walk-session/hooks/useWalkSession';
-import { recordFinishedWalk } from '../../features/walk-session/model/recordFinishedWalk';
+import { finishAndRecordActiveWalkSession } from '../../features/walk-session/model/recordFinishedWalk';
 import {
   clearWalkSessionBlockedNotice,
   clearWalkSessionEndRequest,
   confirmWalkSessionStart,
   endWalkSession,
-  stopWalkSession,
 } from '../../features/walk-session/model/walkSessionStore';
 import { AppText } from '../../shared/components/AppText/AppText';
 import { Button } from '../../shared/components/Button/Button';
@@ -239,25 +238,9 @@ export function WalkSessionScreen() {
       return;
     }
 
-    // 네이티브 세션을 종료해 서비스·알림·GPS를 정지시키고 확정된 최종 수치를
-    // 받아온다. 여기서부터는 되돌릴 수 없다.
-    const final = await stopWalkSession();
-    const finalSteps = Math.round(final.steps);
-    const finalDistanceMeters = Math.round(final.distanceMeters);
-    const finalCalories = Math.round(final.calories);
-    // 서버는 이 값이 (종료 - 시작)보다 크면 요청을 거절한다. 올리지 않는다.
-    const finalElapsedSeconds = Math.floor(final.activeElapsedMs / 1000);
-
-    // 종료 시각은 여기서 한 번만 찍는다. 재시도할 때마다 새로 찍으면 산책
-    // 시간이 그만큼 늘어난다.
-    const outcome = await recordFinishedWalk({
-      roomId,
-      endedAt: new Date(),
-      activeDurationSeconds: finalElapsedSeconds,
-      step: finalSteps,
-      distance: finalDistanceMeters,
-      calories: finalCalories,
-    });
+    // 되돌릴 수 없다 — 여기서부터는 네이티브 세션도 서버 기록도 끝을 향해 간다.
+    const { outcome, finalSteps, finalDistanceMeters, finalCalories, finalElapsedSeconds } =
+      await finishAndRecordActiveWalkSession(roomId);
 
     // 올리지 못해도 이 산책을 못 끝내게 막을 이유는 없다 — 수치는 이미 기기에서
     // 확정됐고 결과 화면은 그대로 보여줄 수 있다.

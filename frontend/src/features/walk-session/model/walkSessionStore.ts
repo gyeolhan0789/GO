@@ -56,6 +56,14 @@ type WalkSessionState = {
    * 날렸다. 시작 직후 바로 알려주려고 둔 플래그다(2026-08-07).
    */
   blockedByOtherRoom: boolean;
+  /**
+   * 앱을 최근 목록에서 스와이프해서, 이 산책이 사용자가 아무것도 안 눌러도
+   * 조용히 자동 종료돼야 한다는 뜻(WalkForegroundService.onTaskRemoved).
+   * endRequested(워치가 누른 종료, 화면에 결과까지 보여줌)와는 다르게 다룬다
+   * — RootNavigator가 하이드레이션 직후 이 값을 보고 화면 이동 없이 바로
+   * 정리한다.
+   */
+  pendingAutoComplete: boolean;
 };
 
 const IDLE_STATE: WalkSessionState = {
@@ -71,6 +79,7 @@ const IDLE_STATE: WalkSessionState = {
   endRequested: false,
   walkSessionKey: null,
   blockedByOtherRoom: false,
+  pendingAutoComplete: false,
 };
 
 let state: WalkSessionState = { ...IDLE_STATE };
@@ -121,11 +130,12 @@ function applySnapshot(snapshot: WalkSessionSnapshot) {
       : snapshot.steps,
     // 워치가 종료를 눌러둔 사이에 스냅샷이 와도 요청이 사라지면 안 된다
     // (세션이 IDLE이 되면 위에서 IDLE_STATE로 초기화되면서 자연히 내려간다).
-    // pendingAutoComplete(앱을 스와이프해 지운 경우)도 같은 처리 경로를 타도록
-    // 여기서 endRequested로 합류시킨다 — WalkSessionScreen은 출처를 몰라도 된다.
-    endRequested: state.endRequested || snapshot.pendingAutoComplete,
+    endRequested: state.endRequested,
     walkSessionKey: state.walkSessionKey,
     blockedByOtherRoom: state.blockedByOtherRoom,
+    // endRequested와 달리 화면을 안 거치고 RootNavigator가 직접 처리하므로,
+    // 이전 값을 이어가지 않고 매번 최신 스냅샷 값을 그대로 반영한다.
+    pendingAutoComplete: snapshot.pendingAutoComplete,
   };
   notify();
 }
@@ -362,6 +372,13 @@ export function isWalkSessionStarted() {
  * 홈 화면에서 "이미 진행 중이면 바로 이어서" 판단에 쓴다. */
 export function isWalkSessionActive() {
   return state.roomId !== null;
+}
+
+/** 앱을 스와이프해 지워서, 화면 없이 조용히 자동 종료해야 하는 세션인지.
+ * RootNavigator가 하이드레이션 직후 이걸 보고 산책 화면으로 보내는 대신
+ * 바로 정리한다. */
+export function isWalkSessionPendingAutoComplete() {
+  return state.pendingAutoComplete;
 }
 
 export function isWalkSessionPaused() {
