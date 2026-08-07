@@ -1,6 +1,4 @@
-import OnboardingBg1 from './assets/OnboardingBg1';
-import OnboardingBg2 from './assets/OnboardingBg2';
-import OnboardingBg3 from './assets/OnboardingBg3';
+import type { ImageSourcePropType } from 'react-native';
 
 export type OnboardingSlideData = {
   key: string;
@@ -8,11 +6,8 @@ export type OnboardingSlideData = {
   description: string;
   /** 제목에서 초록색으로 강조할 단어(제목 안에 정확히 포함되어야 함). */
   highlight?: string;
-  /**
-   * 전체화면 배경 SVG의 XML 문자열. assets/의 .svg를 문자열 모듈(.ts)로
-   * 구운 값(scripts/generate-onboarding-svg.mjs)을 SvgXml에 전달한다.
-   */
-  backgroundXml: string;
+  /** 전체화면 배경 이미지(원본 390 x 844). */
+  background: ImageSourcePropType;
 };
 
 /**
@@ -26,7 +21,7 @@ export const ONBOARDING_SLIDES: OnboardingSlideData[] = [
     highlight: '함께',
     description:
       '친구와 함께 걷고, 빙고를 달성해보세요. \n 혼자보다 더 오래, 재밌게 산책할 수 있어요',
-    backgroundXml: OnboardingBg1,
+    background: require('./assets/Onboarding1.png'),
   },
   {
     key: 'mission',
@@ -34,7 +29,7 @@ export const ONBOARDING_SLIDES: OnboardingSlideData[] = [
     highlight: '빙고',
     description:
       '걷는 동안 다양한 미션을 완료하고 \n 빙고 칸을 하나씩 채워보세요. \n 평범한 산책이 새로운 게임이 돼요.',
-    backgroundXml: OnboardingBg2,
+    background: require('./assets/Onboarding2.png'),
   },
   {
     key: 'bingo',
@@ -42,6 +37,6 @@ export const ONBOARDING_SLIDES: OnboardingSlideData[] = [
     highlight: '리워드',
     description:
       '빙고 미션을 클리어하고 \n 포인트를 모아 자신만의 캐릭터를 꾸며보세요',
-    backgroundXml: OnboardingBg3,
+    background: require('./assets/Onboarding3.png'),
   },
 ];
