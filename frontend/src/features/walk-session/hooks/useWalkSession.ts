@@ -10,6 +10,7 @@ import {
   getWalkSessionRoomId,
   getWalkSessionSteps,
   isWalkSessionActive,
+  isWalkSessionBlockedByOtherRoom,
   isWalkSessionEndRequested,
   isWalkSessionPaused,
   isWalkSessionStarted,
@@ -42,6 +43,8 @@ export function useWalkSession() {
   // 워치에서 "산책 종료"를 눌렀다는 표시. WalkSessionScreen이 보고 폰의
   // 종료 흐름(기록 저장 -> 결과 화면)을 그대로 탄다.
   const [isEndRequested, setEndRequested] = useState(isWalkSessionEndRequested);
+  // 다른 방의 미종료 세션 때문에 이번 산책이 서버에 기록되지 않는 상태.
+  const [isSessionBlocked, setSessionBlocked] = useState(isWalkSessionBlockedByOtherRoom);
 
   useEffect(() => {
     const sync = () => {
@@ -57,6 +60,7 @@ export function useWalkSession() {
       setContinuousSteps(getWalkSessionContinuousSteps());
       setContinuousActiveMs(getWalkSessionContinuousActiveMs());
       setEndRequested(isWalkSessionEndRequested());
+      setSessionBlocked(isWalkSessionBlockedByOtherRoom());
     };
     sync();
     return subscribeWalkSession(sync);
@@ -87,6 +91,7 @@ export function useWalkSession() {
     continuousSteps,
     continuousActiveMs,
     isEndRequested,
+    isSessionBlocked,
     togglePause: togglePauseWalkSession,
   };
 }

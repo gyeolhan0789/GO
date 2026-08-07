@@ -26,6 +26,7 @@ import { useRoomDetailQuery } from '../../features/room/hooks/useRoomDetailQuery
 import { useWalkSession } from '../../features/walk-session/hooks/useWalkSession';
 import { recordFinishedWalk } from '../../features/walk-session/model/recordFinishedWalk';
 import {
+  clearWalkSessionBlockedNotice,
   clearWalkSessionEndRequest,
   confirmWalkSessionStart,
   endWalkSession,
@@ -85,6 +86,7 @@ export function WalkSessionScreen() {
     distanceMeters,
     calories,
     isEndRequested,
+    isSessionBlocked,
     togglePause,
   } = useWalkSession();
   // 종료 처리 중(stopWalkSession이 네이티브 세션을 끝내면 isStarted가 먼저
@@ -295,6 +297,21 @@ export function WalkSessionScreen() {
       { text: '종료', style: 'destructive', onPress: finishWalk },
     ]);
   }, [finishWalk]);
+
+  // 다른 방에 아직 안 끝낸 산책이 있어 이번 세션 발급이 막혔을 때. 예전엔
+  // 종료할 때야 "기록 못 했다"고 알게 돼서 산책을 통째로 날렸다 — 시작 직후
+  // 바로 알려서, 걷기는 계속하더라도 기록 안 된다는 걸 미리 알고 그 방을
+  // 정리하러 갈지 결정할 수 있게 한다.
+  useEffect(() => {
+    if (!isSessionBlocked) {
+      return;
+    }
+    clearWalkSessionBlockedNotice();
+    Alert.alert(
+      '이번 산책은 기록되지 않아요',
+      '다른 방에서 아직 끝나지 않은 산책이 있어요. 걷기는 계속되지만 이번 산책은 서버에 저장되지 않아요. 기록하려면 그 방으로 가서 먼저 산책을 종료한 뒤 다시 시작해주세요.',
+    );
+  }, [isSessionBlocked]);
 
   // 워치에서 종료를 눌렀을 때. 기록 저장과 결과 화면은 이 화면만 할 수 있어서
   // (저장할 수치와 방 정보를 여기서 들고 있다) 워치 쪽은 요청만 남기고,

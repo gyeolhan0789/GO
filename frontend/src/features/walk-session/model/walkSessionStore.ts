@@ -15,6 +15,7 @@ import {
   subscribeWalkTrackingState,
   type WalkSessionSnapshot,
 } from '../../../shared/lib/walkTracking';
+import { ApiError } from '../../../shared/api/ApiError';
 import { startWalkSessionOnServer } from '../api/walkSessionApi';
 import {
   readActiveWalkSession,
@@ -48,6 +49,13 @@ type WalkSessionState = {
    * 흐름은 이 값이 아니라 activeSessionStorage를 읽는다 — 네이티브 세션을
    * 멈추는 순간 이 상태가 IDLE로 돌아가기 때문이다. */
   walkSessionKey: string | null;
+  /**
+   * 다른 방에서 아직 안 끝낸 세션이 있어(서버가 409 WALK_SESSION_ROOM_MISMATCH로
+   * 거절) 이번 산책은 서버에 기록되지 않는다는 뜻. 걷기는 그대로 진행되지만
+   * 걸음/미션은 저장 안 된다 — 예전엔 이걸 종료할 때야 알게 돼서 산책을 통째로
+   * 날렸다. 시작 직후 바로 알려주려고 둔 플래그다(2026-08-07).
+   */
+  blockedByOtherRoom: boolean;
 };
 
 const IDLE_STATE: WalkSessionState = {
@@ -62,6 +70,7 @@ const IDLE_STATE: WalkSessionState = {
   continuousStepsBase: 0,
   endRequested: false,
   walkSessionKey: null,
+  blockedByOtherRoom: false,
 };
 
 let state: WalkSessionState = { ...IDLE_STATE };
@@ -115,6 +124,7 @@ function applySnapshot(snapshot: WalkSessionSnapshot) {
     // IDLE_STATE로 초기화되면서 자연히 내려간다).
     endRequested: state.endRequested,
     walkSessionKey: state.walkSessionKey,
+    blockedByOtherRoom: state.blockedByOtherRoom,
   };
   notify();
 }
@@ -157,6 +167,8 @@ async function issueWalkSessionKey(roomId: number): Promise<string | null> {
         bingoBoardId: response.initialBingoBoardId,
         roomName: response.roomName,
       });
+      state = { ...state, blockedByOtherRoom: true };
+      notify();
       return null;
     }
     // 발급을 기다리는 사이 사용자가 산책을 접고 다른 방으로 갔을 수 있다.
@@ -177,7 +189,15 @@ async function issueWalkSessionKey(roomId: number): Promise<string | null> {
     state = { ...state, walkSessionKey: response.walkSessionKey };
     notify();
     return response.walkSessionKey;
-  } catch {
+  } catch (error) {
+    // 회원당 활성 세션은 하나뿐이라, 다른 방에서 아직 안 끝낸 세션이 있으면
+    // 서버가 (roomId를 다르게 돌려주는 게 아니라) 409 WALK_SESSION_ROOM_MISMATCH로
+    // 거절한다 — 시작 엔드포인트가 던지는 유일한 409라 상태 코드만으로 구분해도
+    // 된다. 이 경우만 알려준다 — 진짜 네트워크 실패까지 매번 띄우면 산만하다.
+    if (error instanceof ApiError && error.status === 409) {
+      state = { ...state, blockedByOtherRoom: true };
+      notify();
+    }
     return null;
   }
 }
@@ -281,6 +301,20 @@ export function clearWalkSessionEndRequest() {
     return;
   }
   state = { ...state, endRequested: false };
+  notify();
+}
+
+/** 다른 방의 미종료 세션 때문에 이번 산책이 서버에 기록되지 않는 상태인지. */
+export function isWalkSessionBlockedByOtherRoom() {
+  return state.blockedByOtherRoom;
+}
+
+/** 안내를 띄운 화면이 알림을 소비한다(같은 알림을 두 번 띄우지 않게). */
+export function clearWalkSessionBlockedNotice() {
+  if (!state.blockedByOtherRoom) {
+    return;
+  }
+  state = { ...state, blockedByOtherRoom: false };
   notify();
 }
 
