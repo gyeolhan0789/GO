@@ -11,12 +11,14 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const srcDir = join(here, '..', 'src', 'screens');
+const featuresDir = join(here, '..', 'src', 'features');
 
-// SVG 문자열 모듈을 굽는 화면별 assets 폴더 목록.
+// SVG 문자열 모듈을 굽는 폴더 목록.
 const assetDirs = [
   join(srcDir, 'OnboardingScreen', 'assets'),
   join(srcDir, 'SignupScreen', 'assets'),
   join(srcDir, 'ShopScreen', 'assets'),
+  join(featuresDir, 'bingo', 'assets', 'missionIcons'),
 ];
 
 for (const assetsDir of assetDirs) {

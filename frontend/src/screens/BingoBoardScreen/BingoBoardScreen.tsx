@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import type { LayoutChangeEvent } from 'react-native';
 import { launchCamera } from 'react-native-image-picker';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -17,6 +17,7 @@ import type {
   BingoBoardSize,
 } from '../../features/bingo/components/BingoBoard/BingoBoard';
 import { BingoBoard } from '../../features/bingo/components/BingoBoard/BingoBoard';
+import { MissionIcon, renderMissionCellIcon } from '../../features/bingo/components/MissionIcon/MissionIcon';
 import {
   isNoBoardError,
   useActiveBingoBoardQuery,
@@ -33,7 +34,6 @@ import { useBattleProgressSubscription } from '../../features/bingo/hooks/useBat
 import { BattleProgressCard } from './components/BattleProgressCard';
 import { MissionVerificationModal } from '../../features/bingo/components/MissionVerificationModal/MissionVerificationModal';
 import {
-  MISSION_TYPE_ICONS,
   MISSION_TYPE_LABELS,
   isPhotoMission,
 } from '../../features/bingo/model/missionType';
@@ -243,18 +243,7 @@ export function BingoBoardScreen({
           ? memberColor(cell.submittedByMemberId)
           : undefined,
       pending: isLockedByTeammate(cell),
-      icon: cell.mission.missionImageUrl ? (
-        <Image
-          source={{ uri: cell.mission.missionImageUrl }}
-          style={styles.missionThumbnail}
-        />
-      ) : (
-        <Ionicons
-          name={MISSION_TYPE_ICONS[cell.mission.type]}
-          size={20}
-          color={completed ? colors.surface : colors.ink}
-        />
-      ),
+      icon: renderMissionCellIcon(cell.mission.type, cell.mission.decisionCondition, completed),
     };
   });
 
@@ -539,9 +528,10 @@ export function BingoBoardScreen({
         {selectedCell ? (
           <View style={styles.detailCard} onLayout={handleDetailLayout}>
             <View style={styles.detailHeaderRow}>
-              <Ionicons
-                name={MISSION_TYPE_ICONS[selectedCell.mission.type]}
-                size={20}
+              <MissionIcon
+                type={selectedCell.mission.type}
+                decisionCondition={selectedCell.mission.decisionCondition}
+                size={28}
                 color={colors.ink}
               />
               <AppText style={styles.detailTitle}>{selectedCell.mission.title}</AppText>
@@ -736,11 +726,6 @@ const styles = StyleSheet.create({
   },
   board: {
     width: '100%',
-  },
-  missionThumbnail: {
-    width: 20,
-    height: 20,
-    borderRadius: radius.xs,
   },
   detailCard: {
     marginTop: spacing.lg,
