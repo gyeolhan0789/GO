@@ -3,6 +3,7 @@
  */
 
 import {
+  applyBoundaryMarks,
   applyStepReading,
   EMPTY_STEP_LEDGER,
   LEDGER_RETENTION_DAYS,
@@ -163,5 +164,116 @@ describe('전송 대기 목록', () => {
     expect(ledger.days).toEqual([
       { date: YESTERDAY, steps: 0, reportedSteps: 500 },
     ]);
+  });
+});
+
+/** 상주 서비스가 자정에 찍어둔 값. date는 그 마크가 닫는(끝난) 날짜다. */
+function mark(date: string, steps: number, elapsedRealtimeMs: number) {
+  return { date, steps, elapsedRealtimeMs };
+}
+
+/** 경계 분리가 이미 켜져 있는 원장. lastBoundaryDate가 있어야 마크를 반영한다. */
+function ledgerReadyForMarks(): StepLedger {
+  return {
+    ...applyStepReading(EMPTY_STEP_LEDGER, reading(5000, 60_000), YESTERDAY),
+    lastBoundaryDate: '2026-08-04',
+  };
+}
+
+describe('자정 경계 마크', () => {
+  test('마크까지의 증가분은 끝난 날짜로, 그 뒤는 오늘로 간다', () => {
+    let ledger = ledgerReadyForMarks();
+
+    // 어제 저녁에 800걸음, 자정을 넘겨 오늘 아침에 300걸음.
+    ledger = applyBoundaryMarks(
+      ledger,
+      [mark(YESTERDAY, 5800, 120_000)],
+      TODAY,
+    );
+    ledger = applyStepReading(ledger, reading(6100, 180_000), TODAY);
+
+    expect(stepsOn(ledger, YESTERDAY)).toBe(800);
+    expect(stepsOn(ledger, TODAY)).toBe(300);
+  });
+
+  test('마크가 없으면 밤새 걸은 몫이 통째로 오늘로 밀린다', () => {
+    let ledger = ledgerReadyForMarks();
+    ledger = applyBoundaryMarks(ledger, [], TODAY);
+    ledger = applyStepReading(ledger, reading(6100, 180_000), TODAY);
+
+    // 이 손실이 마크를 도입한 이유다.
+    expect(stepsOn(ledger, YESTERDAY)).toBe(0);
+    expect(stepsOn(ledger, TODAY)).toBe(1100);
+  });
+
+  test('며칠 앱을 안 열어도 날짜별로 갈라 담는다', () => {
+    let ledger = ledgerReadyForMarks();
+    ledger = applyBoundaryMarks(
+      ledger,
+      [
+        mark(YESTERDAY, 5800, 120_000),
+        mark(TODAY, 7000, 200_000),
+      ],
+      '2026-08-07',
+    );
+    ledger = applyStepReading(ledger, reading(7400, 260_000), '2026-08-07');
+
+    expect(stepsOn(ledger, YESTERDAY)).toBe(800);
+    expect(stepsOn(ledger, TODAY)).toBe(1200);
+    expect(stepsOn(ledger, '2026-08-07')).toBe(400);
+  });
+
+  test('순서가 뒤바뀐 마크도 날짜순으로 반영한다', () => {
+    let ledger = ledgerReadyForMarks();
+    ledger = applyBoundaryMarks(
+      ledger,
+      [mark(TODAY, 7000, 200_000), mark(YESTERDAY, 5800, 120_000)],
+      '2026-08-07',
+    );
+
+    expect(stepsOn(ledger, YESTERDAY)).toBe(800);
+    expect(stepsOn(ledger, TODAY)).toBe(1200);
+  });
+
+  test('이미 반영한 마크가 다시 와도 무시한다', () => {
+    let ledger = ledgerReadyForMarks();
+    const marks = [mark(YESTERDAY, 5800, 120_000)];
+
+    ledger = applyBoundaryMarks(ledger, marks, TODAY);
+    ledger = applyStepReading(ledger, reading(6100, 180_000), TODAY);
+    // 네이티브는 반영 여부를 모르므로 같은 마크를 계속 돌려준다.
+    ledger = applyBoundaryMarks(ledger, marks, TODAY);
+
+    // 두 번 반영하면 마크 원시값이 스냅샷보다 작아 재부팅으로 오판되고 5800이 통째로 더해진다.
+    expect(stepsOn(ledger, YESTERDAY)).toBe(800);
+    expect(stepsOn(ledger, TODAY)).toBe(300);
+  });
+
+  test('스냅샷이 마크를 지나쳐 있으면 그 마크는 무시한다', () => {
+    let ledger = ledgerReadyForMarks();
+    // 자정 마크(5800)가 찍힌 뒤 앱을 열어 센서를 읽었다(6100) — 마크 구간까지 이미
+    // 오늘 몫으로 반영된 상태다. 날짜로는 새 마크라 lastBoundaryDate가 못 거른다.
+    ledger = applyStepReading(ledger, reading(6100, 180_000), TODAY);
+    ledger = applyBoundaryMarks(ledger, [mark(YESTERDAY, 5800, 120_000)], TODAY);
+
+    // 반영하면 마크 경과시간이 스냅샷보다 과거라 재부팅으로 오판되고, 증가분(700)이
+    // 아니라 원시값 5800이 통째로 어제에 더해진다(실기기에서 6846보 폭증으로 재현).
+    expect(stepsOn(ledger, YESTERDAY)).toBe(0);
+    expect(stepsOn(ledger, TODAY)).toBe(1100);
+  });
+
+  test('lastBoundaryDate가 없는 옛 원장은 반영하지 않고 오늘로 기준만 잡는다', () => {
+    const old = applyStepReading(EMPTY_STEP_LEDGER, reading(5000, 60_000), YESTERDAY);
+    expect(old.lastBoundaryDate).toBeUndefined();
+
+    const ledger = applyBoundaryMarks(
+      old,
+      [mark(YESTERDAY, 5800, 120_000)],
+      TODAY,
+    );
+
+    // 남아 있던 옛 마크가 한꺼번에 쏟아지면 안 된다. 경계 분리는 다음 자정부터.
+    expect(stepsOn(ledger, YESTERDAY)).toBe(0);
+    expect(ledger.lastBoundaryDate).toBe(TODAY);
   });
 });

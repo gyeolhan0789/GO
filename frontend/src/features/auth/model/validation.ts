@@ -16,9 +16,7 @@ type SignupField =
   | 'passwordConfirm'
   | 'nickname'
   | 'region'
-  | 'gender'
-  | 'agreeTerms'
-  | 'agreeAge';
+  | 'gender';
 
 /** 소셜 가입에서 추가로 받는 항목. 이메일·비밀번호는 제공자가 대신한다. */
 type SocialSignupField = 'nickname' | 'region' | 'gender';
@@ -37,8 +35,6 @@ type SignupValues = LoginValues & {
   nickname: string;
   region: Region | null;
   gender: Gender | null;
-  agreeTerms: boolean;
-  agreeAge: boolean;
 };
 
 type SocialSignupValues = {
@@ -103,8 +99,6 @@ export function validateSignup({
   nickname,
   region,
   gender,
-  agreeTerms,
-  agreeAge,
 }: SignupValues): SignupErrors {
   const errors: SignupErrors = {};
 
@@ -138,15 +132,6 @@ export function validateSignup({
 
   if (gender === null) {
     errors.gender = '성별은 필수입니다.';
-  }
-
-  // 약관·연령 동의는 클라이언트 전용 게이트다. (서버 전송값 아님)
-  if (!agreeTerms) {
-    errors.agreeTerms = '서비스 이용약관 및 개인정보처리방침에 동의해 주세요.';
-  }
-
-  if (!agreeAge) {
-    errors.agreeAge = '만 14세 이상만 가입할 수 있습니다.';
   }
 
   return errors;

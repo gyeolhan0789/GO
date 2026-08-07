@@ -1,11 +1,12 @@
 import { todayIso } from './isoDate';
 import {
+  applyBoundaryMarks,
   applyStepReading,
   markStepsReported,
   type StepLedger,
 } from './stepLedger';
 import { readStepLedger, saveStepLedger } from './stepLedgerStorage';
-import { readStepCounter } from './stepSensor';
+import { readStepBoundaryMarks, readStepCounter } from './stepSensor';
 
 /**
  * 원장 변경(읽고-고쳐-쓰기)을 한 줄로 세운다.
@@ -28,19 +29,25 @@ function enqueueLedgerWrite<T>(task: () => Promise<T>): Promise<T> {
  * 센서를 한 번 읽어 걸음 원장을 갱신하고 저장한다. 센서가 없거나 못 읽으면 null이다.
  *
  * 앱이 앞으로 올 때마다 부르면 된다 — 자주 불러도 원장은 증가분만 더하므로 중복되지
- * 않고, 오히려 자주 읽을수록 자정·재부팅 경계의 오차가 줄어든다.
+ * 않고, 오히려 자주 읽을수록 재부팅 경계의 오차가 줄어든다.
+ *
+ * 자정 마크를 먼저 반영하고 지금 읽은 값을 나중에 반영한다. 마크는 그 날짜의 마지막
+ * 읽기라 순서를 지켜야 각 날짜 몫이 제대로 갈린다 — 지금 값을 먼저 넣으면 밤새 걸은
+ * 몫까지 오늘로 들어간 뒤라 되돌릴 수 없다.
  */
 export async function syncStepLedger(): Promise<StepLedger | null> {
   const reading = await readStepCounter();
   if (reading === null) {
     return null;
   }
+  const marks = await readStepBoundaryMarks();
 
   return enqueueLedgerWrite(async () => {
+    const today = todayIso();
     const ledger = applyStepReading(
-      await readStepLedger(),
+      applyBoundaryMarks(await readStepLedger(), marks, today),
       reading,
-      todayIso(),
+      today,
     );
     await saveStepLedger(ledger);
 

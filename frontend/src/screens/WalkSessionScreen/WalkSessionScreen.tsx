@@ -36,6 +36,7 @@ import { Button } from '../../shared/components/Button/Button';
 import { MemberProgressBar } from '../../shared/components/MemberProgressBar/MemberProgressBar';
 import { Screen } from '../../shared/components/Screen/Screen';
 import { Toast } from '../../shared/components/Toast/Toast';
+import { useWalkSessionGuideStatus } from '../../shared/hooks/useWalkSessionGuideStatus';
 import { controlHeight } from '../../shared/constants/sizing';
 import { colors } from '../../shared/constants/colors';
 import { getParticipantColor } from '../../shared/lib/participantColor';
@@ -43,6 +44,7 @@ import { radius } from '../../shared/constants/radius';
 import { shadow } from '../../shared/constants/shadow';
 import { spacing } from '../../shared/constants/spacing';
 import { fontFamily, lineHeights } from '../../shared/constants/typography';
+import { BingoGuideOverlay } from './components/BingoGuideOverlay';
 import { WalkCountdownScreen } from './components/WalkCountdownScreen';
 import { WalkRouteMap, type WalkRouteMapHandle } from './components/WalkRouteMap';
 import { useRouteTracking } from './hooks/useRouteTracking';
@@ -101,6 +103,11 @@ export function WalkSessionScreen() {
   const activityMetrics = useActivityMetrics();
   const { toastMessage: missionToastMessage, hideToast: hideMissionToast } =
     useActivityMissionAutoComplete(roomId, activityMetrics);
+
+  // 빙고판 버튼 첫 안내. 기록이 남기 전에도 닫히게 로컬 상태를 함께 둔다 —
+  // 저장이 실패하면 캐시가 안 바뀌어 안내를 닫을 방법이 없어진다.
+  const walkGuide = useWalkSessionGuideStatus();
+  const [isGuideDismissed, setGuideDismissed] = useState(false);
 
   const roomQuery = useRoomDetailQuery(roomId);
   const room = roomQuery.data ?? null;
@@ -495,6 +502,16 @@ export function WalkSessionScreen() {
           </View>
         </View>
       </Animated.View>
+
+      {/* 카운트다운이 끝나 화면이 다 그려진 뒤에 뜬다(그 전에는 이 return을 안 탄다). */}
+      <BingoGuideOverlay
+        visible={!walkGuide.isLoading && !walkGuide.hasSeen && !isGuideDismissed}
+        onDismiss={() => {
+          setGuideDismissed(true);
+          // 저장이 실패해도 안내는 닫는다(다음 산책에서 한 번 더 보일 뿐이다).
+          walkGuide.markSeen().catch(() => {});
+        }}
+      />
 
       <Toast
         message={missionToastMessage}

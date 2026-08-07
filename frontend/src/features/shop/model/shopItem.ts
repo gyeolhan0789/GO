@@ -2,6 +2,7 @@ import type {
   CharacterItem,
   CharacterLayer,
 } from '../../member/model/character';
+import { isSupportedItemCategory } from '../../member/constants/itemCategories';
 import { toImageSource } from '../../member/model/character';
 import type { ShopItemResponse } from '../api/shopApi';
 
@@ -25,14 +26,17 @@ export function toShopItems(
 ): ShopItem[] {
   const ownedItemIds = new Set(ownedItems.map(item => item.itemId));
 
-  return items.map(item => ({
-    itemId: item.itemId,
-    category: item.category,
-    image: toImageSource(item.imageUrl),
-    name: item.name,
-    price: item.price,
-    owned: ownedItemIds.has(item.itemId),
-  }));
+  // 앱이 다루지 않는 카테고리(신발·안경)는 진열하지 않는다 — 서버 enum이 더 넓다.
+  return items
+    .filter(item => isSupportedItemCategory(item.category))
+    .map(item => ({
+      itemId: item.itemId,
+      category: item.category,
+      image: toImageSource(item.imageUrl),
+      name: item.name,
+      price: item.price,
+      owned: ownedItemIds.has(item.itemId),
+    }));
 }
 
 /** 구매 직후, 보유 아이템 캐시에 바로 끼워 넣을 수 있는 모양으로 바꾼다. */

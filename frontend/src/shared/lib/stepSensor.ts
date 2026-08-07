@@ -1,12 +1,13 @@
 import { NativeModules, Platform } from 'react-native';
 
-import type { StepCounterReading } from './stepLedger';
+import type { StepBoundaryMark, StepCounterReading } from './stepLedger';
 
 type StepSensorNativeModule = {
   isAvailable(): Promise<boolean>;
   readRawCounter(): Promise<StepCounterReading>;
   startCounting(): Promise<void>;
   stopCounting(): Promise<void>;
+  readBoundaryMarks(): Promise<StepBoundaryMark[]>;
 };
 
 const native = NativeModules.StepSensor as StepSensorNativeModule | undefined;
@@ -52,6 +53,23 @@ export async function stopStepCounting(): Promise<void> {
     await native.stopCounting();
   } catch {
     // 이미 내려가 있으면 할 일이 없다.
+  }
+}
+
+/**
+ * 상주 서비스가 자정마다 찍어둔 센서 값. 날짜 오름차순.
+ *
+ * 못 읽으면 빈 배열이다. 네이티브가 옛 버전이거나 마크가 아직 없는 경우인데, 둘 다
+ * 경계 분리만 못 할 뿐 걸음 집계 자체는 예전처럼 돈다.
+ */
+export async function readStepBoundaryMarks(): Promise<StepBoundaryMark[]> {
+  if (typeof native?.readBoundaryMarks !== 'function') {
+    return [];
+  }
+  try {
+    return await native.readBoundaryMarks();
+  } catch {
+    return [];
   }
 }
 

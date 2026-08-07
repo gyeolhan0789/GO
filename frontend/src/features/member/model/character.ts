@@ -7,6 +7,7 @@ import type {
   MyAvatarResponse,
 } from '../api/memberApi';
 import { DEFAULT_CHARACTER_IMAGE_BY_GENDER } from '../constants/characterImages';
+import { isSupportedItemCategory } from '../constants/itemCategories';
 
 /**
  * 캐릭터 위에 겹쳐 그릴 수 있는 최소 정보. 보유 아이템인지 몰라도 되므로
@@ -59,6 +60,19 @@ export function toCharacterItem(item: MemberItem): CharacterItem {
   };
 }
 
+/**
+ * 응답의 아이템 목록을 화면이 쓰는 모양으로 옮긴다.
+ *
+ * 앱이 다루지 않는 카테고리(신발·안경)는 여기서 버린다 — 서버 enum이 더 넓어서
+ * 그대로 흘리면 겹쳐 그리는 순서와 썸네일 규격에서 자리를 못 찾는다. 버리는 편이
+ * 안 그려지는 아이템 하나로 끝나고, 통과시키면 화면이 깨진다.
+ */
+export function toCharacterItems(items: MemberItem[]): CharacterItem[] {
+  return items
+    .filter(item => isSupportedItemCategory(item.category))
+    .map(toCharacterItem);
+}
+
 export function toCharacter(response: MyAvatarResponse): Character {
   const fallback = DEFAULT_CHARACTER_IMAGE_BY_GENDER[response.gender];
 
@@ -67,6 +81,6 @@ export function toCharacter(response: MyAvatarResponse): Character {
     nickname: response.nickname,
     baseImage: toImageSource(response.defaultImageUrl) ?? fallback,
     baseImageFallback: fallback,
-    equippedItems: response.equippedItems.map(toCharacterItem),
+    equippedItems: toCharacterItems(response.equippedItems),
   };
 }

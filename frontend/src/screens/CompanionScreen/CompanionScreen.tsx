@@ -268,10 +268,15 @@ export function CompanionScreen() {
       <CreateWalkRoomScreen
         visible={isCreateRoomVisible}
         onClose={() => setCreateRoomVisible(false)}
+        // 완료는 만들기 화면의 모달이 이미 알렸다. 토스트로 한 번 더 알리지 않는다.
         onCreated={() => {
           setCreateRoomVisible(false);
-          setToastMessage('산책방을 만들었어요.');
           myRoomsQuery.refetch();
+        }}
+        onOpenCreatedRoom={roomId => {
+          setCreateRoomVisible(false);
+          myRoomsQuery.refetch();
+          navigation.navigate('WalkRoomDetail', { roomId });
         }}
       />
 
