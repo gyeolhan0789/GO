@@ -84,11 +84,15 @@ class PhoneLink(context: Context) {
   suspend fun readCached(): List<PhoneUpdate> = withContext(Dispatchers.IO) {
     runCatching {
       val buffer = dataClient.dataItems.await()
-      try {
-        buffer.mapNotNull { toUpdate(it) }
+      // updates()와 같은 순서다: freeze한 사본을 떠두고 버퍼부터 놓아준다.
+      // 버퍼를 쥔 채 toUpdate의 suspend 작업(Asset 본문 요청)까지 하면 그동안
+      // 버퍼 행이 재사용돼 캐시된 아바타 복구가 실패할 수 있다.
+      val items = try {
+        buffer.map { it.freeze() }
       } finally {
         buffer.release()
       }
+      items.mapNotNull { toUpdate(it) }
     }.getOrElse { throwable ->
       Log.w(TAG, "저장된 DataItem을 못 읽었다", throwable)
       emptyList()

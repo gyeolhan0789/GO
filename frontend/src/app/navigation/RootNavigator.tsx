@@ -77,11 +77,9 @@ export type RootStackParamList = {
     elapsedSeconds: number;
     /** 이번 산책 중에 승인받은 미션 수. */
     achievedMissionCount: number;
-    /** 걸음 목표를 채워 받은 포인트. 미션 인증 포인트는 인증하는 그 자리에서
-     * 이미 지급돼 여기 들어오지 않는다. */
+    /** 이번 산책으로 받은 포인트 합계(미션·걸음 목표·게임 보상을 서버가
+     * 모두 합쳐 내려준다). */
     earnedPoint: number;
-    /** 방의 걸음 목표. 목표를 채웠을 때 몇 보였는지 적는 데만 쓴다. */
-    targetStepCount: number | null;
   };
   BingoBoard: { roomId: number };
   MyPage: undefined;

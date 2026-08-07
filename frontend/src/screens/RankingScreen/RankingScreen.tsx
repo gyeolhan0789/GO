@@ -18,13 +18,13 @@ import { AppText } from '../../shared/components/AppText/AppText';
 import { Card } from '../../shared/components/Card/Card';
 import { Fab } from '../../shared/components/Fab/Fab';
 import { Screen } from '../../shared/components/Screen/Screen';
+import { SegmentedControl } from '../../shared/components/SegmentedControl/SegmentedControl';
 import { colors } from '../../shared/constants/colors';
 import { spacing } from '../../shared/constants/spacing';
 import { bodyFont, lineHeights } from '../../shared/constants/typography';
 import { MyRankBar } from './components/MyRankBar';
 import { PodiumCard } from './components/PodiumCard';
 import { RankingRow } from './components/RankingRow';
-import { RankingScopeTabs } from './components/RankingScopeTabs';
 import { RankingSkeleton } from './components/RankingSkeleton';
 import { orderRanking, splitPodium } from './model';
 import { Header } from '../../shared/components/Header/Header';
@@ -46,6 +46,12 @@ const EMPTY_MESSAGE = {
   friend: '아직 랭킹에 오른 친구가 없어요. 친구를 추가해 보세요.',
   region: '아직 이번 주 기록이 없어요. 산책하고 순위를 올려보세요!',
 } as const;
+
+// `GET /rankings`는 로그인 회원의 지역으로 좁혀 내려온다. '전체'가 아니다.
+const SCOPE_OPTIONS: { label: string; value: RankingScope }[] = [
+  { value: 'friend', label: '친구 랭킹' },
+  { value: 'region', label: '지역 랭킹' },
+];
 
 export function RankingScreen() {
   const [scope, setScope] = useState<RankingScope>('friend');
@@ -145,7 +151,13 @@ export function RankingScreen() {
       >
         <Header title="랭킹" subtitle="열심히 걸어서 상위권을 노려보세요" />
 
-        <RankingScopeTabs value={scope} onChange={changeScope} />
+        {/* 동행 탭과 같은 전환 UI. 라벨 폰트도 동행 탭과 맞춘다. */}
+        <SegmentedControl
+          options={SCOPE_OPTIONS}
+          value={scope}
+          onChange={changeScope}
+          labelStyle={styles.dohyeonText}
+        />
 
         {ranking.isError ? (
           <AppText style={styles.errorText} accessibilityLiveRegion="polite">
@@ -240,6 +252,10 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.lg,
     paddingBottom: spacing.lg * 2,
+  },
+  // 동행 탭(CompanionScreen)과 같은 값. 화면 로컬 스타일이라 각자 정의한다.
+  dohyeonText: {
+    fontFamily: 'BMDOHYEON',
   },
   listCard: {
     paddingVertical: spacing.sm,

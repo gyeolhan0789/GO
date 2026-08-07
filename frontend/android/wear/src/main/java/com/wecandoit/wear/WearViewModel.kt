@@ -98,7 +98,10 @@ class WearViewModel(application: Application) : AndroidViewModel(application) {
       when (update) {
         // 상태가 왔다는 건 폰 앱이 살아 있다는 뜻이다.
         is PhoneUpdate.State -> current.copy(phone = update.state, phoneConnected = true)
-        is PhoneUpdate.Character -> current.copy(character = update.image)
+        // 디코딩에 실패하면 image가 null로 온다. 그대로 대입하면 직전에 잘
+        // 받아둔 아바타까지 지워지므로, 실패는 마지막 성공본을 유지한다.
+        is PhoneUpdate.Character ->
+          current.copy(character = update.image ?: current.character)
       }
     }
   }

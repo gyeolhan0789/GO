@@ -2,7 +2,6 @@ import { StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
-import { formatThousands } from '../../features/history/model/format';
 import { GAME_MODE_LABEL } from '../../features/room/model/gameMode';
 import { AppText } from '../../shared/components/AppText/AppText';
 import { Button } from '../../shared/components/Button/Button';
@@ -21,7 +20,7 @@ type WalkResultScreenProps = NativeStackScreenProps<
 
 /** 결과 화면에 한 줄로 서는 성과. key는 색을 고르는 데도 쓴다. */
 type Achievement = {
-  key: 'stepGoal' | 'mission' | 'reward';
+  key: 'mission' | 'reward';
   title: string;
   detail: string;
 };
@@ -42,20 +41,15 @@ export function WalkResultScreen({ route, navigation }: WalkResultScreenProps) {
     elapsedSeconds,
     achievedMissionCount,
     earnedPoint,
-    targetStepCount,
   } = route.params;
 
   // 이번 산책에서 이룬 것들. 해당 없는 줄은 아예 그리지 않는다 — 0을 적으면
   // 못 받은 걸 받은 것처럼 읽힌다.
+  //
+  // '목표 걸음 달성' 줄은 넣지 않는다. earnedPoint는 걸음 목표와 무관한 보상
+  // (미션·게임)까지 합친 값이라 달성 신호로 못 쓰고, 서버가 달성 여부를 따로
+  // 내려주지 않아 프론트가 판정할 근거가 없다.
   const achievements: Achievement[] = [];
-  // 걸음 목표 보상은 목표를 채웠을 때만 나가므로, 포인트가 곧 달성 신호다.
-  if (earnedPoint > 0 && targetStepCount !== null) {
-    achievements.push({
-      key: 'stepGoal',
-      title: '목표 걸음 달성!',
-      detail: `${formatThousands(targetStepCount)} 걸음`,
-    });
-  }
   if (achievedMissionCount > 0) {
     achievements.push({
       key: 'mission',

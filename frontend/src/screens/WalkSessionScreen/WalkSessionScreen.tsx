@@ -292,9 +292,8 @@ export function WalkSessionScreen() {
       // 재전송으로 기존 기록이 돌아온 경우에는 서버가 0을 준다.
       earnedPoint:
         outcome.status === 'recorded' ? outcome.walkSession.earnedPoint : 0,
-      targetStepCount,
     });
-  }, [navigation, roomId, room, targetStepCount, queryClient]);
+  }, [navigation, roomId, room, queryClient]);
 
   const handleEndWalk = useCallback(() => {
     Alert.alert('산책 종료', '지금 산책을 종료할까요?', [

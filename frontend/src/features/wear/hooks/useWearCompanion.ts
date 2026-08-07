@@ -110,15 +110,22 @@ export function useWearCompanion() {
 
   const characterSources = characterQuery.data
     ? toCharacterLayerSources(characterQuery.data)
-    : [];
+    : null;
   const characterSourcesRef = useRef(characterSources);
   characterSourcesRef.current = characterSources;
-  // 배열은 렌더마다 새 참조라 의존성으로 못 쓴다. 내용이 바뀔 때만 다시 보낸다
-  // (합성은 네트워크와 비트맵 작업이라 매번 하면 안 된다).
-  const characterSignature = characterSources.join('|');
+  // 객체는 렌더마다 새 참조라 의존성으로 못 쓴다. 내용이 바뀔 때만 다시 보낸다
+  // (합성은 네트워크와 비트맵 작업이라 매번 하면 안 된다). 폴백 URI도 시그니처에
+  // 넣는다 — 폴백만 바뀌어도 다시 보내야 한다.
+  const characterSignature = characterSources
+    ? [...characterSources.layerUris, characterSources.baseFallbackUri ?? ''].join('|')
+    : '';
 
   const pushCharacter = useCallback(() => {
-    syncWearCharacter(characterSourcesRef.current);
+    const sources = characterSourcesRef.current;
+    if (sources === null) {
+      return;
+    }
+    syncWearCharacter(sources.layerUris, sources.baseFallbackUri);
   }, []);
 
   // 캐릭터는 반대로 연결 여부로 막는다. 합성이 네트워크와 비트맵 작업이라 상태

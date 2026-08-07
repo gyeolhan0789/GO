@@ -116,12 +116,15 @@ class WearBridgeModule(private val reactContext: ReactApplicationContext) :
   /**
    * 캐릭터 레이어를 한 장으로 합쳐 보낸다. [sources]는 아래에 깔릴 것부터
    * 순서대로 넘긴다(기본 캐릭터 -> 하의 -> 상의 -> 모자).
+   *
+   * [baseFallback]은 기본 캐릭터(첫 레이어)를 못 읽었을 때 대신 쓸 번들 에셋 URI.
+   * 서버 이미지가 죽어도 캐릭터 전송이 통째로 실패하지 않게 한다.
    */
   @ReactMethod
-  fun syncCharacter(sources: ReadableArray, promise: Promise) {
+  fun syncCharacter(sources: ReadableArray, baseFallback: String?, promise: Promise) {
     val layers = (0 until sources.size()).mapNotNull { sources.getString(it) }
     backgroundExecutor.execute {
-      val png = characterComposer.composePng(layers)
+      val png = characterComposer.composePng(layers, baseFallback)
       if (png == null) {
         promise.reject("COMPOSE_FAILED", "캐릭터 이미지를 만들지 못했습니다.")
         return@execute
