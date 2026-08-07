@@ -383,7 +383,16 @@ class WalkForegroundService : Service() {
     // onTaskRemoved가 세워둔 표시다 — 이미 끝내기로 한 세션을 여기서 다시
     // 살리면 안 된다(알림/GPS가 되살아나면서 "닫았는데 왜 다시 걷고 있지"가
     // 된다). JS가 스냅샷을 읽어 완료 처리할 때까지 조용히 기다린다.
+    //
+    // 그냥 stopSelf()만 부르면 안 된다 — 이 서비스가 startForegroundService()로
+    // 불려온 경우, OS는 몇 초 안에 startForeground()가 불리길 강제하고 안
+    // 지키면 ForegroundServiceDidNotStartInTimeException으로 앱을 통째로
+    // 죽인다(SharedPreferences에 상태가 남아있어 다음 실행마다 똑같이
+    // 죽는 크래시 루프가 됐었다 — 2026-08-07 실기기에서 확인). 계약을
+    // 지키려고 아주 잠깐 foreground로 올렸다가 바로 내린다.
     if (persisted.pendingAutoComplete) {
+      startForegroundWithNotification()
+      stopForegroundCompat()
       stopSelf()
       return
     }

@@ -135,7 +135,9 @@ class WalkTrackingModule(private val reactContext: ReactApplicationContext) :
     }
     val repository = WalkSessionRepository(reactContext)
     val persisted = repository.load()
-    if (persisted.status != WalkStatus.IDLE) {
+    // pendingAutoComplete면 살릴 필요가 없다 — 이 산책은 곧 stopSession으로
+    // 정리될 거라 GPS/알림을 되살렸다 바로 내리는 낭비(+깜빡임)를 안 해도 된다.
+    if (persisted.status != WalkStatus.IDLE && !persisted.pendingAutoComplete) {
       // 서비스가 죽어있는데 저장된 세션이 있다 — 복구를 트리거한다(fire-and-forget,
       // intent.action == null이라 서비스의 recoverFromPersistedState()로 간다).
       ContextCompat.startForegroundService(
