@@ -30,7 +30,6 @@ const BASE_PARAMS: WalkResultParams = {
   elapsedSeconds: 1_680,
   achievedMissionCount: 0,
   earnedPoint: 0,
-  targetStepCount: 10_000,
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -106,33 +105,25 @@ describe('WalkResultScreen', () => {
     expect(texts).toContain('118');
   });
 
-  test('걸음 목표를 채우면 목표 보수와 받은 포인트를 나눠 적는다', async () => {
+  test('포인트를 받으면 보상 줄만 적고, 목표 달성 줄은 그리지 않는다', async () => {
+    // earnedPoint는 미션·게임 보상까지 합친 값이라 걸음 목표 달성의 근거가
+    // 못 된다. 서버가 달성 여부를 따로 주지 않는 한 이 줄은 어떤 경우에도
+    // 그리지 않는다.
     const tree = await renderScreen({ earnedPoint: 100 });
     const texts = collectTexts(tree.root);
 
-    expect(texts).toContain('목표 걸음 달성!');
-    expect(texts).toContain('10,000 걸음');
+    expect(texts).not.toContain('목표 걸음 달성!');
     expect(texts).toContain('보상 획득!');
     expect(texts).toContain('+ 100P');
   });
 
-  test('받은 포인트가 없으면 목표·보상 줄을 아예 그리지 않는다', async () => {
-    // 0P를 띄우면 못 받은 걸 받은 것처럼 읽힌다. 서버는 목표 미달일 때도,
-    // 같은 키로 다시 보내 기존 기록이 돌아왔을 때도 0을 준다.
+  test('받은 포인트가 없으면 보상 줄을 아예 그리지 않는다', async () => {
+    // 0P를 띄우면 못 받은 걸 받은 것처럼 읽힌다. 서버는 같은 키로 다시 보내
+    // 기존 기록이 돌아왔을 때도 0을 준다.
     const tree = await renderScreen({ earnedPoint: 0 });
     const texts = collectTexts(tree.root);
 
-    expect(texts).not.toContain('목표 걸음 달성!');
     expect(texts).not.toContain('보상 획득!');
-  });
-
-  test('목표 걸음을 모르면 보상만 적는다', async () => {
-    // 목표 걸음이 없는 방도 있다.
-    const tree = await renderScreen({ earnedPoint: 100, targetStepCount: null });
-    const texts = collectTexts(tree.root);
-
-    expect(texts).not.toContain('목표 걸음 달성!');
-    expect(texts).toContain('보상 획득!');
   });
 
   test('포인트가 커도 자릿수를 끊어 보여준다', async () => {
@@ -168,16 +159,13 @@ describe('WalkResultScreen', () => {
     expect(texts).toContain('산책 완료!');
   });
 
-  test('목표·미션·보상을 모두 이루면 세 줄이 순서대로 선다', async () => {
+  test('미션과 보상을 모두 이루면 두 줄이 순서대로 선다', async () => {
     const tree = await renderScreen({
       achievedMissionCount: 2,
       earnedPoint: 100,
     });
     const texts = collectTexts(tree.root);
 
-    expect(texts.indexOf('목표 걸음 달성!')).toBeLessThan(
-      texts.indexOf('미션 2개 성공!'),
-    );
     expect(texts.indexOf('미션 2개 성공!')).toBeLessThan(
       texts.indexOf('보상 획득!'),
     );

@@ -28,7 +28,7 @@ export function SegmentedControl<T extends string>({
   labelStyle,
 }: SegmentedControlProps<T>) {
   return (
-    <View style={styles.container}>
+    <View style={styles.container} accessibilityRole="tablist">
       {options.map(option => (
         <Segment
           key={option.value}
@@ -59,6 +59,8 @@ function Segment({
       <Pressable
         onPress={onPress}
         style={[styles.segment, isActive && styles.segmentActive]}
+        accessibilityRole="tab"
+        accessibilityState={{ selected: isActive }}
       >
         <AppText
           style={[styles.label, isActive && styles.labelActive, labelStyle]}

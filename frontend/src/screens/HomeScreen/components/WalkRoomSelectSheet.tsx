@@ -45,6 +45,15 @@ export function WalkRoomSelectSheet({
   }));
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  // 이 컴포넌트는 홈 화면에 늘 마운트돼 있어 시트를 열어도 refetchOnMount가
+  // 발동하지 않는다. 그대로 두면 앱을 켤 때 받아둔 캐시만 보이므로(그사이
+  // 수락한 방이 안 보인다), 여는 순간 직접 다시 읽는다.
+  useEffect(() => {
+    if (visible) {
+      roomsQuery.refetch();
+    }
+  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // 목록이 로드되면(또는 시트를 다시 열면) 첫 번째 방을 기본 선택한다.
   useEffect(() => {
     if (visible && rooms.length > 0) {
@@ -94,7 +103,10 @@ export function WalkRoomSelectSheet({
       onClose={onClose}
       title="산책방을 선택하세요"
     >
-      {roomsQuery.isLoading ? (
+      {/* 첫 로드가 실패한 채 굳어 있던 경우에도, 시트를 열어 다시 읽는 동안은
+          에러 대신 로딩을 보여준다(받아둔 목록이 있으면 그대로 유지). */}
+      {roomsQuery.isLoading ||
+      (roomsQuery.isFetching && roomsQuery.data === undefined) ? (
         <Text style={styles.statusText}>불러오는 중...</Text>
       ) : roomsQuery.isError ? (
         <Text style={styles.statusText}>산책방 목록을 불러오지 못했어요.</Text>

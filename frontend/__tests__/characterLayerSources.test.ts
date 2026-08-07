@@ -10,6 +10,7 @@ import { toCharacterLayerSources } from '../src/features/wear/model/characterLay
 // 번들 에셋(require)은 숫자 모듈 ID라 resolveAssetSource를 거쳐야 URI가 된다.
 // 서버 아이템은 이미 { uri }다. 워치로는 둘 다 문자열로 나가야 한다.
 const BUNDLED_BASE_IMAGE = 1234;
+const BUNDLED_FALLBACK_IMAGE = 5678;
 
 beforeEach(() => {
   jest
@@ -48,7 +49,7 @@ function character(equippedItems: CharacterItem[]): Character {
     memberId: 1,
     nickname: '산책이 좋아',
     baseImage: BUNDLED_BASE_IMAGE,
-    baseImageFallback: BUNDLED_BASE_IMAGE,
+    baseImageFallback: BUNDLED_FALLBACK_IMAGE,
     equippedItems,
   };
 }
@@ -57,7 +58,9 @@ describe('워치로 보낼 캐릭터 레이어', () => {
   test('기본 캐릭터가 맨 아래에 오고 번들 에셋도 URI로 나온다', () => {
     const sources = toCharacterLayerSources(character([]));
 
-    expect(sources).toEqual([`asset://bundled/${BUNDLED_BASE_IMAGE}`]);
+    expect(sources.layerUris).toEqual([
+      `asset://bundled/${BUNDLED_BASE_IMAGE}`,
+    ]);
   });
 
   test('장착 아이템은 겹쳐 그릴 순서대로 뒤에 붙는다', () => {
@@ -70,7 +73,7 @@ describe('워치로 보낼 캐릭터 레이어', () => {
     );
 
     // 모자가 마지막(가장 위)이어야 상의·하의를 덮는다.
-    expect(sources).toEqual([
+    expect(sources.layerUris).toEqual([
       `asset://bundled/${BUNDLED_BASE_IMAGE}`,
       'https://cdn.example.com/bottom.png',
       'https://cdn.example.com/top.png',
@@ -86,6 +89,22 @@ describe('워치로 보낼 캐릭터 레이어', () => {
 
     const sources = toCharacterLayerSources(character([withoutImage]));
 
-    expect(sources).toEqual([`asset://bundled/${BUNDLED_BASE_IMAGE}`]);
+    expect(sources.layerUris).toEqual([
+      `asset://bundled/${BUNDLED_BASE_IMAGE}`,
+    ]);
+  });
+
+  test('기본 캐릭터가 서버 URL이어도 번들 폴백 URI를 함께 넘긴다', () => {
+    // 서버 이미지는 죽을 수 있다(개발 서버의 /uploads 유실 등). 네이티브가
+    // 그 자리에서 폴백으로 갈아탈 수 있게 항상 같이 보낸다.
+    const sources = toCharacterLayerSources({
+      ...character([]),
+      baseImage: { uri: 'https://cdn.example.com/base.png' },
+    });
+
+    expect(sources.layerUris).toEqual(['https://cdn.example.com/base.png']);
+    expect(sources.baseFallbackUri).toBe(
+      `asset://bundled/${BUNDLED_FALLBACK_IMAGE}`,
+    );
   });
 });

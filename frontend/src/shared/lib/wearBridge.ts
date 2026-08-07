@@ -65,7 +65,7 @@ export type WearCommand = {
 type WearBridgeNativeModule = {
   isWatchConnected(): Promise<boolean>;
   syncState(state: WearState): Promise<void>;
-  syncCharacter(sources: string[]): Promise<void>;
+  syncCharacter(sources: string[], baseFallback: string | null): Promise<void>;
   consumePendingCommands(): Promise<WearCommand[]>;
 };
 
@@ -111,15 +111,24 @@ export async function syncWearState(state: WearState): Promise<void> {
 /**
  * 캐릭터 레이어 이미지를 워치로 보낸다. 아래에 깔릴 것부터 순서대로 넘긴다
  * (기본 캐릭터 -> 하의 -> 상의 -> 모자). 네이티브가 한 장으로 합쳐 전송한다.
+ *
+ * [baseFallback]은 기본 캐릭터(첫 레이어)를 못 읽었을 때 대신 쓸 번들 에셋 URI.
  */
-export async function syncWearCharacter(sources: string[]): Promise<void> {
+export async function syncWearCharacter(
+  sources: string[],
+  baseFallback: string | null = null,
+): Promise<void> {
   if (!native || sources.length === 0) {
     return;
   }
   try {
-    await native.syncCharacter(sources);
-  } catch {
-    // 캐릭터가 없어도 워치의 나머지 화면은 동작한다.
+    await native.syncCharacter(sources, baseFallback);
+  } catch (error) {
+    // 캐릭터가 없어도 워치의 나머지 화면은 동작한다. 다만 조용히 삼키면
+    // "워치에 아바타만 안 뜨는" 증상의 원인을 찾을 수 없어 개발 중에는 남긴다.
+    if (__DEV__) {
+      console.warn('[wearBridge] 캐릭터 동기화 실패', error);
+    }
   }
 }
 
