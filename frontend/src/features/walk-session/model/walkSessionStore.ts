@@ -119,10 +119,11 @@ function applySnapshot(snapshot: WalkSessionSnapshot) {
         ? snapshot.steps
         : state.continuousStepsBase
       : snapshot.steps,
-    // 네이티브 스냅샷에는 없는 값이라 그대로 이어간다. 워치가 종료를 눌러둔
-    // 사이에 스냅샷이 와도 요청이 사라지면 안 된다(세션이 IDLE이 되면 위에서
-    // IDLE_STATE로 초기화되면서 자연히 내려간다).
-    endRequested: state.endRequested,
+    // 워치가 종료를 눌러둔 사이에 스냅샷이 와도 요청이 사라지면 안 된다
+    // (세션이 IDLE이 되면 위에서 IDLE_STATE로 초기화되면서 자연히 내려간다).
+    // pendingAutoComplete(앱을 스와이프해 지운 경우)도 같은 처리 경로를 타도록
+    // 여기서 endRequested로 합류시킨다 — WalkSessionScreen은 출처를 몰라도 된다.
+    endRequested: state.endRequested || snapshot.pendingAutoComplete,
     walkSessionKey: state.walkSessionKey,
     blockedByOtherRoom: state.blockedByOtherRoom,
   };
