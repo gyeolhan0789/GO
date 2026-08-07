@@ -19,6 +19,7 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 
 jest.mock('../src/shared/lib/stepSensor', () => ({
   readStepCounter: jest.fn(),
+  readStepBoundaryMarks: jest.fn(async () => []),
 }));
 
 const { readStepCounter } = jest.requireMock(

@@ -12,8 +12,6 @@ const VALID = {
   nickname: '홍길동',
   region: 'SEOUL' as Region,
   gender: 'MALE' as Gender,
-  agreeTerms: true,
-  agreeAge: true,
 };
 
 describe('validateSignup', () => {
@@ -32,16 +30,6 @@ describe('validateSignup', () => {
       passwordConfirm: 'different1!',
     });
     expect(errors.passwordConfirm).toBe('비밀번호가 일치하지 않습니다.');
-  });
-
-  it('약관에 동의하지 않으면 오류를 낸다', () => {
-    const errors = validateSignup({ ...VALID, agreeTerms: false });
-    expect(errors.agreeTerms).toBeDefined();
-  });
-
-  it('만 14세 이상에 동의하지 않으면 오류를 낸다', () => {
-    const errors = validateSignup({ ...VALID, agreeAge: false });
-    expect(errors.agreeAge).toBeDefined();
   });
 
   it('지역과 성별이 없으면 각각 오류를 낸다', () => {

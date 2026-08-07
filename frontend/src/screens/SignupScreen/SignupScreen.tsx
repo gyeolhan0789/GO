@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -14,7 +13,6 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../app/navigation/RootNavigator';
 import { AuthSubmitButton } from '../../features/auth/components/AuthSubmitButton';
 import { AuthTextField } from '../../features/auth/components/AuthTextField';
-import { ConsentCheckboxes } from '../../features/auth/components/ConsentCheckboxes';
 import { GenderSelector } from '../../features/auth/components/GenderSelector';
 import { RegionDropdown } from '../../features/auth/components/RegionDropdown';
 import { SocialAuthButtons } from '../../features/auth/components/SocialAuthButtons';
@@ -61,8 +59,6 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
   const [nickname, setNickname] = useState('');
   const [region, setRegion] = useState<Region | null>(null);
   const [gender, setGender] = useState<Gender | null>(null);
-  const [agreeTerms, setAgreeTerms] = useState(false);
-  const [agreeAge, setAgreeAge] = useState(false);
   const [errors, setErrors] = useState<SignupErrors>({});
   const [isSignupComplete, setIsSignupComplete] = useState(false);
 
@@ -115,10 +111,6 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
     mutation.reset();
   }
 
-  function notReady() {
-    Alert.alert('준비 중', '아직 준비 중인 기능이에요.');
-  }
-
   function submit() {
     const nextErrors = validateSignup({
       email,
@@ -127,8 +119,6 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
       nickname,
       region,
       gender,
-      agreeTerms,
-      agreeAge,
     });
     setErrors(nextErrors);
 
@@ -317,25 +307,6 @@ export function SignupScreen({ navigation }: SignupScreenProps) {
               ) : null}
             </View>
 
-            <View style={styles.consent}>
-              <ConsentCheckboxes
-                agreeTerms={agreeTerms}
-                agreeAge={agreeAge}
-                onToggleTerms={() => {
-                  setAgreeTerms(previous => !previous);
-                  clearError('agreeTerms');
-                }}
-                onToggleAge={() => {
-                  setAgreeAge(previous => !previous);
-                  clearError('agreeAge');
-                }}
-                onPressTerms={notReady}
-                onPressPrivacy={notReady}
-                termsError={errors.agreeTerms}
-                ageError={errors.agreeAge}
-              />
-            </View>
-
             {mutation.error ? (
               <AppText style={styles.error} accessibilityLiveRegion="polite">
                 {mutation.error.message}
@@ -463,9 +434,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: lineHeights[13],
     color: ERROR_COLOR,
-  },
-  consent: {
-    marginBottom: 20,
   },
   loginLink: {
     marginTop: 20,

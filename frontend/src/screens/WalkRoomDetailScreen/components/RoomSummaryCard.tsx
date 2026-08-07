@@ -50,7 +50,7 @@ export function RoomSummaryCard({ room }: RoomSummaryCardProps) {
       {room.targetStepCount !== null ? (
         <View style={styles.goalRow}>
           <Ionicons name="walk" size={16} color={colors.successText} />
-          <AppText style={styles.goalLabel}>목표 걸음 수</AppText>
+          <AppText style={styles.goalLabel}>이번 주 목표 걸음 수</AppText>
           <AppText style={styles.goalValue}>
             {`${room.targetStepCount.toLocaleString()}보`}
           </AppText>

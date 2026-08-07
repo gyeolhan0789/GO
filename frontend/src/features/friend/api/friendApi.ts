@@ -1,21 +1,10 @@
 import { apiClient } from '../../../shared/api/client';
 import type { Gender } from '../../auth/constants/genders';
+// 아바타 관련 타입은 회원 응답이 원본이다. 여기서 같은 모양을 또 적으면 두 타입이
+// 갈라져(신발·안경 제거처럼) 서로 대입되지 않는다. 랭킹·방 응답도 이걸 쓴다.
+import type { EquippedItem } from '../../member/api/memberApi';
 
-export type ItemCategory =
-  | 'HAT'
-  | 'TOP'
-  | 'BOTTOM'
-  | 'SHOES'
-  | 'SUNGLASSES'
-  | 'ACCESSORY';
-
-export type EquippedItem = {
-  memberItemId: number;
-  itemId: number;
-  name: string;
-  category: ItemCategory;
-  imageUrl: string;
-};
+export type { EquippedItem };
 
 export type FriendResponse = {
   memberId: number;
