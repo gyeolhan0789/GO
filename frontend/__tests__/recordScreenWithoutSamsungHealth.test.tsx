@@ -31,6 +31,7 @@ jest.mock('../src/shared/lib/samsungHealth', () => ({
 jest.mock('../src/shared/lib/stepSensor', () => ({
   isStepSensorAvailable: () => true,
   readStepCounter: jest.fn(),
+  readStepBoundaryMarks: jest.fn(async () => []),
 }));
 
 jest.mock('../src/shared/lib/permissions', () => ({
