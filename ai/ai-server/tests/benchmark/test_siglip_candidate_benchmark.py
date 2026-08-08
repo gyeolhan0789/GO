@@ -327,21 +327,21 @@ def test_siglip_object_candidate_benchmark():
 
     logger.info(
         """
-================================
+        ================================
 
-SIGLIP OBJECT CANDIDATE BENCHMARK
-
-
-TARGET:
-%s
+        SIGLIP OBJECT CANDIDATE BENCHMARK
 
 
-IMAGE COUNT:
-%s
+        TARGET:
+        %s
 
 
-================================
-""",
+        IMAGE COUNT:
+        %s
+
+
+        ================================
+        """,
 
         TARGET,
 
@@ -402,15 +402,15 @@ IMAGE COUNT:
         logger.info(
 
             """
-%s
+            %s
 
-TOTAL=%d
+            TOTAL=%d
 
-DETECTED=%d
+            DETECTED=%d
 
-NOT_DETECTED=%d
+            NOT_DETECTED=%d
 
-""",
+            """,
 
             category,
 
@@ -434,10 +434,10 @@ NOT_DETECTED=%d
 
     logger.info(
         """
-================================
-DETAIL
-================================
-"""
+        ================================
+        DETAIL
+        ================================
+        """
     )
 
 
@@ -448,29 +448,29 @@ DETAIL
         logger.info(
 
             """
-%s
+            %s
 
-category=%s
-
-
-detected=%s
+            category=%s
 
 
-confidence=%.3f
+            detected=%s
 
 
-positive=%.6f
+            confidence=%.3f
 
 
-negative=%.6f
+            positive=%.6f
 
 
-margin=%.6f
+            negative=%.6f
 
 
-latency=%.2fms
+            margin=%.6f
 
-""",
+
+            latency=%.2fms
+
+            """,
 
             row["file"],
 

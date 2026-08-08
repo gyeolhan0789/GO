@@ -359,8 +359,8 @@ images={len(dataset)}
 
         logger.info(
             f"""
-========== Threshold {threshold} ==========
-"""
+            ========== Threshold {threshold} ==========
+            """
         )
 
 
@@ -437,12 +437,12 @@ images={len(dataset)}
 
             logger.info(
                 f"""
-{category}
-total={value['total']}
-PASS={value['pass']}
-FAIL={value['fail']}
-UNCERTAIN={value['uncertain']}
-"""
+                {category}
+                total={value['total']}
+                PASS={value['pass']}
+                FAIL={value['fail']}
+                UNCERTAIN={value['uncertain']}
+                """
             )
 
 
@@ -454,8 +454,8 @@ UNCERTAIN={value['uncertain']}
 
     logger.info(
         """
-========== Detail ==========
-"""
+        ========== Detail ==========
+        """
     )
 
 
