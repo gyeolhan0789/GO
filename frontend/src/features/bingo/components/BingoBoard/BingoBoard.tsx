@@ -25,17 +25,22 @@ export type BingoBoardCell = {
 type BingoBoardProps = {
   size: BingoBoardSize;
   cells: BingoBoardCell[];
+  /** 이미 실측한 폭이 있으면 첫 렌더부터 사용해 0px 칸이 노출되지 않게 한다. */
+  width?: number;
   /** 주면 칸이 눌린다(미션 상세 열기 등). 안 주면 순수 표시용. */
   onCellPress?: (cell: BingoBoardCell) => void;
 };
 
 const GAP = spacing.xs;
 
-export function BingoBoard({ size, cells, onCellPress }: BingoBoardProps) {
-  const { onLayout, cellSize } = useSquareGrid(size, GAP);
+export function BingoBoard({ size, cells, width, onCellPress }: BingoBoardProps) {
+  const { onLayout, cellSize } = useSquareGrid(size, GAP, width);
 
   return (
-    <View style={styles.grid} onLayout={onLayout}>
+    <View
+      style={[styles.grid, width === undefined ? null : { width }]}
+      onLayout={width === undefined ? onLayout : undefined}
+    >
       {cells.map((cell) => (
         <Pressable
           key={cell.id}
