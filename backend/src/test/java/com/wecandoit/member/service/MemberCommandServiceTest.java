@@ -1,6 +1,7 @@
 package com.wecandoit.member.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
@@ -239,6 +240,60 @@ class MemberCommandServiceTest {
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("FCM 토큰을 삭제하면 회원의 fcmToken이 비워진다")
+    void clearFcmTokenSucceeds() {
+        // given
+        Member member = localMember(1L, "닉네임", Region.SEOUL);
+        member.updateFcmToken("old-fcm-token");
+        given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+
+        // when
+        memberService.clearFcmToken(1L);
+
+        // then
+        assertThat(member.getFcmToken()).isNull();
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 회원의 FCM 토큰을 삭제하면 실패한다")
+    void clearFcmTokenRejectsMissingMember() {
+        // given
+        given(memberRepository.findById(1L)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> memberService.clearFcmToken(1L))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("존재하는 회원의 FCM 토큰을 조건부로 삭제한다")
+    void clearFcmTokenIfPresentClearsExistingMember() {
+        // given
+        Member member = localMember(1L, "닉네임", Region.SEOUL);
+        member.updateFcmToken("old-fcm-token");
+        given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+
+        // when
+        memberService.clearFcmTokenIfPresent(1L);
+
+        // then
+        assertThat(member.getFcmToken()).isNull();
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 회원의 FCM 토큰 조건부 삭제는 조용히 무시된다")
+    void clearFcmTokenIfPresentIgnoresMissingMember() {
+        // given
+        given(memberRepository.findById(1L)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatCode(() -> memberService.clearFcmTokenIfPresent(1L))
+                .doesNotThrowAnyException();
     }
 
     private Member localMember(Long id, String nickname, Region region) {

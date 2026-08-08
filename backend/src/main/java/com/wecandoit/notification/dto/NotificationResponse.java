@@ -9,6 +9,7 @@ public record NotificationResponse(
         NotificationType type,
         String title,
         String body,
+        Long targetId,
         boolean read,
         LocalDateTime createdAt
 ) {
@@ -19,6 +20,7 @@ public record NotificationResponse(
                 notification.getType(),
                 notification.getTitle(),
                 notification.getBody(),
+                notification.getTargetId(),
                 notification.isRead(),
                 notification.getCreatedAt()
         );

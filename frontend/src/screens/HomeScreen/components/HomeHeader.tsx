@@ -17,12 +17,15 @@ type HomeHeaderProps = {
   character?: Character;
   /** 프로필 사진을 누르면 마이페이지로 간다. */
   onProfilePress: () => void;
+  /** 종 아이콘을 누르면 알림 목록으로 간다. */
+  onNotificationPress: () => void;
 };
 
 export function HomeHeader({
   points,
   character,
   onProfilePress,
+  onNotificationPress,
 }: HomeHeaderProps) {
   // 마이페이지·랭킹과 같은 순서로 겹쳐야 같은 조합이 화면마다 똑같이 보인다.
   const layers = selectLayerItems(
@@ -33,7 +36,17 @@ export function HomeHeader({
     <View style={styles.container}>
       <PointBadge points={points} />
       <View style={styles.actions}>
-        <Ionicons name="notifications-outline" size={24} color={colors.ink} />
+        <Pressable
+          onPress={onNotificationPress}
+          style={({ pressed }) => [
+            styles.notificationButton,
+            pressed && styles.pressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="알림 목록"
+        >
+          <Ionicons name="notifications-outline" size={24} color={colors.ink} />
+        </Pressable>
         <Pressable
           onPress={onProfilePress}
           style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}
@@ -65,6 +78,12 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  notificationButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   // 원 테두리 디자인은 CharacterBust가 모든 화면 공통으로 그린다.
   avatar: {

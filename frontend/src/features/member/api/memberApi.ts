@@ -2,13 +2,15 @@ import { apiClient } from '../../../shared/api/client';
 import type { Gender } from '../../auth/constants/genders';
 import type { Region } from '../../auth/constants/regions';
 
-export type ItemCategory =
-  | 'HAT'
-  | 'TOP'
-  | 'BOTTOM'
-  | 'SHOES'
-  | 'SUNGLASSES'
-  | 'ACCESSORY';
+/**
+ * 앱이 다루는 아이템 카테고리.
+ *
+ * 백엔드 enum(`ItemCategory`)에는 SHOES·SUNGLASSES도 있지만 파는 아이템이 없어
+ * 화면·에셋 규격을 갖추지 않았다. 응답에 그 값이 섞여 올 수 있으므로 서버 데이터를
+ * 앱 모델로 옮길 때 `isSupportedItemCategory`로 걸러낸다 — 타입을 좁힌 것만으로는
+ * 런타임 값이 막히지 않는다.
+ */
+export type ItemCategory = 'HAT' | 'TOP' | 'BOTTOM' | 'ACCESSORY';
 
 /** 회원이 보유한 아이템 한 개. 장착 아이템 응답도 같은 형태로 내려온다. */
 export type MemberItem = {

@@ -22,6 +22,7 @@ private const val KEY_LAST_RAW_DISTANCE = "last_raw_distance"
 private const val KEY_LAST_RAW_CALORIES = "last_raw_calories"
 private const val KEY_HEALTH_SOURCE = "health_source"
 private const val KEY_GENDER = "gender"
+private const val KEY_PENDING_AUTO_COMPLETE = "pending_auto_complete"
 
 private const val ROUTE_FILE_PREFIX = "walk_route_"
 private const val ROUTE_FILE_SUFFIX = ".jsonl"
@@ -61,6 +62,7 @@ class WalkSessionRepository(private val context: Context) {
         HealthSource.valueOf(prefs.getString(KEY_HEALTH_SOURCE, null) ?: "NONE")
       }.getOrDefault(HealthSource.NONE),
       gender = prefs.getString(KEY_GENDER, null),
+      pendingAutoComplete = prefs.getBoolean(KEY_PENDING_AUTO_COMPLETE, false),
     )
   }
 
@@ -84,6 +86,7 @@ class WalkSessionRepository(private val context: Context) {
       .putFloat(KEY_LAST_RAW_CALORIES, state.lastRaw.calories.toFloat())
       .putString(KEY_HEALTH_SOURCE, state.healthSource.name)
       .putString(KEY_GENDER, state.gender)
+      .putBoolean(KEY_PENDING_AUTO_COMPLETE, state.pendingAutoComplete)
       .apply()
   }
 

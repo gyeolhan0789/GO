@@ -147,6 +147,7 @@ class GameRequestCommandServiceTest {
         then(eventPublisher).should().publishEvent(captor.capture());
         assertThat(captor.getValue().recipientMemberId()).isEqualTo(2L);
         assertThat(captor.getValue().type()).isEqualTo(NotificationType.FRIEND_INVITE);
+        assertThat(captor.getValue().targetId()).isEqualTo(10L);
     }
 
     @Test
@@ -590,19 +591,18 @@ class GameRequestCommandServiceTest {
     }
 
     @Test
-    @DisplayName("게임이 시작된 방의 초대 요청은 수락할 수 없다")
-    void acceptGameRequestRejectsInProgressRoom() {
+    @DisplayName("협동방 초대 수락은 참가자를 등록하고 산책 시작 알림을 발행하지 않는다")
+    void acceptCooperativeGameRequestRegistersParticipantWithoutWalkStartNotification() {
         GameRequest gameRequest = gameRequest(20L, 10L, 1L, 2L);
         given(gameRequestRepository.findByIdForUpdate(20L)).willReturn(Optional.of(gameRequest));
         Room room = givenAcceptableRoom(RoomStatus.ACTIVE);
         given(roomMemberRepository.existsByRoomIdAndMemberId(10L, 2L)).willReturn(false);
-        given(roomMemberRepository.findAllByRoomIdOrderByJoinedAtAsc(10L))
-                .willReturn(List.of(RoomMember.create(10L, 1L), RoomMember.create(10L, 2L)));
 
         gameRequestCommandService.acceptGameRequest(2L, 10L, 20L);
 
         assertThat(gameRequest.getStatus()).isEqualTo(RequestStatus.ACCEPTED);
         then(gameCycleCommandService).should().registerCurrentCycleParticipant(room, 2L);
+        then(eventPublisher).shouldHaveNoInteractions();
     }
 
     @Test

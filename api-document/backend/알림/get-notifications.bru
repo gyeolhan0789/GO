@@ -33,6 +33,7 @@ docs {
         "type": "FRIEND_REQUEST",
         "title": "친구 요청이 도착했어요",
         "body": "누군가 친구 요청을 보냈어요.",
+        "targetId": 30,
         "read": false,
         "createdAt": "2026-07-27T12:00:00"
       }
@@ -45,7 +46,10 @@ docs {
 
   - `type`은 `FRIEND_INVITE`, `FRIEND_REQUEST`, `WALK_START`, `BATTLE_RESULT`, `WEEKLY_BINGO_RENEWAL`, `REWARD_EARNED` 중 하나다.
   - 목록은 생성 시각(`createdAt`) 내림차순, 같으면 알림 ID 내림차순으로 정렬한다.
-  - 딥링크로 이동할 수 있는 관련 엔티티 ID(방 ID 등)는 응답에 포함하지 않는다.
+  - `targetId`는 딥링크로 이동할 관련 엔티티 ID다. `type`에 따라 대상이 다르다.
+    - `FRIEND_REQUEST`: 친구 요청 ID
+    - `FRIEND_INVITE`, `WALK_START`, `BATTLE_RESULT`, `WEEKLY_BINGO_RENEWAL`, `REWARD_EARNED`: 방 ID
+  - `targetId`가 없는 알림은 `null`로 내려간다.
 
   ### 에러 케이스
 

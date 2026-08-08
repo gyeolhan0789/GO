@@ -37,10 +37,27 @@ export type StepLedgerDay = {
   reportedSteps: number;
 };
 
+/**
+ * 상주 서비스가 자정에 찍어둔 센서 값. 원장은 이걸 그 날짜의 마지막 읽기로 취급한다.
+ */
+export type StepBoundaryMark = StepCounterReading & {
+  /** 이 마크가 닫는 날짜('yyyy-MM-dd'). 자정을 넘기며 **끝난** 날이다. */
+  date: string;
+};
+
 export type StepLedger = {
   snapshot: StepCounterSnapshot | null;
   /** 날짜 오름차순. */
   days: StepLedgerDay[];
+  /**
+   * 마지막으로 반영한 자정 마크의 날짜.
+   *
+   * 같은 마크를 두 번 반영하면 걸음이 폭증한다 — 마크의 원시값은 그때 스냅샷보다 작아서
+   * 재부팅으로 오판되고, 증가분이 아니라 원시값 전체가 더해진다. 마크를 지우는 것으로는
+   * 못 막는다(지우기 전에 앱이 죽으면 그대로 다시 반영된다). 어디까지 반영했는지를
+   * 원장이 직접 들고 있어야 저장소 상태와 무관하게 한 번만 반영된다.
+   */
+  lastBoundaryDate?: string;
 };
 
 /**
@@ -107,9 +124,70 @@ export function applyStepReading(
   const next: StepLedgerDay = { ...target, steps: target.steps + gained };
 
   return {
+    ...ledger,
     snapshot: { ...reading, date: todayIsoDate },
     days: trimToRetention(withDay(ledger, next)),
   };
+}
+
+/**
+ * 자정 마크들을 반영한다. 각 마크는 "그 날짜의 마지막 읽기"이므로, 직전 스냅샷부터
+ * 마크까지의 증가분이 그 날짜 몫으로 확정된다.
+ *
+ * 이미 반영한 마크(lastBoundaryDate 이하)는 건너뛴다. 두 번 반영하면 마크의 원시값이
+ * 스냅샷보다 작아 재부팅으로 오판되고 원시값 전체가 더해진다.
+ *
+ * lastBoundaryDate가 없는 원장(이 기능 이전에 만들어진 것)은 아무것도 반영하지 않고
+ * 오늘로 기준만 세운다. 남아 있던 옛 마크가 한꺼번에 쏟아지는 걸 막는다 — 경계 분리는
+ * 다음 자정부터 동작한다.
+ */
+export function applyBoundaryMarks(
+  ledger: StepLedger,
+  marks: StepBoundaryMark[],
+  todayIsoDate: string,
+): StepLedger {
+  const lastBoundaryDate = ledger.lastBoundaryDate;
+  if (lastBoundaryDate === undefined) {
+    return { ...ledger, lastBoundaryDate: todayIsoDate };
+  }
+
+  return marks
+    .filter(mark => mark.date > lastBoundaryDate)
+    .filter(mark => isAfterSnapshot(ledger.snapshot, mark))
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .reduce<StepLedger>(
+      (next, mark) => ({
+        ...applyStepReading(next, mark, mark.date),
+        lastBoundaryDate: mark.date,
+      }),
+      ledger,
+    );
+}
+
+/**
+ * 스냅샷이 마크보다 나중이면 그 마크 구간은 이미 반영이 끝난 것이다.
+ *
+ * 날짜(lastBoundaryDate)만으로는 못 거른다 — 자정 마크가 찍힌 **뒤에** 원장이 센서를
+ * 읽으면(예: 자정 직후 앱을 잠깐 열었다 옴) 스냅샷이 마크를 지나쳐 있는데 날짜로는
+ * 새 마크다. 이걸 반영하면 마크의 경과시간이 스냅샷보다 과거라 재부팅으로 오판되고,
+ * 증가분이 아니라 원시값 전체가 통째로 더해진다(실기기에서 6846보 폭증으로 재현).
+ *
+ * 부팅이 다르면 경과시간을 비교할 수 없지 않나 싶지만, 마크 반영은 항상 센서 읽기
+ * 반영보다 먼저다(syncStepLedger). 재부팅 후 첫 동기화 시점의 스냅샷은 아직 이전
+ * 부팅의 것이라 그 부팅의 마크와 정상 비교되고, 스냅샷이 새 부팅으로 갱신될 때는
+ * 이전 마크가 이미 소화된 뒤다.
+ *
+ * 자정과 마크 발화 사이(부정확 알람이라 최대 1시간)에 동기화가 끼면 밤 걸음이 새
+ * 날짜로 흡수된 뒤 마크가 여기서 버려진다. 그 밤만 마크 도입 전과 같은 동작으로
+ * 돌아갈 뿐(다음 날로 밀림), 걸음이 사라지거나 부풀지는 않는다.
+ */
+function isAfterSnapshot(
+  snapshot: StepCounterSnapshot | null,
+  mark: StepBoundaryMark,
+): boolean {
+  return (
+    snapshot === null || mark.elapsedRealtimeMs > snapshot.elapsedRealtimeMs
+  );
 }
 
 /**

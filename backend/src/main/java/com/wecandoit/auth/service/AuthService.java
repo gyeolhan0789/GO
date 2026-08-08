@@ -10,6 +10,7 @@ import com.wecandoit.auth.dto.AuthTokens;
 import com.wecandoit.auth.dto.LoginRequest;
 import com.wecandoit.member.domain.Member;
 import com.wecandoit.member.repository.MemberRepository;
+import com.wecandoit.member.service.MemberCommandService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class AuthService {
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final TokenIssuer tokenIssuer;
+    private final MemberCommandService memberCommandService;
 
     public AuthTokens login(LoginRequest request) {
         Member member = memberRepository.findByEmail(request.email())
@@ -76,6 +78,7 @@ public class AuthService {
         if (jwtProvider.validateAccessToken(accessToken) instanceof TokenValidationResult.Valid valid) {
             tokenRepository.blacklistAccessToken(valid.claims());
         }
+        memberCommandService.clearFcmTokenIfPresent(memberId);
     }
 
 }

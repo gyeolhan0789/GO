@@ -80,7 +80,6 @@ class GeminiService:
             # Image preprocessing
             # ==========================
 
-
             preprocess_start = time.time()
 
 
@@ -106,7 +105,6 @@ class GeminiService:
             # ==========================
             # Image bytes
             # ==========================
-
 
             buffer = BytesIO()
 
@@ -145,7 +143,6 @@ class GeminiService:
             )
 
 
-
             logger.info(
                 "prompt length=%d",
                 len(prompt)
@@ -156,7 +153,6 @@ class GeminiService:
             # ==========================
             # Gemini API
             # ==========================
-
 
             gemini_start = time.time()
 
@@ -177,12 +173,21 @@ class GeminiService:
                     temperature=0.0,
 
 
-                    max_output_tokens=1024
+                    max_output_tokens=256,
+                    
+
+                    automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                        disable=True
+                    ),
+
+
+                    thinking_config=types.ThinkingConfig(
+                        thinking_budget=128
+                    )
 
                 )
 
             )
-
 
 
             gemini_latency = (
@@ -200,29 +205,63 @@ class GeminiService:
 
 
             # ==========================
-            # Raw Response Logging
+            # Gemini Response Monitoring
             # ==========================
 
-
             logger.info(
-
                 """
-==============================
-[Gemini Raw Response]
+                ==============================
+                [Gemini Response]
 
-%s
+                %s
 
-==============================
-""",
-
+                ==============================
+                """,
                 response.text
-
             )
+
+
+            try:
+
+                candidate = response.candidates[0]
+
+
+                logger.info(
+                    """
+                    ==============================
+                    [Gemini Metadata]
+
+                    finish_reason : %s
+
+                    prompt_tokens : %s
+                    candidate_tokens : %s
+                    thoughts_tokens : %s
+                    total_tokens : %s
+
+                    ==============================
+                    """,
+                    candidate.finish_reason,
+
+                    response.usage_metadata.prompt_token_count,
+
+                    response.usage_metadata.candidates_token_count,
+
+                    response.usage_metadata.thoughts_token_count,
+
+                    response.usage_metadata.total_token_count
+
+                )
+
+
+            except Exception:
+
+                logger.info(
+                    "Gemini metadata unavailable"
+                )
 
 
 
             if not response.text:
-
 
                 raise RuntimeError(
                     "Gemini empty response"
@@ -239,7 +278,6 @@ class GeminiService:
                 response.text
                 .strip()
             )
-
 
 
             # markdown 제거
@@ -263,7 +301,7 @@ class GeminiService:
 
 
 
-            # 혹시 앞뒤 설명 제거
+            # 앞뒤 설명 제거
 
             json_start = json_text.find("{")
 
@@ -293,7 +331,6 @@ class GeminiService:
             # Parse
             # ==========================
 
-
             try:
 
 
@@ -307,29 +344,28 @@ class GeminiService:
                 )
 
 
-
             except Exception as e:
 
 
                 logger.error(
 
                     """
-==============================
-[Gemini Parse Failed]
+                    ==============================
+                    [Gemini Parse Failed]
 
-raw:
-%s
-
-
-normalized:
-%s
+                    raw:
+                    %s
 
 
-error:
-%s
+                    normalized:
+                    %s
 
-==============================
-""",
+
+                    error:
+                    %s
+
+                    ==============================
+                    """,
 
                     response.text,
 

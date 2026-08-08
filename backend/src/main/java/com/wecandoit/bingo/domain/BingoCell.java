@@ -35,6 +35,8 @@ import lombok.NoArgsConstructor;
 )
 public class BingoCell extends BaseEntity {
 
+    private static final int REJECTION_REASON_MAX_LENGTH = 255;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -109,8 +111,15 @@ public class BingoCell extends BaseEntity {
 
     public void reject(String rejectionReason) {
         this.verificationStatus = BingoCellVerificationStatus.REJECTED;
-        this.rejectionReason = rejectionReason;
+        this.rejectionReason = truncateRejectionReason(rejectionReason);
         this.completedAt = null;
+    }
+
+    private static String truncateRejectionReason(String rejectionReason) {
+        if (rejectionReason == null || rejectionReason.length() <= REJECTION_REASON_MAX_LENGTH) {
+            return rejectionReason;
+        }
+        return rejectionReason.substring(0, REJECTION_REASON_MAX_LENGTH);
     }
 
     public boolean isCompletedBy(LocalDateTime endedAt) {

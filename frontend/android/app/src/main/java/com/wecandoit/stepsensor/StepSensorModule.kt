@@ -49,6 +49,27 @@ class StepSensorModule(private val reactContext: ReactApplicationContext) :
     promise.resolve(null)
   }
 
+  /**
+   * 상주 서비스가 자정마다 찍어둔 센서 값. 날짜 오름차순.
+   *
+   * 여기서 지우지 않는다 — 원장이 반영하기 전에 앱이 죽으면 마크를 잃는다. 이미 반영한
+   * 마크를 거르는 건 원장의 lastBoundaryDate가 맡는다(stepLedger.ts).
+   */
+  @ReactMethod
+  fun readBoundaryMarks(promise: Promise) {
+    val marks = Arguments.createArray()
+    StepBoundaryStore(reactContext).read().forEach { mark ->
+      marks.pushMap(
+        Arguments.createMap().apply {
+          putString("date", mark.date)
+          putDouble("steps", mark.steps)
+          putDouble("elapsedRealtimeMs", mark.elapsedRealtimeMs)
+        },
+      )
+    }
+    promise.resolve(marks)
+  }
+
   @ReactMethod
   fun readTodaySteps(promise: Promise) {
     reader.readTodaySteps(

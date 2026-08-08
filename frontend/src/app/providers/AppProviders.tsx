@@ -3,6 +3,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { AuthProvider } from '../../features/auth/model/AuthContext';
+import { FcmNotificationManager } from '../../features/notification/components/FcmNotificationManager';
 
 const queryClient = new QueryClient();
 
@@ -21,7 +22,11 @@ export function AppProviders({ children }: PropsWithChildren) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>{children}</AuthProvider>
+      <AuthProvider>
+        {children}
+        {/* 네비게이터 위에 포그라운드 알림 배너가 겹쳐 보여야 하므로 마지막에 둔다. */}
+        <FcmNotificationManager />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

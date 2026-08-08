@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "921824931313",
+    "project_id": "go-withme",
+    "storage_bucket": "go-withme.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:921824931313:android:2b332543c1093d53806850",
+        "android_client_info": {
+          "package_name": "com.wecandoit"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "***REMOVED***"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

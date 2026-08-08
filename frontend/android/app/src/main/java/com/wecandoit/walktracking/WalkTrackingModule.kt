@@ -110,8 +110,17 @@ class WalkTrackingModule(private val reactContext: ReactApplicationContext) :
   fun stopSession(promise: Promise) {
     val service = WalkForegroundService.instance
     if (service == null) {
-      // 이미 끝났거나 서비스가 죽어있는 상태 — 중복 종료 호출도 안전하게 IDLE을 돌려준다.
-      promise.resolve(snapshotToMap(WalkSessionState().toSnapshot(System.currentTimeMillis())))
+      // 서비스가 이미 죽어있다 — 중복 종료 호출이면 저장된 게 없어 빈 IDLE이면
+      // 그만이지만, onTaskRemoved가 얼려둔 기록(pendingAutoComplete)이 남아
+      // 있을 수 있다. WalkSessionState()로 덮으면 그 기록이 0으로 날아가므로
+      // 저장된 값을 최종값으로 쓰고 여기서 직접 정리한다(서비스의 finishStop과
+      // 같은 뒷정리).
+      val repository = WalkSessionRepository(reactContext)
+      val persisted = repository.load()
+      val finalSnapshot = persisted.toSnapshot(System.currentTimeMillis())
+      repository.deleteRoute(persisted.sessionId)
+      repository.clear()
+      promise.resolve(snapshotToMap(finalSnapshot))
       return
     }
     service.stop { snapshot -> promise.resolve(snapshotToMap(snapshot)) }
@@ -126,7 +135,9 @@ class WalkTrackingModule(private val reactContext: ReactApplicationContext) :
     }
     val repository = WalkSessionRepository(reactContext)
     val persisted = repository.load()
-    if (persisted.status != WalkStatus.IDLE) {
+    // pendingAutoComplete면 살릴 필요가 없다 — 이 산책은 곧 stopSession으로
+    // 정리될 거라 GPS/알림을 되살렸다 바로 내리는 낭비(+깜빡임)를 안 해도 된다.
+    if (persisted.status != WalkStatus.IDLE && !persisted.pendingAutoComplete) {
       // 서비스가 죽어있는데 저장된 세션이 있다 — 복구를 트리거한다(fire-and-forget,
       // intent.action == null이라 서비스의 recoverFromPersistedState()로 간다).
       ContextCompat.startForegroundService(

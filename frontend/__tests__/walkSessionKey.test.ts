@@ -52,6 +52,7 @@ function runningSnapshot(roomId: number): WalkSessionSnapshot {
     steps: 0,
     distanceMeters: 0,
     calories: 0,
+    pendingAutoComplete: false,
   };
 }
 
@@ -64,6 +65,7 @@ const IDLE_SNAPSHOT: WalkSessionSnapshot = {
   steps: 0,
   distanceMeters: 0,
   calories: 0,
+  pendingAutoComplete: false,
 };
 
 let fetchMock: FetchMock;
@@ -142,10 +144,15 @@ describe('산책 세션 키 발급', () => {
     confirmWalkSessionStart(null);
     await awaitWalkSessionKey(ROOM_ID);
 
+    // startedAt·bingoBoardId는 종료 요청에 그대로 실어 보내고, roomName은
+    // 다른 방 산책이 막고 있을 때 사용자에게 어느 방인지 말해주는 데 쓴다.
     expect(await readActiveWalkSession()).toEqual({
       walkSessionKey: WALK_SESSION_KEY,
       roomId: ROOM_ID,
+      roomName: '황덕',
       expiresAt: '2026-08-05T11:00:00Z',
+      startedAt: '2026-08-04T11:00:00Z',
+      bingoBoardId: BINGO_BOARD_ID,
     });
   });
 
@@ -183,16 +190,24 @@ describe('산책 세션 키 발급', () => {
 });
 
 describe('다른 방 세션이 남아 있을 때', () => {
-  test('서버가 다른 방 세션을 돌려주면 그 키를 쓰지 않는다', async () => {
+  test('그 키를 이번 산책에 쓰지는 않되 버리지 않고 보관한다', async () => {
     // 활성 세션은 회원당 하나뿐이라, 못 끝낸 산책이 있으면 서버가 요청한 방을
-    // 무시하고 그걸 돌려준다. 그 키로 끝내면 엉뚱한 방의 기록이 된다.
+    // 무시하고 그걸 돌려준다. 그 키로 끝내면 엉뚱한 방의 기록이 되므로 이번
+    // 산책에는 쓰지 않는다.
+    //
+    // 그렇다고 버리면 서버는 키를 알고 우리는 모르는 상태가 되어, 남은 세션을
+    // 끝낼 방법이 사라지고 24시간 만료까지 새 산책이 전부 막힌다. 실기기에서
+    // 실제로 갇혔던 회귀다.
     startWalkSession(ROOM_ID);
     mockServer({ startedRoomId: OTHER_ROOM_ID });
 
     confirmWalkSessionStart(null);
 
     await expect(awaitWalkSessionKey(ROOM_ID)).resolves.toBeNull();
-    expect(await readActiveWalkSession()).toBeNull();
+    expect(await readActiveWalkSession()).toMatchObject({
+      roomId: OTHER_ROOM_ID,
+      walkSessionKey: WALK_SESSION_KEY,
+    });
   });
 });
 

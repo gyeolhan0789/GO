@@ -43,7 +43,7 @@ export function CreateSoloWalkSheet({
   const handleStart = async () => {
     const targetStepCount = Number(stepGoal);
     if (!stepGoal || targetStepCount < 1) {
-      Alert.alert('목표 걸음수를 입력해주세요.');
+      Alert.alert('이번 주 목표 걸음 수를 입력해주세요.');
       return;
     }
 
@@ -71,10 +71,11 @@ export function CreateSoloWalkSheet({
   return (
     <BottomSheet visible={visible} onClose={onClose} title="혼자 산책하기">
       <View style={styles.body}>
-        <Text style={styles.label}>목표 걸음수</Text>
+        {/* 서버가 주간 누적과 견주는 값이라 하루치로 읽히면 목표가 어긋난다. */}
+        <Text style={styles.label}>이번 주 목표 걸음 수</Text>
         <TextInput
           style={styles.input}
-          placeholder="예: 10000"
+          placeholder="이번 주 합계 (예: 10000)"
           placeholderTextColor={colors.muted}
           value={stepGoal}
           onChangeText={text => setStepGoal(text.replace(/[^0-9]/g, ''))}

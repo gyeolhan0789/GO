@@ -178,6 +178,7 @@ async function renderScreen({ visible = true } = {}) {
   });
   const client = queryClient;
   const onCreated = jest.fn();
+  const onOpenCreatedRoom = jest.fn();
 
   // 동행 탭이 그러듯 화면을 언마운트하지 않고 visible만 껐다 켠다.
   const treeFor = (isVisible: boolean) => (
@@ -188,6 +189,7 @@ async function renderScreen({ visible = true } = {}) {
           visible={isVisible}
           onClose={jest.fn()}
           onCreated={onCreated}
+          onOpenCreatedRoom={onOpenCreatedRoom}
         />
       </SafeAreaProvider>
     </QueryClientProvider>
@@ -210,7 +212,7 @@ async function renderScreen({ visible = true } = {}) {
     await flushQueries();
   };
 
-  return { tree: renderer, onCreated, setVisible };
+  return { tree: renderer, onCreated, onOpenCreatedRoom, setVisible };
 }
 
 /** 초대 목록에 뜬 친구 줄. 안 떴으면 undefined다. */
@@ -223,7 +225,7 @@ function findFriendRow(root: ReactTestInstance, nickname: string) {
 /** 1단계(방 정보)를 채우고 2단계(친구 선택)로 넘어간다. */
 async function goToFriendStep(root: ReactTestInstance) {
   await typeInto(root, '산책방 이름을 입력하세요', '아침 산책 모임');
-  await typeInto(root, '일주일 기준 목표 걸음수 (예: 10000)', '10000');
+  await typeInto(root, '이번 주 합계 (예: 10000)', '10000');
   await act(async () => {
     findButtonByLabel(root, '다음').props.onPress();
   });
@@ -237,15 +239,20 @@ async function fillFormAndSelectFriend(root: ReactTestInstance) {
   });
 }
 
+/** 폼을 채우고 만들기까지 눌러 완료 모달을 띄운다. */
+async function createRoom(root: ReactTestInstance) {
+  await fillFormAndSelectFriend(root);
+  await act(async () => {
+    findButtonByLabel(root, '산책방 만들기').props.onPress();
+  });
+  await flushQueries();
+}
+
 describe('CreateWalkRoomScreen', () => {
   test('고른 친구에게 방 초대를 보낸다', async () => {
-    const { tree, onCreated } = await renderScreen();
+    const { tree } = await renderScreen();
 
-    await fillFormAndSelectFriend(tree.root);
-    await act(async () => {
-      findButtonByLabel(tree.root, '산책방 만들기').props.onPress();
-    });
-    await flushQueries();
+    await createRoom(tree.root);
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining(`/rooms/${ROOM_ID}/requests`),
@@ -254,7 +261,56 @@ describe('CreateWalkRoomScreen', () => {
         body: JSON.stringify({ inviteeId: FRIEND_MEMBER_ID }),
       }),
     );
-    expect(onCreated).toHaveBeenCalled();
+  });
+
+  test('만들고 나면 완료를 알리고 방으로 갈 길을 준다', async () => {
+    // 예전에는 곧바로 화면을 닫고 토스트만 띄워서, 방을 보려면 목록에서 다시 찾아야 했다.
+    const { tree, onCreated, onOpenCreatedRoom } = await renderScreen();
+
+    await createRoom(tree.root);
+
+    expect(collectTexts(tree.root)).toContain('산책방이 만들어졌어요!');
+    expect(collectTexts(tree.root)).toContain(CREATED_ROOM.name);
+    expect(onCreated).not.toHaveBeenCalled();
+    expect(onOpenCreatedRoom).not.toHaveBeenCalled();
+  });
+
+  test('보러가기를 누르면 만든 방으로 보낸다', async () => {
+    const { tree, onCreated, onOpenCreatedRoom } = await renderScreen();
+
+    await createRoom(tree.root);
+    await act(async () => {
+      findButtonByLabel(tree.root, '보러가기').props.onPress();
+    });
+
+    expect(onOpenCreatedRoom).toHaveBeenCalledWith(ROOM_ID);
+    expect(onCreated).not.toHaveBeenCalled();
+  });
+
+  test('닫기를 누르면 목록으로 돌아간다', async () => {
+    const { tree, onCreated, onOpenCreatedRoom } = await renderScreen();
+
+    await createRoom(tree.root);
+    await act(async () => {
+      findButtonByLabel(tree.root, '닫기').props.onPress();
+    });
+
+    expect(onCreated).toHaveBeenCalledTimes(1);
+    expect(onOpenCreatedRoom).not.toHaveBeenCalled();
+  });
+
+  test('다시 열면 완료 모달이 남아 있지 않다', async () => {
+    // 폼과 함께 초기화하지 않으면 방을 만든 적 있는 사용자에게 열자마자 모달이 뜬다.
+    const { tree, setVisible } = await renderScreen();
+
+    await createRoom(tree.root);
+    await act(async () => {
+      findButtonByLabel(tree.root, '닫기').props.onPress();
+    });
+    await setVisible(false);
+    await setVisible(true);
+
+    expect(collectTexts(tree.root)).not.toContain('산책방이 만들어졌어요!');
   });
 
   test('초대를 보내면 초대 대기 목록 캐시를 무효화한다', async () => {
@@ -262,11 +318,7 @@ describe('CreateWalkRoomScreen', () => {
 
     expect(collectTexts(tree.root)).toContain('초대 대기 0');
 
-    await fillFormAndSelectFriend(tree.root);
-    await act(async () => {
-      findButtonByLabel(tree.root, '산책방 만들기').props.onPress();
-    });
-    await flushQueries();
+    await createRoom(tree.root);
     await flushQueries();
 
     // 무효화하지 않으면 방장이 방 상세에 들어가도 방금 보낸 초대가 안 보인다.

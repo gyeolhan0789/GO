@@ -37,7 +37,8 @@ class NotificationReadServiceTest {
     @DisplayName("본인의 알림 목록을 페이징하여 조회한다")
     void getNotificationsReturnsSlice() {
         // given
-        Notification notification = Notification.create(1L, NotificationType.FRIEND_REQUEST, "제목", "본문");
+        Notification notification =
+                Notification.create(1L, NotificationType.FRIEND_REQUEST, "제목", "본문", 20L);
         ReflectionTestUtils.setField(notification, "id", 10L);
         given(notificationRepository.findAllByMemberIdOrderByCreatedAtDescIdDesc(
                 ArgumentMatchers.eq(1L), ArgumentMatchers.any()))
@@ -51,6 +52,7 @@ class NotificationReadServiceTest {
         assertThat(response.content()).hasSize(1);
         assertThat(response.content().get(0).id()).isEqualTo(10L);
         assertThat(response.content().get(0).type()).isEqualTo(NotificationType.FRIEND_REQUEST);
+        assertThat(response.content().get(0).targetId()).isEqualTo(20L);
         assertThat(response.hasNext()).isFalse();
     }
 }

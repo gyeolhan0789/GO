@@ -42,30 +42,34 @@ export function RoomMemberList({
       </AppText>
 
       <View style={styles.list}>
-        {members.map(member => (
-          <View key={member.memberId} style={styles.row}>
-            <MemberAvatar
-              gender={member.gender}
-              defaultImageUrl={member.defaultImageUrl}
-              equippedItems={member.equippedItems}
-              style={styles.avatar}
-            />
-            {/* 이름과 방장 배지는 붙여 두고, 미션 수만 오른쪽 끝에 고정한다.
-                배지가 오른쪽으로 밀리면 줄마다 배치가 어긋나 보인다. */}
-            <View style={styles.nameGroup}>
-              <AppText
-                style={[styles.name, styles.memberName]}
-                numberOfLines={1}
-              >
-                {member.memberId === myMemberId ? '나' : member.nickname}
+        {members.map(member => {
+          const name = member.memberId === myMemberId ? '나' : member.nickname;
+
+          return (
+            <View key={member.memberId} style={styles.row}>
+              <MemberAvatar
+                gender={member.gender}
+                defaultImageUrl={member.defaultImageUrl}
+                equippedItems={member.equippedItems}
+                style={styles.avatar}
+              />
+              {/* 이름과 방장 배지는 붙여 두고, 미션 수만 오른쪽 끝에 고정한다.
+                  배지가 오른쪽으로 밀리면 줄마다 배치가 어긋나 보인다. */}
+              <View style={styles.nameGroup}>
+                <AppText
+                  style={[styles.name, styles.memberName]}
+                  numberOfLines={1}
+                >
+                  {name}
+                </AppText>
+                {member.host ? <Badge label="방장" variant="highlight" /> : null}
+              </View>
+              <AppText style={styles.missionCount}>
+                {`미션 ${member.completedMissionCount}개`}
               </AppText>
-              {member.host ? <Badge label="방장" variant="highlight" /> : null}
             </View>
-            <AppText style={styles.missionCount}>
-              {`미션 ${member.completedMissionCount}개`}
-            </AppText>
-          </View>
-        ))}
+          );
+        })}
       </View>
 
       {pendingInvites.length > 0 ? (

@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useQueryClient } from '@tanstack/react-query';
 
 import type { SocialProvider } from '../../features/auth/constants/socialProviders';
 import { useAuth } from '../../features/auth/model/AuthContext';
 import type { GameMode } from '../../features/room/api/roomApi';
+import { useWalkSessionRealtime } from '../../features/walk-session/hooks/useWalkSessionRealtime';
+import { finishAndRecordActiveWalkSession } from '../../features/walk-session/model/recordFinishedWalk';
 import {
+  getWalkSessionRoomId,
   hydrateWalkSessionFromNative,
   isWalkSessionActive,
+  isWalkSessionPendingAutoComplete,
 } from '../../features/walk-session/model/walkSessionStore';
 import { colors } from '../../shared/constants/colors';
 import { fontFamily } from '../../shared/constants/typography';
@@ -20,6 +25,7 @@ import { PermissionsScreen } from '../../screens/PermissionsScreen/PermissionsSc
 import { CharacterCustomizeScreen } from '../../screens/CharacterCustomizeScreen/CharacterCustomizeScreen';
 import { FriendRequestsScreen } from '../../screens/FriendRequestsScreen/FriendRequestsScreen';
 import { MyPageScreen } from '../../screens/MyPageScreen/MyPageScreen';
+import { NotificationsScreen } from '../../screens/NotificationsScreen/NotificationsScreen';
 import { RoomInvitesScreen } from '../../screens/RoomInvitesScreen/RoomInvitesScreen';
 import { SignupScreen } from '../../screens/SignupScreen/SignupScreen';
 import { SocialSignupScreen } from '../../screens/SocialSignupScreen/SocialSignupScreen';
@@ -51,7 +57,15 @@ export type RootStackParamList = {
   WalkList: undefined;
   // 방이 아니라 끝난 판 하나를 가리킨다. 같은 방에서 여러 판이 나온다.
   WalkDetail: { walkSessionId: number };
-  WalkRoomDetail: { roomId: number };
+  WalkRoomDetail: {
+    roomId: number;
+    /**
+     * 초대를 수락한 쪽이 대기방에 도착하기 전에 카운트다운 이벤트가 먼저
+     * 도착한다(수락 응답과 거의 동시). 대기방 구독이 그 이벤트를 놓치므로
+     * 값을 파라미터로 실어 보내 대기방이 이어받는다.
+     */
+    battleCountdownSeconds?: number;
+  };
   // roomId는 화면 파라미터가 아니라 walkSessionStore(전역 진행 중인 세션
   // 상태)로 전달된다.
   WalkSession: undefined;
@@ -67,14 +81,13 @@ export type RootStackParamList = {
     elapsedSeconds: number;
     /** 이번 산책 중에 승인받은 미션 수. */
     achievedMissionCount: number;
-    /** 걸음 목표를 채워 받은 포인트. 미션 인증 포인트는 인증하는 그 자리에서
-     * 이미 지급돼 여기 들어오지 않는다. */
+    /** 이번 산책으로 받은 포인트 합계(미션·걸음 목표·게임 보상을 서버가
+     * 모두 합쳐 내려준다). */
     earnedPoint: number;
-    /** 방의 걸음 목표. 목표를 채웠을 때 몇 보였는지 적는 데만 쓴다. */
-    targetStepCount: number | null;
   };
   BingoBoard: { roomId: number };
   MyPage: undefined;
+  Notifications: undefined;
   CharacterCustomize: undefined;
   // 받은/보낸 친구 요청 내역. 보낸 요청은 서버가 아직 응답받지 않은 요청만 내려준다.
   FriendRequests: undefined;
@@ -98,6 +111,7 @@ export function RootNavigator() {
   const { status } = useAuth();
   const onboarding = useOnboardingStatus();
   const permissions = usePermissionsStatus();
+  const queryClient = useQueryClient();
 
   // 네이티브 산책 세션(WalkForegroundService)의 현재 상태로 walkSessionStore
   // 캐시를 한 번 맞춘다 — 앱이 강제종료됐다 다시 켜졌을 때도 진행 중이던
@@ -109,13 +123,38 @@ export function RootNavigator() {
 
   const isAuthenticated = status === 'authenticated';
 
+  // 실시간 구독은 화면이 아니라 산책 세션의 수명에 맞춘다. 산책 중 어느 화면에
+  // 있어도 남이 채운 칸이 그대로 들어온다.
+  useWalkSessionRealtime();
+
   // 하이드레이션 결과 진행 중인 세션이 있으면 산책 화면으로 바로 이동한다.
   // 사용자가 끝내고 싶으면 그 화면의 기존 "산책 종료" 버튼을 쓰면 된다.
+  //
+  // 앱을 최근 목록에서 스와이프해서 자동 종료가 예약된 세션이면 다르다 —
+  // 사용자가 산책을 끝낼 의도로 앱을 연 게 아니라 그냥 다른 용도로 열었을
+  // 수 있어서, 산책 화면·결과 화면을 보여주지 않고 화면 전환 없이 조용히
+  // 정리만 한다(2026-08-07).
   useEffect(() => {
-    if (isAuthenticated && isWalkHydrated && isWalkSessionActive()) {
+    if (!isAuthenticated || !isWalkHydrated) {
+      return;
+    }
+    if (isWalkSessionPendingAutoComplete()) {
+      const roomId = getWalkSessionRoomId();
+      if (roomId === null) {
+        return;
+      }
+      finishAndRecordActiveWalkSession(roomId)
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ['walk-sessions'] });
+          queryClient.invalidateQueries({ queryKey: ['histories'] });
+        })
+        .catch(() => {});
+      return;
+    }
+    if (isWalkSessionActive()) {
       navigateToWalkSession();
     }
-  }, [isAuthenticated, isWalkHydrated]);
+  }, [isAuthenticated, isWalkHydrated, queryClient]);
 
   // 세션 복구나 게이트 조회가 끝나기 전에 화면을 고르면, 이미 온보딩을 끝낸
   // 사용자에게 온보딩이 한 프레임 깜빡인다. 다 읽을 때까지 그리지 않는다.
@@ -184,6 +223,11 @@ export function RootNavigator() {
             name="MyPage"
             component={MyPageScreen}
             options={{ ...DETAIL_HEADER_OPTIONS, title: '프로필 설정' }}
+          />
+          <Stack.Screen
+            name="Notifications"
+            component={NotificationsScreen}
+            options={{ ...DETAIL_HEADER_OPTIONS, title: '알림' }}
           />
           <Stack.Screen
             name="CharacterCustomize"

@@ -1,7 +1,5 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SvgXml } from 'react-native-svg';
+import { Image, StyleSheet, View } from 'react-native';
 import { AppText } from '../../../shared/components/AppText/AppText';
 import { colors } from '../../../shared/constants/colors';
 import {
@@ -11,6 +9,7 @@ import {
 } from '../../../shared/constants/typography';
 
 import type { OnboardingSlideData } from '../slides';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type OnboardingSlideProps = {
   slide: OnboardingSlideData;
@@ -19,9 +18,6 @@ type OnboardingSlideProps = {
 };
 
 const HIGHLIGHT_COLOR = colors.primary;
-
-// 배경 SVG 원본 비율(viewBox 390 x 844). 높이를 기기에 맞추고 폭은 이 비율로 둔다.
-const BG_ASPECT_RATIO = 390 / 844;
 
 function toMultiline(text: string): string {
   return text
@@ -57,17 +53,12 @@ export function OnboardingSlide({
 }: OnboardingSlideProps) {
   const insets = useSafeAreaInsets();
 
-  // 높이는 기기에 맞추고 폭은 원본 비율대로. 세로 크롭 없이 가로 중앙 정렬.
-  const backgroundWidth = height * BG_ASPECT_RATIO;
-
   return (
     <View style={[styles.container, { width, height }]}>
-      <SvgXml
-        xml={slide.backgroundXml}
-        width={backgroundWidth}
-        height={height}
-        preserveAspectRatio="xMidYMid meet"
-        style={[styles.background, { left: (width - backgroundWidth) / 2 }]}
+      <Image
+        source={slide.background}
+        style={[styles.background, { height }]}
+        resizeMode="contain"
       />
       <View style={[styles.textOverlay, { paddingTop: insets.top + 80 }]}>
         <AppText style={styles.title}>
@@ -88,6 +79,7 @@ const styles = StyleSheet.create({
   background: {
     position: 'absolute',
     top: 0,
+    width: '100%',
   },
   textOverlay: {
     paddingHorizontal: 32,

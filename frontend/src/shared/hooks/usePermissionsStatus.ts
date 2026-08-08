@@ -4,7 +4,7 @@ import {
   PERMISSIONS_GRANTED_QUERY_KEY,
   PERMISSIONS_QUERY_KEY,
 } from '../api/deviceQueries';
-import { areAllPermissionsGranted } from '../lib/permissions';
+import { areRequiredPermissionsGranted } from '../lib/permissions';
 import {
   getPermissionsCompleted,
   setPermissionsCompleted,
@@ -37,7 +37,7 @@ export function usePermissionsStatus(): UsePermissionsStatusResult {
 
   const { data: allGranted, isLoading: isGrantedLoading } = useQuery({
     queryKey: PERMISSIONS_GRANTED_QUERY_KEY,
-    queryFn: areAllPermissionsGranted,
+    queryFn: areRequiredPermissionsGranted,
   });
 
   const mutation = useMutation({

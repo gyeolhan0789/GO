@@ -243,7 +243,8 @@ describe('WalkRoomDetailScreen', () => {
     expect(texts).toContain('아침 산책 모임');
     expect(texts).toContain('협동');
     expect(texts).toContain('진행 중');
-    expect(texts).toContain('목표 걸음 수');
+    // 주간 누적 목표라 '이번 주'를 붙여 하루치로 읽히지 않게 한다.
+    expect(texts).toContain('이번 주 목표 걸음 수');
     expect(texts).toContain('빙고 미션');
     expect(texts).toContain('3/9');
   });

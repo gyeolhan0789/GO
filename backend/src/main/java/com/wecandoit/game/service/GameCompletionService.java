@@ -120,7 +120,7 @@ public class GameCompletionService {
                 .toList();
         gameResultParticipantRepository.saveAll(results);
         participants.forEach(participant -> eventPublisher.publishEvent(
-                notificationMessageFactory.battleResult(participant.getMemberId())));
+                notificationMessageFactory.battleResult(participant.getMemberId(), room.getId())));
     }
 
     private GameResultParticipant createParticipantResult(
@@ -185,6 +185,6 @@ public class GameCompletionService {
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
         member.addPoint(rewardPoint);
         pointHistoryRepository.save(PointHistory.gameGoalReward(memberId, gameId, roomId, rewardPoint));
-        eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, rewardPoint));
+        eventPublisher.publishEvent(notificationMessageFactory.rewardEarned(memberId, rewardPoint, roomId));
     }
 }

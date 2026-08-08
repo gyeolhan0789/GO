@@ -13,6 +13,9 @@ export type WalkSessionSnapshot = {
   steps: number;
   distanceMeters: number;
   calories: number;
+  /** 앱을 최근 목록에서 스와이프해서, 이 산책이 그때까지 기록으로 자동
+   * 종료돼야 한다는 뜻(WalkForegroundService.onTaskRemoved 참고). */
+  pendingAutoComplete: boolean;
 };
 
 export type WalkTrackingCoords = {
@@ -42,6 +45,7 @@ const IDLE_SNAPSHOT: WalkSessionSnapshot = {
   steps: 0,
   distanceMeters: 0,
   calories: 0,
+  pendingAutoComplete: false,
 };
 
 export function isWalkTrackingAvailable(): boolean {

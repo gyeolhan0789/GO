@@ -51,8 +51,9 @@ jest.mock('../src/features/member/api/memberApi', () => ({
 // 권한 게이트를 이미 통과한 기기를 흉내낸다.
 jest.mock('../src/shared/lib/permissions', () => ({
   PERMISSION_KEYS: ['camera', 'activityRecognition', 'location', 'notifications'],
+  REQUIRED_PERMISSION_KEYS: ['camera', 'activityRecognition', 'location'],
   checkPermission: jest.fn(() => Promise.resolve(true)),
-  areAllPermissionsGranted: jest.fn(() => Promise.resolve(true)),
+  areRequiredPermissionsGranted: jest.fn(() => Promise.resolve(true)),
   requestAllPermissions: jest.fn(),
   openAppSettings: jest.fn(),
 }));

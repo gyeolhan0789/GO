@@ -39,8 +39,9 @@ jest.mock('@react-native-seoul/kakao-login');
 // 경로를 검증할 수 있다.
 jest.mock('../src/shared/lib/permissions', () => ({
   PERMISSION_KEYS: ['camera', 'activityRecognition', 'location', 'notifications'],
+  REQUIRED_PERMISSION_KEYS: ['camera', 'activityRecognition', 'location'],
   checkPermission: jest.fn(() => Promise.resolve(false)),
-  areAllPermissionsGranted: jest.fn(() => Promise.resolve(false)),
+  areRequiredPermissionsGranted: jest.fn(() => Promise.resolve(false)),
   requestAllPermissions: jest.fn(),
   requestPermission: jest.fn(() => Promise.resolve(false)),
   openAppSettings: jest.fn(),
