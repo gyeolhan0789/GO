@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native';
-import Ionicons from '@react-native-vector-icons/ionicons';
+import { SvgXml } from 'react-native-svg';
 
+import footprintIconXml from '../assets/FootprintIcon';
 import { formatThousands } from '../../../features/history/model/format';
 import { CharacterBust } from '../../../features/member/components/CharacterBust';
 import type { Character } from '../../../features/member/model/character';
@@ -62,9 +63,10 @@ export function MyRankBar({ rank, weeklySteps, character }: MyRankBarProps) {
       <AppText style={styles.label}>{ME_LABEL}</AppText>
 
       <View style={styles.steps}>
-        <Ionicons
-          name="footsteps"
-          size={STEP_ICON_SIZE}
+        <SvgXml
+          xml={footprintIconXml}
+          width={STEP_ICON_SIZE}
+          height={STEP_ICON_SIZE}
           color={colors.surface}
         />
         <AppText style={styles.stepsLabel}>{formatThousands(weeklySteps)}</AppText>
