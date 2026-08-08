@@ -16,10 +16,19 @@ function buildCell(overrides: Partial<BingoBoardCell> = {}): BingoBoardCell {
   return { id: '1', completed: false, ...overrides };
 }
 
-function render(cells: BingoBoardCell[], onCellPress?: () => void) {
+function render(
+  cells: BingoBoardCell[],
+  onCellPress?: () => void,
+  width?: number,
+) {
   act(() => {
     renderer = ReactTestRenderer.create(
-      <BingoBoard size={3} cells={cells} onCellPress={onCellPress} />,
+      <BingoBoard
+        size={3}
+        cells={cells}
+        width={width}
+        onCellPress={onCellPress}
+      />,
     );
   });
   return renderer!.root;
@@ -42,6 +51,20 @@ afterEach(() => {
 });
 
 describe('협동 빙고판 — 팀원이 인증 중인 칸', () => {
+  test('실측 폭을 받으면 첫 렌더부터 정상 크기의 칸을 그린다', () => {
+    render(
+      [buildCell(), buildCell({ id: '2' }), buildCell({ id: '3' })],
+      undefined,
+      320,
+    );
+
+    expect(pressables().map(node => node.props.style)).toEqual([
+      { width: 104, height: 104 },
+      { width: 104, height: 104 },
+      { width: 104, height: 104 },
+    ]);
+  });
+
   test('검증을 기다리는 칸은 눌리지 않는다', () => {
     render([buildCell({ pending: true })], () => {});
 

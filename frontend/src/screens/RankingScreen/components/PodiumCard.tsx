@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native';
-import Ionicons from '@react-native-vector-icons/ionicons';
+import { SvgXml } from 'react-native-svg';
 
+import footprintIconXml from '../assets/FootprintIcon';
 import type { RankingItem } from '../../../features/ranking/api/rankingApi';
 import { formatThousands } from '../../../features/history/model/format';
 import { AppText } from '../../../shared/components/AppText/AppText';
@@ -92,7 +93,7 @@ function Place({ place, isMe }: { place: RankingItem; isMe: boolean }) {
       </AppText>
 
       <View style={styles.steps}>
-        <Ionicons name="footsteps" size={STEP_ICON_SIZE} color={colors.ink} />
+        <SvgXml xml={footprintIconXml} width={STEP_ICON_SIZE} height={STEP_ICON_SIZE} color={colors.ink} />
         <AppText style={styles.stepsLabel}>
           {formatThousands(place.weeklySteps)}
         </AppText>

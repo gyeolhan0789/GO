@@ -18,6 +18,7 @@ const assetDirs = [
   join(srcDir, 'OnboardingScreen', 'assets'),
   join(srcDir, 'SignupScreen', 'assets'),
   join(srcDir, 'ShopScreen', 'assets'),
+  join(srcDir, 'RankingScreen', 'assets'),
   join(featuresDir, 'bingo', 'assets', 'missionIcons'),
 ];
 

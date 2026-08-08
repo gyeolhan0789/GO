@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- API 31+에서는 windowSplashScreen* 속성을 일부러 안 준다 — 지정 안 하면
+         OS가 android:icon(런처 아이콘)을 그대로 스플래시 아이콘으로 써서 탭한
+         아이콘이 그대로 커지는 것처럼 자연스럽게 이어진다. windowBackground도
+         배경색만 두고 로고 없이 비워서, 아이콘 스플래시가 끝난 다음 다른 크기의
+         로고로 다시 바뀌어 보이는 두 번째 점프가 없게 한다(2026-08-08). -->
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <item name="android:windowBackground">@color/launch_screen_background</item>
+        <item name="android:statusBarColor">@color/launch_screen_background</item>
+        <item name="android:navigationBarColor">@color/launch_screen_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>

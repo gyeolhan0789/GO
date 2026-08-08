@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import type { LayoutChangeEvent } from 'react-native';
 import { launchCamera } from 'react-native-image-picker';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -54,17 +61,19 @@ import { getParticipantColor } from '../../shared/lib/participantColor';
 import { radius } from '../../shared/constants/radius';
 import { spacing } from '../../shared/constants/spacing';
 import { fontFamily, lineHeights } from '../../shared/constants/typography';
-import { useMeasuredWidth } from '../../shared/hooks/useMeasuredWidth';
 
 type BingoBoardScreenProps = NativeStackScreenProps<
   RootStackParamList,
   'BingoBoard'
 >;
 
+const CONTENT_HORIZONTAL_PADDING = spacing.lg;
+
 export function BingoBoardScreen({
   route,
   navigation,
 }: BingoBoardScreenProps) {
+  const { width: windowWidth } = useWindowDimensions();
   const { roomId } = route.params;
   const boardQuery = useActiveBingoBoardQuery(roomId);
   const board = boardQuery.data ?? null;
@@ -192,9 +201,13 @@ export function BingoBoardScreen({
   const [isSubmitting, setSubmitting] = useState(false);
   const [verificationResult, setVerificationResult] =
     useState<VerificationResult | null>(null);
-  // 빙고판 컨테이너의 퍼센트 width가 잘못 계산돼 3열이 아니라 2열로 보이는
-  // 문제가 있었다. 실측한 너비를 고정 픽셀로 내려준다.
-  const { width: boardWidth, onLayout: onBoardLayout } = useMeasuredWidth();
+  // ScrollView의 onLayout을 기다리면 첫 프레임에는 판이 없다가 다음 프레임에
+  // 아래로 생기는 것처럼 보인다. 화면 폭과 콘텐츠 여백은 첫 렌더부터 알 수
+  // 있으므로 바로 고정 픽셀 폭을 계산해 판과 아이콘을 완성된 크기로 그린다.
+  const boardWidth = Math.max(
+    windowWidth - CONTENT_HORIZONTAL_PADDING * 2,
+    0,
+  );
   const scrollRef = useRef<ScrollView>(null);
   const detailY = useRef(0);
 
@@ -513,17 +526,12 @@ export function BingoBoardScreen({
           ) : null}
         </View>
 
-        <View style={styles.board} onLayout={onBoardLayout}>
-          {boardWidth > 0 ? (
-            <View style={{ width: boardWidth }}>
-              <BingoBoard
-                size={board.boardSize as BingoBoardSize}
-                cells={cellsWithIcons}
-                onCellPress={cell => handleSelectCell(Number(cell.id))}
-              />
-            </View>
-          ) : null}
-        </View>
+        <BingoBoard
+          size={board.boardSize as BingoBoardSize}
+          cells={cellsWithIcons}
+          width={boardWidth}
+          onCellPress={cell => handleSelectCell(Number(cell.id))}
+        />
 
         {selectedCell ? (
           <View style={styles.detailCard} onLayout={handleDetailLayout}>
@@ -648,7 +656,7 @@ const styles = StyleSheet.create({
     width: 24,
   },
   content: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: CONTENT_HORIZONTAL_PADDING,
     paddingBottom: spacing.xl,
   },
   statusText: {
@@ -723,9 +731,6 @@ const styles = StyleSheet.create({
     lineHeight: lineHeights[12],
     color: colors.ink,
     opacity: 0.7,
-  },
-  board: {
-    width: '100%',
   },
   detailCard: {
     marginTop: spacing.lg,
