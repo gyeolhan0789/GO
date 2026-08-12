@@ -17,16 +17,16 @@ public interface GameRepository extends JpaRepository<Game, Long> {
 
     Optional<Game> findFirstByRoomIdAndStatusOrderByIdDesc(Long roomId, GameStatus status);
 
+    Optional<Game> findFirstByRoomIdAndStatus(Long roomId, GameStatus status);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select g
             from Game g
             where g.roomId = :roomId
               and g.status = :status
-            order by g.id desc
-            limit 1
             """)
-    Optional<Game> findActiveGameForUpdate(
+    Optional<Game> findGameForUpdateByRoomIdAndStatus(
             @Param("roomId") Long roomId,
             @Param("status") GameStatus status
     );

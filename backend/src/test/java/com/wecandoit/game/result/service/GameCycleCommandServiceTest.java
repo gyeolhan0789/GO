@@ -181,8 +181,9 @@ class GameCycleCommandServiceTest {
         Game game = activeGame(200L, 10L, LocalDateTime.now().minusDays(1));
         BingoBoard board = sharedBoard(100L, 200L);
         List<BingoCell> cells = cellsWithApprovedCount(100L, 4, 2, LocalDateTime.now().minusHours(1));
-        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
-        given(gameRepository.findActiveGameForUpdate(10L, GameStatus.ACTIVE)).willReturn(Optional.of(game));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(gameRepository.findGameForUpdateByRoomIdAndStatus(10L, GameStatus.ACTIVE))
+                .willReturn(Optional.of(game));
         given(gameResultRepository.existsByGameId(200L)).willReturn(false);
         given(bingoBoardRepository.findActiveBoardForUpdate(200L, BingoBoardStatus.inactiveStatuses()))
                 .willReturn(Optional.of(board));
@@ -220,7 +221,7 @@ class GameCycleCommandServiceTest {
     void renewSharedCycleRejectsBattleMode() {
         // given
         Room room = inProgressRoom(GameMode.BATTLE);
-        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
 
         // when & then
         assertErrorCode(
@@ -230,8 +231,9 @@ class GameCycleCommandServiceTest {
     }
 
     private void givenRenewalContext(Room room, Game game, BingoBoard board, List<BingoCell> cells) {
-        given(roomRepository.findByIdForUpdate(10L)).willReturn(Optional.of(room));
-        given(gameRepository.findActiveGameForUpdate(10L, GameStatus.ACTIVE)).willReturn(Optional.of(game));
+        given(roomRepository.findById(10L)).willReturn(Optional.of(room));
+        given(gameRepository.findGameForUpdateByRoomIdAndStatus(10L, GameStatus.ACTIVE))
+                .willReturn(Optional.of(game));
         given(gameResultRepository.existsByGameId(200L)).willReturn(false);
         given(bingoBoardRepository.findActiveBoardForUpdate(200L, BingoBoardStatus.inactiveStatuses()))
                 .willReturn(Optional.of(board));
