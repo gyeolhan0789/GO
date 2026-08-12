@@ -93,7 +93,7 @@ public class GameCycleCommandService {
             int targetStepCount
     ) {
         validateBoardSettings(boardSize, targetStepCount);
-        Room room = findActiveRoomForUpdate(roomId);
+        Room room = findActiveRoom(roomId);
         validateRenewalRoom(memberId, room);
 
         Game game = findActiveGameForUpdate(roomId);
@@ -124,7 +124,7 @@ public class GameCycleCommandService {
     }
 
     public void closeActiveCycle(Room room, Long leavingMemberId) {
-        Game game = gameRepository.findActiveGameForUpdate(room.getId(), GameStatus.ACTIVE)
+        Game game = gameRepository.findGameForUpdateByRoomIdAndStatus(room.getId(), GameStatus.ACTIVE)
                 .orElse(null);
         if (game == null) {
             return;
@@ -153,11 +153,11 @@ public class GameCycleCommandService {
     }
 
     public void rematchBattle(Long memberId, Long roomId) {
-        Room room = findActiveRoomForUpdate(roomId);
+        Room room = findActiveRoom(roomId);
         if (room.getMode() != GameMode.BATTLE || !room.isHost(memberId)) {
             throw new CustomException(ErrorCode.BINGO_BOARD_GENERATE_FORBIDDEN);
         }
-        if (gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(roomId, GameStatus.ACTIVE).isPresent()) {
+        if (gameRepository.findGameForUpdateByRoomIdAndStatus(roomId, GameStatus.ACTIVE).isPresent()) {
             throw new CustomException(ErrorCode.BINGO_BOARD_ALREADY_EXISTS);
         }
 
@@ -180,8 +180,8 @@ public class GameCycleCommandService {
         return !game.getStartedAt().plusDays(RENEWAL_PERIOD_DAYS).isAfter(now);
     }
 
-    private Room findActiveRoomForUpdate(Long roomId) {
-        Room room = roomRepository.findByIdForUpdate(roomId)
+    private Room findActiveRoom(Long roomId) {
+        Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_FOUND));
         if (room.getStatus() != RoomStatus.ACTIVE) {
             throw new CustomException(ErrorCode.ROOM_CLOSED);
@@ -190,12 +190,12 @@ public class GameCycleCommandService {
     }
 
     private Game findActiveGame(Long roomId) {
-        return gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(roomId, GameStatus.ACTIVE)
+        return gameRepository.findFirstByRoomIdAndStatus(roomId, GameStatus.ACTIVE)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_IN_PROGRESS));
     }
 
     private Game findActiveGameForUpdate(Long roomId) {
-        return gameRepository.findActiveGameForUpdate(roomId, GameStatus.ACTIVE)
+        return gameRepository.findGameForUpdateByRoomIdAndStatus(roomId, GameStatus.ACTIVE)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOM_NOT_IN_PROGRESS));
     }
 

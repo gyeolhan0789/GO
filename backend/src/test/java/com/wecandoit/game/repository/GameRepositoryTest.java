@@ -26,7 +26,7 @@ class GameRepositoryTest {
         Game secondGame = gameRepository.saveAndFlush(Game.start(10L));
 
         Optional<Game> activeGame =
-                gameRepository.findFirstByRoomIdAndStatusOrderByIdDesc(10L, GameStatus.ACTIVE);
+                gameRepository.findGameForUpdateByRoomIdAndStatus(10L, GameStatus.ACTIVE);
 
         assertThat(activeGame).isPresent();
         assertThat(activeGame.get().getId()).isEqualTo(secondGame.getId());
