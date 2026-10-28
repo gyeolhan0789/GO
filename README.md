@@ -341,7 +341,8 @@ cd load-test
 
 | 문서                                                                                   | 설명                        |
 | ------------------------------------------------------------------------------------ | ------------------------- |
-| [CREDITS.md](CREDITS.md)                                                             | **서드파티 리소스 출처 및 라이선스 고지** |
+| **[발표 자료 (Canva)](https://6candoit.my.canva.site/)** | **프로젝트 최종 발표 자료** |
+| [CREDITS.md](CREDITS.md)                                                             | 서드파티 리소스 출처 및 라이선스 고지 |
 | [frontend/README.md](frontend/README.md)                                             | 프론트엔드 개발 가이드              |
 | [backend/README.md](backend/README.md)                                               | 백엔드 개발 가이드                |
 | [ai/README.md](ai/README.md)                                                         | AI 서버 가이드                 |
