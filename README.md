@@ -8,10 +8,10 @@
 
 ![GO! - 함께 걷고, 빙고로 미션을 클리어하는 즐거운 산책 습관](image.png)
 
-[![React Native](https://img.shields.io/badge/React_Native-0.86-61DAFB?logo=react&logoColor=white)](https://reactnative.dev)
-[![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5.16-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
-[![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Wear OS](https://img.shields.io/badge/Wear_OS-Compose-4285F4?logo=wearos&logoColor=white)](https://developer.android.com/training/wearables)
+![React Native](https://img.shields.io/badge/React_Native-0.86-61DAFB?logo=react&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5.16-6DB33F?logo=springboot&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![Wear OS](https://img.shields.io/badge/Wear_OS-Compose-4285F4?logo=wearos&logoColor=white)
 
 </div>
 
@@ -23,10 +23,10 @@
 - [핵심 기능](#핵심-기능)
 - [시스템 아키텍처](#시스템-아키텍처)
 - [기술 스택](#기술-스택)
-- [팀 구성](#팀-구성)
 - [실행 방법](#실행-방법)
 - [프로젝트 구조](#프로젝트-구조)
 - [관련 문서](#관련-문서)
+- [팀 구성](#팀-구성)
 
 ---
 
@@ -52,32 +52,37 @@
 
 <!-- 📸 스크린샷: 산책 중 빙고판이 채워지는 GIF 또는 3~4장 연속 이미지 -->
 
-### 프로젝트 개요
-
-| 항목       | 내용                                            |
-| ---------- | ----------------------------------------------- |
-| 프로젝트명 | GO!                                             |
-| 기간       | 2026.07.14 ~ 2026.08.08 (약 4주)                |
-| 인원       | 6명 (Frontend 2 · Backend 3 · AI/Infra 1)       |
-| 플랫폼     | Android (React Native) + Galaxy Watch (Wear OS) |
-| 총 커밋    | 1,000+                                          |
-
 ---
 
 ## 핵심 기능
 
+<table>
+  <tr>
+    <th width="25%">🏠 홈</th>
+    <th width="25%">🎯 빙고</th>
+    <th width="25%">🛍️ 상점</th>
+    <th width="25%">🏆 랭킹</th>
+  </tr>
+  <tr>
+    <td><img src="docs/images/screen-home.png" alt="홈 화면"></td>
+    <td><img src="docs/images/screen-bingo.gif" alt="빙고 미션 인증"></td>
+    <td><img src="docs/images/screen-shop.gif" alt="상점"></td>
+    <td><img src="docs/images/screen-ranking.gif" alt="랭킹"></td>
+  </tr>
+</table>
+
 ### 🚶 산책 세션 — 앱을 꺼도 계속 기록됩니다
 
 - **네이티브 포그라운드 서비스**로 걸음·거리·칼로리·경로를 추적합니다.
-  앱을 백그라운드로 내려도, 화면을 꺼도, 앱을 강제 종료해도 기록이 끊기지 않습니다.
+앱을 백그라운드로 내려도, 화면을 꺼도, 앱을 강제 종료해도 기록이 끊기지 않습니다.
 - **삼성 헬스 우선 + 기기 걸음 센서 폴백** — 삼성 헬스 미설치·미동의 사용자도
-  `TYPE_STEP_COUNTER` 센서 경로로 동일한 경험을 얻습니다.
+`TYPE_STEP_COUNTER` 센서 경로로 동일한 경험을 얻습니다.
 - **실시간 경로 지도** — GPS 좌표를 폴리라인으로 그리고, 정지 상태에서 발생하는
-  좌표 튐만 골라서 걸러냅니다.
+좌표 튐만 골라서 걸러냅니다.
 - **일시정지 / 재개 / 자동 종료** — 최근 앱 목록에서 스와이프해 앱을 닫아도
-  그때까지의 기록으로 산책을 자동 마감합니다.
+그때까지의 기록으로 산책을 자동 마감합니다.
 
-### 🎯 빙고판 & 미션 인증
+### 🎯 빙고판 &amp; 미션 인증
 
 - **사진 미션**: 촬영한 사진을 AI 서버가 판정 → 성공 시 칸 자동 오픈
 - **활동 미션**: 걸음 수·거리·활동 시간 등 지표 조건을 만족하면 산책 중 자동 완료
@@ -91,7 +96,7 @@
 - **랭킹**: 전체 / 친구 랭킹, 주간 걸음 수 막대 그래프
 - **실시간 알림**: FCM 푸시 + 인앱 배너 (친구 요청, 산책방 초대, 빙고 결과)
 
-### 🧑‍🎤 아바타 & 상점
+### 🧑‍🎤 아바타 &amp; 상점
 
 - 빙고로 얻은 포인트로 아이템을 구매하고 캐릭터를 꾸밉니다
 - 장착한 아바타는 홈·랭킹·산책방·워치까지 동일하게 반영됩니다
@@ -105,8 +110,6 @@
 ---
 
 ## 시스템 아키텍처
-
-<!-- 📸 스크린샷: 아키텍처 다이어그램 이미지가 있다면 여기에 -->
 
 ```
 ┌──────────────────────┐        ┌──────────────────────┐
@@ -165,63 +168,58 @@
 
 ### Frontend (Mobile)
 
-| 분류          | 기술                                                                       |
-| ------------- | -------------------------------------------------------------------------- |
-| 코어          | React 19.2, React Native 0.86 (Community CLI, Expo 미사용), TypeScript 5.8 |
-| 상태·데이터   | TanStack Query 5                                                           |
-| 네비게이션    | React Navigation 7 (native-stack, bottom-tabs)                             |
-| 지도·차트     | react-native-maps, react-native-chart-kit, react-native-svg                |
-| 인증          | Google Sign-In, Kakao Login, react-native-keychain (토큰 보관)             |
-| 푸시          | Firebase Cloud Messaging (`@react-native-firebase/messaging`)              |
-| 실시간        | WebSocket + STOMP (직접 구현)                                              |
-| 네이티브 모듈 | Kotlin — 산책 포그라운드 서비스, 걸음 센서, 삼성 헬스, Wear 브리지         |
-| 워치          | Kotlin + Jetpack Compose for Wear OS, Wear Data Layer                      |
-| 테스트·품질   | Jest (75개 테스트 파일), ESLint, Prettier                                  |
+
+| 분류      | 기술                                                                      |
+| ------- | ----------------------------------------------------------------------- |
+| 코어      | React 19.2, React Native 0.86 (Community CLI, Expo 미사용), TypeScript 5.8 |
+| 상태·데이터  | TanStack Query 5                                                        |
+| 네비게이션   | React Navigation 7 (native-stack, bottom-tabs)                          |
+| 지도·차트   | react-native-maps, react-native-chart-kit, react-native-svg             |
+| 인증      | Google Sign-In, Kakao Login, react-native-keychain (토큰 보관)              |
+| 푸시      | Firebase Cloud Messaging (`@react-native-firebase/messaging`)           |
+| 실시간     | WebSocket + STOMP (직접 구현)                                               |
+| 네이티브 모듈 | Kotlin — 산책 포그라운드 서비스, 걸음 센서, 삼성 헬스, Wear 브리지                           |
+| 워치      | Kotlin + Jetpack Compose for Wear OS, Wear Data Layer                   |
+| 테스트·품질  | Jest (75개 테스트 파일), ESLint, Prettier                                     |
+
 
 ### Backend
 
-| 분류      | 기술                                                        |
-| --------- | ----------------------------------------------------------- |
-| 코어      | Java 21, Spring Boot 3.5.16, Gradle                         |
-| 데이터    | MySQL 8, Spring Data JPA, Flyway (마이그레이션), Redis      |
+
+| 분류    | 기술                                                          |
+| ----- | ----------------------------------------------------------- |
+| 코어    | Java 21, Spring Boot 3.5.16, Gradle                         |
+| 데이터   | MySQL 8, Spring Data JPA, Flyway (마이그레이션), Redis            |
 | 인증·보안 | Spring Security, JWT (jjwt), OAuth2 (Google/Kakao)          |
-| 실시간    | Spring WebSocket (STOMP)                                    |
-| 문서화    | SpringDoc OpenAPI, Spring REST Docs, Bruno                  |
-| 알림      | Firebase Admin SDK                                          |
-| 관측      | Actuator, Micrometer + Prometheus, Logstash Logback Encoder |
-| 테스트    | JUnit 5, Testcontainers (MySQL), REST Assured, H2           |
+| 실시간   | Spring WebSocket (STOMP)                                    |
+| 문서화   | SpringDoc OpenAPI, Spring REST Docs, Bruno                  |
+| 알림    | Firebase Admin SDK                                          |
+| 관측    | Actuator, Micrometer + Prometheus, Logstash Logback Encoder |
+| 테스트   | JUnit 5, Testcontainers (MySQL), REST Assured, H2           |
+
 
 ### AI
 
-| 분류   | 기술                                                                      |
-| ------ | ------------------------------------------------------------------------- |
-| 서버   | Python, FastAPI, Uvicorn                                                  |
-| 비전   | SigLIP2 (로컬 이미지-텍스트 매칭), Google Gemini (폴백)                   |
-| 처리   | PyTorch, Transformers, Pillow, OpenCV                                     |
-| 구조   | 규칙 엔진(rule_engine) · 검증기(verifier) · 프롬프트(prompts) 계층 분리   |
-| 테스트 | pytest — 판정 정확도 벤치마크, SigLIP2 임계값 튜닝, Gemini 폴백 지연 측정 |
+
+| 분류  | 기술                                                        |
+| --- | --------------------------------------------------------- |
+| 서버  | Python, FastAPI, Uvicorn                                  |
+| 비전  | SigLIP2 (로컬 이미지-텍스트 매칭), Google Gemini (폴백)               |
+| 처리  | PyTorch, Transformers, Pillow, OpenCV                     |
+| 구조  | 규칙 엔진(rule\_engine) · 검증기(verifier) · 프롬프트(prompts) 계층 분리 |
+| 테스트 | pytest — 판정 정확도 벤치마크, SigLIP2 임계값 튜닝, Gemini 폴백 지연 측정     |
+
 
 ### Infra / DevOps
 
-| 분류        | 기술                                                                                   |
-| ----------- | -------------------------------------------------------------------------------------- |
-| CI/CD       | Jenkins (dev / prod / admin 파이프라인)                                                |
-| 배포        | Docker, Docker Compose, **Nginx 기반 카나리 배포 (90:10 → Canary-only → Stable 승격)** |
-| 관측        | Prometheus, Grafana, Loki, Grafana Alloy                                               |
+
+| 분류     | 기술                                                                            |
+| ------ | ----------------------------------------------------------------------------- |
+| CI/CD  | Jenkins (dev / prod / admin 파이프라인)                                            |
+| 배포     | Docker, Docker Compose, **Nginx 기반 카나리 배포 (90:10 → Canary-only → Stable 승격)** |
+| 관측     | Prometheus, Grafana, Loki, Grafana Alloy                                      |
 | 부하 테스트 | k6 (load / stress / spike + 엔드포인트 단위 30여 종)                                   |
 
----
-
-## 팀 구성
-
-| 이름   | 역할                     | 주요 담당                                                                                               |
-| ------ | ------------------------ | ------------------------------------------------------------------------------------------------------- |
-| 이영주 | **Frontend**             | 산책 세션(네이티브 포그라운드 서비스·GPS·걸음 센서), 빙고판·미션 인증, 친구/동행, 알림(FCM), 홈·랭킹 UI |
-| 황덕   | **Frontend**             | WebSocket/STOMP 실시간 레이어, 걸음 원장·히스토리, 아바타·상점, 워치 연동, 일부 백엔드                  |
-| 조성혁 | **Backend**              | 도메인 API 전반, API 문서화, k6 부하 테스트, 관리자 기능, 인프라                                        |
-| 한결   | **Backend / AI / Infra** | 백엔드 도메인, AI 서버, Nginx·배포 스크립트, 모니터링                                                   |
-| 문상휘 | **Backend**              | 도메인 로직, k6 부하 테스트, 인프라                                                                     |
-| 김민서 | **AI**                   | 미션 판정 모델, 규칙 엔진                                                                               |
 
 ---
 
@@ -349,21 +347,28 @@ cd load-test
 
 ## 관련 문서
 
-| 문서 | 설명 |
-| --- | --- |
-| [CREDITS.md](CREDITS.md) | **서드파티 리소스 출처 및 라이선스 고지** |
-| [frontend/README.md](frontend/README.md) | 프론트엔드 개발 가이드 |
-| [backend/README.md](backend/README.md) | 백엔드 개발 가이드 |
-| [ai/README.md](ai/README.md) | AI 서버 가이드 |
-| [load-test/README.md](load-test/README.md) | k6 부하 테스트 가이드 |
-| [backend/docs/convention/](backend/docs/convention/) | 코드·Git·테스트 컨벤션 |
-| [backend/docs/manual/canary-deployment.md](backend/docs/manual/canary-deployment.md) | 카나리 배포 운영 가이드 |
+
+| 문서                                                                                   | 설명                        |
+| ------------------------------------------------------------------------------------ | ------------------------- |
+| [CREDITS.md](CREDITS.md)                                                             | **서드파티 리소스 출처 및 라이선스 고지** |
+| [frontend/README.md](frontend/README.md)                                             | 프론트엔드 개발 가이드              |
+| [backend/README.md](backend/README.md)                                               | 백엔드 개발 가이드                |
+| [ai/README.md](ai/README.md)                                                         | AI 서버 가이드                 |
+| [load-test/README.md](load-test/README.md)                                           | k6 부하 테스트 가이드             |
+| [backend/docs/convention/](backend/docs/convention/)                                 | 코드·Git·테스트 컨벤션            |
+| [backend/docs/manual/canary-deployment.md](backend/docs/manual/canary-deployment.md) | 카나리 배포 운영 가이드             |
+
 
 ---
 
-## 라이선스 및 출처
+## 팀 구성
 
-이 프로젝트에 포함된 폰트·오픈소스 라이브러리·AI 모델의 출처와 라이선스는
-[CREDITS.md](CREDITS.md)에 명시되어 있습니다.
 
-SSAFY에서 제공한 스켈레톤 코드·이미지·데이터셋·에셋은 포함되어 있지 않습니다.
+| 이름  | 역할                  | 주요 담당                                                               |
+| --- | ------------------- | ------------------------------------------------------------------- |
+| 이영주 | **Frontend**        | 산책 세션(네이티브 포그라운드 서비스·GPS·걸음 센서), 빙고판·미션 인증, 친구/동행, 알림(FCM), 홈·랭킹 UI |
+| 황덕  | **Frontend**        | WebSocket/STOMP 실시간 레이어, 걸음 원장·히스토리, 아바타·상점, 워치 연동, 일부 백엔드          |
+| 조성혁 | **Backend**         | 백엔드 도메인 API, k6 부하 테스트, 관리자 기능                              |
+| 한결  | **Backend / Infra** | 백엔드 도메인 API, AI 서버, 인프라, 카나리 배포                                |
+| 문상휘 | **Backend / Infra** | 백엔드 도메인 API, k6 부하 테스트, 인프라                                              |
+| 김민서 | **AI**              | 미션 판정 모델, 규칙 엔진                                                     |
